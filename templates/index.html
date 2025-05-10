@@ -98,6 +98,39 @@
             </div>
         </div>
     </div>
+    
+    <div class="row">
+        <!-- On-Demand Products -->
+        <div class="col-md-12 mb-4">
+            <div class="card bg-dark">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">On-Demand Products</h5>
+                    <a href="{{ url_for('on_demand') }}" class="btn btn-sm btn-secondary">Manage On-Demand Products</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Base Price</th>
+                                    <th>Production Time</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="on-demand-products-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading on-demand products...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

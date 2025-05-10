@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const lowStockCountElement = document.getElementById('low-stock-count');
     const inventoryValueElement = document.getElementById('inventory-value');
     const lowStockTableElement = document.getElementById('low-stock-table');
+    const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
     
     // Charts
     let stockChart = null;
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load dashboard data
     loadDashboardData();
+    loadOnDemandProducts();
     
     function loadDashboardData() {
         // Load stock status report
@@ -215,5 +217,82 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
+    
+    function loadOnDemandProducts() {
+        // Fetch active on-demand products
+        fetch('/api/on-demand?active_only=true')
+            .then(response => response.json())
+            .then(products => {
+                displayOnDemandProducts(products);
+            })
+            .catch(error => {
+                console.error('Error loading on-demand products:', error);
+                onDemandProductsTableElement.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> Error loading on-demand products
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+    
+    function displayOnDemandProducts(products) {
+        if (products.length === 0) {
+            onDemandProductsTableElement.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center">No on-demand products found</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Sort products by name for consistent display
+        products.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Show only the first 10 products for dashboard
+        const displayProducts = products.slice(0, 10);
+        
+        let html = '';
+        
+        displayProducts.forEach(product => {
+            const statusBadge = product.is_active 
+                ? '<span class="badge bg-success">Active</span>' 
+                : '<span class="badge bg-secondary">Inactive</span>';
+            
+            html += `
+                <tr>
+                    <td>
+                        <a href="/on-demand#product-${product.id}" class="text-decoration-none">
+                            ${product.name}
+                        </a>
+                    </td>
+                    <td>${product.category || 'Uncategorized'}</td>
+                    <td><span class="currency-symbol">TZS</span> ${product.base_price.toLocaleString()}</td>
+                    <td>${product.production_time || 0} hours</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <a href="/on-demand" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit"></i> View
+                        </a>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        if (products.length > 10) {
+            html += `
+                <tr>
+                    <td colspan="6" class="text-center">
+                        <a href="/on-demand" class="btn btn-sm btn-outline-secondary">
+                            View all ${products.length} on-demand products
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        onDemandProductsTableElement.innerHTML = html;
     }
 });
