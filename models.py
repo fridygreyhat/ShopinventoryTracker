@@ -59,13 +59,23 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
+    
+    # Email verification
     email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
+    verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
+    verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
+    
+    # User profile
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
     shop_name = db.Column(db.String(128), nullable=True)
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
+    
+    # Account status
     active = db.Column(db.Boolean, default=True)  # Renamed to avoid conflict with UserMixin
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)  # Track last login time

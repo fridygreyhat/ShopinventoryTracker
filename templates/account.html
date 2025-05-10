@@ -189,164 +189,162 @@
 <script>
     // User profile management code
     document.addEventListener('DOMContentLoaded', function() {
-
-    // DOM elements
-    const accountForm = document.getElementById('accountForm');
-    const updateAccountBtn = document.getElementById('updateAccountBtn');
-    const changePasswordBtn = document.getElementById('changePasswordBtn');
-    const savePasswordBtn = document.getElementById('savePasswordBtn');
-    const updateSuccess = document.getElementById('updateSuccess');
-    const updateError = document.getElementById('updateError');
-    const errorMessage = document.getElementById('errorMessage');
-    const passwordChangeError = document.getElementById('passwordChangeError');
-    const passwordErrorMessage = document.getElementById('passwordErrorMessage');
-    const verifyEmailLink = document.getElementById('verifyEmail');
-
-    // Initialize product categories
-    const initProductCategories = function() {
-        // Get the user's product categories from the database
-        const userCategories = "{{ user.product_categories }}".split(',');
-        
-        // Check the appropriate checkboxes
-        document.querySelectorAll('.product-category').forEach(checkbox => {
-            if (userCategories.includes(checkbox.value)) {
-                checkbox.checked = true;
-            }
-        });
-    };
+        // DOM elements
+        const accountForm = document.getElementById('accountForm');
+        const updateAccountBtn = document.getElementById('updateAccountBtn');
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const savePasswordBtn = document.getElementById('savePasswordBtn');
+        const updateSuccess = document.getElementById('updateSuccess');
+        const updateError = document.getElementById('updateError');
+        const errorMessage = document.getElementById('errorMessage');
+        const passwordChangeError = document.getElementById('passwordChangeError');
+        const passwordErrorMessage = document.getElementById('passwordErrorMessage');
+        const verifyEmailLink = document.getElementById('verifyEmail');
     
-    // Call the initialization function
-    initProductCategories();
-    
-    // Handle account form submission
-    accountForm.addEventListener('submit', function(e) {
-        e.preventDefault();
+        // Initialize product categories
+        const initProductCategories = function() {
+            // Get the user's product categories from the database
+            const userCategories = "{{ user.product_categories }}".split(',');
+            
+            // Check the appropriate checkboxes
+            document.querySelectorAll('.product-category').forEach(checkbox => {
+                if (userCategories.includes(checkbox.value)) {
+                    checkbox.checked = true;
+                }
+            });
+        };
         
-        const firstName = document.getElementById('firstName').value;
-        const lastName = document.getElementById('lastName').value;
-        const username = document.getElementById('username').value;
-        const shopName = document.getElementById('shopName').value;
+        // Call the initialization function
+        initProductCategories();
         
-        // Get selected product categories
-        const selectedCategories = [];
-        document.querySelectorAll('.product-category:checked').forEach(checkbox => {
-            selectedCategories.push(checkbox.value);
-        });
-        const productCategories = selectedCategories.join(',');
-        
-        if (!username) {
-            showError('Username cannot be empty');
-            return;
-        }
-        
-        // Show loading state
-        updateAccountBtn.disabled = true;
-        updateAccountBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
-        
-        // Update user profile through API
-        fetch('/api/auth/profile', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: username,
-                firstName: firstName,
-                lastName: lastName,
-                shopName: shopName,
-                productCategories: productCategories
-            })
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                return response.json().then(data => {
-                    throw new Error(data.error || 'Failed to update profile');
-                });
+        // Handle account form submission
+        accountForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const username = document.getElementById('username').value;
+            const shopName = document.getElementById('shopName').value;
+            
+            // Get selected product categories
+            const selectedCategories = [];
+            document.querySelectorAll('.product-category:checked').forEach(checkbox => {
+                selectedCategories.push(checkbox.value);
+            });
+            const productCategories = selectedCategories.join(',');
+            
+            if (!username) {
+                showError('Username cannot be empty');
+                return;
             }
-        })
-        .then(data => {
-            // Show success message
-            updateSuccess.classList.remove('d-none');
-            updateError.classList.add('d-none');
             
-            // Reset button state
-            updateAccountBtn.disabled = false;
-            updateAccountBtn.innerHTML = '<i class="fas fa-save me-2"></i> Update Profile';
+            // Show loading state
+            updateAccountBtn.disabled = true;
+            updateAccountBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
             
-            // Hide success message after 3 seconds
-            setTimeout(() => {
-                updateSuccess.classList.add('d-none');
-            }, 3000);
-        })
-        .catch(error => {
-            showError(error.message || 'Failed to update profile');
-            
-            // Reset button state
-            updateAccountBtn.disabled = false;
-            updateAccountBtn.innerHTML = '<i class="fas fa-save me-2"></i> Update Profile';
-        });
-    });
-
-    // Handle change password button click
-    changePasswordBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        const changePasswordModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
-        changePasswordModal.show();
-    });
-
-    // Handle password change
-    savePasswordBtn.addEventListener('click', function() {
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-        
-        // Clear previous errors
-        passwordChangeError.classList.add('d-none');
-        
-        // Validate passwords
-        if (!currentPassword || !newPassword || !confirmNewPassword) {
-            showPasswordError('Please fill in all fields');
-            return;
-        }
-        
-        if (newPassword !== confirmNewPassword) {
-            showPasswordError('New passwords do not match');
-            return;
-        }
-        
-        if (newPassword.length < 6) {
-            showPasswordError('Password must be at least 6 characters long');
-            return;
-        }
-        
-        // Show loading state
-        savePasswordBtn.disabled = true;
-        savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Changing...';
-        
-        // Get current user
-        const user = auth.currentUser;
-        
-        if (!user) {
-            showPasswordError('User not authenticated. Please log in again.');
-            savePasswordBtn.disabled = false;
-            savePasswordBtn.textContent = 'Change Password';
-            return;
-        }
-        
-        // Create credential with current password
-        const credential = EmailAuthProvider.credential(user.email, currentPassword);
-        
-        // Re-authenticate user
-        reauthenticateWithCredential(user, credential)
-            .then(() => {
-                // User re-authenticated, now update password
-                return updatePassword(user, newPassword);
+            // Update user profile through API
+            fetch('/api/auth/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    firstName: firstName,
+                    lastName: lastName,
+                    shopName: shopName,
+                    productCategories: productCategories
+                })
             })
-            .then(() => {
-                // Password updated successfully
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to update profile');
+                    });
+                }
+            })
+            .then(data => {
+                // Show success message
+                updateSuccess.classList.remove('d-none');
+                updateError.classList.add('d-none');
                 
+                // Reset button state
+                updateAccountBtn.disabled = false;
+                updateAccountBtn.innerHTML = '<i class="fas fa-save me-2"></i> Update Profile';
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    updateSuccess.classList.add('d-none');
+                }, 3000);
+            })
+            .catch(error => {
+                showError(error.message || 'Failed to update profile');
+                
+                // Reset button state
+                updateAccountBtn.disabled = false;
+                updateAccountBtn.innerHTML = '<i class="fas fa-save me-2"></i> Update Profile';
+            });
+        });
+    
+        // Handle change password button click
+        changePasswordBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const changePasswordModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+            changePasswordModal.show();
+        });
+    
+        // Handle password change
+        savePasswordBtn.addEventListener('click', function() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            
+            // Clear previous errors
+            passwordChangeError.classList.add('d-none');
+            
+            // Validate passwords
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                showPasswordError('Please fill in all fields');
+                return;
+            }
+            
+            if (newPassword !== confirmNewPassword) {
+                showPasswordError('New passwords do not match');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showPasswordError('Password must be at least 6 characters long');
+                return;
+            }
+            
+            // Show loading state
+            savePasswordBtn.disabled = true;
+            savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Changing...';
+            
+            // Send request to server
+            fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to change password');
+                    });
+                }
+            })
+            .then(data => {
                 // Reset form
                 document.getElementById('changePasswordForm').reset();
                 
@@ -368,66 +366,65 @@
                 savePasswordBtn.innerHTML = 'Change Password';
             })
             .catch(error => {
-                let errorMsg = 'Failed to change password';
-                
-                if (error.code === 'auth/wrong-password') {
-                    errorMsg = 'The current password is incorrect';
-                } else if (error.code === 'auth/too-many-requests') {
-                    errorMsg = 'Too many attempts. Please try again later.';
-                } else if (error.message) {
-                    errorMsg = error.message;
-                }
-                
+                let errorMsg = error.message || 'Failed to change password';
                 showPasswordError(errorMsg);
                 
                 // Reset button state
                 savePasswordBtn.disabled = false;
                 savePasswordBtn.innerHTML = 'Change Password';
             });
-    });
-
-    // Handle email verification
-    if (verifyEmailLink) {
-        verifyEmailLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const user = auth.currentUser;
-            
-            if (!user) {
-                showError('User not authenticated. Please log in again.');
-                return;
-            }
-            
-            // Send verification email
-            sendEmailVerification(user)
-                .then(() => {
+        });
+    
+        // Handle email verification
+        if (verifyEmailLink) {
+            verifyEmailLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Show loading state
+                verifyEmailLink.textContent = 'Sending...';
+                verifyEmailLink.classList.add('disabled');
+                
+                // Send request to server
+                fetch('/api/auth/send-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Failed to send verification email');
+                        });
+                    }
+                })
+                .then(data => {
                     alert('Verification email sent. Please check your inbox.');
+                    verifyEmailLink.textContent = 'Resend verification email';
+                    verifyEmailLink.classList.remove('disabled');
                 })
                 .catch(error => {
-                    let errorMsg = 'Failed to send verification email';
-                    
-                    if (error.code === 'auth/too-many-requests') {
-                        errorMsg = 'Too many attempts. Please try again later.';
-                    } else if (error.message) {
-                        errorMsg = error.message;
-                    }
-                    
-                    showError(errorMsg);
+                    showError(error.message || 'Failed to send verification email');
+                    verifyEmailLink.textContent = 'Resend verification email';
+                    verifyEmailLink.classList.remove('disabled');
                 });
-        });
-    }
-
-    // Show error in account form
-    function showError(message) {
-        errorMessage.textContent = message;
-        updateError.classList.remove('d-none');
-        updateSuccess.classList.add('d-none');
-    }
-
-    // Show error in password change form
-    function showPasswordError(message) {
-        passwordErrorMessage.textContent = message;
-        passwordChangeError.classList.remove('d-none');
-    }
+            });
+        }
+    
+        // Show error in account form
+        function showError(message) {
+            errorMessage.textContent = message;
+            updateError.classList.remove('d-none');
+            updateSuccess.classList.add('d-none');
+        }
+    
+        // Show error in password change form
+        function showPasswordError(message) {
+            passwordErrorMessage.textContent = message;
+            passwordChangeError.classList.remove('d-none');
+        }
+    });
 </script>
 {% endblock %}

@@ -1579,5 +1579,150 @@ def update_profile():
             
     return protected_update_profile()
 
+
+@app.route('/api/auth/change-password', methods=['POST'])
+def change_password():
+    """API endpoint to change user password"""
+    from auth_service import login_required
+    
+    @login_required
+    def protected_change_password():
+        from models import User
+        try:
+            data = request.json
+            user_id = session.get('user_id')
+            
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+                
+            if 'current_password' not in data or 'new_password' not in data:
+                return jsonify({"error": "Current password and new password are required"}), 400
+                
+            user = User.query.get_or_404(user_id)
+            
+            # Verify current password
+            if not user.check_password(data['current_password']):
+                return jsonify({"error": "Current password is incorrect"}), 400
+                
+            # Validate new password
+            if len(data['new_password']) < 6:
+                return jsonify({"error": "Password must be at least 6 characters long"}), 400
+                
+            # Update password
+            user.set_password(data['new_password'])
+            db.session.commit()
+            
+            return jsonify({"success": True, "message": "Password changed successfully"})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error changing password: {str(e)}")
+            return jsonify({"error": "Failed to change password"}), 500
+            
+    return protected_change_password()
+
+
+@app.route('/api/auth/send-verification', methods=['POST'])
+def send_verification():
+    """API endpoint to send email verification"""
+    from auth_service import login_required
+    from notifications.email_service import send_email
+    
+    @login_required
+    def protected_send_verification():
+        from models import User
+        import secrets
+        import datetime
+        
+        try:
+            user_id = session.get('user_id')
+            
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+                
+            user = User.query.get_or_404(user_id)
+            
+            # Generate verification token
+            verification_token = secrets.token_urlsafe(32)
+            user.verification_token = verification_token
+            user.verification_token_expires = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            db.session.commit()
+            
+            # Build verification URL
+            verification_url = url_for('verify_email', token=verification_token, _external=True)
+            
+            # Create email content
+            shop_name = user.shop_name or "Your Shop"
+            html_content = f"""
+            <h2>Email Verification</h2>
+            <p>Hello {user.first_name or user.username},</p>
+            <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
+            <p><a href="{verification_url}" style="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you did not create an account, please ignore this email.</p>
+            """
+            
+            # Get sender email from settings
+            setting = Setting.query.filter_by(key='email_sender').first()
+            from_email = setting.value if setting else "noreply@example.com"
+            
+            # Send email
+            success = send_email(
+                to_email=user.email,
+                from_email=from_email,
+                subject=f"Verify your email for {shop_name}",
+                html_content=html_content
+            )
+            
+            if not success:
+                return jsonify({"error": "Failed to send verification email"}), 500
+                
+            return jsonify({"success": True, "message": "Verification email sent"})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error sending verification email: {str(e)}")
+            return jsonify({"error": "Failed to send verification email"}), 500
+            
+    return protected_send_verification()
+
+
+@app.route('/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Route to verify email from token"""
+    from models import User
+    import datetime
+    
+    try:
+        if not token:
+            flash('Invalid verification link.', 'danger')
+            return redirect(url_for('index'))
+        
+        user = User.query.filter_by(verification_token=token).first()
+        
+        if not user:
+            flash('Invalid verification link.', 'danger')
+            return redirect(url_for('index'))
+        
+        # Check if token is expired
+        if user.verification_token_expires and user.verification_token_expires < datetime.datetime.utcnow():
+            flash('Verification link has expired. Please request a new one.', 'danger')
+            return redirect(url_for('account'))
+        
+        # Mark email as verified
+        user.email_verified = True
+        user.verification_token = None
+        user.verification_token_expires = None
+        db.session.commit()
+        
+        flash('Your email has been successfully verified!', 'success')
+        return redirect(url_for('account'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error verifying email: {str(e)}")
+        flash('An error occurred while verifying your email.', 'danger')
+        return redirect(url_for('index'))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
