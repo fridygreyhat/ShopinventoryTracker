@@ -264,7 +264,7 @@
         updateAccountBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
         
         // Update user profile through API
-        fetch('/api/auth/users/{{ user.id }}', {
+        fetch('/api/auth/profile', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
