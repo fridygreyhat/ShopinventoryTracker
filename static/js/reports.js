@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.sku || ''}</td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td><span class="badge ${quantityClass}">${item.quantity}</span></td>
-                    <td>TZS ${item.price.toLocaleString()}</td>
+                    <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
                     <td>
                         <a href="/item/${item.id}" class="btn btn-sm btn-primary">
                             <i class="fas fa-edit"></i> Update
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${data.count}</td>
                     <td>${data.total_quantity}</td>
                     <td>${avgQuantity}</td>
-                    <td>TZS ${data.total_value.toLocaleString()}</td>
+                    <td><span class="currency-symbol">TZS</span> ${data.total_value.toLocaleString()}</td>
                 </tr>
                 `;
             });
@@ -388,8 +388,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Update summary elements
-        document.getElementById('total-inventory-value').textContent = `TZS ${totalValue.toLocaleString()}`;
-        document.getElementById('average-item-value').textContent = `TZS ${avgItemValue.toLocaleString()}`;
+        document.getElementById('total-inventory-value').innerHTML = `<span class="currency-symbol">TZS</span> ${totalValue.toLocaleString()}`;
+        document.getElementById('average-item-value').innerHTML = `<span class="currency-symbol">TZS</span> ${avgItemValue.toLocaleString()}`;
         document.getElementById('highest-value-category').textContent = highestValueCategory;
         document.getElementById('highest-value-item').textContent = highestValueItem.name;
     }
@@ -418,8 +418,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td>${item.quantity}</td>
-                    <td>TZS ${item.price.toLocaleString()}</td>
-                    <td>TZS ${item.total_value.toLocaleString()}</td>
+                    <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
+                    <td><span class="currency-symbol">TZS</span> ${item.total_value.toLocaleString()}</td>
                 </tr>
                 `;
             });
