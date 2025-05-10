@@ -8,14 +8,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
     const inventoryHealthContainer = document.getElementById('inventory-health-container');
     
+    // Financial Elements
+    const monthlyIncomeElement = document.getElementById('monthly-income');
+    const monthlyExpensesElement = document.getElementById('monthly-expenses');
+    const monthlyProfitElement = document.getElementById('monthly-profit');
+    const financialSummaryChartElement = document.getElementById('financialSummaryChart');
+    
     // Charts
     let stockChart = null;
     let valueChart = null;
     let healthDonutChart = null;
+    let financialChart = null;
     
     // Load dashboard data
     loadDashboardData();
     loadOnDemandProducts();
+    loadFinancialSummary();
     
     // Calculate inventory health based on quantity
     function calculateInventoryHealth(quantity) {
