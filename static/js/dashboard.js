@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     legend: {
                         position: 'right',
                         labels: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            color: getThemeColors().chartText,
                             usePointStyle: true,
                             padding: 5,
                             boxWidth: 8,
@@ -758,14 +758,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             color: getThemeColors().chartGrid
                         },
                         ticks: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
+                            color: getThemeColors().chartSecondaryText
                         }
                     }
                 },
                 plugins: {
                     legend: {
                         labels: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            color: getThemeColors().chartText,
                             usePointStyle: true,
                             padding: 5,
                             boxWidth: 8,
