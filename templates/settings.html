@@ -177,13 +177,24 @@
                     </div>
                     <div class="card-body">
                         <form id="notificationSettingsForm">
+                            <h6 class="mb-3">Low Stock Notifications</h6>
                             <div class="mb-3">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="enable_low_stock_alerts" name="enable_low_stock_alerts" checked>
-                                    <label class="form-check-label" for="enable_low_stock_alerts">
-                                        Enable low stock alerts
+                                    <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" checked>
+                                    <label class="form-check-label" for="email_notifications_enabled">
+                                        Enable Email Notifications
                                     </label>
                                 </div>
+                                <div class="form-text">Send email alerts when items fall below the low stock threshold</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="sms_notifications_enabled" name="sms_notifications_enabled">
+                                    <label class="form-check-label" for="sms_notifications_enabled">
+                                        Enable SMS Notifications
+                                    </label>
+                                </div>
+                                <div class="form-text">Send SMS alerts when items fall below the low stock threshold</div>
                             </div>
                             <div class="mb-3">
                                 <div class="form-check form-switch">
@@ -193,12 +204,49 @@
                                     </label>
                                 </div>
                             </div>
+                            
+                            <hr class="my-4">
+                            <h6 class="mb-3">Notification Recipients</h6>
+                            
                             <div class="mb-3">
-                                <label for="notification_email" class="form-label">Notification Email</label>
+                                <label for="notification_email" class="form-label">Email Address</label>
                                 <input type="email" class="form-control" id="notification_email" name="notification_email">
-                                <div class="form-text">Email address for system notifications</div>
+                                <div class="form-text">Email address to receive notifications</div>
                             </div>
+                            
+                            <div class="mb-3">
+                                <label for="sender_email" class="form-label">Sender Email</label>
+                                <input type="email" class="form-control" id="sender_email" name="sender_email" value="inventory@yourbusiness.com">
+                                <div class="form-text">The email address that will appear as the sender</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="notification_phone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="notification_phone" name="notification_phone" placeholder="+255XXXXXXXXX">
+                                <div class="form-text">Phone number to receive SMS notifications (include country code, e.g., +255)</div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            <h6 class="mb-3">Threshold Settings</h6>
+                            
+                            <div class="mb-3">
+                                <label for="notification_low_stock_threshold" class="form-label">Low Stock Threshold</label>
+                                <input type="number" class="form-control" id="notification_low_stock_threshold" name="notification_low_stock_threshold" value="10" min="1">
+                                <div class="form-text">Send notifications when item quantity falls below this value</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="notification_frequency" class="form-label">Notification Frequency</label>
+                                <select class="form-select" id="notification_frequency" name="notification_frequency">
+                                    <option value="immediately">Immediately</option>
+                                    <option value="daily" selected>Daily Summary</option>
+                                    <option value="weekly">Weekly Summary</option>
+                                </select>
+                                <div class="form-text">How often to send low stock notifications</div>
+                            </div>
+                            
                             <button type="button" class="btn btn-primary" id="saveNotificationSettings">Save Changes</button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" id="testNotifications">Test Notifications</button>
                         </form>
                     </div>
                 </div>
