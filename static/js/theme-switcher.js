@@ -143,5 +143,6 @@ function updateThemeSelectors(activeTheme) {
 // Initialize theme when DOM is loaded
 document.addEventListener('DOMContentLoaded', initTheme);
 
-// Export functions for external use
-export { setTheme, saveThemePreference };
+// Make functions available globally instead of using exports
+window.setTheme = setTheme;
+window.saveThemePreference = saveThemePreference;

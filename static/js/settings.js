@@ -16,7 +16,59 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     saveAppearanceSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('appearanceSettingsForm', 'appearance');
+        // Save appearance settings using the dedicated API endpoint
+        const form = document.getElementById('appearanceSettingsForm');
+        const formData = new FormData(form);
+        
+        const theme = formData.get('theme');
+        const itemsPerPage = formData.get('items_per_page');
+        const dateFormat = formData.get('date_format');
+        
+        // Call the appearance settings API
+        fetch('/api/settings/appearance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                theme: theme,
+                itemsPerPage: itemsPerPage,
+                dateFormat: dateFormat
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Apply the theme immediately
+                if (theme) {
+                    // Use the global setTheme function from theme-switcher.js
+                    setTheme(theme);
+                }
+                
+                // Show success message
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> Appearance settings saved successfully.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                form.insertAdjacentHTML('beforebegin', alertHtml);
+            } else {
+                throw new Error(result.error || 'Failed to save appearance settings');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving appearance settings:', error);
+            
+            // Show error message
+            const alertHtml = `
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save appearance settings: ${error.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            form.insertAdjacentHTML('beforebegin', alertHtml);
+        });
     });
     
     saveInventorySettingsBtn.addEventListener('click', function() {
