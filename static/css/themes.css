@@ -88,7 +88,7 @@ body[data-theme-value="ocean"] {
 }
 
 /* Sunset Theme - inspired by sunset colors */
-body[data-theme="sunset"] {
+body[data-theme-value="sunset"] {
     /* Primary Theme Colors */
     --primary-color: #E65100;      /* Deep orange - main brand color */
     --secondary-color: #FF9800;    /* Orange - secondary brand color */
@@ -116,7 +116,7 @@ body[data-theme="sunset"] {
 }
 
 /* Dark Theme - inspired by night mode */
-body[data-theme="dark"] {
+body[data-theme-value="dark"] {
     /* Primary Theme Colors */
     --primary-color: #7986CB;      /* Indigo - main brand color */
     --secondary-color: #5C6BC0;    /* Lighter indigo - secondary brand color */

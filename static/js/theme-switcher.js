@@ -62,7 +62,7 @@ function setTheme(theme) {
     }
     
     // Update body data attribute
-    document.body.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme-value', theme);
     
     // Store in local storage
     localStorage.setItem('user_theme', theme);
