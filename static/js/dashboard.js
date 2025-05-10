@@ -1,3 +1,26 @@
+// Function to get theme-consistent chart colors
+function getThemeColors() {
+    const theme = document.body.getAttribute('data-theme-value') || 'tanzanite';
+    
+    // Default color palette based on tanzanite theme
+    const colors = {
+        primary: 'rgba(76, 80, 197, 0.8)',
+        secondary: 'rgba(108, 117, 125, 0.8)',
+        success: 'rgba(40, 167, 69, 0.8)',
+        info: 'rgba(23, 162, 184, 0.8)',
+        warning: 'rgba(255, 193, 7, 0.8)',
+        danger: 'rgba(220, 53, 69, 0.8)',
+        light: 'rgba(248, 249, 250, 0.8)',
+        dark: 'rgba(52, 58, 64, 0.8)',
+        purple: 'rgba(153, 102, 255, 0.8)',
+        orange: 'rgba(255, 159, 64, 0.8)',
+        teal: 'rgba(32, 201, 151, 0.8)',
+        indigo: 'rgba(102, 16, 242, 0.8)'
+    };
+    
+    return colors;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const totalItemsElement = document.getElementById('total-items');
@@ -355,15 +378,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {
                         beginAtZero: true,
+                        grid: {
+                            color: 'rgba(76, 80, 197, 0.06)'
+                        },
+                        ticks: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
+                        },
                         title: {
                             display: true,
-                            text: 'Quantity'
+                            text: 'Quantity',
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            font: {
+                                weight: '600'
+                            }
                         }
                     },
                     x: {
+                        grid: {
+                            color: 'rgba(76, 80, 197, 0.04)'
+                        },
+                        ticks: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
+                        },
                         title: {
                             display: true,
-                            text: 'Category'
+                            text: 'Category',
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            font: {
+                                weight: '600'
+                            }
                         }
                     }
                 }
@@ -423,7 +466,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right'
+                        position: 'right',
+                        labels: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
+                            }
+                        }
                     },
                     tooltip: {
                         callbacks: {
@@ -431,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const value = context.raw;
                                 const label = context.label || '';
                                 const percentage = ((value / values.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
-                                return `${label}: <span class="currency-symbol">TZS</span> ${value.toLocaleString()} (${percentage}%)`;
+                                return `${label}: TZS ${value.toLocaleString()} (${percentage}%)`;
                             }
                         }
                     }
@@ -636,9 +687,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: 'rgba(76, 80, 197, 0.08)'
                         },
                         ticks: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555',
                             callback: function(value) {
                                 return 'TZS ' + value.toLocaleString();
                             }
@@ -646,11 +698,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     x: {
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: 'rgba(76, 80, 197, 0.06)'
+                        },
+                        ticks: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
                         }
                     }
                 },
                 plugins: {
+                    legend: {
+                        labels: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
