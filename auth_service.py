@@ -1,19 +1,44 @@
 import os
 import logging
 import json
-import requests
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
 from models import User, db
 
+# Import Firebase Admin SDK
+import firebase_admin
+from firebase_admin import credentials, auth
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Firebase API endpoints
-FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY")
-FIREBASE_AUTH_SIGN_IN_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
-FIREBASE_AUTH_SIGN_UP_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
-FIREBASE_AUTH_USER_INFO_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
+# Initialize Firebase Admin SDK if not already initialized
+try:
+    # Check if the app is already initialized
+    firebase_admin.get_app()
+    logger.info("Firebase Admin SDK already initialized")
+except ValueError:
+    # We don't need to fully initialize the Admin SDK
+    # since we'll be using the REST API for token verification
+    try:
+        # Initialize with minimal configuration
+        firebase_admin.initialize_app()
+        logger.info("Firebase Admin SDK initialized with minimal configuration")
+    except Exception as e:
+        logger.warning(f"Could not initialize Firebase Admin: {str(e)}")
+        
+    # Log API configuration status
+    has_api_key = bool(os.environ.get("FIREBASE_API_KEY"))
+    has_project_id = bool(os.environ.get("FIREBASE_PROJECT_ID"))
+    has_app_id = bool(os.environ.get("FIREBASE_APP_ID"))
+    
+    logger.info(f"Firebase configuration status - API Key: {'✓' if has_api_key else '✗'}, " + 
+                f"Project ID: {'✓' if has_project_id else '✗'}, " + 
+                f"App ID: {'✓' if has_app_id else '✗'}")
+    
+    # Check if we have all required keys
+    if not (has_api_key and has_project_id and has_app_id):
+        logger.warning("Missing one or more Firebase configuration values")
 
 def verify_firebase_token(id_token):
     """
@@ -25,27 +50,50 @@ def verify_firebase_token(id_token):
     Returns:
         dict: User information if token is valid, None otherwise
     """
+    import requests
+    
     try:
-        # Verify token with Firebase
-        response = requests.post(
-            FIREBASE_AUTH_USER_INFO_URL,
-            json={"idToken": id_token}
-        )
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to verify token: {response.text}")
-            return None
+        # Try to use Firebase Admin SDK if available
+        try:
+            # Verify the Firebase token using Admin SDK
+            decoded_token = auth.verify_id_token(id_token)
             
-        # Get user info from response
-        user_data = response.json()
-        
-        if "users" not in user_data or not user_data["users"]:
-            logger.error("No user found in Firebase response")
-            return None
+            # Extract user data
+            user_data = {
+                "localId": decoded_token.get("uid"),
+                "email": decoded_token.get("email"),
+                "emailVerified": decoded_token.get("email_verified", False),
+                "displayName": decoded_token.get("name", ""),
+            }
             
-        # Return first user (there should only be one)
-        return user_data["users"][0]
-        
+            logger.info("Token verified with Firebase Admin SDK")
+            return user_data
+            
+        except Exception as admin_error:
+            logger.warning(f"Failed to verify token with Admin SDK: {str(admin_error)}")
+            
+            # Fall back to REST API
+            firebase_api_key = os.environ.get("FIREBASE_API_KEY")
+            if not firebase_api_key:
+                raise ValueError("Firebase API key not available")
+                
+            # Verify token with REST API
+            url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={firebase_api_key}"
+            response = requests.post(url, json={"idToken": id_token})
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to verify token with REST API: {response.text}")
+                return None
+                
+            # Extract user data
+            response_data = response.json()
+            if "users" not in response_data or not response_data["users"]:
+                logger.error("No user found in Firebase response")
+                return None
+                
+            logger.info("Token verified with Firebase REST API")
+            return response_data["users"][0]
+            
     except Exception as e:
         logger.error(f"Error verifying Firebase token: {str(e)}")
         return None
