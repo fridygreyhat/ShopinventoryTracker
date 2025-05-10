@@ -206,14 +206,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create margin distribution chart
     function createMarginDistributionChart(items) {
         const ctx = document.getElementById('margin-distribution-chart').getContext('2d');
+        const colors = getThemeColors();
         
         // Define margin ranges
         const ranges = [
-            { label: 'Negative', min: -100, max: 0, color: 'rgba(220, 53, 69, 0.7)' },
-            { label: 'Low (0-15%)', min: 0, max: 15, color: 'rgba(255, 193, 7, 0.7)' },
-            { label: 'Medium (15-30%)', min: 15, max: 30, color: 'rgba(23, 162, 184, 0.7)' },
-            { label: 'Good (30-50%)', min: 30, max: 50, color: 'rgba(40, 167, 69, 0.7)' },
-            { label: 'Excellent (>50%)', min: 50, max: 1000, color: 'rgba(32, 201, 151, 0.7)' }
+            { label: 'Negative', min: -100, max: 0, color: colors.danger },
+            { label: 'Low (0-15%)', min: 0, max: 15, color: colors.warning },
+            { label: 'Medium (15-30%)', min: 15, max: 30, color: colors.info },
+            { label: 'Good (30-50%)', min: 30, max: 50, color: colors.success },
+            { label: 'Excellent (>50%)', min: 50, max: 1000, color: colors.teal }
         ];
         
         // Count items in each range
@@ -241,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: rangeCounts.map(range => range.count),
                     backgroundColor: rangeCounts.map(range => range.color),
-                    borderColor: 'rgba(45, 45, 45, 1)',
+                    borderColor: colors.chartBorder,
                     borderWidth: 1
                 }]
             },
@@ -252,10 +253,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     legend: {
                         position: 'right',
                         labels: {
-                            color: 'white'
+                            color: colors.chartText
                         }
                     },
                     tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
                         callbacks: {
                             label: function(context) {
                                 const label = context.label || '';
@@ -274,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create top margin products chart
     function createTopMarginProductsChart(items) {
         const ctx = document.getElementById('top-margin-products-chart').getContext('2d');
+        const colors = getThemeColors();
         
         // Sort items by retail margin and take top 10
         const topItems = [...items].sort((a, b) => {
@@ -301,16 +306,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Margin Amount',
                         data: margins,
-                        backgroundColor: 'rgba(40, 167, 69, 0.7)',
-                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: colors.success,
+                        borderColor: colors.success.replace('0.8', '1'),
                         borderWidth: 1,
                         order: 2
                     },
                     {
                         label: 'Margin %',
                         data: marginPercentages,
-                        backgroundColor: 'rgba(23, 162, 184, 0.7)',
-                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: colors.info,
+                        borderColor: colors.info.replace('0.8', '1'),
                         borderWidth: 1,
                         type: 'line',
                         order: 1,
@@ -327,16 +332,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: {
                             display: true,
                             text: 'Margin Amount (TZS)',
-                            color: 'white'
+                            color: colors.chartText
                         },
                         ticks: {
                             callback: function(value) {
                                 return 'TZS ' + value.toLocaleString();
                             },
-                            color: 'white'
+                            color: colors.chartSecondaryText
                         },
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: colors.chartGrid
                         }
                     },
                     y1: {
@@ -345,13 +350,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: {
                             display: true,
                             text: 'Margin %',
-                            color: 'white'
+                            color: colors.chartText
                         },
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
                             },
-                            color: 'white'
+                            color: colors.chartSecondaryText
                         },
                         grid: {
                             drawOnChartArea: false
@@ -359,10 +364,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     x: {
                         ticks: {
-                            color: 'white'
+                            color: colors.chartSecondaryText
                         },
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: colors.chartGrid
                         }
                     }
                 },
