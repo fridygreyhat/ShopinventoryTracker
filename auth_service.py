@@ -1,150 +1,162 @@
 import os
 import logging
 import json
-import requests
+import secrets
+import time
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
+from flask_login import current_user, login_required
 from models import User, db
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Firebase API endpoints
-FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY")
-FIREBASE_AUTH_SIGN_IN_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
-FIREBASE_AUTH_SIGN_UP_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
-FIREBASE_AUTH_USER_INFO_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
-
-def verify_firebase_token(id_token):
+def generate_verification_token(user):
     """
-    Verify Firebase ID token and return user info
+    Generate a verification token for email verification
     
     Args:
-        id_token (str): Firebase ID token
+        user (User): User model instance
         
     Returns:
-        dict: User information if token is valid, None otherwise
+        str: Verification token
     """
-    try:
-        # Verify token with Firebase
-        response = requests.post(
-            FIREBASE_AUTH_USER_INFO_URL,
-            json={"idToken": id_token}
-        )
+    # Generate random token
+    token = secrets.token_urlsafe(32)
+    
+    # Set token expiration (24 hours)
+    expiration = datetime.utcnow() + timedelta(hours=24)
+    
+    # Update user model
+    user.verification_token = token
+    user.verification_token_expires = expiration
+    db.session.commit()
+    
+    return token
+
+def verify_token(token):
+    """
+    Verify a token and mark the user's email as verified
+    
+    Args:
+        token (str): Verification token
         
-        if response.status_code != 200:
-            logger.error(f"Failed to verify token: {response.text}")
-            return None
-            
-        # Get user info from response
-        user_data = response.json()
-        
-        if "users" not in user_data or not user_data["users"]:
-            logger.error("No user found in Firebase response")
-            return None
-            
-        # Return first user (there should only be one)
-        return user_data["users"][0]
-        
-    except Exception as e:
-        logger.error(f"Error verifying Firebase token: {str(e)}")
+    Returns:
+        User: User model instance if token is valid, None otherwise
+    """
+    # Find the user by token
+    user = User.query.filter_by(verification_token=token).first()
+    
+    if not user:
         return None
+        
+    # Check if token has expired
+    if user.verification_token_expires and user.verification_token_expires < datetime.utcnow():
+        return None
+        
+    # Mark email as verified
+    user.email_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    db.session.commit()
+    
+    return user
 
-def create_or_update_user(user_data, extra_data=None):
+def update_user_profile(user_id, profile_data):
     """
-    Create or update user in the database based on Firebase user data
+    Update user profile data
     
     Args:
-        user_data (dict): Firebase user data
-        extra_data (dict, optional): Additional user data from registration form
+        user_id (int): User ID
+        profile_data (dict): Profile data to update
         
     Returns:
-        User: User model instance
+        User: Updated user model instance
     """
     try:
-        # Get email from Firebase user data
-        email = user_data.get("email")
-        firebase_uid = user_data.get("localId")
+        # Get user from database
+        user = User.query.get(user_id)
         
-        if not email or not firebase_uid:
-            logger.error("Missing email or Firebase UID in user data")
+        if not user:
+            logger.error(f"User not found: {user_id}")
             return None
             
-        # Check if user exists
-        user = User.query.filter_by(email=email).first()
-        
-        if user:
-            # Update existing user
-            user.firebase_uid = firebase_uid
-            user.email_verified = user_data.get("emailVerified", False)
+        # Update user profile data
+        if 'username' in profile_data:
+            # Check if username is already taken
+            existing_user = User.query.filter_by(username=profile_data['username']).first()
+            if existing_user and existing_user.id != user_id:
+                return None
+            user.username = profile_data['username']
             
-            # Update additional fields if provided
-            if extra_data:
-                if 'firstName' in extra_data:
-                    user.first_name = extra_data.get('firstName')
-                if 'lastName' in extra_data:
-                    user.last_name = extra_data.get('lastName')
-                if 'shopName' in extra_data:
-                    user.shop_name = extra_data.get('shopName')
-                if 'productCategories' in extra_data:
-                    user.product_categories = extra_data.get('productCategories')
+        if 'firstName' in profile_data:
+            user.first_name = profile_data['firstName']
             
-            db.session.commit()
-            return user
+        if 'lastName' in profile_data:
+            user.last_name = profile_data['lastName']
             
-        # Create new user with username from email (default behavior)
-        username = email.split("@")[0] if email else "user"
+        if 'shopName' in profile_data:
+            user.shop_name = profile_data['shopName']
+            
+        if 'productCategories' in profile_data:
+            user.product_categories = profile_data['productCategories']
         
-        # Create new user
-        new_user = User(
-            email=email,
-            username=username,
-            firebase_uid=firebase_uid,
-            email_verified=user_data.get("emailVerified", False)
-        )
-        
-        # Add additional fields if provided
-        if extra_data:
-            new_user.first_name = extra_data.get('firstName')
-            new_user.last_name = extra_data.get('lastName')
-            new_user.shop_name = extra_data.get('shopName')
-            new_user.product_categories = extra_data.get('productCategories')
-        
-        db.session.add(new_user)
+        # Save changes
         db.session.commit()
-        return new_user
+        return user
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error creating/updating user: {str(e)}")
+        logger.error(f"Error updating user profile: {str(e)}")
         return None
-
-def login_required(f):
-    """
-    Decorator for routes that require login
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check if user is logged in
-        if "user_id" not in session:
-            return redirect(url_for("login", next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
 
 def admin_required(f):
     """
     Decorator for routes that require admin privileges
     """
     @wraps(f)
+    @login_required
     def decorated_function(*args, **kwargs):
-        # Check if user is logged in
-        if "user_id" not in session:
-            return redirect(url_for("login", next=request.url))
-            
         # Check if user is an admin
-        user = User.query.get(session["user_id"])
-        if not user or not user.is_admin:
+        if not current_user.is_admin:
             return jsonify({"error": "Unauthorized access"}), 403
             
         return f(*args, **kwargs)
     return decorated_function
+
+def change_user_password(user_id, current_password, new_password):
+    """
+    Change user password
+    
+    Args:
+        user_id (int): User ID
+        current_password (str): Current password
+        new_password (str): New password
+        
+    Returns:
+        bool: True if password was changed, False otherwise
+    """
+    try:
+        # Get user from database
+        user = User.query.get(user_id)
+        
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            return False
+            
+        # Check current password
+        if not user.check_password(current_password):
+            logger.error(f"Invalid current password for user: {user_id}")
+            return False
+            
+        # Update password
+        user.set_password(new_password)
+        db.session.commit()
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error changing password: {str(e)}")
+        return False
