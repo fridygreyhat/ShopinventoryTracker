@@ -271,7 +271,8 @@ def stock_status_report():
     item_count = db.session.query(func.count(Item.id)).scalar() or 0
     total_stock = db.session.query(func.sum(Item.quantity)).scalar() or 0
     
-    # Get low stock items
+    # Get all items, low stock items, and out of stock items
+    all_items = Item.query.all()
     low_stock_items = Item.query.filter(Item.quantity <= low_stock_threshold).all()
     out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
     
@@ -287,6 +288,7 @@ def stock_status_report():
         "average_stock_per_item": total_stock / item_count if item_count > 0 else 0,
         "low_stock_items_count": len(low_stock_items),
         "out_of_stock_items_count": len(out_of_stock_items),
+        "all_items": [item.to_dict() for item in all_items],
         "low_stock_items": [item.to_dict() for item in low_stock_items],
         "out_of_stock_items": [item.to_dict() for item in out_of_stock_items],
         "total_inventory_value": total_value

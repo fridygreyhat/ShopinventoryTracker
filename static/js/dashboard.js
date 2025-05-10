@@ -280,7 +280,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.sku || ''}</td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td>${generateHealthIndicator(item.quantity)}</td>
-                    <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
+                    <td>
+                        <small class="text-muted">Retail: </small><span class="currency-symbol">TZS</span> ${item.selling_price_retail ? item.selling_price_retail.toLocaleString() : '0'}<br>
+                        <small class="text-muted">Wholesale: </small><span class="currency-symbol">TZS</span> ${item.selling_price_wholesale ? item.selling_price_wholesale.toLocaleString() : '0'}
+                    </td>
                     <td>
                         <a href="/item/${item.id}" class="btn btn-sm btn-primary">
                             <i class="fas fa-edit"></i> Update
