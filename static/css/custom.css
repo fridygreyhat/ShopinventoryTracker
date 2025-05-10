@@ -103,6 +103,39 @@ footer {
     font-weight: bold;
 }
 
+/* Margin Analysis Styles */
+.table-success td {
+    color: #212529 !important;
+}
+
+.table-info td {
+    color: #212529 !important;
+}
+
+.table-warning td {
+    color: #212529 !important;
+}
+
+.margin-high {
+    color: var(--bs-success);
+    font-weight: bold;
+}
+
+.margin-medium {
+    color: var(--bs-info);
+    font-weight: bold;
+}
+
+.margin-low {
+    color: var(--bs-warning);
+    font-weight: bold;
+}
+
+.margin-negative {
+    color: var(--bs-danger);
+    font-weight: bold;
+}
+
 /* Fix for modal backdrop in dark theme */
 .modal-backdrop {
     opacity: 0.7 !important;

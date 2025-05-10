@@ -37,6 +37,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('margin') %}active{% endif %}" 
+                           href="{{ url_for('margin') }}">
+                            <i class="fas fa-percentage me-1"></i> Margin
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.path == url_for('on_demand') %}active{% endif %}" 
                            href="{{ url_for('on_demand') }}">
                             <i class="fas fa-magic me-1"></i> On-Demand Products

@@ -48,6 +48,11 @@ def inventory():
     """Render the inventory management page"""
     return render_template('inventory.html')
 
+@app.route('/margin')
+def margin():
+    """Render the margin analysis page"""
+    return render_template('margin.html')
+
 @app.route('/item/<int:item_id>')
 def item_detail(item_id):
     """Render the item detail page"""
