@@ -14,12 +14,16 @@ let auth;
 
 /**
  * Login with email and password
+ * @param {Object} auth - Firebase Auth instance
  * @param {string} email - User email
  * @param {string} password - User password
  * @returns {Promise} Firebase user credential
  */
-export async function loginWithEmailPassword(email, password) {
+export async function loginWithEmailPassword(auth, email, password) {
     try {
+        // Import directly to avoid naming conflict
+        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        
         // Use the auth instance passed from the login page
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         return userCredential;
@@ -121,12 +125,16 @@ export async function createSession(token, remember = false) {
 
 /**
  * Logout the user
+ * @param {Object} auth - Firebase Auth instance
  * @returns {Promise} Void
  */
-export async function logoutUser() {
+export async function logoutUser(auth) {
     try {
+        // Import directly to avoid naming conflict
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        
         // Sign out from Firebase
-        await auth.signOut();
+        await signOut(auth);
         
         // Clear session with server
         await fetch('/logout', {
@@ -142,28 +150,34 @@ export async function logoutUser() {
 
 /**
  * Check authentication state
+ * @param {Object} auth - Firebase Auth instance
  * @param {Function} callback - Callback function to be called with user
  * @returns {Function} Unsubscribe function
  */
-export function checkAuthState(callback) {
-    return auth.onAuthStateChanged(callback);
+export async function checkAuthState(auth, callback) {
+    // Import directly to avoid naming conflict
+    const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+    
+    return onAuthStateChanged(auth, callback);
 }
 
 /**
  * Get current user
+ * @param {Object} auth - Firebase Auth instance
  * @returns {Object|null} Firebase user or null
  */
-export function getCurrentUser() {
+export function getCurrentUser(auth) {
     return auth.currentUser;
 }
 
 /**
  * Get ID token for current user
+ * @param {Object} auth - Firebase Auth instance
  * @param {boolean} forceRefresh - Whether to force refresh the token
  * @returns {Promise<string>} ID token
  */
-export async function getIdToken(forceRefresh = false) {
-    const user = getCurrentUser();
+export async function getIdToken(auth, forceRefresh = false) {
+    const user = getCurrentUser(auth);
     if (!user) {
         throw new Error('No user is signed in');
     }
