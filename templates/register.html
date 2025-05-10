@@ -116,9 +116,10 @@
 <script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
 
 <script type="module">
-    // Import Firebase modules
+    // Import Firebase modules and our authentication module
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { registerWithEmailPassword } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
 
     // Firebase configuration from server
     const firebaseConfig = {
@@ -173,28 +174,20 @@
             registerButton.disabled = true;
             registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
             
-            // Create user with Firebase
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const token = await userCredential.user.getIdToken();
-            
             // Get selected product categories
             const selectedCategories = Array.from(productCategoriesSelect.selectedOptions).map(option => option.value);
             
-            // Send additional data to server
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    idToken: token,
-                    username: username,
-                    firstName: firstNameInput.value.trim(),
-                    lastName: lastNameInput.value.trim(),
-                    shopName: shopNameInput.value.trim(),
-                    productCategories: selectedCategories.join(',')
-                }),
-            });
+            // User data to send to server
+            const userData = {
+                username: username,
+                firstName: firstNameInput.value.trim(),
+                lastName: lastNameInput.value.trim(),
+                shopName: shopNameInput.value.trim(),
+                productCategories: selectedCategories.join(',')
+            };
+            
+            // Create user with Firebase and register with server using our helper function
+            const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
             
             if (!response.ok) {
                 const errorData = await response.json();

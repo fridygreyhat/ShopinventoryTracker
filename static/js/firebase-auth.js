@@ -63,6 +63,9 @@ export async function sendPasswordReset(auth, email) {
  */
 export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
+        // Import directly to avoid naming conflict
+        const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        
         // Create user in Firebase using the modular API
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const token = await userCredential.user.getIdToken();
