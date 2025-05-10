@@ -2,23 +2,72 @@
 function getThemeColors() {
     const theme = document.body.getAttribute('data-theme-value') || 'tanzanite';
     
-    // Default color palette based on tanzanite theme
-    const colors = {
-        primary: 'rgba(76, 80, 197, 0.8)',
-        secondary: 'rgba(108, 117, 125, 0.8)',
-        success: 'rgba(40, 167, 69, 0.8)',
-        info: 'rgba(23, 162, 184, 0.8)',
-        warning: 'rgba(255, 193, 7, 0.8)',
-        danger: 'rgba(220, 53, 69, 0.8)',
+    // Theme-specific color palettes
+    const themePalettes = {
+        tanzanite: {
+            primary: 'rgba(76, 80, 197, 0.8)',
+            secondary: 'rgba(65, 193, 224, 0.8)',
+            accent: 'rgba(255, 121, 80, 0.8)',
+            success: 'rgba(50, 184, 115, 0.8)',
+            warning: 'rgba(255, 167, 38, 0.8)',
+            danger: 'rgba(240, 74, 74, 0.8)',
+            info: 'rgba(56, 137, 247, 0.8)',
+        },
+        forest: {
+            primary: 'rgba(46, 139, 87, 0.8)',
+            secondary: 'rgba(76, 175, 80, 0.8)',
+            accent: 'rgba(255, 193, 7, 0.8)',
+            success: 'rgba(32, 201, 151, 0.8)',
+            warning: 'rgba(255, 152, 0, 0.8)',
+            danger: 'rgba(244, 67, 54, 0.8)',
+            info: 'rgba(3, 169, 244, 0.8)',
+        },
+        ocean: {
+            primary: 'rgba(0, 119, 182, 0.8)',
+            secondary: 'rgba(0, 180, 216, 0.8)',
+            accent: 'rgba(144, 224, 239, 0.8)',
+            success: 'rgba(64, 192, 179, 0.8)',
+            warning: 'rgba(255, 209, 102, 0.8)',
+            danger: 'rgba(240, 74, 74, 0.8)',
+            info: 'rgba(72, 202, 228, 0.8)',
+        },
+        sunset: {
+            primary: 'rgba(235, 94, 40, 0.8)',
+            secondary: 'rgba(250, 163, 7, 0.8)',
+            accent: 'rgba(255, 195, 0, 0.8)',
+            success: 'rgba(102, 187, 106, 0.8)',
+            warning: 'rgba(255, 183, 77, 0.8)',
+            danger: 'rgba(229, 57, 53, 0.8)',
+            info: 'rgba(79, 195, 247, 0.8)',
+        },
+        dark: {
+            primary: 'rgba(86, 90, 207, 0.8)',
+            secondary: 'rgba(108, 117, 125, 0.8)',
+            accent: 'rgba(255, 121, 80, 0.8)',
+            success: 'rgba(72, 187, 120, 0.8)',
+            warning: 'rgba(237, 185, 45, 0.8)',
+            danger: 'rgba(231, 76, 60, 0.8)',
+            info: 'rgba(52, 152, 219, 0.8)',
+        }
+    };
+    
+    // Get colors for current theme or fallback to tanzanite
+    const colors = themePalettes[theme] || themePalettes.tanzanite;
+    
+    // Add common colors and neutral tones
+    return {
+        ...colors,
         light: 'rgba(248, 249, 250, 0.8)',
         dark: 'rgba(52, 58, 64, 0.8)',
         purple: 'rgba(153, 102, 255, 0.8)',
         orange: 'rgba(255, 159, 64, 0.8)',
         teal: 'rgba(32, 201, 151, 0.8)',
-        indigo: 'rgba(102, 16, 242, 0.8)'
+        indigo: 'rgba(102, 16, 242, 0.8)',
+        chartText: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+        chartSecondaryText: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666',
+        chartGrid: 'rgba(76, 80, 197, 0.08)',
+        chartBorder: 'rgba(76, 80, 197, 0.2)'
     };
-    
-    return colors;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -695,10 +744,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(76, 80, 197, 0.08)'
+                            color: getThemeColors().chartGrid
                         },
                         ticks: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555',
+                            color: getThemeColors().chartSecondaryText,
                             callback: function(value) {
                                 return 'TZS ' + value.toLocaleString();
                             }
@@ -706,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     x: {
                         grid: {
-                            color: 'rgba(76, 80, 197, 0.06)'
+                            color: getThemeColors().chartGrid
                         },
                         ticks: {
                             color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
