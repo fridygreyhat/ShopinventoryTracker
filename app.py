@@ -1333,9 +1333,17 @@ def register_user():
         
         if not user_data:
             return jsonify({"error": "Invalid or expired token"}), 401
+        
+        # Extract additional user profile data
+        extra_data = {
+            'firstName': data.get('firstName'),
+            'lastName': data.get('lastName'),
+            'shopName': data.get('shopName'),
+            'productCategories': data.get('productCategories')
+        }
             
-        # Create or update user in the database
-        user = create_or_update_user(user_data)
+        # Create or update user in the database with profile data
+        user = create_or_update_user(user_data, extra_data)
         
         if not user:
             return jsonify({"error": "Failed to create user"}), 500
@@ -1431,6 +1439,18 @@ def update_user(user_id):
             if 'username' in data:
                 user.username = data['username']
                 
+            if 'firstName' in data:
+                user.first_name = data['firstName']
+                
+            if 'lastName' in data:
+                user.last_name = data['lastName']
+                
+            if 'shopName' in data:
+                user.shop_name = data['shopName']
+                
+            if 'productCategories' in data:
+                user.product_categories = data['productCategories']
+                
             db.session.commit()
             return jsonify(user.to_dict())
             
@@ -1440,6 +1460,49 @@ def update_user(user_id):
             return jsonify({"error": "Failed to update user"}), 500
             
     return protected_update_user()
+    
+@app.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    """API endpoint to update the current user's profile"""
+    from auth_service import login_required
+    
+    @login_required
+    def protected_update_profile():
+        from models import User
+        try:
+            data = request.json
+            user_id = session.get('user_id')
+            
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+                
+            user = User.query.get_or_404(user_id)
+            
+            # Only allow updating specific fields (non-admin fields)
+            if 'username' in data:
+                user.username = data['username']
+                
+            if 'firstName' in data:
+                user.first_name = data['firstName']
+                
+            if 'lastName' in data:
+                user.last_name = data['lastName']
+                
+            if 'shopName' in data:
+                user.shop_name = data['shopName']
+                
+            if 'productCategories' in data:
+                user.product_categories = data['productCategories']
+                
+            db.session.commit()
+            return jsonify(user.to_dict())
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error updating profile: {str(e)}")
+            return jsonify({"error": "Failed to update profile"}), 500
+            
+    return protected_update_profile()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -22,10 +22,27 @@
                     <hr>
 
                     <form id="accountForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="firstName" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="firstName" value="{{ user.first_name }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="lastName" value="{{ user.last_name }}">
+                            </div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" value="{{ user.username }}">
                         </div>
+                        
+                        <div class="mb-3">
+                            <label for="shopName" class="form-label">Shop Name</label>
+                            <input type="text" class="form-control" id="shopName" value="{{ user.shop_name }}">
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
@@ -39,6 +56,52 @@
                                     <i class="fas fa-check-circle"></i> Email verified
                                 </div>
                             {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Product Categories</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Electronics" id="categoryElectronics">
+                                        <label class="form-check-label" for="categoryElectronics">
+                                            Electronics
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Clothing" id="categoryClothing">
+                                        <label class="form-check-label" for="categoryClothing">
+                                            Clothing
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Food" id="categoryFood">
+                                        <label class="form-check-label" for="categoryFood">
+                                            Food
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Furniture" id="categoryFurniture">
+                                        <label class="form-check-label" for="categoryFurniture">
+                                            Furniture
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Cosmetics" id="categoryCosmetics">
+                                        <label class="form-check-label" for="categoryCosmetics">
+                                            Cosmetics
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input product-category" type="checkbox" value="Other" id="categoryOther">
+                                        <label class="form-check-label" for="categoryOther">
+                                            Other
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -159,11 +222,37 @@
     const passwordErrorMessage = document.getElementById('passwordErrorMessage');
     const verifyEmailLink = document.getElementById('verifyEmail');
 
+    // Initialize product categories
+    const initProductCategories = function() {
+        // Get the user's product categories from the database
+        const userCategories = "{{ user.product_categories }}".split(',');
+        
+        // Check the appropriate checkboxes
+        document.querySelectorAll('.product-category').forEach(checkbox => {
+            if (userCategories.includes(checkbox.value)) {
+                checkbox.checked = true;
+            }
+        });
+    };
+    
+    // Call the initialization function
+    initProductCategories();
+    
     // Handle account form submission
     accountForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
         const username = document.getElementById('username').value;
+        const shopName = document.getElementById('shopName').value;
+        
+        // Get selected product categories
+        const selectedCategories = [];
+        document.querySelectorAll('.product-category:checked').forEach(checkbox => {
+            selectedCategories.push(checkbox.value);
+        });
+        const productCategories = selectedCategories.join(',');
         
         if (!username) {
             showError('Username cannot be empty');
@@ -181,7 +270,11 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                username: username
+                username: username,
+                firstName: firstName,
+                lastName: lastName,
+                shopName: shopName,
+                productCategories: productCategories
             })
         })
         .then(response => {
