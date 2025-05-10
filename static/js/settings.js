@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveInventorySettingsBtn = document.getElementById('saveInventorySettings');
     const saveNotificationSettingsBtn = document.getElementById('saveNotificationSettings');
     const saveAdvancedSettingsBtn = document.getElementById('saveAdvancedSettings');
+    const testNotificationsBtn = document.getElementById('testNotifications');
     
     // Initialize settings
     loadSettings();
@@ -29,6 +30,13 @@ document.addEventListener('DOMContentLoaded', function() {
     saveAdvancedSettingsBtn.addEventListener('click', function() {
         saveSettingsGroup('advancedSettingsForm', 'advanced');
     });
+    
+    // Test notifications button
+    if (testNotificationsBtn) {
+        testNotificationsBtn.addEventListener('click', function() {
+            testNotifications();
+        });
+    }
     
     // Functions
     function loadSettings() {
@@ -105,38 +113,50 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Wait for all settings to be saved
-        Promise.all(savePromises)
+        // Return a promise that resolves when all settings are saved
+        return Promise.all(savePromises)
             .then(() => {
-                // Show success message
-                const alertHtml = `
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i> Settings saved successfully.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-                
-                // Insert the alert before the form
-                form.insertAdjacentHTML('beforebegin', alertHtml);
+                // Show success message (unless this is being called from the test function)
+                const callerFunction = arguments.callee.caller.name;
+                if (callerFunction !== 'testNotifications') {
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> Settings saved successfully.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Insert the alert before the form
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                }
                 
                 // Apply settings that affect UI
                 if (category === 'appearance') {
                     applyThemeSetting();
                 }
+                
+                // Return success for promise chaining
+                return true;
             })
             .catch(error => {
                 console.error('Error saving settings:', error);
                 
-                // Show error message
-                const alertHtml = `
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
+                // Show error message (unless this is being called from the test function)
+                const callerFunction = arguments.callee.caller.name;
+                if (callerFunction !== 'testNotifications') {
+                    const alertHtml = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Insert the alert before the form
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                }
                 
-                // Insert the alert before the form
-                form.insertAdjacentHTML('beforebegin', alertHtml);
+                // Re-throw the error for promise chaining
+                throw error;
             });
     }
     
@@ -151,5 +171,106 @@ document.addEventListener('DOMContentLoaded', function() {
             // Apply theme
             document.documentElement.setAttribute('data-bs-theme', isDarkTheme ? 'dark' : 'light');
         }
+    }
+    
+    function testNotifications() {
+        // Get the form with notification settings
+        const form = document.getElementById('notificationSettingsForm');
+        
+        // First save the current settings to ensure we're testing with the latest configuration
+        saveSettingsGroup('notificationSettingsForm', 'notification')
+            .then(() => {
+                // Show loading state on the button
+                const testButton = document.getElementById('testNotifications');
+                const originalText = testButton.innerHTML;
+                testButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+                testButton.disabled = true;
+                
+                // Call the test notifications endpoint
+                fetch('/api/notifications/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(result => {
+                    // Reset button state
+                    testButton.innerHTML = originalText;
+                    testButton.disabled = false;
+                    
+                    // Create appropriate alert based on the result
+                    let alertClass = 'alert-info';
+                    let alertIcon = 'info-circle';
+                    let alertTitle = 'Notification Test Results';
+                    let alertContent = '';
+                    
+                    if (result.success) {
+                        alertClass = 'alert-success';
+                        alertIcon = 'check-circle';
+                        alertTitle = 'Notifications Test Successful';
+                        
+                        // Build success message
+                        if (result.email_sent && result.sms_sent) {
+                            alertContent = 'Both email and SMS notifications were sent successfully.';
+                        } else if (result.email_sent) {
+                            alertContent = 'Email notification was sent successfully.';
+                        } else if (result.sms_sent) {
+                            alertContent = 'SMS notification was sent successfully.';
+                        } else {
+                            alertContent = 'Test completed but no notifications were sent. This could be because both notification types are disabled or there are no low stock items.';
+                        }
+                    } else {
+                        alertClass = 'alert-danger';
+                        alertIcon = 'exclamation-circle';
+                        alertTitle = 'Notification Test Failed';
+                        
+                        // Build error message
+                        alertContent = 'Failed to send test notifications. Please check your settings and try again.<br>';
+                        
+                        if (result.errors && result.errors.length > 0) {
+                            alertContent += '<ul class="mt-2 mb-0">';
+                            result.errors.forEach(error => {
+                                alertContent += `<li>${error}</li>`;
+                            });
+                            alertContent += '</ul>';
+                        }
+                    }
+                    
+                    // Create and show the alert
+                    const alertHtml = `
+                        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                            <h5 class="alert-heading"><i class="fas fa-${alertIcon} me-2"></i> ${alertTitle}</h5>
+                            <p>${alertContent}</p>
+                            <hr>
+                            <p class="mb-0">
+                                <small>
+                                    <strong>Low Stock Items:</strong> ${result.low_stock_count || 0} items
+                                </small>
+                            </p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Insert the alert before the form
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                })
+                .catch(error => {
+                    // Reset button state
+                    testButton.innerHTML = originalText;
+                    testButton.disabled = false;
+                    
+                    // Show error message
+                    const alertHtml = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i> Error testing notifications: ${error.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    
+                    // Insert the alert before the form
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                });
+            });
     }
 });

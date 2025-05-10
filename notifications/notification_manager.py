@@ -1,16 +1,19 @@
 import logging
 from notifications.sms_service import send_low_stock_sms
 from notifications.email_service import send_low_stock_email
-from models import Item, Setting
-from app import db
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-def check_low_stock_and_notify():
+def check_low_stock_and_notify(db, Item, Setting):
     """
     Check for low stock items and send notifications if needed
     
+    Args:
+        db: SQLAlchemy database instance
+        Item: Item model class
+        Setting: Setting model class
+        
     Returns:
         dict: Notification results
     """
@@ -24,14 +27,14 @@ def check_low_stock_and_notify():
     
     try:
         # Get settings for notifications
-        low_stock_threshold = get_setting_value("low_stock_threshold", 10)
-        notification_email = get_setting_value("notification_email", "")
-        notification_phone = get_setting_value("notification_phone", "")
-        sender_email = get_setting_value("sender_email", "inventory@yourbusiness.com")
+        low_stock_threshold = get_setting_value(Setting, "low_stock_threshold", 10)
+        notification_email = get_setting_value(Setting, "notification_email", "")
+        notification_phone = get_setting_value(Setting, "notification_phone", "")
+        sender_email = get_setting_value(Setting, "sender_email", "inventory@yourbusiness.com")
         
         # Check if notifications are enabled
-        sms_notifications_enabled = get_setting_value("sms_notifications_enabled", False)
-        email_notifications_enabled = get_setting_value("email_notifications_enabled", False)
+        sms_notifications_enabled = get_setting_value(Setting, "sms_notifications_enabled", False)
+        email_notifications_enabled = get_setting_value(Setting, "email_notifications_enabled", False)
         
         # If notifications are disabled, return early
         if not sms_notifications_enabled and not email_notifications_enabled:
@@ -39,7 +42,7 @@ def check_low_stock_and_notify():
             return result
         
         # Get low stock items
-        low_stock_items = get_low_stock_items(low_stock_threshold)
+        low_stock_items = get_low_stock_items(Item, low_stock_threshold)
         
         # If no low stock items, return early
         if not low_stock_items:
@@ -88,11 +91,12 @@ def check_low_stock_and_notify():
         result["errors"].append(error_message)
         return result
 
-def get_low_stock_items(threshold=10):
+def get_low_stock_items(Item, threshold=10):
     """
     Get items with stock below the threshold
     
     Args:
+        Item: Item model class
         threshold (int): Low stock threshold
         
     Returns:
@@ -105,11 +109,12 @@ def get_low_stock_items(threshold=10):
         logger.error(f"Error fetching low stock items: {str(e)}")
         return []
 
-def get_setting_value(key, default=None):
+def get_setting_value(Setting, key, default=None):
     """
     Get setting value from database
     
     Args:
+        Setting: Setting model class
         key (str): Setting key
         default: Default value if setting not found
         
