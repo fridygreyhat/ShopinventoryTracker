@@ -373,6 +373,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 plugins: {
                     tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
                         callbacks: {
                             label: function(context) {
                                 let label = context.dataset.label || '';
