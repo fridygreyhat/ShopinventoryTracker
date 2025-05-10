@@ -136,9 +136,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadCategories() {
+        // Predefined categories list - same as inventory for consistency
+        const predefinedCategories = [
+            'Electronics', 
+            'Accessories', 
+            'Phones', 
+            'Vehicle Spare Parts', 
+            'Grocery', 
+            'Others'
+        ];
+        
         fetch('/api/on-demand/categories')
             .then(response => response.json())
             .then(categories => {
+                // Combine predefined categories with database categories
+                // and remove duplicates
+                let allCategories = [...predefinedCategories];
+                
+                // Add any categories from database that aren't in predefined list
+                categories.forEach(category => {
+                    if (!allCategories.includes(category)) {
+                        allCategories.push(category);
+                    }
+                });
+                
+                // Sort alphabetically
+                allCategories.sort();
+                
                 // Populate category filter
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
                 
@@ -147,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 editCategoryOptions.innerHTML = '';
                 
                 // Add new options
-                categories.forEach(category => {
+                allCategories.forEach(category => {
                     // Add to filter dropdown
                     const option = document.createElement('option');
                     option.value = category;
@@ -167,6 +191,34 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading categories:', error);
+                
+                // Even if fetch fails, still load predefined categories
+                // Sort alphabetically
+                const sortedCategories = [...predefinedCategories].sort();
+                
+                // Clear existing options
+                categoryFilter.innerHTML = '<option value="">All Categories</option>';
+                categoryOptions.innerHTML = '';
+                editCategoryOptions.innerHTML = '';
+                
+                // Add predefined categories
+                sortedCategories.forEach(category => {
+                    // Add to filter dropdown
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categoryFilter.appendChild(option);
+                    
+                    // Add to datalist for new product form
+                    const dataOption1 = document.createElement('option');
+                    dataOption1.value = category;
+                    categoryOptions.appendChild(dataOption1);
+                    
+                    // Add to datalist for edit product form
+                    const dataOption2 = document.createElement('option');
+                    dataOption2.value = category;
+                    editCategoryOptions.appendChild(dataOption2);
+                });
             });
     }
     

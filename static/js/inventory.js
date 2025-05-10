@@ -58,9 +58,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadCategories() {
+        // Predefined categories list
+        const predefinedCategories = [
+            'Electronics', 
+            'Accessories', 
+            'Phones', 
+            'Vehicle Spare Parts', 
+            'Grocery', 
+            'Others'
+        ];
+        
         fetch('/api/inventory/categories')
             .then(response => response.json())
             .then(categories => {
+                // Combine predefined categories with database categories
+                // and remove duplicates
+                let allCategories = [...predefinedCategories];
+                
+                // Add any categories from database that aren't in predefined list
+                categories.forEach(category => {
+                    if (!allCategories.includes(category)) {
+                        allCategories.push(category);
+                    }
+                });
+                
+                // Sort alphabetically
+                allCategories.sort();
+                
                 // Update categories in filter dropdown
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
                 
@@ -71,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
                 editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
                 
-                categories.sort().forEach(category => {
+                allCategories.forEach(category => {
                     // Add to filter dropdown
                     const option = document.createElement('option');
                     option.value = category;
@@ -93,6 +117,38 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading categories:', error);
+                
+                // Even if fetch fails, still load predefined categories
+                const itemCategorySelect = document.getElementById('itemCategory');
+                const editItemCategorySelect = document.getElementById('editItemCategory');
+                
+                // Sort alphabetically
+                const sortedCategories = [...predefinedCategories].sort();
+                
+                // Clear and populate dropdowns with predefined categories
+                categoryFilter.innerHTML = '<option value="">All Categories</option>';
+                itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                
+                sortedCategories.forEach(category => {
+                    // Add to filter dropdown
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categoryFilter.appendChild(option);
+                    
+                    // Add to new item form
+                    const newItemOption = document.createElement('option');
+                    newItemOption.value = category;
+                    newItemOption.textContent = category;
+                    itemCategorySelect.appendChild(newItemOption);
+                    
+                    // Add to edit item form
+                    const editItemOption = document.createElement('option');
+                    editItemOption.value = category;
+                    editItemOption.textContent = category;
+                    editItemCategorySelect.appendChild(editItemOption);
+                });
             });
     }
     
