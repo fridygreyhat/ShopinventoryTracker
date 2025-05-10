@@ -202,6 +202,10 @@ def create_or_update_user(user_data, extra_data=None):
             email_verified=user_data.get("emailVerified", False)
         )
         
+        # Set a placeholder password hash for Firebase users
+        from werkzeug.security import generate_password_hash
+        new_user.password_hash = generate_password_hash('firebase-auth-user')
+        
         # Add additional fields if provided
         if extra_data:
             new_user.first_name = extra_data.get('firstName')
