@@ -150,8 +150,8 @@
             // Add event listener for email/password login button
             document.getElementById('loginWithEmail').addEventListener('click', loginWithEmail);
             
-            // Add event listener for Google login button
-            document.getElementById('loginWithGoogle').addEventListener('click', loginWithGoogle);
+            // Google login is disabled for now until properly configured
+            // document.getElementById('loginWithGoogle').addEventListener('click', loginWithGoogle);
         }
     });
 
@@ -257,15 +257,7 @@
 
     // Add HTML for login buttons since we're using JS to add event listeners
     document.getElementById('firebaseui-auth-container').innerHTML = `
-        <div class="d-grid gap-2 mb-3">
-            <button id="loginWithGoogle" class="btn btn-outline-danger">
-                <i class="fab fa-google me-2"></i> Sign in with Google
-            </button>
-        </div>
-        <div class="text-center mb-3">
-            <span class="bg-body px-2">or</span>
-        </div>
-        <form id="emailPasswordForm">
+        <form id="emailPasswordForm" class="mb-4">
             <div class="mb-3">
                 <label for="email" class="form-label">Email address</label>
                 <input type="email" class="form-control" id="email" required>
@@ -278,9 +270,26 @@
                 </div>
             </div>
             <div class="d-grid">
-                <button type="button" id="loginWithEmail" class="btn btn-primary">Log In</button>
+                <button type="button" id="loginWithEmail" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt me-2"></i> Log In
+                </button>
             </div>
         </form>
+        
+        <div class="text-center mb-3">
+            <div class="d-flex align-items-center justify-content-center">
+                <hr class="flex-grow-1">
+                <span class="mx-2 text-muted">or</span>
+                <hr class="flex-grow-1">
+            </div>
+        </div>
+        
+        <div class="d-grid">
+            <button id="loginWithGoogle" class="btn btn-outline-secondary" disabled>
+                <i class="fab fa-google me-2"></i> Sign in with Google
+                <small class="d-block mt-1 text-muted">(Coming soon)</small>
+            </button>
+        </div>
     `;
 
     // Handle forgot password
