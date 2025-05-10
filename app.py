@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import io
 import csv
 import requests
@@ -38,6 +39,17 @@ with app.app_context():
     # Import models here to avoid circular imports
     from models import Item, User, OnDemandProduct, Setting, Sale, SaleItem  # noqa: F401
     db.create_all()
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 @app.route('/')
 def index():
