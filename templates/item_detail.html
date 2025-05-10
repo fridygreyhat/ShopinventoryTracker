@@ -1,0 +1,341 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Item Details</h1>
+        <div>
+            <a href="{{ url_for('inventory') }}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Back to Inventory
+            </a>
+            <button type="button" class="btn btn-primary edit-item-btn" data-item-id="{{ item.id }}">
+                <i class="fas fa-edit"></i> Edit Item
+            </button>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">{{ item.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">SKU:</div>
+                        <div class="col-md-9">{{ item.sku }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Category:</div>
+                        <div class="col-md-9">{{ item.category }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Description:</div>
+                        <div class="col-md-9">{{ item.description if item.description else 'No description available' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Price:</div>
+                        <div class="col-md-9">${{ '%.2f'|format(item.price) }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">In Stock:</div>
+                        <div class="col-md-9">
+                            {% if item.quantity <= 5 %}
+                                <span class="badge bg-danger">Low Stock: {{ item.quantity }}</span>
+                            {% elif item.quantity <= 15 %}
+                                <span class="badge bg-warning">{{ item.quantity }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ item.quantity }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Total Value:</div>
+                        <div class="col-md-9">${{ '%.2f'|format(item.quantity * item.price) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form id="quickUpdateForm" data-item-id="{{ item.id }}">
+                        <div class="mb-3">
+                            <label for="newQuantity" class="form-label">Update Quantity</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="newQuantity" value="{{ item.quantity }}" min="0">
+                                <button class="btn btn-outline-primary" type="button" id="updateQuantityBtn">
+                                    <i class="fas fa-sync-alt"></i> Update
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPrice" class="form-label">Update Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="newPrice" value="{{ item.price }}" min="0" step="0.01">
+                                <button class="btn btn-outline-primary" type="button" id="updatePriceBtn">
+                                    <i class="fas fa-sync-alt"></i> Update
+                                </button>
+                            </div>
+                        </div>
+                        <hr>
+                        <button type="button" class="btn btn-danger w-100 mt-3 delete-item-btn" data-item-id="{{ item.id }}" data-item-name="{{ item.name }}">
+                            <i class="fas fa-trash"></i> Delete Item
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Item Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Created:</div>
+                        <div class="col-md-7">{{ item.created_at.split('T')[0] }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Last Updated:</div>
+                        <div class="col-md-7">{{ item.updated_at.split('T')[0] }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-5 fw-bold">Item ID:</div>
+                        <div class="col-md-7">{{ item.id }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editItemModalLabel">Edit Inventory Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editItemForm">
+                    <input type="hidden" id="editItemId" value="{{ item.id }}">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editItemName" class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" id="editItemName" value="{{ item.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editItemSKU" class="form-label">SKU</label>
+                            <input type="text" class="form-control" id="editItemSKU" value="{{ item.sku }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editItemDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editItemDescription" rows="3">{{ item.description }}</textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="editItemCategory" class="form-label">Category</label>
+                            <input type="text" class="form-control" id="editItemCategory" value="{{ item.category }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editItemQuantity" class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" id="editItemQuantity" min="0" value="{{ item.quantity }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editItemPrice" class="form-label">Price ($) *</label>
+                            <input type="number" class="form-control" id="editItemPrice" min="0" step="0.01" value="{{ item.price }}" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateItemBtn">Update Item</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<span id="deleteItemName"></span>"?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle quick update of quantity
+    document.getElementById('updateQuantityBtn').addEventListener('click', function() {
+        const itemId = document.getElementById('quickUpdateForm').dataset.itemId;
+        const newQuantity = parseInt(document.getElementById('newQuantity').value);
+        
+        if (newQuantity < 0) {
+            alert('Quantity cannot be negative');
+            return;
+        }
+        
+        updateItemField(itemId, { quantity: newQuantity });
+    });
+    
+    // Handle quick update of price
+    document.getElementById('updatePriceBtn').addEventListener('click', function() {
+        const itemId = document.getElementById('quickUpdateForm').dataset.itemId;
+        const newPrice = parseFloat(document.getElementById('newPrice').value);
+        
+        if (newPrice < 0) {
+            alert('Price cannot be negative');
+            return;
+        }
+        
+        updateItemField(itemId, { price: newPrice });
+    });
+    
+    // Handle edit button
+    document.querySelector('.edit-item-btn').addEventListener('click', function() {
+        const editModal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        editModal.show();
+    });
+    
+    // Handle update item
+    document.getElementById('updateItemBtn').addEventListener('click', function() {
+        const itemId = document.getElementById('editItemId').value;
+        const itemName = document.getElementById('editItemName').value;
+        const itemSKU = document.getElementById('editItemSKU').value;
+        const itemDescription = document.getElementById('editItemDescription').value;
+        const itemCategory = document.getElementById('editItemCategory').value;
+        const itemQuantity = parseInt(document.getElementById('editItemQuantity').value);
+        const itemPrice = parseFloat(document.getElementById('editItemPrice').value);
+        
+        // Validate required fields
+        if (!itemName || itemQuantity < 0 || itemPrice < 0) {
+            alert('Please fill in all required fields correctly');
+            return;
+        }
+        
+        const updatedItem = {
+            name: itemName,
+            sku: itemSKU,
+            description: itemDescription,
+            category: itemCategory,
+            quantity: itemQuantity,
+            price: itemPrice
+        };
+        
+        updateItem(itemId, updatedItem);
+    });
+    
+    // Handle delete button
+    document.querySelector('.delete-item-btn').addEventListener('click', function() {
+        const itemId = this.dataset.itemId;
+        const itemName = this.dataset.itemName;
+        
+        document.getElementById('deleteItemName').textContent = itemName;
+        
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        deleteModal.show();
+        
+        document.getElementById('confirmDeleteBtn').dataset.itemId = itemId;
+    });
+    
+    // Handle delete confirmation
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        const itemId = this.dataset.itemId;
+        deleteItem(itemId);
+    });
+    
+    // Functions to interact with the API
+    function updateItemField(itemId, fieldUpdate) {
+        fetch(`/api/inventory/${itemId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(fieldUpdate)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to update item');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Refresh the page to show the updated data
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update item: ' + error.message);
+        });
+    }
+    
+    function updateItem(itemId, updatedItem) {
+        fetch(`/api/inventory/${itemId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedItem)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to update item');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Close the modal and refresh the page
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
+            modal.hide();
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update item: ' + error.message);
+        });
+    }
+    
+    function deleteItem(itemId) {
+        fetch(`/api/inventory/${itemId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete item');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Redirect to inventory page
+            window.location.href = '/inventory';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete item: ' + error.message);
+        });
+    }
+});
+</script>
+{% endblock %}

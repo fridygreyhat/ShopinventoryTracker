@@ -1,0 +1,106 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Inventory Dashboard</h1>
+    
+    <div class="row mb-4">
+        <!-- Summary Cards -->
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Items</h5>
+                    <p class="display-4 mb-0" id="total-items">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Stock</h5>
+                    <p class="display-4 mb-0" id="total-stock">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Low Stock Items</h5>
+                    <p class="display-4 mb-0" id="low-stock-count">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-dark h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Inventory Value</h5>
+                    <p class="display-4 mb-0" id="inventory-value">$0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Stock Level Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card bg-dark h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Stock Levels by Category</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="stockChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Value by Category Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card bg-dark h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Inventory Value by Category</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="valueChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Low Stock Items -->
+        <div class="col-md-12 mb-4">
+            <div class="card bg-dark">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Low Stock Items</h5>
+                    <a href="{{ url_for('inventory') }}" class="btn btn-sm btn-secondary">View All Inventory</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading low stock items...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

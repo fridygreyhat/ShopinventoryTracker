@@ -1,0 +1,74 @@
+/* 
+ * Custom CSS for Shop Inventory Management System
+ * This file contains minimal custom styles that extend the Bootstrap theme
+ */
+
+/* General styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+footer {
+    margin-top: auto;
+}
+
+/* Dashboard styles */
+.card {
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Inventory table styles */
+.table th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bs-dark);
+    z-index: 1;
+}
+
+/* Stock indicator colors are handled by Bootstrap's color classes */
+
+/* Fix for modal backdrop in dark theme */
+.modal-backdrop {
+    opacity: 0.7 !important;
+}
+
+/* Custom badge styles for stock levels */
+.badge {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.5rem;
+}
+
+/* Make form controls in dark theme more visible */
+.form-control, .form-select {
+    background-color: var(--bs-dark);
+    border-color: var(--bs-gray-700);
+    color: var(--bs-light);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+}
+
+/* Chart container styles */
+canvas {
+    max-width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2.5rem;
+    }
+    
+    .table-responsive {
+        max-height: 70vh;
+    }
+}
