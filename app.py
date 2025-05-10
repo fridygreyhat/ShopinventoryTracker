@@ -2,7 +2,7 @@ import os
 import logging
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 import io
 import csv
 
@@ -290,6 +290,14 @@ def export_csv():
         as_attachment=True,
         download_name=f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     )
+
+@app.route('/logout')
+def logout():
+    """Logout route to clear session data"""
+    # Clear session data
+    session.clear()
+    flash('You have been logged out', 'success')
+    return redirect(url_for('index'))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
