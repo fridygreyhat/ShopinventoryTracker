@@ -80,21 +80,25 @@ def item_detail(item_id):
     return render_template('item_detail.html', item=item.to_dict())
 
 @app.route('/reports')
+@login_required
 def reports():
     """Render the reports page"""
     return render_template('reports.html')
 
 @app.route('/settings')
+@login_required
 def settings():
     """Render the settings page"""
     return render_template('settings.html')
 
 @app.route('/on-demand')
+@login_required
 def on_demand():
     """Render the on-demand products page"""
     return render_template('on_demand.html')
 
 @app.route('/sales')
+@login_required
 def sales():
     """Render the sales management page"""
     return render_template('sales.html')
@@ -796,6 +800,7 @@ def logout():
 
 # Financial Statement Routes
 @app.route('/finance')
+@login_required
 def finance():
     """Render the financial statement page"""
     return render_template('finance.html')
