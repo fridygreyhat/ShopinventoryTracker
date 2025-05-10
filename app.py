@@ -1276,6 +1276,84 @@ def check_low_stock():
         }), 500
 
 
+# Theme management
+@app.route('/api/settings/appearance', methods=['POST'])
+def update_appearance_settings():
+    """API endpoint to update appearance settings"""
+    from models import Setting
+    
+    try:
+        data = request.json
+        
+        # Extract theme data
+        theme = data.get('theme', 'tanzanite')
+        items_per_page = data.get('itemsPerPage', '25')
+        date_format = data.get('dateFormat', 'YYYY-MM-DD')
+        
+        # Update theme in session - this will apply immediately
+        session['user_theme'] = theme
+        
+        # Save settings to database
+        user_id = session.get('user_id')
+        if user_id:
+            # Save theme setting for this user
+            theme_key = f"user_{user_id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            
+            if theme_setting:
+                theme_setting.value = theme
+                theme_setting.category = 'appearance'
+            else:
+                theme_setting = Setting(
+                    key=theme_key,
+                    value=theme,
+                    description=f"Theme preference for user {user_id}",
+                    category='appearance'
+                )
+                db.session.add(theme_setting)
+            
+            # Save items per page setting
+            items_key = f"user_{user_id}_items_per_page"
+            items_setting = Setting.query.filter_by(key=items_key).first()
+            
+            if items_setting:
+                items_setting.value = items_per_page
+                items_setting.category = 'appearance'
+            else:
+                items_setting = Setting(
+                    key=items_key,
+                    value=items_per_page,
+                    description=f"Items per page preference for user {user_id}",
+                    category='appearance'
+                )
+                db.session.add(items_setting)
+            
+            # Save date format setting
+            date_key = f"user_{user_id}_date_format"
+            date_setting = Setting.query.filter_by(key=date_key).first()
+            
+            if date_setting:
+                date_setting.value = date_format
+                date_setting.category = 'appearance'
+            else:
+                date_setting = Setting(
+                    key=date_key,
+                    value=date_format,
+                    description=f"Date format preference for user {user_id}",
+                    category='appearance'
+                )
+                db.session.add(date_setting)
+            
+            db.session.commit()
+        
+        return jsonify({"success": True, "message": "Appearance settings updated successfully"})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating appearance settings: {str(e)}")
+        return jsonify({"error": "Failed to update appearance settings"}), 500
+
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1340,6 +1418,15 @@ def create_session():
         session['email'] = user.email
         session['is_admin'] = user.is_admin
         session.permanent = data.get('remember', False)
+        
+        # Load user theme preference
+        from models import Setting
+        theme_key = f"user_{user.id}_theme"
+        theme_setting = Setting.query.filter_by(key=theme_key).first()
+        if theme_setting:
+            session['user_theme'] = theme_setting.value
+        else:
+            session['user_theme'] = 'tanzanite'  # Default theme
         
         return jsonify({"success": True, "user": user.to_dict()})
         
