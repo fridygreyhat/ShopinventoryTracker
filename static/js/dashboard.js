@@ -516,4 +516,155 @@ document.addEventListener('DOMContentLoaded', function() {
         
         onDemandProductsTableElement.innerHTML = html;
     }
+    
+    // Load financial summary data for dashboard
+    function loadFinancialSummary() {
+        // Get current date
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+        
+        // Get first and last day of current month
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+        
+        // Format dates as YYYY-MM-DD
+        const startDate = firstDay.toISOString().slice(0, 10);
+        const endDate = lastDay.toISOString().slice(0, 10);
+        
+        // Load monthly transactions data
+        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                updateFinancialSummary(data.summary);
+            })
+            .catch(error => {
+                console.error('Error loading financial summary:', error);
+            });
+        
+        // Load yearly data for chart
+        fetch(`/api/finance/summaries/monthly?year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                createFinancialChart(data);
+            })
+            .catch(error => {
+                console.error('Error loading monthly financial data:', error);
+            });
+    }
+    
+    // Update financial summary on dashboard
+    function updateFinancialSummary(summary) {
+        if (!monthlyIncomeElement || !monthlyExpensesElement || !monthlyProfitElement) {
+            return;
+        }
+        
+        monthlyIncomeElement.textContent = summary.total_income.toLocaleString();
+        monthlyExpensesElement.textContent = summary.total_expenses.toLocaleString();
+        monthlyProfitElement.textContent = summary.net_profit.toLocaleString();
+        
+        // Add color to profit value
+        if (summary.net_profit > 0) {
+            monthlyProfitElement.classList.add('text-success');
+            monthlyProfitElement.classList.remove('text-danger');
+        } else if (summary.net_profit < 0) {
+            monthlyProfitElement.classList.add('text-danger');
+            monthlyProfitElement.classList.remove('text-success');
+        } else {
+            monthlyProfitElement.classList.remove('text-success');
+            monthlyProfitElement.classList.remove('text-danger');
+        }
+    }
+    
+    // Create financial summary chart
+    function createFinancialChart(data) {
+        if (!financialSummaryChartElement) {
+            return;
+        }
+        
+        const ctx = financialSummaryChartElement.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (financialChart) {
+            financialChart.destroy();
+        }
+        
+        // Extract data for chart
+        const months = data.monthly_data.map(item => item.month_name);
+        const incomeData = data.monthly_data.map(item => item.income);
+        const expenseData = data.monthly_data.map(item => item.expenses);
+        const profitData = data.monthly_data.map(item => item.profit);
+        
+        // Create new chart
+        financialChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Net Profit',
+                        data: profitData,
+                        type: 'line',
+                        backgroundColor: 'rgba(23, 162, 184, 0.2)',
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += 'TZS ' + context.raw.toLocaleString();
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
