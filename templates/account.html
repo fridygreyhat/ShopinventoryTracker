@@ -186,7 +186,15 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script type="module">
+    // Import Firebase profile management module
+    import { 
+        updateUserProfile, 
+        changePassword, 
+        sendEmailVerification,
+        syncUserProfile
+    } from '/static/js/firebase-profile.js';
+    
     // User profile management code
     document.addEventListener('DOMContentLoaded', function() {
         // DOM elements
@@ -200,6 +208,20 @@
         const passwordChangeError = document.getElementById('passwordChangeError');
         const passwordErrorMessage = document.getElementById('passwordErrorMessage');
         const verifyEmailLink = document.getElementById('verifyEmail');
+        
+        // Sync profile with Firebase on page load
+        syncUserProfile()
+            .then(response => {
+                console.log("Profile synced with Firebase:", response);
+                // Refresh the page to update the UI with synced data
+                if (response && response.success) {
+                    // Optionally update UI without page refresh
+                    // Location.reload();
+                }
+            })
+            .catch(error => {
+                console.error("Failed to sync profile:", error);
+            });
     
         // Initialize product categories
         const initProductCategories = function() {
@@ -242,30 +264,15 @@
             updateAccountBtn.disabled = true;
             updateAccountBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
             
-            // Update user profile through API
-            fetch('/api/auth/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: username,
-                    firstName: firstName,
-                    lastName: lastName,
-                    shopName: shopName,
-                    productCategories: productCategories
-                })
+            // Update user profile using Firebase Profile module
+            updateUserProfile({
+                username: username,
+                firstName: firstName,
+                lastName: lastName,
+                shopName: shopName,
+                productCategories: productCategories
             })
             .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Failed to update profile');
-                    });
-                }
-            })
-            .then(data => {
                 // Show success message
                 updateSuccess.classList.remove('d-none');
                 updateError.classList.add('d-none');
@@ -324,42 +331,24 @@
             savePasswordBtn.disabled = true;
             savePasswordBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Changing...';
             
-            // Send request to server
-            fetch('/api/auth/change-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    current_password: currentPassword,
-                    new_password: newPassword
-                })
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Failed to change password');
-                    });
-                }
-            })
-            .then(data => {
-                // Reset form
-                document.getElementById('changePasswordForm').reset();
-                
-                // Close modal
-                const changePasswordModal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
-                changePasswordModal.hide();
-                
-                // Show success message
-                updateSuccess.classList.remove('d-none');
-                updateSuccess.textContent = 'Password changed successfully';
-                
-                // Hide success message after 3 seconds
-                setTimeout(() => {
-                    updateSuccess.classList.add('d-none');
-                }, 3000);
+            // Use Firebase Profile module to change password
+            changePassword(currentPassword, newPassword)
+                .then(() => {
+                    // Reset form
+                    document.getElementById('changePasswordForm').reset();
+                    
+                    // Close modal
+                    const changePasswordModal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                    changePasswordModal.hide();
+                    
+                    // Show success message
+                    updateSuccess.classList.remove('d-none');
+                    updateSuccess.textContent = 'Password changed successfully';
+                    
+                    // Hide success message after 3 seconds
+                    setTimeout(() => {
+                        updateSuccess.classList.add('d-none');
+                    }, 3000);
                 
                 // Reset button state
                 savePasswordBtn.disabled = false;
