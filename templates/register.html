@@ -187,16 +187,31 @@
             };
             
             // Create user with Firebase and register with server using our helper function
+            console.log('Registering with Firebase and server...');
             const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
+            console.log('Registration successful:', serverData);
             
             // Get the token for creating a session
+            console.log('Getting Firebase ID token...');
             const token = await userCredential.user.getIdToken();
+            console.log('Token received, length:', token ? token.length : 0);
             
             // Create a session with the server
-            await createSession(token, true);
-            
-            // If we got here, registration and session creation were successful - redirect to dashboard
-            window.location.href = '/';
+            console.log('Creating session with server...');
+            try {
+                const sessionResult = await createSession(token, true);
+                console.log('Session created successfully:', sessionResult);
+                
+                // If we got here, registration and session creation were successful - redirect to dashboard
+                console.log('Redirecting to dashboard...');
+                window.location.href = '/';
+            } catch (sessionError) {
+                console.error('Session creation failed:', sessionError);
+                showError('Account created but session creation failed. Please try logging in manually.');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 3000);
+            }
             
         } catch (error) {
             // Reset button and show error

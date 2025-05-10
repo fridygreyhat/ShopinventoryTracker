@@ -20,31 +20,45 @@ let currentTheme = 'tanzanite'; // Default theme
  * Initialize theme from stored preference or default
  */
 function initTheme() {
+    console.log('Theme switcher initializing...');
+    
+    // Check what's already on the body
+    const bodyTheme = document.body.getAttribute('data-theme-value');
+    console.log('Current body theme attribute:', bodyTheme);
+    
     // Check if theme is stored in local storage
     const storedTheme = localStorage.getItem('user_theme');
+    console.log('Theme from localStorage:', storedTheme);
     
     // Set theme from storage, session, or default to tanzanite
     if (storedTheme && AVAILABLE_THEMES.includes(storedTheme)) {
+        console.log('Using theme from localStorage:', storedTheme);
         setTheme(storedTheme);
     } else {
+        console.log('No valid theme in localStorage, fetching from server...');
         // Try to get theme from session if it exists
         fetch('/api/settings/get/user_theme')
             .then(response => response.json())
             .then(data => {
+                console.log('Theme API response:', data);
                 if (data.success && data.value && AVAILABLE_THEMES.includes(data.value)) {
+                    console.log('Using theme from server:', data.value);
                     setTheme(data.value);
                 } else {
+                    console.log('No valid theme from server, using default: tanzanite');
                     setTheme('tanzanite'); // Default theme
                 }
             })
             .catch(error => {
                 console.error('Error fetching theme setting:', error);
+                console.log('Error fetching theme, using default: tanzanite');
                 setTheme('tanzanite'); // Default theme on error
             });
     }
     
     // Initialize theme selectors if on settings page
     themeSelectors = document.querySelectorAll('.theme-preview');
+    console.log('Theme selectors found:', themeSelectors ? themeSelectors.length : 0);
     if (themeSelectors && themeSelectors.length > 0) {
         // Initialize theme selection UI
         initThemeSelectors();
@@ -56,6 +70,8 @@ function initTheme() {
  * @param {string} theme - Theme name to activate
  */
 function setTheme(theme) {
+    console.log('Setting theme to:', theme);
+    
     if (!AVAILABLE_THEMES.includes(theme)) {
         console.error(`Theme "${theme}" is not available`);
         return;
@@ -63,15 +79,20 @@ function setTheme(theme) {
     
     // Update body data attribute
     document.body.setAttribute('data-theme-value', theme);
+    console.log('Updated body data-theme-value to:', theme);
     
     // Store in local storage
     localStorage.setItem('user_theme', theme);
+    console.log('Saved theme to localStorage');
     
     // Update current theme variable
     currentTheme = theme;
     
     // Update theme selectors if on settings page
     updateThemeSelectors(theme);
+    
+    // Apply CSS variables (if needed)
+    console.log('Theme applied to document body');
 }
 
 /**
