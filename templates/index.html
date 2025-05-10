@@ -43,35 +43,35 @@
     </div>
     
     <!-- Financial Summary Section -->
-    <div class="card financial-card mb-4">
-        <div class="card-header">
+    <div class="card financial-card compact-chart mb-4">
+        <div class="card-header py-2">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Financial Summary</h5>
+                <h6 class="card-title small mb-0">Financial Summary</h6>
                 <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-external-link-alt"></i> View Detailed Reports
+                    <i class="fas fa-external-link-alt"></i> View Reports
                 </a>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-2">
             <div class="row">
                 <!-- Monthly Summary Chart -->
                 <div class="col-md-8">
                     <div class="chart-container">
-                        <canvas id="financialSummaryChart" height="250"></canvas>
+                        <canvas id="financialSummaryChart" height="180"></canvas>
                     </div>
                 </div>
                 <!-- Financial Metrics Cards -->
                 <div class="col-md-4">
-                    <div class="card finance-card mb-3 financial-summary income-card">
-                        <div class="card-body">
+                    <div class="card finance-card mb-3 financial-summary income-card compact-chart">
+                        <div class="card-body p-2">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="card-subtitle">This Month</h6>
-                                    <h5 class="card-title mb-0">Income</h5>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Income</h6>
                                 </div>
-                                <i class="fas fa-arrow-circle-down fa-2x text-success"></i>
+                                <i class="fas fa-arrow-circle-down text-success"></i>
                             </div>
-                            <p class="mt-2 mb-0 fs-4">
+                            <p class="mt-1 mb-0 fs-5">
                                 <span class="currency-symbol">TZS</span> <span id="monthly-income">0</span>
                             </p>
                         </div>
