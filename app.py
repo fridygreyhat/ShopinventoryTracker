@@ -1298,63 +1298,18 @@ def login():
 def register():
     """Handle the registration page"""
     # If user is already logged in, redirect to dashboard
-    if current_user.is_authenticated:
+    if 'user_id' in session:
         return redirect(url_for('index'))
     
-    # Handle registration form submission
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        shop_name = request.form.get('shop_name')
-        product_categories = request.form.get('product_categories')
-        
-        # Basic validation
-        if not username or not email or not password:
-            flash('All fields are required.', 'danger')
-            return render_template('register.html')
-            
-        if password != confirm_password:
-            flash('Passwords do not match.', 'danger')
-            return render_template('register.html')
-            
-        # Check if username or email already exists
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists. Please choose another.', 'danger')
-            return render_template('register.html')
-            
-        if User.query.filter_by(email=email).first():
-            flash('Email already exists. Please use another or log in.', 'danger')
-            return render_template('register.html')
-            
-        # Create new user
-        new_user = User(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            shop_name=shop_name,
-            product_categories=product_categories,
-            email_verified=False,
-            active=True
-        )
-        new_user.set_password(password)
-        
-        # Save user to database
-        db.session.add(new_user)
-        db.session.commit()
-        
-        # Log the user in
-        login_user(new_user)
-        
-        flash('Your account has been created successfully!', 'success')
-        return redirect(url_for('index'))
+    # Render registration template with Firebase config
+    firebase_config = {
+        'apiKey': app.config['FIREBASE_API_KEY'],
+        'projectId': app.config['FIREBASE_PROJECT_ID'],
+        'appId': app.config['FIREBASE_APP_ID'],
+        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
+    }
     
-    # Render registration template for GET requests
-    return render_template('register.html')
+    return render_template('register.html', firebase_config=firebase_config)
 
 @app.route('/api/auth/session', methods=['POST'])
 def create_session():

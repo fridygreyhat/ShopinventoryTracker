@@ -9,7 +9,7 @@
                 <h1 class="auth-heading">Create a New Account</h1>
                 <p class="auth-subheading">Join our inventory management system designed for Tanzanian businesses</p>
 
-                <form action="{{ url_for('register') }}" method="post" class="auth-form">
+                <div id="registration-form">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
@@ -20,11 +20,13 @@
                         {% endif %}
                     {% endwith %}
                     
+                    <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+                    
                     <div class="mb-3">
                         <label for="username" class="form-label">
                             <i class="fas fa-user-circle"></i> Username
                         </label>
-                        <input type="text" class="form-control" id="username" name="username" placeholder="Choose a username" required>
+                        <input type="text" class="form-control" id="username" placeholder="Choose a username" required>
                     </div>
                     
                     <div class="row">
@@ -32,13 +34,13 @@
                             <label for="first_name" class="form-label">
                                 <i class="fas fa-user"></i> First Name
                             </label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Enter your first name">
+                            <input type="text" class="form-control" id="first_name" placeholder="Enter your first name">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="last_name" class="form-label">
                                 <i class="fas fa-user"></i> Last Name
                             </label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Enter your last name">
+                            <input type="text" class="form-control" id="last_name" placeholder="Enter your last name">
                         </div>
                     </div>
                     
@@ -46,21 +48,21 @@
                         <label for="shop_name" class="form-label">
                             <i class="fas fa-store"></i> Shop Name
                         </label>
-                        <input type="text" class="form-control" id="shop_name" name="shop_name" placeholder="Enter your business name">
+                        <input type="text" class="form-control" id="shop_name" placeholder="Enter your business name">
                     </div>
                     
                     <div class="mb-3">
                         <label for="email" class="form-label">
                             <i class="fas fa-envelope"></i> Email Address
                         </label>
-                        <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email address" required>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email address" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="password" class="form-label">
                             <i class="fas fa-lock"></i> Password
                         </label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Create a secure password" required>
+                        <input type="password" class="form-control" id="password" placeholder="Create a secure password" required>
                         <div class="form-text mb-2">Password must be at least 6 characters long</div>
                     </div>
                     
@@ -68,14 +70,14 @@
                         <label for="confirm_password" class="form-label">
                             <i class="fas fa-check-circle"></i> Confirm Password
                         </label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
+                        <input type="password" class="form-control" id="confirm_password" placeholder="Confirm your password" required>
                     </div>
                     
                     <div class="mb-4">
                         <label class="form-label">
                             <i class="fas fa-tags"></i> Product Categories
                         </label>
-                        <select class="form-select" id="product_categories" name="product_categories" multiple>
+                        <select class="form-select" id="product_categories" multiple>
                             <option value="Electronics">Electronics</option>
                             <option value="Clothing">Clothing</option>
                             <option value="Food">Food</option>
@@ -91,7 +93,7 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="button" id="register-button" class="btn btn-primary">
                             <i class="fas fa-user-plus me-2"></i>Create Account
                         </button>
                     </div>
@@ -101,9 +103,138 @@
                             Already have an account? Sign in <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Firebase SDK -->
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+
+<script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    // Firebase configuration from server
+    const firebaseConfig = {
+        apiKey: "{{ firebase_config.apiKey }}",
+        projectId: "{{ firebase_config.projectId }}",
+        appId: "{{ firebase_config.appId }}",
+        authDomain: "{{ firebase_config.authDomain }}",
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Elements
+    const registerButton = document.getElementById('register-button');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const usernameInput = document.getElementById('username');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    const shopNameInput = document.getElementById('shop_name');
+    const productCategoriesSelect = document.getElementById('product_categories');
+    const errorDiv = document.getElementById('auth-error');
+
+    // Register button click handler
+    registerButton.addEventListener('click', async () => {
+        // Get form values
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const username = usernameInput.value.trim();
+        
+        // Validate form
+        if (!email || !password || !confirmPassword || !username) {
+            showError('Please fill in all required fields.');
+            return;
+        }
+        
+        if (password !== confirmPassword) {
+            showError('Passwords do not match.');
+            return;
+        }
+        
+        if (password.length < 6) {
+            showError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        try {
+            // Show loading state
+            registerButton.disabled = true;
+            registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
+            
+            // Create user with Firebase
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const token = await userCredential.user.getIdToken();
+            
+            // Get selected product categories
+            const selectedCategories = Array.from(productCategoriesSelect.selectedOptions).map(option => option.value);
+            
+            // Send additional data to server
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    idToken: token,
+                    username: username,
+                    firstName: firstNameInput.value.trim(),
+                    lastName: lastNameInput.value.trim(),
+                    shopName: shopNameInput.value.trim(),
+                    productCategories: selectedCategories.join(',')
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to complete registration with server');
+            }
+            
+            // On success, redirect to dashboard
+            window.location.href = '/';
+            
+        } catch (error) {
+            // Reset button and show error
+            registerButton.disabled = false;
+            registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+            
+            console.error('Registration error:', error);
+            
+            let errorMessage = 'Registration failed. Please try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'Email already in use. Please try a different email address.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Invalid email address. Please check and try again.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak. Please use a stronger password.';
+            }
+            
+            showError(errorMessage);
+        }
+    });
+
+    // Show error message
+    function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+
+    // Handle Enter key press
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
+            registerButton.click();
+        }
+    });
+</script>
 {% endblock %}
