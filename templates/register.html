@@ -2,100 +2,110 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow-sm border-0 my-5">
-            <div class="card-body p-4 p-sm-5">
-                <div class="text-center mb-4">
-                    <h1 class="h3">Create a New Account</h1>
-                    <p class="text-muted">Sign up to access the inventory management system</p>
-                </div>
+    <div class="col-md-7 col-lg-6">
+        <div class="auth-card">
+            <div class="card-body">
+                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="auth-logo">
+                <h1 class="auth-heading">Create a New Account</h1>
+                <p class="auth-subheading">Join our inventory management system designed for Tanzanian businesses</p>
 
-                <form id="registrationForm">
+                <form id="registrationForm" class="auth-form">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="firstName" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="firstName" required>
+                        <div class="col-md-6">
+                            <label for="firstName" class="form-label">
+                                <i class="fas fa-user"></i> First Name
+                            </label>
+                            <input type="text" class="form-control" id="firstName" placeholder="Enter your first name" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="lastName" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="lastName" required>
+                        <div class="col-md-6">
+                            <label for="lastName" class="form-label">
+                                <i class="fas fa-user"></i> Last Name
+                            </label>
+                            <input type="text" class="form-control" id="lastName" placeholder="Enter your last name" required>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="shopName" class="form-label">Shop Name</label>
-                        <input type="text" class="form-control" id="shopName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="registerEmail" class="form-label">Email address</label>
-                        <input type="email" class="form-control" id="registerEmail" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="registerPassword" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="registerPassword" required>
-                        <div class="form-text">Password must be at least 6 characters long</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Confirm Password</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Product Categories</label>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Electronics" id="categoryElectronics">
-                                    <label class="form-check-label" for="categoryElectronics">
-                                        Electronics
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Clothing" id="categoryClothing">
-                                    <label class="form-check-label" for="categoryClothing">
-                                        Clothing
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Food" id="categoryFood">
-                                    <label class="form-check-label" for="categoryFood">
-                                        Food
-                                    </label>
-                                </div>
+                    
+                    <label for="shopName" class="form-label">
+                        <i class="fas fa-store"></i> Shop Name
+                    </label>
+                    <input type="text" class="form-control" id="shopName" placeholder="Enter your business name" required>
+                    
+                    <label for="registerEmail" class="form-label">
+                        <i class="fas fa-envelope"></i> Email Address
+                    </label>
+                    <input type="email" class="form-control" id="registerEmail" placeholder="Enter your email address" required>
+                    
+                    <label for="registerPassword" class="form-label">
+                        <i class="fas fa-lock"></i> Password
+                    </label>
+                    <input type="password" class="form-control" id="registerPassword" placeholder="Create a secure password" required>
+                    <div class="form-text mb-3">Password must be at least 6 characters long</div>
+                    
+                    <label for="confirmPassword" class="form-label">
+                        <i class="fas fa-check-circle"></i> Confirm Password
+                    </label>
+                    <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm your password" required>
+                    
+                    <label class="form-label mt-3">
+                        <i class="fas fa-tags"></i> Product Categories
+                    </label>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Electronics" id="categoryElectronics">
+                                <label class="form-check-label" for="categoryElectronics">
+                                    Electronics
+                                </label>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Furniture" id="categoryFurniture">
-                                    <label class="form-check-label" for="categoryFurniture">
-                                        Furniture
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Cosmetics" id="categoryCosmetics">
-                                    <label class="form-check-label" for="categoryCosmetics">
-                                        Cosmetics
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input product-category" type="checkbox" value="Other" id="categoryOther">
-                                    <label class="form-check-label" for="categoryOther">
-                                        Other
-                                    </label>
-                                </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Clothing" id="categoryClothing">
+                                <label class="form-check-label" for="categoryClothing">
+                                    Clothing
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Food" id="categoryFood">
+                                <label class="form-check-label" for="categoryFood">
+                                    Food
+                                </label>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Furniture" id="categoryFurniture">
+                                <label class="form-check-label" for="categoryFurniture">
+                                    Furniture
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Cosmetics" id="categoryCosmetics">
+                                <label class="form-check-label" for="categoryCosmetics">
+                                    Cosmetics
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input product-category" type="checkbox" value="Other" id="categoryOther">
+                                <label class="form-check-label" for="categoryOther">
+                                    Other
+                                </label>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="alert alert-danger d-none" id="registerError" role="alert">
                         <i class="fas fa-exclamation-circle me-2"></i>
                         <span id="registerErrorMessage">Error message</span>
                     </div>
-                    <div class="d-grid">
-                        <button type="button" class="btn btn-primary" id="registerButton">
-                            <i class="fas fa-user-plus me-2"></i> Create Account
-                        </button>
-                    </div>
+                    
+                    <button type="button" class="auth-btn" id="registerButton">
+                        <i class="fas fa-user-plus me-2"></i> Create Account
+                    </button>
                 </form>
 
-                <div class="text-center mt-4">
-                    <p class="text-muted mb-0">Already have an account? <a href="/login">Sign in</a></p>
+                <div class="text-center">
+                    <a href="/login" class="auth-link">
+                        Already have an account? Sign in <i class="fas fa-arrow-right"></i>
+                    </a>
                 </div>
             </div>
         </div>
