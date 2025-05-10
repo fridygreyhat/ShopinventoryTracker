@@ -23,9 +23,7 @@
                     </div>
                 </div>
 
-                <div class="text-center mt-4">
-                    <p class="text-muted mb-0">Don't have an account? <a href="#" id="signupLink" class="auth-link">Create one</a></p>
-                </div>
+                <!-- Create account link removed as requested -->
             </div>
         </div>
     </div>
@@ -107,7 +105,7 @@
     const loader = document.getElementById('loader');
     const loginErrorDiv = document.getElementById('loginError');
     const errorMessageSpan = document.getElementById('errorMessage');
-    const signupLink = document.getElementById('signupLink');
+    // Signup link removed as requested
     const registerButton = document.getElementById('registerButton');
     const registerErrorDiv = document.getElementById('registerError');
     const registerErrorMessageSpan = document.getElementById('registerErrorMessage');
@@ -155,12 +153,7 @@
         }
     });
 
-    // Show registration modal when signup link is clicked
-    signupLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
-        registrationModal.show();
-    });
+    // Signup link and its event listener removed as requested
 
     // Handle registration form submission
     registerButton.addEventListener('click', function() {
