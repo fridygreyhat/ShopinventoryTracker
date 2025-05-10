@@ -189,12 +189,7 @@
             // Create user with Firebase and register with server using our helper function
             const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to complete registration with server');
-            }
-            
-            // On success, redirect to dashboard
+            // If we got here, registration was successful - redirect to dashboard
             window.location.href = '/';
             
         } catch (error) {
