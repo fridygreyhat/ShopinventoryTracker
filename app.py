@@ -704,6 +704,38 @@ def get_setting(key):
         return jsonify({"error": "Setting not found"}), 404
     
     return jsonify(setting.to_dict())
+    
+@app.route('/api/settings/get/user_theme', methods=['GET'])
+def get_user_theme():
+    """API endpoint to get user's theme preference"""
+    # First check if theme is in session
+    if 'user_theme' in session:
+        return jsonify({
+            'success': True,
+            'value': session['user_theme']
+        })
+        
+    # If not in session, try to get from database
+    user_id = session.get('user_id')
+    if user_id:
+        from models import Setting
+        
+        theme_key = f"user_{user_id}_theme"
+        setting = Setting.query.filter_by(key=theme_key).first()
+        
+        if setting:
+            # Update session
+            session['user_theme'] = setting.value
+            return jsonify({
+                'success': True,
+                'value': setting.value
+            })
+    
+    # Return default theme if not found
+    return jsonify({
+        'success': True,
+        'value': 'tanzanite'  # Default theme
+    })
 
 @app.route('/api/settings', methods=['POST'])
 def add_setting():

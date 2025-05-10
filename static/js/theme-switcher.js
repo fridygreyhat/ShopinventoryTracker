@@ -1,156 +1,147 @@
 /**
- * Theme Switcher for Shop Inventory Management System
- * 
- * This script handles theme changes and persists them via user settings
+ * Theme Switcher Module
+ * Handles theme switching functionality for the Shop Inventory Management System
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Theme previews in settings page
-    const themePreviewElements = document.querySelectorAll('.theme-preview');
-    const themeRadios = document.querySelectorAll('.theme-radio');
+// Available themes
+const AVAILABLE_THEMES = [
+    'tanzanite', // Default theme
+    'forest',
+    'ocean',
+    'sunset',
+    'dark'
+];
+
+// DOM variables
+let themeSelectors;
+let currentTheme = 'tanzanite'; // Default theme
+
+/**
+ * Initialize theme from stored preference or default
+ */
+function initTheme() {
+    // Check if theme is stored in local storage
+    const storedTheme = localStorage.getItem('user_theme');
     
-    // Apply Visual Preview Effects
-    themePreviewElements.forEach(preview => {
-        preview.addEventListener('click', function() {
-            // Get the theme value from the data attribute
-            const theme = this.getAttribute('data-theme');
-            
-            // Find the corresponding radio button and select it
-            const radio = document.getElementById(`theme_${theme}`);
-            if (radio) {
-                radio.checked = true;
-                
-                // Trigger a preview of the theme without saving
-                previewTheme(theme);
-            }
-        });
-    });
-    
-    // Apply theme when radio buttons are clicked
-    themeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                previewTheme(this.value);
-            }
-        });
-    });
-    
-    // Save appearance settings
-    const saveAppearanceBtn = document.getElementById('saveAppearanceSettings');
-    if (saveAppearanceBtn) {
-        saveAppearanceBtn.addEventListener('click', function() {
-            saveThemeSettings();
-        });
+    // Set theme from storage, session, or default to tanzanite
+    if (storedTheme && AVAILABLE_THEMES.includes(storedTheme)) {
+        setTheme(storedTheme);
+    } else {
+        // Try to get theme from session if it exists
+        fetch('/api/settings/get/user_theme')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.value && AVAILABLE_THEMES.includes(data.value)) {
+                    setTheme(data.value);
+                } else {
+                    setTheme('tanzanite'); // Default theme
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching theme setting:', error);
+                setTheme('tanzanite'); // Default theme on error
+            });
     }
     
-    /**
-     * Apply a theme temporarily for preview
-     */
-    function previewTheme(theme) {
-        document.body.setAttribute('data-theme', theme);
+    // Initialize theme selectors if on settings page
+    themeSelectors = document.querySelectorAll('.theme-preview');
+    if (themeSelectors && themeSelectors.length > 0) {
+        // Initialize theme selection UI
+        initThemeSelectors();
+    }
+}
+
+/**
+ * Set the active theme
+ * @param {string} theme - Theme name to activate
+ */
+function setTheme(theme) {
+    if (!AVAILABLE_THEMES.includes(theme)) {
+        console.error(`Theme "${theme}" is not available`);
+        return;
+    }
+    
+    // Update body data attribute
+    document.body.setAttribute('data-theme', theme);
+    
+    // Store in local storage
+    localStorage.setItem('user_theme', theme);
+    
+    // Update current theme variable
+    currentTheme = theme;
+    
+    // Update theme selectors if on settings page
+    updateThemeSelectors(theme);
+}
+
+/**
+ * Save theme preference to server
+ * @param {string} theme - Theme name to save
+ */
+function saveThemePreference(theme) {
+    fetch('/api/settings/appearance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            theme: theme,
+            itemsPerPage: '25', // Default
+            dateFormat: 'YYYY-MM-DD' // Default
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Error saving theme preference:', data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Network error when saving theme preference:', error);
+    });
+}
+
+/**
+ * Initialize theme selectors on settings page
+ */
+function initThemeSelectors() {
+    themeSelectors.forEach(selector => {
+        // Get theme value from data attribute
+        const theme = selector.getAttribute('data-theme-value');
         
-        // Update selected state for previews
-        themePreviewElements.forEach(preview => {
-            if (preview.getAttribute('data-theme') === theme) {
-                preview.classList.add('selected');
-            } else {
-                preview.classList.remove('selected');
-            }
+        // Add click event listener
+        selector.addEventListener('click', () => {
+            setTheme(theme);
+            saveThemePreference(theme);
         });
         
-        // Handle Bootstrap dark/light mode if needed
-        if (theme === 'dark') {
-            document.documentElement.setAttribute('data-bs-theme', 'dark');
+        // Mark as selected if current theme
+        if (theme === currentTheme) {
+            selector.classList.add('selected');
+        }
+    });
+}
+
+/**
+ * Update theme selectors to show current selection
+ * @param {string} activeTheme - Currently active theme
+ */
+function updateThemeSelectors(activeTheme) {
+    if (!themeSelectors || themeSelectors.length === 0) return;
+    
+    themeSelectors.forEach(selector => {
+        const theme = selector.getAttribute('data-theme-value');
+        
+        if (theme === activeTheme) {
+            selector.classList.add('selected');
         } else {
-            document.documentElement.setAttribute('data-bs-theme', 'light');
-        }
-    }
-    
-    /**
-     * Save theme settings to server
-     */
-    function saveThemeSettings() {
-        // Get the selected theme
-        const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
-        
-        // Get other appearance settings
-        const itemsPerPage = document.getElementById('items_per_page').value;
-        const dateFormat = document.getElementById('date_format').value;
-        
-        // Show saving indicator
-        const saveBtn = document.getElementById('saveAppearanceSettings');
-        const originalText = saveBtn.textContent;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-        
-        // Save settings via API
-        fetch('/api/settings/appearance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                theme: selectedTheme,
-                itemsPerPage: itemsPerPage,
-                dateFormat: dateFormat
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Reset button
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-            
-            // Show success feedback
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success mt-3';
-            alertDiv.textContent = 'Settings saved successfully!';
-            
-            const form = document.getElementById('appearanceSettingsForm');
-            form.appendChild(alertDiv);
-            
-            // Remove alert after 3 seconds
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 3000);
-            
-            // Apply the theme permanently
-            document.body.setAttribute('data-theme', selectedTheme);
-            
-            // Update HTML theme if needed
-            if (selectedTheme === 'dark') {
-                document.documentElement.setAttribute('data-bs-theme', 'dark');
-            } else {
-                document.documentElement.setAttribute('data-bs-theme', 'light');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving theme settings:', error);
-            
-            // Reset button
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-            
-            // Show error feedback
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-danger mt-3';
-            alertDiv.textContent = 'Error saving settings. Please try again.';
-            
-            const form = document.getElementById('appearanceSettingsForm');
-            form.appendChild(alertDiv);
-            
-            // Remove alert after 3 seconds
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 3000);
-        });
-    }
-    
-    // Set up initial preview state - add "selected" class to the active theme
-    const currentTheme = document.body.getAttribute('data-theme');
-    themePreviewElements.forEach(preview => {
-        if (preview.getAttribute('data-theme') === currentTheme) {
-            preview.classList.add('selected');
+            selector.classList.remove('selected');
         }
     });
-});
+}
+
+// Initialize theme when DOM is loaded
+document.addEventListener('DOMContentLoaded', initTheme);
+
+// Export functions for external use
+export { setTheme, saveThemePreference };
