@@ -58,23 +58,19 @@ def index():
     return render_template('index.html')
 
 @app.route('/inventory')
+@login_required
 def inventory():
     """Render the inventory management page"""
-    # Import login_required decorator
-    from auth_service import login_required
-    
-    @login_required
-    def protected_inventory():
-        return render_template('inventory.html')
-        
-    return protected_inventory()
+    return render_template('inventory.html')
 
 @app.route('/margin')
+@login_required
 def margin():
     """Render the margin analysis page"""
     return render_template('margin.html')
 
 @app.route('/item/<int:item_id>')
+@login_required
 def item_detail(item_id):
     """Render the item detail page"""
     # Get the item from database
