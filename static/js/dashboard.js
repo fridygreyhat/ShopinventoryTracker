@@ -662,18 +662,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Expenses',
                         data: expenseData,
-                        backgroundColor: 'rgba(220, 53, 69, 0.7)',
-                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: getThemeColors().danger,
+                        borderColor: getThemeColors().danger.replace('0.8', '1'),
                         borderWidth: 1
                     },
                     {
                         label: 'Net Profit',
                         data: profitData,
                         type: 'line',
-                        backgroundColor: 'rgba(23, 162, 184, 0.2)',
-                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: getThemeColors().info.replace('0.8', '0.2'),
+                        borderColor: getThemeColors().info.replace('0.8', '1'),
                         borderWidth: 2,
-                        pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                        pointBackgroundColor: getThemeColors().info.replace('0.8', '1'),
                         pointRadius: 4,
                         fill: false,
                         tension: 0.1
