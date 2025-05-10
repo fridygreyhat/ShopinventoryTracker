@@ -1381,35 +1381,29 @@ def register():
 
 @app.route('/api/auth/session', methods=['POST'])
 def create_session():
-    """Create a session for authenticated user"""
+    """Create a session for authenticated user using API"""
     try:
         data = request.json
         
-        if not data or 'idToken' not in data:
-            return jsonify({"error": "Missing ID token"}), 400
+        if not data or 'username' not in data or 'password' not in data:
+            return jsonify({"error": "Username and password are required"}), 400
             
-        # Import the auth service functions
-        from auth_service import verify_firebase_token, create_or_update_user
+        # Find user by username
+        user = User.query.filter_by(username=data['username']).first()
         
-        # Verify token with Firebase
-        user_data = verify_firebase_token(data['idToken'])
-        
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
-            
-        # Create or update user in the database
-        user = create_or_update_user(user_data)
-        
-        if not user:
-            return jsonify({"error": "Failed to create or update user"}), 500
+        # Check if user exists and password is correct
+        if not user or not user.check_password(data['password']):
+            return jsonify({"error": "Invalid username or password"}), 401
             
         # Update last login time
         user.last_login = datetime.utcnow()
         db.session.commit()
         
+        # Log user in using Flask-Login
+        login_user(user, remember=data.get('remember', False))
+        
         # Set session data
         session['user_id'] = user.id
-        session['firebase_uid'] = user.firebase_uid
         session['email'] = user.email
         session['is_admin'] = user.is_admin
         
@@ -1421,47 +1415,50 @@ def create_session():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register_user():
-    """Register a new user"""
+    """Register a new user via API"""
     try:
         data = request.json
         
-        if not data or 'idToken' not in data or 'email' not in data:
+        if not data or 'username' not in data or 'email' not in data or 'password' not in data:
             return jsonify({"error": "Missing required data"}), 400
             
-        # Import the auth service functions
-        from auth_service import verify_firebase_token, create_or_update_user
-        
-        # Verify token with Firebase
-        user_data = verify_firebase_token(data['idToken'])
-        
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
-        
-        # Extract additional user profile data
-        extra_data = {
-            'firstName': data.get('firstName'),
-            'lastName': data.get('lastName'),
-            'shopName': data.get('shopName'),
-            'productCategories': data.get('productCategories')
-        }
+        # Check if username or email already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({"error": "Username already exists"}), 400
             
-        # Create or update user in the database with profile data
-        user = create_or_update_user(user_data, extra_data)
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({"error": "Email already exists"}), 400
         
-        if not user:
-            return jsonify({"error": "Failed to create user"}), 500
-            
-        # Update last login time
-        user.last_login = datetime.utcnow()
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            first_name=data.get('firstName'),
+            last_name=data.get('lastName'),
+            shop_name=data.get('shopName'),
+            product_categories=data.get('productCategories'),
+            email_verified=False,
+            active=True
+        )
+        new_user.set_password(data['password'])
+        
+        # Save user to database
+        db.session.add(new_user)
         db.session.commit()
         
-        # Set session data
-        session['user_id'] = user.id
-        session['firebase_uid'] = user.firebase_uid
-        session['email'] = user.email
-        session['is_admin'] = user.is_admin
+        # Login the user
+        login_user(new_user)
         
-        return jsonify({"success": True, "user": user.to_dict()})
+        # Set session data for Flask session (in addition to Flask-Login)
+        session['user_id'] = new_user.id
+        session['email'] = new_user.email
+        session['is_admin'] = new_user.is_admin
+            
+        # Update last login time
+        new_user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({"success": True, "user": new_user.to_dict()})
         
     except Exception as e:
         logger.error(f"Error registering user: {str(e)}")
