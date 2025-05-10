@@ -64,7 +64,7 @@ with app.app_context():
     
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production 
-    db.drop_all()
+    # db.drop_all()  # Commented out to prevent data loss
     db.create_all()
 
 @app.route('/')
