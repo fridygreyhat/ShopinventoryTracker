@@ -61,12 +61,34 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/inventory/categories')
             .then(response => response.json())
             .then(categories => {
+                // Update categories in filter dropdown
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
+                
+                // Also update categories in the add/edit forms
+                const itemCategorySelect = document.getElementById('itemCategory');
+                const editItemCategorySelect = document.getElementById('editItemCategory');
+                
+                itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                
                 categories.sort().forEach(category => {
+                    // Add to filter dropdown
                     const option = document.createElement('option');
                     option.value = category;
                     option.textContent = category;
                     categoryFilter.appendChild(option);
+                    
+                    // Add to new item form
+                    const newItemOption = document.createElement('option');
+                    newItemOption.value = category;
+                    newItemOption.textContent = category;
+                    itemCategorySelect.appendChild(newItemOption);
+                    
+                    // Add to edit item form
+                    const editItemOption = document.createElement('option');
+                    editItemOption.value = category;
+                    editItemOption.textContent = category;
+                    editItemCategorySelect.appendChild(editItemOption);
                 });
             })
             .catch(error => {
@@ -108,7 +130,11 @@ document.addEventListener('DOMContentLoaded', function() {
                       `<span class="badge bg-warning">${item.quantity}</span>` : 
                       item.quantity}
                 </td>
-                <td>TZS ${item.price.toLocaleString()}</td>
+                <td>
+                    <small class="text-muted">Buying: </small><span class="currency-symbol">TZS</span> ${item.buying_price ? item.buying_price.toLocaleString() : 0}<br>
+                    <small class="text-muted">Retail: </small><span class="currency-symbol">TZS</span> ${item.selling_price_retail ? item.selling_price_retail.toLocaleString() : 0}<br>
+                    <small class="text-muted">Wholesale: </small><span class="currency-symbol">TZS</span> ${item.selling_price_wholesale ? item.selling_price_wholesale.toLocaleString() : 0}
+                </td>
                 <td>
                     <div class="btn-group" role="group">
                         <a href="/item/${item.id}" class="btn btn-sm btn-info">
@@ -213,7 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('itemDescription').value.trim();
         const category = document.getElementById('itemCategory').value.trim();
         const quantityStr = document.getElementById('itemQuantity').value.trim();
-        const priceStr = document.getElementById('itemPrice').value.trim();
+        
+        // Get price fields
+        const buyingPriceStr = document.getElementById('itemBuyingPrice').value.trim();
+        const sellingPriceRetailStr = document.getElementById('itemSellingPriceRetail').value.trim();
+        const sellingPriceWholesaleStr = document.getElementById('itemSellingPriceWholesale').value.trim();
+        
+        // Get sales type
+        const salesType = document.querySelector('input[name="salesType"]:checked').value;
         
         // Validate required fields
         if (!name) {
@@ -227,9 +260,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const price = parseFloat(priceStr);
-        if (isNaN(price) || price < 0) {
-            alert('Price must be a non-negative number');
+        // Validate price fields
+        const buyingPrice = parseFloat(buyingPriceStr) || 0;
+        if (buyingPrice < 0) {
+            alert('Buying price must be a non-negative number');
+            return;
+        }
+        
+        const sellingPriceRetail = parseFloat(sellingPriceRetailStr) || 0;
+        if (sellingPriceRetail < 0) {
+            alert('Retail price must be a non-negative number');
+            return;
+        }
+        
+        const sellingPriceWholesale = parseFloat(sellingPriceWholesaleStr) || 0;
+        if (sellingPriceWholesale < 0) {
+            alert('Wholesale price must be a non-negative number');
             return;
         }
         
@@ -240,7 +286,11 @@ document.addEventListener('DOMContentLoaded', function() {
             description,
             category,
             quantity,
-            price
+            buying_price: buyingPrice,
+            selling_price_retail: sellingPriceRetail,
+            selling_price_wholesale: sellingPriceWholesale,
+            price: sellingPriceRetail, // For backward compatibility
+            sales_type: salesType
         };
         
         // Send POST request to API
@@ -293,7 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('editItemDescription').value = item.description || '';
                 document.getElementById('editItemCategory').value = item.category || '';
                 document.getElementById('editItemQuantity').value = item.quantity || 0;
-                document.getElementById('editItemPrice').value = item.price || 0;
+                
+                // Price fields
+                document.getElementById('editItemBuyingPrice').value = item.buying_price || 0;
+                document.getElementById('editItemSellingPriceRetail').value = item.selling_price_retail || 0;
+                document.getElementById('editItemSellingPriceWholesale').value = item.selling_price_wholesale || 0;
+                
+                // Sales type
+                const salesType = item.sales_type || 'both';
+                document.getElementById(`editSalesType${salesType.charAt(0).toUpperCase() + salesType.slice(1)}`).checked = true;
                 
                 // Show the edit modal
                 const editModal = new bootstrap.Modal(document.getElementById('editItemModal'));
@@ -314,7 +372,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('editItemDescription').value.trim();
         const category = document.getElementById('editItemCategory').value.trim();
         const quantityStr = document.getElementById('editItemQuantity').value.trim();
-        const priceStr = document.getElementById('editItemPrice').value.trim();
+        
+        // Get price fields
+        const buyingPriceStr = document.getElementById('editItemBuyingPrice').value.trim();
+        const sellingPriceRetailStr = document.getElementById('editItemSellingPriceRetail').value.trim();
+        const sellingPriceWholesaleStr = document.getElementById('editItemSellingPriceWholesale').value.trim();
+        
+        // Get sales type
+        const salesType = document.querySelector('input[name="editSalesType"]:checked').value;
         
         // Validate required fields
         if (!name) {
@@ -328,9 +393,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const price = parseFloat(priceStr);
-        if (isNaN(price) || price < 0) {
-            alert('Price must be a non-negative number');
+        // Validate price fields
+        const buyingPrice = parseFloat(buyingPriceStr) || 0;
+        if (buyingPrice < 0) {
+            alert('Buying price must be a non-negative number');
+            return;
+        }
+        
+        const sellingPriceRetail = parseFloat(sellingPriceRetailStr) || 0;
+        if (sellingPriceRetail < 0) {
+            alert('Retail price must be a non-negative number');
+            return;
+        }
+        
+        const sellingPriceWholesale = parseFloat(sellingPriceWholesaleStr) || 0;
+        if (sellingPriceWholesale < 0) {
+            alert('Wholesale price must be a non-negative number');
             return;
         }
         
@@ -341,7 +419,11 @@ document.addEventListener('DOMContentLoaded', function() {
             description,
             category,
             quantity,
-            price
+            buying_price: buyingPrice,
+            selling_price_retail: sellingPriceRetail,
+            selling_price_wholesale: sellingPriceWholesale,
+            price: sellingPriceRetail, // For backward compatibility
+            sales_type: salesType
         };
         
         // Send PUT request to API

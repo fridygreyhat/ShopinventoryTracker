@@ -124,17 +124,29 @@ def add_item():
         item_data = request.json
         
         # Validate required fields
-        required_fields = ['name', 'quantity', 'price']
+        required_fields = ['name', 'quantity']
         for field in required_fields:
             if field not in item_data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Handle price fields
+        buying_price = float(item_data.get("buying_price", 0))
+        selling_price_retail = float(item_data.get("selling_price_retail", 0))
+        selling_price_wholesale = float(item_data.get("selling_price_wholesale", 0))
+        
+        # Use retail price as default price for backward compatibility
+        price = selling_price_retail
         
         # Create new item
         new_item = Item(
             name=item_data["name"],
             description=item_data.get("description", ""),
             quantity=int(item_data["quantity"]),
-            price=float(item_data["price"]),
+            buying_price=buying_price,
+            selling_price_retail=selling_price_retail,
+            selling_price_wholesale=selling_price_wholesale,
+            price=price,
+            sales_type=item_data.get("sales_type", "both"),
             category=item_data.get("category", "Uncategorized"),
             sku=item_data.get("sku", f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}")
         )
@@ -173,6 +185,18 @@ def update_item(item_id):
         
         if item is None:
             return jsonify({"error": "Item not found"}), 404
+        
+        # Handle price fields if present
+        if "selling_price_retail" in item_data:
+            item_data["selling_price_retail"] = float(item_data["selling_price_retail"])
+            # Update the legacy price field to keep compatibility
+            item_data["price"] = item_data["selling_price_retail"]
+        
+        if "selling_price_wholesale" in item_data:
+            item_data["selling_price_wholesale"] = float(item_data["selling_price_wholesale"])
+        
+        if "buying_price" in item_data:
+            item_data["buying_price"] = float(item_data["buying_price"])
         
         # Update the item with new data
         for key, value in item_data.items():
@@ -244,9 +268,9 @@ def stock_status_report():
     low_stock_items = Item.query.filter(Item.quantity <= low_stock_threshold).all()
     out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
     
-    # Calculate inventory value
+    # Calculate inventory value using selling price retail
     total_value_query = db.session.query(
-        func.sum(Item.quantity * Item.price)
+        func.sum(Item.quantity * Item.selling_price_retail)
     ).scalar()
     total_value = float(total_value_query) if total_value_query is not None else 0
     
@@ -291,9 +315,9 @@ def category_breakdown_report():
             func.coalesce(Item.category, 'Uncategorized') == category
         ).scalar() or 0
         
-        # Get total value
+        # Get total value based on retail selling price
         total_value_query = db.session.query(
-            func.sum(Item.quantity * Item.price)
+            func.sum(Item.quantity * Item.selling_price_retail)
         ).filter(
             func.coalesce(Item.category, 'Uncategorized') == category
         ).scalar()

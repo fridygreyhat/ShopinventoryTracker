@@ -9,7 +9,11 @@ class Item(db.Model):
     description = db.Column(db.Text)
     category = db.Column(db.String(50))
     quantity = db.Column(db.Integer, default=0)
-    price = db.Column(db.Float, default=0.0)
+    buying_price = db.Column(db.Float, default=0.0)
+    selling_price_retail = db.Column(db.Float, default=0.0)
+    selling_price_wholesale = db.Column(db.Float, default=0.0)
+    price = db.Column(db.Float, default=0.0)  # For backward compatibility
+    sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -25,7 +29,11 @@ class Item(db.Model):
             'description': self.description,
             'category': self.category,
             'quantity': self.quantity,
-            'price': self.price,
+            'buying_price': self.buying_price,
+            'selling_price_retail': self.selling_price_retail,
+            'selling_price_wholesale': self.selling_price_wholesale,
+            'price': self.price,  # For backward compatibility
+            'sales_type': self.sales_type,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

@@ -58,7 +58,7 @@
                             <th>SKU</th>
                             <th>Category</th>
                             <th>Quantity</th>
-                            <th>Price</th>
+                            <th>Prices (TZS)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -101,17 +101,53 @@
                         <textarea class="form-control" id="itemDescription" rows="3"></textarea>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="itemCategory" class="form-label">Category</label>
-                            <input type="text" class="form-control" id="itemCategory" placeholder="e.g., Electronics">
+                            <select class="form-select" id="itemCategory">
+                                <option value="">Select a category</option>
+                                <!-- Categories will be populated dynamically -->
+                            </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="itemQuantity" class="form-label">Quantity *</label>
                             <input type="number" class="form-control" id="itemQuantity" min="0" required>
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="itemPrice" class="form-label">Price (TZS) *</label>
-                            <input type="number" class="form-control" id="itemPrice" min="0" step="1" required>
+                            <label for="itemBuyingPrice" class="form-label">Buying Price (TZS)</label>
+                            <input type="number" class="form-control" id="itemBuyingPrice" min="0" step="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="itemSellingPriceRetail" class="form-label">Retail Price (TZS) *</label>
+                            <input type="number" class="form-control" id="itemSellingPriceRetail" min="0" step="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="itemSellingPriceWholesale" class="form-label">Wholesale Price (TZS)</label>
+                            <input type="number" class="form-control" id="itemSellingPriceWholesale" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Sales Type</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="salesType" id="salesTypeBoth" value="both" checked>
+                                <label class="form-check-label" for="salesTypeBoth">
+                                    Both Retail & Wholesale
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="salesType" id="salesTypeRetail" value="retail">
+                                <label class="form-check-label" for="salesTypeRetail">
+                                    Retail Only
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="salesType" id="salesTypeWholesale" value="wholesale">
+                                <label class="form-check-label" for="salesTypeWholesale">
+                                    Wholesale Only
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -150,17 +186,53 @@
                         <textarea class="form-control" id="editItemDescription" rows="3"></textarea>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="editItemCategory" class="form-label">Category</label>
-                            <input type="text" class="form-control" id="editItemCategory">
+                            <select class="form-select" id="editItemCategory">
+                                <option value="">Select a category</option>
+                                <!-- Categories will be populated dynamically -->
+                            </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="editItemQuantity" class="form-label">Quantity *</label>
                             <input type="number" class="form-control" id="editItemQuantity" min="0" required>
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="editItemPrice" class="form-label">Price (TZS) *</label>
-                            <input type="number" class="form-control" id="editItemPrice" min="0" step="1" required>
+                            <label for="editItemBuyingPrice" class="form-label">Buying Price (TZS)</label>
+                            <input type="number" class="form-control" id="editItemBuyingPrice" min="0" step="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editItemSellingPriceRetail" class="form-label">Retail Price (TZS) *</label>
+                            <input type="number" class="form-control" id="editItemSellingPriceRetail" min="0" step="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editItemSellingPriceWholesale" class="form-label">Wholesale Price (TZS)</label>
+                            <input type="number" class="form-control" id="editItemSellingPriceWholesale" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Sales Type</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="editSalesType" id="editSalesTypeBoth" value="both">
+                                <label class="form-check-label" for="editSalesTypeBoth">
+                                    Both Retail & Wholesale
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="editSalesType" id="editSalesTypeRetail" value="retail">
+                                <label class="form-check-label" for="editSalesTypeRetail">
+                                    Retail Only
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="editSalesType" id="editSalesTypeWholesale" value="wholesale">
+                                <label class="form-check-label" for="editSalesTypeWholesale">
+                                    Wholesale Only
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </form>
