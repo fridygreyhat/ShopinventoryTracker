@@ -119,7 +119,7 @@
     // Import Firebase modules and our authentication module
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { registerWithEmailPassword } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
+    import { registerWithEmailPassword, createSession } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
 
     // Firebase configuration from server
     const firebaseConfig = {
@@ -189,7 +189,13 @@
             // Create user with Firebase and register with server using our helper function
             const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
             
-            // If we got here, registration was successful - redirect to dashboard
+            // Get the token for creating a session
+            const token = await userCredential.user.getIdToken();
+            
+            // Create a session with the server
+            await createSession(token, true);
+            
+            // If we got here, registration and session creation were successful - redirect to dashboard
             window.location.href = '/';
             
         } catch (error) {

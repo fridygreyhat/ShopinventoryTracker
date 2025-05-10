@@ -99,9 +99,10 @@ export async function registerWithEmailPassword(auth, email, password, userData)
  * Create a session with the server
  * @param {string} token - Firebase ID token
  * @param {boolean} remember - Whether to remember the user
+ * @param {number} retryCount - Number of retry attempts (internal use)
  * @returns {Promise} Server response
  */
-export async function createSession(token, remember = false) {
+export async function createSession(token, remember = false, retryCount = 0) {
     try {
         const response = await fetch('/api/auth/session', {
             method: 'POST',
@@ -116,7 +117,25 @@ export async function createSession(token, remember = false) {
         
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to create session');
+            const errorMessage = errorData.error || 'Failed to create session';
+            
+            // If token expired and user is still signed in, try to get a fresh token
+            if (errorMessage.includes('expired token') && retryCount < 1) {
+                console.log('Token expired, refreshing and retrying...');
+                // Get the current auth instance and user
+                const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+                const auth = getAuth();
+                const user = auth.currentUser;
+                
+                if (user) {
+                    // Get a fresh token
+                    const freshToken = await user.getIdToken(true);
+                    // Retry with the fresh token
+                    return createSession(freshToken, remember, retryCount + 1);
+                }
+            }
+            
+            throw new Error(errorMessage);
         }
         
         return await response.json();
