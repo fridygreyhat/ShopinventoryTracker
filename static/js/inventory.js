@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       `<span class="badge bg-warning">${item.quantity}</span>` : 
                       item.quantity}
                 </td>
-                <td>$${item.price.toFixed(2)}</td>
+                <td>TZS ${item.price.toLocaleString()}</td>
                 <td>
                     <div class="btn-group" role="group">
                         <a href="/item/${item.id}" class="btn btn-sm btn-info">

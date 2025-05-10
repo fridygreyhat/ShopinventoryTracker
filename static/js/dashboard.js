@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
         totalItemsElement.textContent = data.total_items;
         totalStockElement.textContent = data.total_stock;
         lowStockCountElement.textContent = data.low_stock_items_count;
-        inventoryValueElement.textContent = '$' + data.total_inventory_value.toFixed(2);
+        inventoryValueElement.textContent = 'TZS ' + data.total_inventory_value.toLocaleString();
     }
     
     function updateLowStockTable(lowStockItems) {
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.sku || ''}</td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td><span class="badge ${quantityClass}">${item.quantity}</span></td>
-                    <td>$${item.price.toFixed(2)}</td>
+                    <td>TZS ${item.price.toLocaleString()}</td>
                     <td>
                         <a href="/item/${item.id}" class="btn btn-sm btn-primary">
                             <i class="fas fa-edit"></i> Update
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const value = context.raw;
                                 const label = context.label || '';
                                 const percentage = ((value / values.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
-                                return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                return `${label}: TZS ${value.toLocaleString()} (${percentage}%)`;
                             }
                         }
                     }

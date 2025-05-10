@@ -35,7 +35,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">Price:</div>
-                        <div class="col-md-9">${{ '%.2f'|format(item.price) }}</div>
+                        <div class="col-md-9">TZS {{ '{:,.0f}'.format(item.price) }}</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">In Stock:</div>
@@ -51,7 +51,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">Total Value:</div>
-                        <div class="col-md-9">${{ '%.2f'|format(item.quantity * item.price) }}</div>
+                        <div class="col-md-9">TZS {{ '{:,.0f}'.format(item.quantity * item.price) }}</div>
                     </div>
                 </div>
             </div>
@@ -76,8 +76,8 @@
                         <div class="mb-3">
                             <label for="newPrice" class="form-label">Update Price</label>
                             <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="newPrice" value="{{ item.price }}" min="0" step="0.01">
+                                <span class="input-group-text">TZS</span>
+                                <input type="number" class="form-control" id="newPrice" value="{{ item.price }}" min="0" step="1">
                                 <button class="btn btn-outline-primary" type="button" id="updatePriceBtn">
                                     <i class="fas fa-sync-alt"></i> Update
                                 </button>
