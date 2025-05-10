@@ -673,6 +673,292 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('index'))
 
+
+# Financial Statement Routes
+@app.route('/finance')
+def finance():
+    """Render the financial statement page"""
+    return render_template('finance.html')
+
+# Financial API Routes
+@app.route('/api/finance/transactions', methods=['GET'])
+def get_transactions():
+    """API endpoint to get financial transactions with optional filtering"""
+    from models import FinancialTransaction
+    from datetime import datetime, timedelta
+    
+    # Get filter parameters
+    transaction_type = request.args.get('type')
+    category = request.args.get('category')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    # Parse dates if provided
+    start_date = None
+    end_date = None
+    
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"error": "Invalid start_date format. Use YYYY-MM-DD"}), 400
+    
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"error": "Invalid end_date format. Use YYYY-MM-DD"}), 400
+    
+    # If no dates provided, default to current month
+    if not start_date and not end_date:
+        today = datetime.utcnow().date()
+        start_date = datetime(today.year, today.month, 1).date()
+        end_date = today
+    elif start_date and not end_date:
+        end_date = datetime.utcnow().date()
+    elif not start_date and end_date:
+        start_date = end_date - timedelta(days=30)
+    
+    # Build query
+    query = FinancialTransaction.query.filter(
+        FinancialTransaction.date >= start_date,
+        FinancialTransaction.date <= end_date
+    )
+    
+    if transaction_type:
+        query = query.filter(FinancialTransaction.transaction_type == transaction_type)
+    
+    if category:
+        query = query.filter(FinancialTransaction.category == category)
+    
+    # Execute query and order by date (most recent first)
+    transactions = query.order_by(FinancialTransaction.date.desc()).all()
+    
+    # Calculate totals
+    total_income = sum(t.amount for t in transactions if t.transaction_type == 'Income')
+    total_expenses = sum(t.amount for t in transactions if t.transaction_type == 'Expense')
+    net_profit = total_income - total_expenses
+    
+    return jsonify({
+        "transactions": [t.to_dict() for t in transactions],
+        "period": {
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat()
+        },
+        "summary": {
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "net_profit": net_profit
+        }
+    })
+
+@app.route('/api/finance/transactions', methods=['POST'])
+def add_transaction():
+    """API endpoint to add a new financial transaction"""
+    from models import FinancialTransaction
+    
+    data = request.json
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    required_fields = ['description', 'amount', 'transaction_type', 'category']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+    
+    # Validate transaction type
+    if data['transaction_type'] not in ['Income', 'Expense']:
+        return jsonify({"error": "transaction_type must be 'Income' or 'Expense'"}), 400
+    
+    # Parse date if provided, otherwise use current date
+    date = datetime.utcnow().date()
+    if 'date' in data and data['date']:
+        try:
+            date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Create new transaction
+    transaction = FinancialTransaction(
+        date=date,
+        description=data['description'],
+        amount=data['amount'],
+        transaction_type=data['transaction_type'],
+        category=data['category'],
+        reference_id=data.get('reference_id'),
+        payment_method=data.get('payment_method'),
+        notes=data.get('notes')
+    )
+    
+    try:
+        db.session.add(transaction)
+        db.session.commit()
+        return jsonify(transaction.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to add transaction: {str(e)}"}), 500
+
+@app.route('/api/finance/transactions/<int:transaction_id>', methods=['GET'])
+def get_transaction(transaction_id):
+    """API endpoint to get a specific financial transaction"""
+    from models import FinancialTransaction
+    
+    transaction = FinancialTransaction.query.get(transaction_id)
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+    
+    return jsonify(transaction.to_dict())
+
+@app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
+def update_transaction(transaction_id):
+    """API endpoint to update a financial transaction"""
+    from models import FinancialTransaction
+    
+    transaction = FinancialTransaction.query.get(transaction_id)
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+    
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    # Update fields
+    if 'date' in data and data['date']:
+        try:
+            transaction.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    if 'description' in data:
+        transaction.description = data['description']
+    
+    if 'amount' in data:
+        transaction.amount = data['amount']
+    
+    if 'transaction_type' in data:
+        if data['transaction_type'] not in ['Income', 'Expense']:
+            return jsonify({"error": "transaction_type must be 'Income' or 'Expense'"}), 400
+        transaction.transaction_type = data['transaction_type']
+    
+    if 'category' in data:
+        transaction.category = data['category']
+    
+    if 'reference_id' in data:
+        transaction.reference_id = data['reference_id']
+    
+    if 'payment_method' in data:
+        transaction.payment_method = data['payment_method']
+    
+    if 'notes' in data:
+        transaction.notes = data['notes']
+    
+    try:
+        db.session.commit()
+        return jsonify(transaction.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to update transaction: {str(e)}"}), 500
+
+@app.route('/api/finance/transactions/<int:transaction_id>', methods=['DELETE'])
+def delete_transaction(transaction_id):
+    """API endpoint to delete a financial transaction"""
+    from models import FinancialTransaction
+    
+    transaction = FinancialTransaction.query.get(transaction_id)
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+    
+    try:
+        db.session.delete(transaction)
+        db.session.commit()
+        return jsonify({"message": "Transaction deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to delete transaction: {str(e)}"}), 500
+
+@app.route('/api/finance/summaries/monthly', methods=['GET'])
+def get_monthly_summary():
+    """API endpoint to get monthly financial summaries"""
+    from models import FinancialTransaction
+    from datetime import datetime
+    from sqlalchemy import func, extract
+    
+    # Get year parameter, default to current year
+    year = request.args.get('year', datetime.utcnow().year, type=int)
+    
+    # Query to get monthly sums for income and expenses
+    monthly_data = db.session.query(
+        extract('month', FinancialTransaction.date).label('month'),
+        func.sum(FinancialTransaction.amount).filter(FinancialTransaction.transaction_type == 'Income').label('income'),
+        func.sum(FinancialTransaction.amount).filter(FinancialTransaction.transaction_type == 'Expense').label('expenses')
+    ).filter(
+        extract('year', FinancialTransaction.date) == year
+    ).group_by(
+        extract('month', FinancialTransaction.date)
+    ).order_by(
+        extract('month', FinancialTransaction.date)
+    ).all()
+    
+    # Format the results
+    results = []
+    for month_num, income, expenses in monthly_data:
+        income = income or 0
+        expenses = expenses or 0
+        profit = income - expenses
+        
+        month_name = datetime(year, int(month_num), 1).strftime('%B')
+        
+        results.append({
+            'month': int(month_num),
+            'month_name': month_name,
+            'income': income,
+            'expenses': expenses,
+            'profit': profit
+        })
+    
+    # Fill in missing months with zeros
+    month_dict = {item['month']: item for item in results}
+    all_months = []
+    
+    for month in range(1, 13):
+        if month in month_dict:
+            all_months.append(month_dict[month])
+        else:
+            month_name = datetime(year, month, 1).strftime('%B')
+            all_months.append({
+                'month': month,
+                'month_name': month_name,
+                'income': 0,
+                'expenses': 0,
+                'profit': 0
+            })
+    
+    # Calculate yearly totals
+    yearly_income = sum(item['income'] for item in all_months)
+    yearly_expenses = sum(item['expenses'] for item in all_months)
+    yearly_profit = yearly_income - yearly_expenses
+    
+    return jsonify({
+        'year': year,
+        'monthly_data': all_months,
+        'yearly_summary': {
+            'total_income': yearly_income,
+            'total_expenses': yearly_expenses,
+            'net_profit': yearly_profit
+        }
+    })
+
+@app.route('/api/finance/categories', methods=['GET'])
+def get_transaction_categories():
+    """API endpoint to get all transaction categories"""
+    from models import TransactionCategory
+    
+    # Get all categories from the enum
+    categories = [cat.value for cat in TransactionCategory]
+    
+    return jsonify(categories)
+
 # Sales API Routes
 @app.route('/api/sales', methods=['GET'])
 def get_sales():

@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+from enum import Enum
 from app import db
 
 class Item(db.Model):
@@ -197,4 +198,102 @@ class SaleItem(db.Model):
             'quantity': self.quantity,
             'total': self.total,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# Financial Statement Models
+class TransactionCategory(Enum):
+    """Enum for transaction categories"""
+    SALES = "Sales"
+    PURCHASE = "Purchase"
+    EXPENSE = "Expense"
+    SALARY = "Salary"
+    RENT = "Rent"
+    UTILITIES = "Utilities"
+    MAINTENANCE = "Maintenance"
+    MARKETING = "Marketing"
+    TAX = "Tax"
+    INSURANCE = "Insurance"
+    TRANSPORTATION = "Transportation"
+    OFFICE_SUPPLIES = "Office Supplies"
+    OTHER_INCOME = "Other Income"
+    OTHER_EXPENSE = "Other Expense"
+
+
+class TransactionType(Enum):
+    """Enum for transaction types"""
+    INCOME = "Income"
+    EXPENSE = "Expense"
+
+
+class FinancialTransaction(db.Model):
+    """Model for financial transactions (income and expenses)"""
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    description = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'Income' or 'Expense'
+    category = db.Column(db.String(50), nullable=False)
+    reference_id = db.Column(db.String(100))  # To link to sales or other records
+    payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<FinancialTransaction {self.description} {self.amount}>'
+    
+    def to_dict(self):
+        """Convert financial transaction to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'date': self.date.isoformat() if self.date else None,
+            'description': self.description,
+            'amount': self.amount,
+            'transaction_type': self.transaction_type,
+            'category': self.category,
+            'reference_id': self.reference_id,
+            'payment_method': self.payment_method,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class FinancialSummary(db.Model):
+    """Model for storing financial summary data by period"""
+    id = db.Column(db.Integer, primary_key=True)
+    period_type = db.Column(db.String(20), nullable=False)  # 'daily', 'weekly', 'monthly', 'yearly'
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    total_income = db.Column(db.Float, default=0.0)
+    total_expenses = db.Column(db.Float, default=0.0)
+    net_profit = db.Column(db.Float, default=0.0)
+    summary_data = db.Column(db.Text)  # JSON string with detailed breakdown
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<FinancialSummary {self.period_type} {self.period_start} to {self.period_end}>'
+    
+    def to_dict(self):
+        """Convert financial summary to dictionary for API responses"""
+        summary_data_dict = {}
+        if self.summary_data:
+            try:
+                summary_data_dict = json.loads(self.summary_data)
+            except json.JSONDecodeError:
+                summary_data_dict = {}
+                
+        return {
+            'id': self.id,
+            'period_type': self.period_type,
+            'period_start': self.period_start.isoformat() if self.period_start else None,
+            'period_end': self.period_end.isoformat() if self.period_end else None,
+            'total_income': self.total_income,
+            'total_expenses': self.total_expenses,
+            'net_profit': self.net_profit,
+            'summary_data': summary_data_dict,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
