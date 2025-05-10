@@ -59,16 +59,21 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
-    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified in Firebase
+    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
     shop_name = db.Column(db.String(128), nullable=True)
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)  # Renamed to avoid conflict with UserMixin
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
+    
+    @property
+    def is_active(self):
+        # Override UserMixin.is_active with our database column
+        return self.active
     
     def __repr__(self):
         return f'<User {self.username}>'

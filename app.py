@@ -796,7 +796,9 @@ def delete_setting(key):
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
-    # Clear session data
+    # Logout using Flask-Login
+    logout_user()
+    # Clear any remaining session data
     session.clear()
     flash('You have been logged out', 'success')
     return redirect(url_for('login'))
@@ -1266,27 +1268,101 @@ def check_low_stock():
 
 
 # Authentication routes
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Render the login page"""
-    if 'user_id' in session:
+    """Handle login form"""
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
+    
+    # Handle login form submission
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember = 'remember' in request.form
         
-    return render_template('login.html', 
-                          firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
-                          firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
-                          firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+        # Find the user by username
+        user = User.query.filter_by(username=username).first()
+        
+        # Check if user exists and password is correct
+        if user and user.check_password(password):
+            # Login the user
+            login_user(user, remember=remember)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
+            # Redirect to the page they were trying to access or dashboard
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password. Please try again.', 'danger')
+    
+    # Render login template for GET requests
+    return render_template('login.html')
 
-@app.route('/register')
+@app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Render the registration page"""
-    if 'user_id' in session:
+    """Handle the registration page"""
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
+    
+    # Handle registration form submission
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        shop_name = request.form.get('shop_name')
+        product_categories = request.form.get('product_categories')
         
-    return render_template('register.html', 
-                          firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
-                          firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
-                          firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+        # Basic validation
+        if not username or not email or not password:
+            flash('All fields are required.', 'danger')
+            return render_template('register.html')
+            
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('register.html')
+            
+        # Check if username or email already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists. Please choose another.', 'danger')
+            return render_template('register.html')
+            
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists. Please use another or log in.', 'danger')
+            return render_template('register.html')
+            
+        # Create new user
+        new_user = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            shop_name=shop_name,
+            product_categories=product_categories,
+            email_verified=False,
+            active=True
+        )
+        new_user.set_password(password)
+        
+        # Save user to database
+        db.session.add(new_user)
+        db.session.commit()
+        
+        # Log the user in
+        login_user(new_user)
+        
+        flash('Your account has been created successfully!', 'success')
+        return redirect(url_for('index'))
+    
+    # Render registration template for GET requests
+    return render_template('register.html')
 
 @app.route('/api/auth/session', methods=['POST'])
 def create_session():

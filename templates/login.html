@@ -9,21 +9,36 @@
                 <h1 class="auth-heading">Welcome Back</h1>
                 <p class="auth-subheading">Sign in to access your inventory management system</p>
 
-                <div id="firebaseui-auth-container" class="auth-form"></div>
-                <div id="loader" class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                <form action="{{ url_for('login') }}" method="post" class="auth-form">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}" role="alert">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required autofocus>
                     </div>
-                </div>
-
-                <div class="d-none" id="loginError">
-                    <div class="alert alert-danger" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        <span id="errorMessage">Authentication error occurred</span>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
                     </div>
-                </div>
-
-                <!-- Create account link removed as requested -->
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <label class="form-check-label" for="remember">Remember me</label>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('register') }}" class="auth-link">Create an account</a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
