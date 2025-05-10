@@ -167,6 +167,54 @@ def add_item():
         db.session.add(new_item)
         db.session.commit()
         
+        # Check if quantity is below threshold
+        quantity = int(item_data["quantity"])
+        from models import Setting
+        
+        # Get threshold
+        low_stock_threshold = 10
+        try:
+            setting = Setting.query.filter_by(key='low_stock_threshold').first()
+            if setting and setting.value:
+                try:
+                    low_stock_threshold = int(setting.value)
+                except (ValueError, TypeError):
+                    pass
+        except Exception as e:
+            logger.error(f"Error getting low stock threshold: {str(e)}")
+        
+        # Check if notifications are enabled
+        notifications_enabled = False
+        try:
+            email_setting = Setting.query.filter_by(key='email_notifications_enabled').first()
+            sms_setting = Setting.query.filter_by(key='sms_notifications_enabled').first()
+            
+            email_enabled = email_setting and email_setting.value.lower() == 'true'
+            sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
+            
+            notifications_enabled = email_enabled or sms_enabled
+        except Exception as e:
+            logger.error(f"Error checking notification settings: {str(e)}")
+        
+        # If item quantity is below threshold and notifications are enabled
+        if quantity <= low_stock_threshold and notifications_enabled:
+            try:
+                # Import here to avoid circular imports
+                from notifications.notification_manager import check_low_stock_and_notify
+                
+                # Run in a separate thread to avoid blocking
+                import threading
+                notification_thread = threading.Thread(
+                    target=check_low_stock_and_notify,
+                    args=(db, Item, Setting)
+                )
+                notification_thread.daemon = True
+                notification_thread.start()
+                
+                logger.info(f"Low stock notification triggered for new item {new_item.name}")
+            except Exception as e:
+                logger.error(f"Error triggering low stock notification: {str(e)}")
+        
         return jsonify(new_item.to_dict()), 201
     
     except Exception as e:
@@ -217,6 +265,54 @@ def update_item(item_id):
         
         # Save to database
         db.session.commit()
+        
+        # Check if quantity was updated and is below threshold
+        if 'quantity' in item_data:
+            from models import Setting
+            
+            # Get threshold
+            low_stock_threshold = 10
+            try:
+                setting = Setting.query.filter_by(key='low_stock_threshold').first()
+                if setting and setting.value:
+                    try:
+                        low_stock_threshold = int(setting.value)
+                    except (ValueError, TypeError):
+                        pass
+            except Exception as e:
+                logger.error(f"Error getting low stock threshold: {str(e)}")
+            
+            # Check if notifications are enabled
+            notifications_enabled = False
+            try:
+                email_setting = Setting.query.filter_by(key='email_notifications_enabled').first()
+                sms_setting = Setting.query.filter_by(key='sms_notifications_enabled').first()
+                
+                email_enabled = email_setting and email_setting.value.lower() == 'true'
+                sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
+                
+                notifications_enabled = email_enabled or sms_enabled
+            except Exception as e:
+                logger.error(f"Error checking notification settings: {str(e)}")
+            
+            # If item quantity is now below threshold and notifications are enabled
+            if item.quantity <= low_stock_threshold and notifications_enabled:
+                try:
+                    # Import here to avoid circular imports
+                    from notifications.notification_manager import check_low_stock_and_notify
+                    
+                    # Run in a separate thread to avoid blocking
+                    import threading
+                    notification_thread = threading.Thread(
+                        target=check_low_stock_and_notify,
+                        args=(db, Item, Setting)
+                    )
+                    notification_thread.daemon = True
+                    notification_thread.start()
+                    
+                    logger.info(f"Low stock notification triggered for item {item.name}")
+                except Exception as e:
+                    logger.error(f"Error triggering low stock notification: {str(e)}")
         
         return jsonify(item.to_dict())
     
@@ -1095,6 +1191,52 @@ def get_sale(sale_id):
     except Exception as e:
         logger.error(f"Error getting sale {sale_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+# Notification API Routes
+@app.route('/api/notifications/test', methods=['POST'])
+def test_notifications():
+    """API endpoint to test notifications for low stock items"""
+    try:
+        from notifications.notification_manager import check_low_stock_and_notify
+        from models import Item, Setting
+        
+        # Call the notification manager to check low stock and send notifications
+        result = check_low_stock_and_notify(db, Item, Setting)
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        logger.error(f"Error testing notifications: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'errors': [f"Error testing notifications: {str(e)}"]
+        }), 500
+
+@app.route('/api/notifications/check-stock', methods=['GET'])
+def check_low_stock():
+    """API endpoint to check for low stock items without sending notifications"""
+    try:
+        # Get threshold from query parameter or use default
+        threshold = request.args.get('threshold', 10, type=int)
+        
+        # Get low stock items
+        low_stock_items = Item.query.filter(Item.quantity <= threshold).all()
+        
+        # Return results
+        return jsonify({
+            'success': True,
+            'low_stock_count': len(low_stock_items),
+            'low_stock_items': [item.to_dict() for item in low_stock_items]
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking low stock: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'errors': [f"Error checking low stock: {str(e)}"]
+        }), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
