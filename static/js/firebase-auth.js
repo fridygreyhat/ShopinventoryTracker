@@ -65,12 +65,18 @@ export async function sendPasswordReset(auth, email) {
  */
 export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
+        console.log('Starting Firebase registration process...');
+        
         // Import directly to avoid naming conflict
         const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
         
         // Create user in Firebase using the modular API
+        console.log('Creating user in Firebase with email:', email);
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        console.log('User created in Firebase, getting token...');
+        
         const token = await userCredential.user.getIdToken();
+        console.log('Token received, registering with server...');
         
         // Register user with server
         const response = await fetch('/api/auth/register', {
@@ -84,15 +90,27 @@ export async function registerWithEmailPassword(auth, email, password, userData)
             }),
         });
         
+        const responseData = await response.json();
+        
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to register with server');
+            console.error('Server registration failed:', responseData);
+            throw new Error(responseData.error || 'Failed to register with server');
         }
         
-        const serverData = await response.json();
-        return { userCredential, serverData };
+        console.log('Registration with server successful:', responseData);
+        return { userCredential, serverData: responseData };
     } catch (error) {
         console.error('Registration error:', error);
+        
+        // Handle specific Firebase error codes
+        if (error.code === 'auth/email-already-in-use') {
+            console.error('Email already in use - this needs special handling');
+        } else if (error.code === 'auth/invalid-email') {
+            console.error('Invalid email format provided');
+        } else if (error.code === 'auth/weak-password') {
+            console.error('Password is too weak');
+        }
+        
         throw error;
     }
 }
