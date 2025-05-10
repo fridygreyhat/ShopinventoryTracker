@@ -4,7 +4,7 @@
  */
 
 /* Default Tanzanite Theme - inspired by Tanzanian gemstone */
-body[data-theme="tanzanite"] {
+body[data-theme-value="tanzanite"] {
     /* Primary Theme Colors */
     --primary-color: #4C50C5;      /* Tanzanite blue - main brand color */
     --secondary-color: #41C1E0;    /* Azure blue - secondary brand color */
@@ -32,7 +32,7 @@ body[data-theme="tanzanite"] {
 }
 
 /* Forest Theme - inspired by green forests and nature */
-body[data-theme="forest"] {
+body[data-theme-value="forest"] {
     /* Primary Theme Colors */
     --primary-color: #2E7D32;      /* Forest green - main brand color */
     --secondary-color: #81C784;    /* Light green - secondary brand color */
@@ -60,7 +60,7 @@ body[data-theme="forest"] {
 }
 
 /* Ocean Theme - inspired by ocean blues and coastal colors */
-body[data-theme="ocean"] {
+body[data-theme-value="ocean"] {
     /* Primary Theme Colors */
     --primary-color: #0277BD;      /* Deep blue - main brand color */
     --secondary-color: #4FC3F7;    /* Light blue - secondary brand color */

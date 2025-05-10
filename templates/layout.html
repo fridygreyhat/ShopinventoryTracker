@@ -15,7 +15,7 @@
     <!-- Theme CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
 </head>
-<body data-theme="{{ session.get('user_theme', 'tanzanite') }}">
+<body data-theme-value="{{ session.get('user_theme', 'tanzanite') }}">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
