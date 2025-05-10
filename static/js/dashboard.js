@@ -355,8 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Stock Quantity',
                     data: quantities,
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: getThemeColors().primary,
+                    borderColor: getThemeColors().info,
                     borderWidth: 1
                 }]
             },
@@ -435,28 +435,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: values,
                     backgroundColor: [
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 206, 86, 0.7)',
-                        'rgba(75, 192, 192, 0.7)',
-                        'rgba(153, 102, 255, 0.7)',
-                        'rgba(255, 159, 64, 0.7)',
-                        'rgba(199, 199, 199, 0.7)',
-                        'rgba(83, 102, 255, 0.7)',
-                        'rgba(40, 159, 64, 0.7)',
-                        'rgba(210, 199, 199, 0.7)'
+                        getThemeColors().primary,
+                        getThemeColors().info,
+                        getThemeColors().warning,
+                        getThemeColors().success,
+                        getThemeColors().purple,
+                        getThemeColors().orange,
+                        getThemeColors().teal,
+                        getThemeColors().indigo,
+                        getThemeColors().secondary,
+                        getThemeColors().danger
                     ],
                     borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(199, 199, 199, 1)',
-                        'rgba(83, 102, 255, 1)',
-                        'rgba(40, 159, 64, 1)',
-                        'rgba(210, 199, 199, 1)'
+                        getThemeColors().primary.replace('0.8', '1'),
+                        getThemeColors().info.replace('0.8', '1'),
+                        getThemeColors().warning.replace('0.8', '1'),
+                        getThemeColors().success.replace('0.8', '1'),
+                        getThemeColors().purple.replace('0.8', '1'),
+                        getThemeColors().orange.replace('0.8', '1'),
+                        getThemeColors().teal.replace('0.8', '1'),
+                        getThemeColors().indigo.replace('0.8', '1'),
+                        getThemeColors().secondary.replace('0.8', '1'),
+                        getThemeColors().danger.replace('0.8', '1')
                     ],
                     borderWidth: 1
                 }]
@@ -655,8 +655,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Income',
                         data: incomeData,
-                        backgroundColor: 'rgba(40, 167, 69, 0.7)',
-                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: getThemeColors().success,
+                        borderColor: getThemeColors().success.replace('0.8', '1'),
                         borderWidth: 1
                     },
                     {
