@@ -25,7 +25,9 @@ export async function loginWithEmailPassword(auth, email, password) {
         const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
         
         // Use the auth instance passed from the login page
+        console.log('Attempting to sign in with:', email);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log('Sign in successful, user:', userCredential.user.email);
         return userCredential;
     } catch (error) {
         console.error('Login error:', error);
@@ -104,6 +106,8 @@ export async function registerWithEmailPassword(auth, email, password, userData)
  */
 export async function createSession(token, remember = false, retryCount = 0) {
     try {
+        console.log('Creating session with token', token ? 'valid token' : 'invalid token');
+        
         const response = await fetch('/api/auth/session', {
             method: 'POST',
             headers: {
@@ -115,9 +119,11 @@ export async function createSession(token, remember = false, retryCount = 0) {
             }),
         });
         
+        const responseData = await response.json();
+        
         if (!response.ok) {
-            const errorData = await response.json();
-            const errorMessage = errorData.error || 'Failed to create session';
+            const errorMessage = responseData.error || 'Failed to create session';
+            console.error('Session creation failed:', errorMessage, responseData);
             
             // If token expired and user is still signed in, try to get a fresh token
             if (errorMessage.includes('expired token') && retryCount < 1) {
@@ -138,7 +144,8 @@ export async function createSession(token, remember = false, retryCount = 0) {
             throw new Error(errorMessage);
         }
         
-        return await response.json();
+        console.log('Session created successfully', responseData);
+        return responseData;
     } catch (error) {
         console.error('Session creation error:', error);
         throw error;

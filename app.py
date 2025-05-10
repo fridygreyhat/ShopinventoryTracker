@@ -1427,25 +1427,38 @@ def create_session():
     try:
         data = request.json
         
+        logger.info("Session creation request received")
+        
         if not data or 'idToken' not in data:
+            logger.warning("Missing idToken in session creation request")
             return jsonify({"error": "Firebase ID token is required"}), 400
             
         # Verify the Firebase token
+        logger.info("Verifying Firebase token...")
         user_data = verify_firebase_token(data['idToken'])
+        
         if not user_data:
+            logger.warning("Firebase token verification failed")
             return jsonify({"error": "Invalid or expired token"}), 401
             
+        logger.info(f"Firebase token verified successfully for email: {user_data.get('email')}")
+            
         # Create or update user in database
+        logger.info("Creating or updating user in database...")
         user = create_or_update_user(user_data)
         
         if not user:
+            logger.error("Failed to create or update user record")
             return jsonify({"error": "Failed to create user record"}), 500
+            
+        logger.info(f"User record updated/created successfully for ID: {user.id}")
             
         # Update last login time
         user.last_login = datetime.utcnow()
         db.session.commit()
         
         # Set session data
+        logger.info("Setting session data...")
         session['user_id'] = user.id
         session['email'] = user.email
         session['is_admin'] = user.is_admin
@@ -1457,14 +1470,17 @@ def create_session():
         theme_setting = Setting.query.filter_by(key=theme_key).first()
         if theme_setting:
             session['user_theme'] = theme_setting.value
+            logger.info(f"Loaded user theme: {theme_setting.value}")
         else:
             session['user_theme'] = 'tanzanite'  # Default theme
+            logger.info("Using default theme: tanzanite")
         
+        logger.info("Session created successfully")
         return jsonify({"success": True, "user": user.to_dict()})
         
     except Exception as e:
         logger.error(f"Error creating session with Firebase: {str(e)}")
-        return jsonify({"error": "Failed to create session"}), 500
+        return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
 @app.route('/api/auth/register', methods=['POST'])
 def register_user():
