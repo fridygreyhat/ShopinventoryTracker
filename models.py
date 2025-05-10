@@ -2,7 +2,6 @@ from datetime import datetime
 import json
 from enum import Enum
 from app import db
-from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class Item(db.Model):
@@ -43,13 +42,13 @@ class Item(db.Model):
         }
 
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     """User model for authentication"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    # Keep firebase_uid for backward compatibility but make it nullable
+    # Firebase UID for authentication
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
     
     def set_password(self, password):
@@ -72,18 +71,13 @@ class User(UserMixin, db.Model):
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
     
     # Account status
-    active = db.Column(db.Boolean, default=True)  # Renamed to avoid conflict with UserMixin
+    active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
-    
-    @property
-    def is_active(self):
-        # Override UserMixin.is_active with our database column
-        return self.active
     
     def __repr__(self):
         return f'<User {self.username}>'

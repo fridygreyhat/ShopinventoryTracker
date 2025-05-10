@@ -7,7 +7,6 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import io
 import csv
 import requests
@@ -20,6 +19,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Firebase configuration
+app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
+app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
+app.config["FIREBASE_APP_ID"] = os.environ.get("FIREBASE_APP_ID")
 
 # Database configuration
 class Base(DeclarativeBase):
@@ -50,6 +54,9 @@ def get_setting_value(key, default=None):
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
 
+# Import auth service
+from auth_service import login_required, verify_firebase_token, create_or_update_user
+
 # Initialize database tables
 with app.app_context():
     # Import models here to avoid circular imports
@@ -59,17 +66,6 @@ with app.app_context():
     # Comment out the line below to avoid data loss in production 
     db.drop_all()
     db.create_all()
-
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
 @app.route('/')
 @login_required
@@ -810,9 +806,7 @@ def delete_setting(key):
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
-    # Logout using Flask-Login
-    logout_user()
-    # Clear any remaining session data
+    # Clear session data
     session.clear()
     flash('You have been logged out', 'success')
     return redirect(url_for('login'))
@@ -1287,35 +1281,18 @@ def check_low_stock():
 def login():
     """Handle login form"""
     # If user is already logged in, redirect to dashboard
-    if current_user.is_authenticated:
+    if 'user_id' in session:
         return redirect(url_for('index'))
     
-    # Handle login form submission
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = 'remember' in request.form
-        
-        # Find the user by username
-        user = User.query.filter_by(username=username).first()
-        
-        # Check if user exists and password is correct
-        if user and user.check_password(password):
-            # Login the user
-            login_user(user, remember=remember)
-            user.last_login = datetime.utcnow()
-            db.session.commit()
-            
-            # Redirect to the page they were trying to access or dashboard
-            next_page = request.args.get('next')
-            if next_page and next_page.startswith('/'):
-                return redirect(next_page)
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password. Please try again.', 'danger')
+    # Render login template
+    firebase_config = {
+        'apiKey': app.config['FIREBASE_API_KEY'],
+        'projectId': app.config['FIREBASE_PROJECT_ID'],
+        'appId': app.config['FIREBASE_APP_ID'],
+        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
+    }
     
-    # Render login template for GET requests
-    return render_template('login.html')
+    return render_template('login.html', firebase_config=firebase_config)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

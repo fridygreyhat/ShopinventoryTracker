@@ -9,7 +9,7 @@
                 <h1 class="auth-heading">Welcome Back</h1>
                 <p class="auth-subheading">Sign in to access your inventory management system</p>
 
-                <form action="{{ url_for('login') }}" method="post" class="auth-form">
+                <div id="login-form">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
@@ -20,25 +20,27 @@
                         {% endif %}
                     {% endwith %}
                     
+                    <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+                    
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required autofocus>
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email" required autofocus>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
+                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <input type="checkbox" class="form-check-input" id="remember">
                         <label class="form-check-label" for="remember">Remember me</label>
                     </div>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="button" id="login-button" class="btn btn-primary">Login</button>
                     </div>
                     <div class="text-center mt-3">
                         <a href="{{ url_for('register') }}" class="auth-link">Create an account</a>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -48,20 +50,104 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Form validation
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('.auth-form');
-        
-        form.addEventListener('submit', function(event) {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+<!-- Firebase SDK -->
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+
+<script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    // Firebase configuration from server
+    const firebaseConfig = {
+        apiKey: "{{ firebase_config.apiKey }}",
+        projectId: "{{ firebase_config.projectId }}",
+        appId: "{{ firebase_config.appId }}",
+        authDomain: "{{ firebase_config.authDomain }}",
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Elements
+    const loginButton = document.getElementById('login-button');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const rememberCheck = document.getElementById('remember');
+    const errorDiv = document.getElementById('auth-error');
+
+    // Login button click handler
+    loginButton.addEventListener('click', async () => {
+        const email = emailInput.value;
+        const password = passwordInput.value;
+        const remember = rememberCheck.checked;
+
+        // Validate inputs
+        if (!email || !password) {
+            showError('Please enter both email and password.');
+            return;
+        }
+
+        try {
+            // Show loading state
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
             
-            if (!username || !password) {
-                event.preventDefault();
-                alert('Please enter both username and password.');
+            // Sign in with Firebase
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const token = await userCredential.user.getIdToken();
+            
+            // Send token to server to create session
+            const response = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    idToken: token,
+                    remember: remember
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to authenticate with server');
             }
-        });
+            
+            // On success, redirect to dashboard
+            window.location.href = '/';
+            
+        } catch (error) {
+            // Reset button and show error
+            loginButton.disabled = false;
+            loginButton.innerHTML = 'Login';
+            
+            console.error('Login error:', error);
+            
+            let errorMessage = 'Authentication failed. Please check your credentials.';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                errorMessage = 'Invalid email or password. Please try again.';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many failed login attempts. Please try again later.';
+            }
+            
+            showError(errorMessage);
+        }
+    });
+
+    // Show error message
+    function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+
+    // Handle Enter key press
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
+            loginButton.click();
+        }
     });
 </script>
 {% endblock %}
