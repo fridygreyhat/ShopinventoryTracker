@@ -70,6 +70,11 @@ def on_demand():
     """Render the on-demand products page"""
     return render_template('on_demand.html')
 
+@app.route('/sales')
+def sales():
+    """Render the sales management page"""
+    return render_template('sales.html')
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 def get_inventory():
