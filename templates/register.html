@@ -1,0 +1,175 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0 my-5">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <h1 class="h3">Create a New Account</h1>
+                    <p class="text-muted">Sign up to access the inventory management system</p>
+                </div>
+
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="registerEmail" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="registerEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="registerPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="registerPassword" required>
+                        <div class="form-text">Password must be at least 6 characters long</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <div class="alert alert-danger d-none" id="registerError" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="registerErrorMessage">Error message</span>
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" id="registerButton">Create Account</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-0">Already have an account? <a href="/login">Sign in</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Firebase App (the core Firebase SDK) -->
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js" type="module"></script>
+
+<!-- Firebase Auth -->
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js" type="module"></script>
+
+<script type="module">
+    // Import Firebase modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+    import { 
+        getAuth, 
+        createUserWithEmailAndPassword,
+        onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "{{ firebase_api_key }}",
+        authDomain: "{{ firebase_project_id }}.firebaseapp.com",
+        projectId: "{{ firebase_project_id }}",
+        storageBucket: "{{ firebase_project_id }}.appspot.com",
+        appId: "{{ firebase_app_id }}"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // DOM elements
+    const registerButton = document.getElementById('registerButton');
+    const registerErrorDiv = document.getElementById('registerError');
+    const registerErrorMessageSpan = document.getElementById('registerErrorMessage');
+
+    // Check if user is already signed in
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // User is signed in, redirect to dashboard
+            window.location.href = '/';
+        }
+    });
+
+    // Handle registration form submission
+    registerButton.addEventListener('click', function() {
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        // Clear previous errors
+        registerErrorDiv.classList.add('d-none');
+
+        // Validate form
+        if (!email || !password || !confirmPassword) {
+            showRegisterError('Please fill in all fields.');
+            return;
+        }
+
+        // Validate passwords match
+        if (password !== confirmPassword) {
+            showRegisterError('Passwords do not match.');
+            return;
+        }
+
+        // Validate password length
+        if (password.length < 6) {
+            showRegisterError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        // Show loading state
+        registerButton.disabled = true;
+        registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
+
+        // Create user with email and password
+        createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                // User registered successfully
+                // Get the user token and send it to backend to create a session
+                return userCredential.user.getIdToken();
+            })
+            .then(idToken => {
+                // Send token to backend
+                return fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idToken, email })
+                });
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Registration successful, redirect to dashboard
+                    window.location.href = '/';
+                } else {
+                    // Handle server-side errors
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Registration failed');
+                    });
+                }
+            })
+            .catch((error) => {
+                // Reset loading state
+                registerButton.disabled = false;
+                registerButton.textContent = 'Create Account';
+
+                let errorMessage = 'Registration failed. Please try again.';
+                
+                // Provide more specific error messages for common errors
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email is already in use.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Please enter a valid email address.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Please choose a stronger password.';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                showRegisterError(errorMessage);
+                console.error('Error during registration:', error);
+            });
+    });
+
+    // Show registration error message
+    function showRegisterError(message) {
+        registerErrorMessageSpan.textContent = message;
+        registerErrorDiv.classList.remove('d-none');
+    }
+</script>
+{% endblock %}

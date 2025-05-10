@@ -9,6 +9,7 @@ from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -772,7 +773,7 @@ def logout():
     # Clear session data
     session.clear()
     flash('You have been logged out', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 
 # Financial Statement Routes
@@ -1237,6 +1238,186 @@ def check_low_stock():
             'errors': [f"Error checking low stock: {str(e)}"]
         }), 500
 
+
+# Authentication routes
+@app.route('/login')
+def login():
+    """Render the login page"""
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+        
+    return render_template('login.html', 
+                          firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
+                          firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
+                          firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+
+@app.route('/register')
+def register():
+    """Render the registration page"""
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+        
+    return render_template('register.html', 
+                          firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
+                          firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
+                          firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+
+@app.route('/api/auth/session', methods=['POST'])
+def create_session():
+    """Create a session for authenticated user"""
+    try:
+        data = request.json
+        
+        if not data or 'idToken' not in data:
+            return jsonify({"error": "Missing ID token"}), 400
+            
+        # Import the auth service functions
+        from auth_service import verify_firebase_token, create_or_update_user
+        
+        # Verify token with Firebase
+        user_data = verify_firebase_token(data['idToken'])
+        
+        if not user_data:
+            return jsonify({"error": "Invalid or expired token"}), 401
+            
+        # Create or update user in the database
+        user = create_or_update_user(user_data)
+        
+        if not user:
+            return jsonify({"error": "Failed to create or update user"}), 500
+            
+        # Update last login time
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        # Set session data
+        session['user_id'] = user.id
+        session['firebase_uid'] = user.firebase_uid
+        session['email'] = user.email
+        session['is_admin'] = user.is_admin
+        
+        return jsonify({"success": True, "user": user.to_dict()})
+        
+    except Exception as e:
+        logger.error(f"Error creating session: {str(e)}")
+        return jsonify({"error": "Failed to create session"}), 500
+
+@app.route('/api/auth/register', methods=['POST'])
+def register_user():
+    """Register a new user"""
+    try:
+        data = request.json
+        
+        if not data or 'idToken' not in data or 'email' not in data:
+            return jsonify({"error": "Missing required data"}), 400
+            
+        # Import the auth service functions
+        from auth_service import verify_firebase_token, create_or_update_user
+        
+        # Verify token with Firebase
+        user_data = verify_firebase_token(data['idToken'])
+        
+        if not user_data:
+            return jsonify({"error": "Invalid or expired token"}), 401
+            
+        # Create or update user in the database
+        user = create_or_update_user(user_data)
+        
+        if not user:
+            return jsonify({"error": "Failed to create user"}), 500
+            
+        # Update last login time
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        # Set session data
+        session['user_id'] = user.id
+        session['firebase_uid'] = user.firebase_uid
+        session['email'] = user.email
+        session['is_admin'] = user.is_admin
+        
+        return jsonify({"success": True, "user": user.to_dict()})
+        
+    except Exception as e:
+        logger.error(f"Error registering user: {str(e)}")
+        return jsonify({"error": "Failed to register user"}), 500
+
+# This logout route is now unified with the existing one at line 770
+
+@app.route('/account')
+def account():
+    """Render the user account page"""
+    from auth_service import login_required
+    
+    @login_required
+    def protected_account():
+        from models import User
+        user = User.query.get(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('login'))
+            
+        return render_template('account.html', user=user)
+        
+    return protected_account()
+
+@app.route('/admin/users')
+def admin_users():
+    """Render the user management page (admin only)"""
+    from auth_service import admin_required
+    
+    @admin_required
+    def protected_admin_users():
+        from models import User
+        users = User.query.all()
+        return render_template('admin_users.html', users=users)
+        
+    return protected_admin_users()
+
+@app.route('/api/auth/users', methods=['GET'])
+def get_users():
+    """API endpoint to get all users (admin only)"""
+    from auth_service import admin_required
+    
+    @admin_required
+    def protected_get_users():
+        from models import User
+        users = User.query.all()
+        return jsonify([user.to_dict() for user in users])
+        
+    return protected_get_users()
+
+@app.route('/api/auth/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    """API endpoint to update user (admin only)"""
+    from auth_service import admin_required
+    
+    @admin_required
+    def protected_update_user():
+        from models import User
+        try:
+            data = request.json
+            user = User.query.get_or_404(user_id)
+            
+            # Only allow updating specific fields
+            if 'is_active' in data:
+                user.is_active = data['is_active']
+                
+            if 'is_admin' in data:
+                user.is_admin = data['is_admin']
+                
+            if 'username' in data:
+                user.username = data['username']
+                
+            db.session.commit()
+            return jsonify(user.to_dict())
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error updating user: {str(e)}")
+            return jsonify({"error": "Failed to update user"}), 500
+            
+    return protected_update_user()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -1,0 +1,315 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0 my-5">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <h1 class="h3">Shop Inventory Login</h1>
+                    <p class="text-muted">Sign in to access your inventory management system</p>
+                </div>
+
+                <div id="firebaseui-auth-container"></div>
+                <div id="loader" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="d-none" id="loginError">
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="errorMessage">Authentication error occurred</span>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-0">Don't have an account? <a href="#" id="signupLink">Create one</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Registration Modal -->
+<div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registrationModalLabel">Create a New Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="registerEmail" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="registerEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="registerPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="registerPassword" required>
+                        <div class="form-text">Password must be at least 6 characters long</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <div class="alert alert-danger d-none" id="registerError" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="registerErrorMessage">Error message</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="registerButton">Create Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Firebase App (the core Firebase SDK) -->
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js" type="module"></script>
+
+<!-- Firebase Auth -->
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js" type="module"></script>
+
+<script type="module">
+    // Import Firebase modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+    import { 
+        getAuth, 
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        onAuthStateChanged,
+        signInWithPopup,
+        GoogleAuthProvider,
+        sendPasswordResetEmail
+    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "{{ firebase_api_key }}",
+        authDomain: "{{ firebase_project_id }}.firebaseapp.com",
+        projectId: "{{ firebase_project_id }}",
+        storageBucket: "{{ firebase_project_id }}.appspot.com",
+        appId: "{{ firebase_app_id }}"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // DOM elements
+    const loader = document.getElementById('loader');
+    const loginErrorDiv = document.getElementById('loginError');
+    const errorMessageSpan = document.getElementById('errorMessage');
+    const signupLink = document.getElementById('signupLink');
+    const registerButton = document.getElementById('registerButton');
+    const registerErrorDiv = document.getElementById('registerError');
+    const registerErrorMessageSpan = document.getElementById('registerErrorMessage');
+
+    // Hide loader when auth UI is ready
+    setTimeout(() => {
+        loader.style.display = 'none';
+    }, 1000);
+
+    // Check if user is already signed in
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // User is signed in, get the current user's ID token
+            user.getIdToken().then(idToken => {
+                // Send token to backend to create a session
+                fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idToken })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Redirect to dashboard
+                        window.location.href = '/';
+                    } else {
+                        showError('Failed to create session. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    showError('Network error. Please try again.');
+                    console.error('Error sending token to backend:', error);
+                });
+            });
+        } else {
+            // User is signed out, show sign-in UI
+            console.log('No user is signed in.');
+
+            // Add event listener for email/password login button
+            document.getElementById('loginWithEmail').addEventListener('click', loginWithEmail);
+            
+            // Add event listener for Google login button
+            document.getElementById('loginWithGoogle').addEventListener('click', loginWithGoogle);
+        }
+    });
+
+    // Show registration modal when signup link is clicked
+    signupLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
+        registrationModal.show();
+    });
+
+    // Handle registration form submission
+    registerButton.addEventListener('click', function() {
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        // Validate passwords match
+        if (password !== confirmPassword) {
+            showRegisterError('Passwords do not match.');
+            return;
+        }
+
+        // Validate password length
+        if (password.length < 6) {
+            showRegisterError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        // Create user with email and password
+        createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                // Close modal
+                const registrationModal = bootstrap.Modal.getInstance(document.getElementById('registrationModal'));
+                registrationModal.hide();
+
+                // User registered successfully, now sign them in
+                // This will trigger the onAuthStateChanged listener above
+            })
+            .catch((error) => {
+                let errorMessage = 'Registration failed. Please try again.';
+                
+                // Provide more specific error messages for common errors
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email is already in use.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Please enter a valid email address.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Please choose a stronger password.';
+                }
+                
+                showRegisterError(errorMessage);
+                console.error('Error during registration:', error);
+            });
+    });
+
+    // Login with email/password
+    function loginWithEmail() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        signInWithEmailAndPassword(auth, email, password)
+            .catch((error) => {
+                let errorMessage = 'Login failed. Please check your credentials.';
+                
+                // Provide more specific error messages for common errors
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorMessage = 'Invalid email or password. Please try again.';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Too many failed login attempts. Please try again later.';
+                }
+                
+                showError(errorMessage);
+                console.error('Error during login:', error);
+            });
+    }
+
+    // Login with Google
+    function loginWithGoogle() {
+        const provider = new GoogleAuthProvider();
+        signInWithPopup(auth, provider)
+            .catch((error) => {
+                showError('Google sign-in failed. Please try again.');
+                console.error('Error during Google sign-in:', error);
+            });
+    }
+
+    // Show login error message
+    function showError(message) {
+        errorMessageSpan.textContent = message;
+        loginErrorDiv.classList.remove('d-none');
+    }
+
+    // Show registration error message
+    function showRegisterError(message) {
+        registerErrorMessageSpan.textContent = message;
+        registerErrorDiv.classList.remove('d-none');
+    }
+
+    // Ensure errors are hidden when modal is closed
+    document.getElementById('registrationModal').addEventListener('hidden.bs.modal', function () {
+        registerErrorDiv.classList.add('d-none');
+    });
+
+    // Add HTML for login buttons since we're using JS to add event listeners
+    document.getElementById('firebaseui-auth-container').innerHTML = `
+        <div class="d-grid gap-2 mb-3">
+            <button id="loginWithGoogle" class="btn btn-outline-danger">
+                <i class="fab fa-google me-2"></i> Sign in with Google
+            </button>
+        </div>
+        <div class="text-center mb-3">
+            <span class="bg-body px-2">or</span>
+        </div>
+        <form id="emailPasswordForm">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="email" required>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+                <div class="form-text text-end">
+                    <a href="#" id="forgotPassword">Forgot password?</a>
+                </div>
+            </div>
+            <div class="d-grid">
+                <button type="button" id="loginWithEmail" class="btn btn-primary">Log In</button>
+            </div>
+        </form>
+    `;
+
+    // Handle forgot password
+    document.getElementById('forgotPassword').addEventListener('click', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        
+        if (!email) {
+            showError('Please enter your email address to reset your password.');
+            return;
+        }
+        
+        sendPasswordResetEmail(auth, email)
+            .then(() => {
+                // Show success message
+                alert('Password reset email sent. Please check your inbox.');
+            })
+            .catch((error) => {
+                let errorMessage = 'Failed to send password reset email.';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'No account found with this email address.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Please enter a valid email address.';
+                }
+                
+                showError(errorMessage);
+                console.error('Error sending password reset:', error);
+            });
+    });
+</script>
+{% endblock %}

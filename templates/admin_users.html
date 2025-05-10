@@ -1,0 +1,271 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary bg-opacity-75 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title text-white mb-0">User Management</h5>
+                        <a href="#" class="btn btn-light btn-sm" id="refreshUserList">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Username</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Role</th>
+                                    <th scope="col">Created</th>
+                                    <th scope="col">Last Login</th>
+                                    <th scope="col" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody">
+                                {% for user in users %}
+                                <tr data-user-id="{{ user.id }}">
+                                    <td>{{ user.username }}</td>
+                                    <td>
+                                        {{ user.email }}
+                                        {% if not user.email_verified %}
+                                            <span class="badge bg-warning ms-1" title="Email not verified">
+                                                <i class="fas fa-exclamation-circle"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ user.is_active ? 'success' : 'danger' }}">
+                                            {{ user.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ user.is_admin ? 'primary' : 'secondary' }}">
+                                            {{ user.is_admin ? 'Admin' : 'User' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ user.created_at|date('Y-m-d') }}</td>
+                                    <td>{{ user.last_login|date('Y-m-d H:i') if user.last_login else 'Never' }}</td>
+                                    <td class="text-end">
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary edit-user-btn">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-{{ user.is_active ? 'danger' : 'success' }} toggle-status-btn">
+                                                <i class="fas fa-{{ user.is_active ? 'ban' : 'check' }}"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUsername" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" readonly>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsActive">
+                        <label class="form-check-label" for="editIsActive">Active</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsAdmin">
+                        <label class="form-check-label" for="editIsAdmin">Admin</label>
+                    </div>
+                    <div class="alert alert-danger d-none" id="editUserError" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="editErrorMessage">Error message</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const userTableBody = document.getElementById('userTableBody');
+        const editUserForm = document.getElementById('editUserForm');
+        const editUserId = document.getElementById('editUserId');
+        const editUsername = document.getElementById('editUsername');
+        const editEmail = document.getElementById('editEmail');
+        const editIsActive = document.getElementById('editIsActive');
+        const editIsAdmin = document.getElementById('editIsAdmin');
+        const editUserError = document.getElementById('editUserError');
+        const editErrorMessage = document.getElementById('editErrorMessage');
+        const saveUserBtn = document.getElementById('saveUserBtn');
+        const refreshUserList = document.getElementById('refreshUserList');
+
+        // Initialize Bootstrap modal
+        const editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+
+        // Add event listeners to edit buttons
+        document.querySelectorAll('.edit-user-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const userId = row.dataset.userId;
+                const username = row.cells[0].textContent.trim();
+                const email = row.cells[1].textContent.trim();
+                const isActive = row.cells[2].querySelector('.badge').textContent.trim() === 'Active';
+                const isAdmin = row.cells[3].querySelector('.badge').textContent.trim() === 'Admin';
+
+                // Fill the form with user data
+                editUserId.value = userId;
+                editUsername.value = username;
+                editEmail.value = email;
+                editIsActive.checked = isActive;
+                editIsAdmin.checked = isAdmin;
+
+                // Clear previous errors
+                editUserError.classList.add('d-none');
+
+                // Show modal
+                editUserModal.show();
+            });
+        });
+
+        // Add event listeners to toggle status buttons
+        document.querySelectorAll('.toggle-status-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const userId = row.dataset.userId;
+                const isCurrentlyActive = row.cells[2].querySelector('.badge').textContent.trim() === 'Active';
+                
+                if (confirm(`Are you sure you want to ${isCurrentlyActive ? 'deactivate' : 'activate'} this user?`)) {
+                    toggleUserStatus(userId, !isCurrentlyActive);
+                }
+            });
+        });
+
+        // Handle form submission for editing user
+        saveUserBtn.addEventListener('click', function() {
+            // Get form data
+            const userId = editUserId.value;
+            const username = editUsername.value;
+            const isActive = editIsActive.checked;
+            const isAdmin = editIsAdmin.checked;
+
+            // Validate form
+            if (!username) {
+                showEditError('Username cannot be empty');
+                return;
+            }
+
+            // Show loading state
+            saveUserBtn.disabled = true;
+            saveUserBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+            // Update user through API
+            fetch(`/api/auth/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    is_active: isActive,
+                    is_admin: isAdmin
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to update user');
+                    });
+                }
+            })
+            .then(data => {
+                // Close modal
+                editUserModal.hide();
+                
+                // Refresh user list to reflect changes
+                location.reload();
+            })
+            .catch(error => {
+                showEditError(error.message || 'Failed to update user');
+                
+                // Reset button state
+                saveUserBtn.disabled = false;
+                saveUserBtn.innerHTML = 'Save Changes';
+            });
+        });
+
+        // Handle refresh button click
+        refreshUserList.addEventListener('click', function(e) {
+            e.preventDefault();
+            location.reload();
+        });
+
+        // Toggle user status function
+        function toggleUserStatus(userId, newActiveStatus) {
+            fetch(`/api/auth/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    is_active: newActiveStatus
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to update user status');
+                    });
+                }
+            })
+            .then(data => {
+                // Refresh to reflect changes
+                location.reload();
+            })
+            .catch(error => {
+                alert(error.message || 'Failed to update user status');
+            });
+        }
+
+        // Show error in edit user form
+        function showEditError(message) {
+            editErrorMessage.textContent = message;
+            editUserError.classList.remove('d-none');
+        }
+    });
+</script>
+{% endblock %}

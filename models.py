@@ -46,12 +46,30 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
+    password_hash = db.Column(db.String(256), nullable=True)  # No longer needed with Firebase
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)  # Firebase User ID
+    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified in Firebase
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
     
     def __repr__(self):
         return f'<User {self.username}>'
+        
+    def to_dict(self):
+        """Convert user to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'email_verified': self.email_verified,
+            'is_active': self.is_active,
+            'is_admin': self.is_admin,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
 
 
 class OnDemandProduct(db.Model):
