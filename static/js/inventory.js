@@ -152,6 +152,72 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
+    // Calculate inventory health based on quantity
+    function calculateInventoryHealth(quantity) {
+        if (quantity <= 0) {
+            return {
+                status: 'critical',
+                label: 'Out of Stock',
+                color: 'danger',
+                icon: 'exclamation-circle',
+                percentage: 0
+            };
+        } else if (quantity <= 5) {
+            return {
+                status: 'low',
+                label: 'Low Stock',
+                color: 'warning',
+                icon: 'exclamation-triangle',
+                percentage: 25
+            };
+        } else if (quantity <= 10) {
+            return {
+                status: 'medium',
+                label: 'Medium Stock',
+                color: 'info',
+                icon: 'info-circle',
+                percentage: 50
+            };
+        } else if (quantity <= 20) {
+            return {
+                status: 'good',
+                label: 'Good Stock',
+                color: 'primary',
+                icon: 'check-circle',
+                percentage: 75
+            };
+        } else {
+            return {
+                status: 'optimal',
+                label: 'Optimal Stock',
+                color: 'success',
+                icon: 'check-double',
+                percentage: 100
+            };
+        }
+    }
+    
+    // Generate health indicator HTML
+    function generateHealthIndicator(quantity) {
+        const health = calculateInventoryHealth(quantity);
+        
+        return `
+            <div class="inventory-health">
+                <div class="health-indicator">
+                    <div class="progress" style="height: 8px;" title="${health.label}">
+                        <div class="progress-bar bg-${health.color}" role="progressbar" 
+                             style="width: ${health.percentage}%" 
+                             aria-valuenow="${health.percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="mt-1 d-flex align-items-center">
+                        <i class="fas fa-${health.icon} text-${health.color} me-1"></i>
+                        <span class="small ${quantity <= 5 ? 'fw-bold' : ''}">${quantity} ${quantity <= 0 ? health.label : 'units'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
     function displayInventory(items) {
         inventoryTable.innerHTML = '';
         
@@ -180,11 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${item.sku || ''}</td>
                 <td>${item.category || 'Uncategorized'}</td>
                 <td>
-                    ${item.quantity <= 0 ? 
-                      '<span class="badge bg-danger">Out of Stock</span>' : 
-                      item.quantity <= 5 ? 
-                      `<span class="badge bg-warning">${item.quantity}</span>` : 
-                      item.quantity}
+                    ${generateHealthIndicator(item.quantity)}
                 </td>
                 <td>
                     <small class="text-muted">Buying: </small><span class="currency-symbol">TZS</span> ${item.buying_price ? item.buying_price.toLocaleString() : 0}<br>

@@ -32,7 +32,43 @@ footer {
     z-index: 1;
 }
 
-/* Stock indicator colors are handled by Bootstrap's color classes */
+/* Inventory Health Visualization */
+.inventory-health {
+    width: 100%;
+    padding: 5px 0;
+}
+
+.health-indicator {
+    width: 100%;
+    min-width: 120px;
+}
+
+.health-indicator .progress {
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    margin-bottom: 4px;
+}
+
+.health-indicator .progress-bar {
+    transition: width 0.7s ease-in-out;
+}
+
+/* Stock status indicators */
+.health-indicator .text-danger {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
 
 /* Fix for modal backdrop in dark theme */
 .modal-backdrop {
