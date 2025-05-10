@@ -1,28 +1,16 @@
 /**
  * Firebase Authentication Module
  * This module provides functions for handling authentication with Firebase
+ * Updated to use the modular API structure of Firebase Web SDK v9+
  */
 
-// Firebase configuration will be injected from the server
-let firebaseConfig = {};
+// Import Firebase SDK modules as needed - these will be imported in the HTML file
+// import { initializeApp } from 'firebase/app';
+// import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+
+// Firebase configuration and instances will be provided from the login/register pages
 let app;
 let auth;
-
-/**
- * Initialize Firebase with configuration
- * @param {Object} config - Firebase configuration object
- */
-export function initializeFirebase(config) {
-    firebaseConfig = config;
-    
-    // Only initialize once
-    if (!app) {
-        app = firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth();
-    }
-    
-    return { app, auth };
-}
 
 /**
  * Login with email and password
@@ -32,7 +20,8 @@ export function initializeFirebase(config) {
  */
 export async function loginWithEmailPassword(email, password) {
     try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        // Use the auth instance passed from the login page
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
         return userCredential;
     } catch (error) {
         console.error('Login error:', error);
@@ -42,12 +31,17 @@ export async function loginWithEmailPassword(email, password) {
 
 /**
  * Send password reset email
+ * @param {Object} auth - Firebase Auth instance 
  * @param {string} email - User email
  * @returns {Promise} Promise that resolves when reset email is sent
  */
-export async function sendPasswordResetEmail(email) {
+export async function sendPasswordReset(auth, email) {
     try {
-        await auth.sendPasswordResetEmail(email);
+        // Import directly to avoid naming conflict
+        const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        
+        // Use the Firebase function with the auth instance passed from the login page
+        await sendPasswordResetEmail(auth, email);
         return { success: true };
     } catch (error) {
         console.error('Password reset error:', error);
@@ -57,15 +51,16 @@ export async function sendPasswordResetEmail(email) {
 
 /**
  * Register a new user with email and password
+ * @param {Object} auth - Firebase Auth instance
  * @param {string} email - User email
  * @param {string} password - User password
  * @param {Object} userData - Additional user data
  * @returns {Promise} Firebase user credential and server response
  */
-export async function registerWithEmailPassword(email, password, userData) {
+export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
-        // Create user in Firebase
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        // Create user in Firebase using the modular API
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const token = await userCredential.user.getIdToken();
         
         // Register user with server

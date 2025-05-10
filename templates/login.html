@@ -124,8 +124,8 @@
             loginButton.disabled = true;
             loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
             
-            // Sign in with Firebase using our helper function
-            const userCredential = await loginWithEmailPassword(email, password);
+            // Sign in with Firebase directly
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const token = await userCredential.user.getIdToken();
             
             // Create session with server
@@ -208,7 +208,7 @@
         sendResetBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
         
         try {
-            // Send password reset email
+            // Send password reset email directly with Firebase
             await sendPasswordResetEmail(auth, email);
             
             // Show success message
