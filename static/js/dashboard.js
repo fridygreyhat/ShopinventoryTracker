@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
         healthOverviewHTML += `
             <div class="row mt-3">
                 <div class="col-md-12">
-                    <div class="card bg-dark">
+                    <div class="card chart-card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">Inventory Health Distribution</h5>
                         </div>
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     legend: {
                         position: 'right',
                         labels: {
-                            color: 'white'
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333'
                         }
                     },
                     tooltip: {
