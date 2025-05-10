@@ -1462,11 +1462,7 @@ def account():
             session.clear()
             return redirect(url_for('login'))
             
-        return render_template('account.html', 
-                             user=user,
-                             firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
-                             firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
-                             firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+        return render_template('account.html', user=user)
         
     return protected_account()
 
@@ -1479,11 +1475,7 @@ def admin_users():
     def protected_admin_users():
         from models import User
         users = User.query.all()
-        return render_template('admin_users.html', 
-                             users=users,
-                             firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
-                             firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
-                             firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
+        return render_template('admin_users.html', users=users)
         
     return protected_admin_users()
 
