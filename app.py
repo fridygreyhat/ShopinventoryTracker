@@ -1,5 +1,7 @@
 import os
 import logging
+import uuid
+import json
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
@@ -33,7 +35,7 @@ db.init_app(app)
 # Initialize database tables
 with app.app_context():
     # Import models here to avoid circular imports
-    from models import Item, User  # noqa: F401
+    from models import Item, User, OnDemandProduct, Setting, Sale, SaleItem  # noqa: F401
     db.create_all()
 
 @app.route('/')
