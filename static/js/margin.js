@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
         
-        fetch(`/api/inventory/items${queryString}`)
+        fetch(`/api/inventory${queryString}`)
             .then(response => response.json())
             .then(data => {
                 if (data && Array.isArray(data)) {
@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
         
-        fetch(`/api/inventory/items${queryString}`)
+        fetch(`/api/inventory${queryString}`)
             .then(response => response.json())
             .then(data => {
                 if (data && Array.isArray(data)) {
