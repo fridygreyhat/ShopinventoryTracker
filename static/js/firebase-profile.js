@@ -1,10 +1,18 @@
 /**
  * Firebase Profile Management Module
- * This module provides functions for managing user profiles with Firebase
+ * 
+ * This module provides functions for managing user profiles with Firebase Authentication
  */
 
-// Import authentication functions
-import { getCurrentUser, getIdToken } from './firebase-auth.js';
+import { auth } from './firebase-auth.js';
+import { 
+    EmailAuthProvider, 
+    updateProfile, 
+    updateEmail, 
+    updatePassword, 
+    sendEmailVerification, 
+    reauthenticateWithCredential 
+} from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
 
 /**
  * Get the current user's profile from the server
@@ -12,29 +20,11 @@ import { getCurrentUser, getIdToken } from './firebase-auth.js';
  */
 export async function getUserProfile() {
     try {
-        // Check if user is logged in
-        const firebaseUser = getCurrentUser();
-        if (!firebaseUser) {
-            throw new Error('User not logged in');
-        }
-        
-        // Get ID token for authentication
-        const token = await getIdToken();
-        
-        // Get profile from server
-        const response = await fetch('/api/auth/profile', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            }
-        });
-        
+        const response = await fetch('/api/auth/profile');
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to get user profile');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to get user profile');
         }
-        
         return await response.json();
     } catch (error) {
         console.error('Error getting user profile:', error);
@@ -49,33 +39,32 @@ export async function getUserProfile() {
  */
 export async function updateUserProfile(profileData) {
     try {
-        // Check if user is logged in
-        const firebaseUser = getCurrentUser();
-        if (!firebaseUser) {
-            throw new Error('User not logged in');
+        // First update Firebase profile if needed
+        const currentUser = auth.currentUser;
+        if (currentUser && (profileData.firstName || profileData.lastName)) {
+            const displayName = `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim();
+            await updateProfile(currentUser, {
+                displayName: displayName
+            });
         }
         
-        // Get ID token for authentication
-        const token = await getIdToken();
-        
-        // Update profile on server
+        // Then update server profile
         const response = await fetch('/api/auth/profile', {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(profileData),
+            body: JSON.stringify(profileData)
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to update user profile');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update profile');
         }
         
         return await response.json();
     } catch (error) {
-        console.error('Error updating user profile:', error);
+        console.error('Error updating profile:', error);
         throw error;
     }
 }
@@ -88,32 +77,17 @@ export async function updateUserProfile(profileData) {
  */
 export async function changePassword(currentPassword, newPassword) {
     try {
-        // Check if user is logged in
-        const firebaseUser = getCurrentUser();
-        if (!firebaseUser) {
-            throw new Error('User not logged in');
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('No authenticated user');
         }
         
-        // Get ID token for authentication
-        const token = await getIdToken();
+        // Re-authenticate user before changing password
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
         
-        // Change password on server
-        const response = await fetch('/api/auth/change-password', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                current_password: currentPassword,
-                new_password: newPassword,
-            }),
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to change password');
-        }
+        // Update password
+        await updatePassword(user, newPassword);
         
         return true;
     } catch (error) {
@@ -128,28 +102,12 @@ export async function changePassword(currentPassword, newPassword) {
  */
 export async function sendEmailVerification() {
     try {
-        // Check if user is logged in
-        const firebaseUser = getCurrentUser();
-        if (!firebaseUser) {
-            throw new Error('User not logged in');
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('No authenticated user');
         }
         
-        // Get ID token for authentication
-        const token = await getIdToken();
-        
-        // Send verification email
-        const response = await fetch('/api/auth/send-verification', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to send verification email');
-        }
+        await sendEmailVerification(user);
         
         return true;
     } catch (error) {
@@ -165,32 +123,21 @@ export async function sendEmailVerification() {
  */
 export async function syncUserProfile() {
     try {
-        // Check if user is logged in
-        const firebaseUser = getCurrentUser();
-        if (!firebaseUser) {
-            throw new Error('User not logged in');
-        }
-        
-        // Get ID token for authentication
-        const token = await getIdToken();
-        
-        // Sync profile with server
         const response = await fetch('/api/auth/sync-profile', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             }
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to sync user profile');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to sync profile');
         }
         
         return await response.json();
     } catch (error) {
-        console.error('Error syncing user profile:', error);
+        console.error('Error syncing profile:', error);
         throw error;
     }
 }
