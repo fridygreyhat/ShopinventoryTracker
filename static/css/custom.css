@@ -5,37 +5,46 @@
 
 /* General styles */
 :root {
-    /* Primary Theme Colors */
-    --primary-color: #5664D2;      /* Royal blue - main brand color */
-    --secondary-color: #41C6E4;    /* Bright cyan - secondary brand color */
-    --accent-color: #FF7E5F;       /* Coral - accent for highlights */
+    /* Primary Theme Colors - "Tanzanite Theme" inspired by Tanzanian gemstone */
+    --primary-color: #4C50C5;      /* Tanzanite blue - main brand color */
+    --secondary-color: #41C1E0;    /* Azure blue - secondary brand color */
+    --accent-color: #FF7950;       /* Sunset orange - accent for highlights */
     
     /* Background Colors */
-    --light-bg: #F7F9FC;           /* Off-white background */
-    --light-bg-alt: #EDF2F7;       /* Secondary light background */
+    --light-bg: #F8FAFD;           /* Off-white background with slight blue tint */
+    --light-bg-alt: #EEF3F8;       /* Secondary light background */
     
     /* UI Element Colors */
-    --success-color: #37B679;      /* Green for success/positive messages */
-    --warning-color: #FFAB2E;      /* Amber for warnings */
-    --danger-color: #F05252;       /* Red for errors/danger */
-    --info-color: #3F83F8;         /* Blue for information */
+    --success-color: #32B873;      /* Green for success/positive messages */
+    --warning-color: #FFA726;      /* Amber for warnings */
+    --danger-color: #F04A4A;       /* Red for errors/danger */
+    --info-color: #3889F7;         /* Blue for information */
     
     /* Container Colors */
     --card-bg: #FFFFFF;            /* Card background */
-    --card-border: rgba(0, 0, 0, 0.08);
-    --card-shadow: rgba(0, 0, 0, 0.03);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --card-shadow: rgba(76, 80, 197, 0.04);
     
     /* Text Colors */
-    --text-primary: #1A202C;       /* Dark blue-gray for primary text */
-    --text-secondary: #4A5568;     /* Medium gray for secondary text */
-    --text-muted: #718096;         /* Light gray for less important text */
+    --text-primary: #19213A;       /* Dark blue-gray for primary text */
+    --text-secondary: #455070;     /* Medium gray with blue tint for secondary text */
+    --text-muted: #6E7A99;         /* Light gray for less important text */
     
     /* Font Families */
-    --heading-font: 'Montserrat', sans-serif;
-    --body-font: 'Open Sans', sans-serif;
-    --special-font: 'Quicksand', sans-serif;
+    --heading-font: 'Nunito', sans-serif;         /* Contemporary, friendly sans-serif */
+    --body-font: 'Open Sans', sans-serif;         /* Clean, readable sans-serif for body */
+    --special-font: 'Comfortaa', cursive;         /* Rounded, modern display font for special elements */
+    --brand-font: 'Montserrat', sans-serif;       /* Professional font for branding elements */
+    --accent-font: 'Quicksand', sans-serif;       /* Light, elegant font for accents */
+    
+    /* Component Dimensions */
+    --border-radius-sm: 6px;
+    --border-radius-md: 10px;
+    --border-radius-lg: 16px;
+    --border-radius-xl: 24px;
 }
 
+/* Global styles and typography */
 body {
     min-height: 100vh;
     display: flex;
@@ -47,15 +56,121 @@ body {
     line-height: 1.6;
 }
 
+/* Typography system */
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--heading-font);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
 }
 
+h1 {
+    font-size: 2.5rem;
+}
+
+h2 {
+    font-size: 2rem;
+}
+
+h3 {
+    font-size: 1.75rem;
+}
+
+h4 {
+    font-size: 1.5rem;
+}
+
+h5 {
+    font-size: 1.25rem;
+}
+
+h6 {
+    font-size: 1rem;
+}
+
+.display-1, .display-2, .display-3, .display-4 {
+    font-family: var(--special-font);
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.font-weight-light {
+    font-weight: 300 !important;
+}
+
+.font-weight-normal {
+    font-weight: 400 !important;
+}
+
+.font-weight-medium {
+    font-weight: 500 !important;
+}
+
+.font-weight-semibold {
+    font-weight: 600 !important;
+}
+
+.font-weight-bold {
+    font-weight: 700 !important;
+}
+
+/* Text utilities */
+.text-brand {
+    font-family: var(--brand-font);
+}
+
+.text-special {
+    font-family: var(--special-font);
+}
+
+.text-accent {
+    font-family: var(--accent-font);
+}
+
+/* Footer */
 footer {
     margin-top: auto;
+    padding: 2rem 0;
+    background-color: var(--light-bg-alt);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.footer-brand {
+    font-family: var(--special-font);
+    font-weight: 600;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-color);
+}
+
+.footer-copyright {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 2rem;
+    font-family: var(--accent-font);
 }
 
 /* Common Elements */
@@ -110,95 +225,186 @@ footer {
     border: none;
 }
 
-/* Logo styles */
+/* Logo and navigation styles */
 .navbar-brand {
     display: flex;
     align-items: center;
-    font-family: var(--heading-font);
-    font-weight: 700;
-    font-size: 1.4rem;
+    font-family: var(--special-font);
+    font-weight: 600;
+    font-size: 1.5rem;
     color: var(--primary-color) !important;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .brand-logo {
-    height: 40px;
-    margin-right: 12px;
-    transition: transform 0.3s ease;
+    height: 42px;
+    margin-right: 14px;
+    transition: all 0.4s ease;
+    filter: drop-shadow(0 2px 5px rgba(76, 80, 197, 0.2));
 }
 
 .navbar-brand:hover .brand-logo {
     transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(0 3px 8px rgba(76, 80, 197, 0.3));
 }
 
 /* Navigation */
 .navbar {
-    padding: 0.9rem 1.5rem;
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 20px rgba(76, 80, 197, 0.06);
+    background-color: white;
 }
 
 .nav-link {
-    font-family: var(--heading-font);
+    font-family: var(--accent-font);
     font-weight: 500;
-    padding: 0.6rem 1.2rem;
-    margin: 0 0.1rem;
-    border-radius: 8px;
+    padding: 0.65rem 1.25rem;
+    margin: 0 0.15rem;
+    border-radius: var(--border-radius-md);
     transition: all 0.3s ease;
     color: var(--text-secondary) !important;
     font-size: 0.95rem;
+    position: relative;
 }
 
 .nav-link:hover {
-    background-color: rgba(86, 100, 210, 0.05);
+    background-color: rgba(76, 80, 197, 0.05);
     color: var(--primary-color) !important;
+    transform: translateY(-1px);
 }
 
 .nav-link.active {
     color: var(--primary-color) !important;
-    background-color: rgba(86, 100, 210, 0.08);
+    background-color: rgba(76, 80, 197, 0.08);
     font-weight: 600;
+}
+
+.nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
 }
 
 .nav-link i {
     margin-right: 0.5rem;
     font-size: 1rem;
     opacity: 0.8;
+    transition: all 0.3s ease;
 }
 
-/* Auth pages styles (login & register) */
+.nav-link:hover i {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+/* User menu */
+.navbar .dropdown-menu {
+    border: none;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 0.75rem 0;
+    margin-top: 0.75rem;
+    position: absolute !important;
+    transform: translateY(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.navbar .dropdown-menu.show {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+.navbar .dropdown-item {
+    padding: 0.6rem 1.25rem;
+    font-family: var(--accent-font);
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.navbar .dropdown-item:hover, 
+.navbar .dropdown-item:focus {
+    background-color: rgba(76, 80, 197, 0.05);
+    color: var(--primary-color);
+}
+
+.navbar .dropdown-item i {
+    margin-right: 0.75rem;
+    font-size: 1rem;
+    opacity: 0.7;
+    width: 20px;
+    text-align: center;
+}
+
+.navbar .dropdown-divider {
+    margin: 0.5rem 0;
+    border-top-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Auth pages styles (login & register) - "Tanzanite Theme" */
 .auth-card {
     background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    box-shadow: 0 20px 40px var(--card-shadow);
-    border-radius: 20px;
+    border: none;
+    box-shadow: 0 25px 50px rgba(76, 80, 197, 0.08);
+    border-radius: var(--border-radius-xl);
     overflow: hidden;
-    max-width: 480px;
-    margin: 2rem auto;
+    max-width: 500px;
+    margin: 3rem auto;
+    transition: all 0.5s ease;
+    position: relative;
+}
+
+.auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+}
+
+.auth-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 30px 60px rgba(76, 80, 197, 0.1);
 }
 
 .auth-card .card-body {
-    padding: 3.5rem;
+    padding: 3.75rem;
 }
 
 .auth-logo {
-    width: 130px;
-    height: 130px;
-    margin: 0 auto 2.5rem;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 3rem;
     display: block;
-    filter: drop-shadow(0 8px 20px rgba(86, 100, 210, 0.15));
-    transition: transform 0.5s ease;
+    filter: drop-shadow(0 10px 25px rgba(76, 80, 197, 0.18));
+    transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .auth-logo:hover {
-    transform: scale(1.05) rotate(5deg);
+    transform: scale(1.08) rotate(8deg);
 }
 
 .auth-heading {
-    font-family: var(--heading-font);
+    font-family: var(--special-font);
     font-weight: 700;
     margin-bottom: 0.75rem;
     text-align: center;
-    font-size: 2.2rem;
+    font-size: 2.5rem;
     letter-spacing: -0.02em;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     -webkit-background-clip: text;
@@ -207,54 +413,69 @@ footer {
 }
 
 .auth-subheading {
-    font-family: var(--special-font);
+    font-family: var(--accent-font);
     text-align: center;
     color: var(--text-secondary);
     font-size: 1.1rem;
-    margin-bottom: 2.5rem;
-    line-height: 1.5;
+    margin-bottom: 3rem;
+    line-height: 1.6;
 }
 
 .auth-form .form-label {
-    font-family: var(--heading-font);
-    color: var(--text-primary);
+    font-family: var(--accent-font);
+    color: var(--text-secondary);
     font-weight: 600;
     font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+}
+
+.auth-form .form-label i {
+    margin-right: 0.5rem;
+    color: var(--primary-color);
+    opacity: 0.7;
 }
 
 .auth-form .form-control {
     background-color: var(--light-bg);
     border: 2px solid var(--light-bg-alt);
-    padding: 0.9rem 1.2rem;
+    padding: 1rem 1.25rem;
     font-size: 1rem;
     transition: all 0.3s ease;
-    border-radius: 10px;
-    margin-bottom: 1.25rem;
+    border-radius: var(--border-radius-md);
+    margin-bottom: 1.5rem;
     font-family: var(--body-font);
+    color: var(--text-primary);
 }
 
 .auth-form .form-control:focus {
     background-color: white;
-    border-color: rgba(86, 100, 210, 0.4);
-    box-shadow: 0 0 0 3px rgba(86, 100, 210, 0.1);
+    border-color: rgba(76, 80, 197, 0.4);
+    box-shadow: 0 0 0 4px rgba(76, 80, 197, 0.08);
+}
+
+.auth-form .form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 .auth-btn {
-    padding: 0.9rem;
+    padding: 1rem;
     font-family: var(--heading-font);
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.05rem;
     letter-spacing: 0.01em;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     border: none;
     position: relative;
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: var(--border-radius-md);
     color: white;
-    box-shadow: 0 5px 15px rgba(86, 100, 210, 0.2);
-    margin-top: 0.5rem;
+    box-shadow: 0 6px 18px rgba(76, 80, 197, 0.2);
+    margin-top: 1rem;
+    width: 100%;
 }
 
 .auth-btn::before {
@@ -269,18 +490,22 @@ footer {
 }
 
 .auth-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(86, 100, 210, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(76, 80, 197, 0.3);
 }
 
 .auth-btn:hover::before {
     left: 100%;
 }
 
+.auth-btn:active {
+    transform: translateY(0);
+}
+
 .auth-divider {
     display: flex;
     align-items: center;
-    margin: 2rem 0;
+    margin: 2.5rem 0;
     font-family: var(--special-font);
 }
 
@@ -293,9 +518,10 @@ footer {
 }
 
 .auth-divider span {
-    padding: 0 1.25rem;
+    padding: 0 1.5rem;
     color: var(--text-muted);
     font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .auth-link {
@@ -303,24 +529,46 @@ footer {
     transition: all 0.3s ease;
     text-decoration: none;
     font-weight: 600;
-    font-family: var(--heading-font);
+    font-family: var(--accent-font);
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-size: 1rem;
 }
 
 .auth-link:hover {
     color: var(--secondary-color);
-    text-decoration: underline;
+    text-decoration: none;
+    transform: translateX(3px);
+}
+
+.auth-link i {
+    margin-left: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.auth-link:hover i {
+    transform: translateX(3px);
+}
+
+/* Form alternatives text */
+.auth-alternatives {
+    text-align: center;
+    margin-top: 2rem;
+    color: var(--text-muted);
+    font-family: var(--accent-font);
+    font-size: 0.95rem;
 }
 
 /* Social Login buttons */
 .social-login {
-    margin-top: 1.5rem;
+    margin-top: 1.75rem;
 }
 
 .btn-social {
-    border-radius: 10px;
-    padding: 0.75rem 1.25rem;
+    border-radius: var(--border-radius-md);
+    padding: 0.9rem 1.25rem;
     font-weight: 500;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     text-align: center;
     position: relative;
     display: flex;
@@ -330,17 +578,20 @@ footer {
     border: 1px solid var(--light-bg-alt);
     background-color: white;
     color: var(--text-primary);
+    font-family: var(--accent-font);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 
 .btn-social:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.06);
+    border-color: rgba(76, 80, 197, 0.2);
 }
 
 .btn-social i {
     position: absolute;
     left: 1.25rem;
-    font-size: 1.1rem;
+    font-size: 1.25rem;
 }
 
 /* Dashboard styles */
