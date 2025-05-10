@@ -11,6 +11,20 @@
                 </div>
 
                 <form id="registrationForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="shopName" class="form-label">Shop Name</label>
+                        <input type="text" class="form-control" id="shopName" required>
+                    </div>
                     <div class="mb-3">
                         <label for="registerEmail" class="form-label">Email address</label>
                         <input type="email" class="form-control" id="registerEmail" required>
@@ -23,6 +37,51 @@
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">Confirm Password</label>
                         <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Categories</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Electronics" id="categoryElectronics">
+                                    <label class="form-check-label" for="categoryElectronics">
+                                        Electronics
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Clothing" id="categoryClothing">
+                                    <label class="form-check-label" for="categoryClothing">
+                                        Clothing
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Food" id="categoryFood">
+                                    <label class="form-check-label" for="categoryFood">
+                                        Food
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Furniture" id="categoryFurniture">
+                                    <label class="form-check-label" for="categoryFurniture">
+                                        Furniture
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Cosmetics" id="categoryCosmetics">
+                                    <label class="form-check-label" for="categoryCosmetics">
+                                        Cosmetics
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input product-category" type="checkbox" value="Other" id="categoryOther">
+                                    <label class="form-check-label" for="categoryOther">
+                                        Other
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="alert alert-danger d-none" id="registerError" role="alert">
                         <i class="fas fa-exclamation-circle me-2"></i>
@@ -88,16 +147,27 @@
 
     // Handle registration form submission
     registerButton.addEventListener('click', function() {
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
+        const shopName = document.getElementById('shopName').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        // Get selected product categories
+        const selectedCategories = [];
+        const categoryCheckboxes = document.querySelectorAll('.product-category:checked');
+        categoryCheckboxes.forEach(checkbox => {
+            selectedCategories.push(checkbox.value);
+        });
+        const productCategories = selectedCategories.join(',');
 
         // Clear previous errors
         registerErrorDiv.classList.add('d-none');
 
         // Validate form
-        if (!email || !password || !confirmPassword) {
-            showRegisterError('Please fill in all fields.');
+        if (!firstName || !lastName || !shopName || !email || !password || !confirmPassword) {
+            showRegisterError('Please fill in all required fields.');
             return;
         }
 
@@ -125,13 +195,20 @@
                 return userCredential.user.getIdToken();
             })
             .then(idToken => {
-                // Send token to backend
+                // Send token and user data to backend
                 return fetch('/api/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ idToken, email })
+                    body: JSON.stringify({ 
+                        idToken, 
+                        email, 
+                        firstName, 
+                        lastName, 
+                        shopName, 
+                        productCategories 
+                    })
                 });
             })
             .then(response => {

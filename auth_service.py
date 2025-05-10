@@ -50,12 +50,13 @@ def verify_firebase_token(id_token):
         logger.error(f"Error verifying Firebase token: {str(e)}")
         return None
 
-def create_or_update_user(user_data):
+def create_or_update_user(user_data, extra_data=None):
     """
     Create or update user in the database based on Firebase user data
     
     Args:
         user_data (dict): Firebase user data
+        extra_data (dict, optional): Additional user data from registration form
         
     Returns:
         User: User model instance
@@ -76,16 +77,38 @@ def create_or_update_user(user_data):
             # Update existing user
             user.firebase_uid = firebase_uid
             user.email_verified = user_data.get("emailVerified", False)
+            
+            # Update additional fields if provided
+            if extra_data:
+                if 'firstName' in extra_data:
+                    user.first_name = extra_data.get('firstName')
+                if 'lastName' in extra_data:
+                    user.last_name = extra_data.get('lastName')
+                if 'shopName' in extra_data:
+                    user.shop_name = extra_data.get('shopName')
+                if 'productCategories' in extra_data:
+                    user.product_categories = extra_data.get('productCategories')
+            
             db.session.commit()
             return user
             
+        # Create new user with username from email (default behavior)
+        username = email.split("@")[0] if email else "user"
+        
         # Create new user
         new_user = User(
             email=email,
-            username=email.split("@")[0],  # Default username is the part before @ in email
+            username=username,
             firebase_uid=firebase_uid,
             email_verified=user_data.get("emailVerified", False)
         )
+        
+        # Add additional fields if provided
+        if extra_data:
+            new_user.first_name = extra_data.get('firstName')
+            new_user.last_name = extra_data.get('lastName')
+            new_user.shop_name = extra_data.get('shopName')
+            new_user.product_categories = extra_data.get('productCategories')
         
         db.session.add(new_user)
         db.session.commit()

@@ -49,6 +49,10 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=True)  # No longer needed with Firebase
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True)  # Firebase User ID
     email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified in Firebase
+    first_name = db.Column(db.String(64), nullable=True)
+    last_name = db.Column(db.String(64), nullable=True)
+    shop_name = db.Column(db.String(128), nullable=True)
+    product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -65,9 +69,14 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'email_verified': self.email_verified,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'shop_name': self.shop_name,
+            'product_categories': self.product_categories,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
