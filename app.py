@@ -42,12 +42,26 @@ with app.app_context():
 @app.route('/')
 def index():
     """Render the dashboard page"""
-    return render_template('index.html')
+    # Import login_required decorator
+    from auth_service import login_required
+    
+    @login_required
+    def protected_index():
+        return render_template('index.html')
+        
+    return protected_index()
 
 @app.route('/inventory')
 def inventory():
     """Render the inventory management page"""
-    return render_template('inventory.html')
+    # Import login_required decorator
+    from auth_service import login_required
+    
+    @login_required
+    def protected_inventory():
+        return render_template('inventory.html')
+        
+    return protected_inventory()
 
 @app.route('/margin')
 def margin():
@@ -1357,7 +1371,11 @@ def account():
             session.clear()
             return redirect(url_for('login'))
             
-        return render_template('account.html', user=user)
+        return render_template('account.html', 
+                             user=user,
+                             firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
+                             firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
+                             firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
         
     return protected_account()
 
@@ -1370,7 +1388,11 @@ def admin_users():
     def protected_admin_users():
         from models import User
         users = User.query.all()
-        return render_template('admin_users.html', users=users)
+        return render_template('admin_users.html', 
+                             users=users,
+                             firebase_api_key=os.environ.get("FIREBASE_API_KEY"),
+                             firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID"),
+                             firebase_app_id=os.environ.get("FIREBASE_APP_ID"))
         
     return protected_admin_users()
 
