@@ -554,7 +554,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const percentage = ((value / values.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
                                 return `${label}: TZS ${value.toLocaleString()} (${percentage}%)`;
                             }
-                        }
+                        },
+                        backgroundColor: getThemeColors().tooltipBackground,
+                        titleColor: getThemeColors().tooltipText,
+                        bodyColor: getThemeColors().tooltipText,
+                        titleFont: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 11
+                        },
+                        padding: 8
                     }
                 }
             }
@@ -798,7 +809,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 label += 'TZS ' + context.raw.toLocaleString();
                                 return label;
                             }
-                        }
+                        },
+                        backgroundColor: getThemeColors().tooltipBackground,
+                        titleColor: getThemeColors().tooltipText,
+                        bodyColor: getThemeColors().tooltipText,
+                        titleFont: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 11
+                        },
+                        padding: 8
                     }
                 }
             }
