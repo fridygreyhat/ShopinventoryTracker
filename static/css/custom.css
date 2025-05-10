@@ -3,8 +3,12 @@
  * This file contains minimal custom styles that extend the Bootstrap theme
  */
 
-/* General styles */
+/* Import themes */
+@import url('themes.css');
+
+/* General styles - Default variables will be overridden by theme CSS */
 :root {
+    /* These are default fallback variables if no theme is applied */
     /* Primary Theme Colors - "Tanzanite Theme" inspired by Tanzanian gemstone */
     --primary-color: #4C50C5;      /* Tanzanite blue - main brand color */
     --secondary-color: #41C1E0;    /* Azure blue - secondary brand color */
