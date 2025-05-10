@@ -60,6 +60,11 @@ def reports():
     """Render the reports page"""
     return render_template('reports.html')
 
+@app.route('/settings')
+def settings():
+    """Render the settings page"""
+    return render_template('settings.html')
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 def get_inventory():
@@ -334,6 +339,146 @@ def export_csv():
         as_attachment=True,
         download_name=f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     )
+
+# Settings API endpoints
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """API endpoint to get all settings or settings by category"""
+    from models import Setting
+    
+    category = request.args.get('category')
+    
+    # Start query
+    query = Setting.query
+    
+    # Filter by category if provided
+    if category:
+        query = query.filter(Setting.category == category)
+    
+    # Execute query
+    settings = [setting.to_dict() for setting in query.all()]
+    
+    # Group settings by category for easier UI rendering
+    if not request.args.get('format') == 'flat':
+        grouped_settings = {}
+        for setting in settings:
+            cat = setting['category']
+            if cat not in grouped_settings:
+                grouped_settings[cat] = []
+            grouped_settings[cat].append(setting)
+        return jsonify(grouped_settings)
+    
+    return jsonify(settings)
+
+@app.route('/api/settings/<string:key>', methods=['GET'])
+def get_setting(key):
+    """API endpoint to get a specific setting"""
+    from models import Setting
+    
+    setting = Setting.query.filter_by(key=key).first()
+    
+    if not setting:
+        return jsonify({"error": "Setting not found"}), 404
+    
+    return jsonify(setting.to_dict())
+
+@app.route('/api/settings', methods=['POST'])
+def add_setting():
+    """API endpoint to add or update a setting"""
+    from models import Setting
+    
+    try:
+        setting_data = request.json
+        
+        # Validate required fields
+        if 'key' not in setting_data or 'value' not in setting_data:
+            return jsonify({"error": "Both key and value are required"}), 400
+        
+        # Check if setting exists
+        existing_setting = Setting.query.filter_by(key=setting_data['key']).first()
+        
+        if existing_setting:
+            # Update existing setting
+            existing_setting.value = setting_data['value']
+            if 'description' in setting_data:
+                existing_setting.description = setting_data['description']
+            if 'category' in setting_data:
+                existing_setting.category = setting_data['category']
+            
+            db.session.commit()
+            return jsonify(existing_setting.to_dict())
+        else:
+            # Create new setting
+            new_setting = Setting(
+                key=setting_data['key'],
+                value=setting_data['value'],
+                description=setting_data.get('description', ''),
+                category=setting_data.get('category', 'general')
+            )
+            
+            db.session.add(new_setting)
+            db.session.commit()
+            
+            return jsonify(new_setting.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding/updating setting: {str(e)}")
+        return jsonify({"error": "Failed to add/update setting"}), 500
+
+@app.route('/api/settings/<string:key>', methods=['PUT'])
+def update_setting(key):
+    """API endpoint to update a setting"""
+    from models import Setting
+    
+    try:
+        setting_data = request.json
+        setting = Setting.query.filter_by(key=key).first()
+        
+        if setting is None:
+            return jsonify({"error": "Setting not found"}), 404
+        
+        # Update setting
+        if 'value' in setting_data:
+            setting.value = setting_data['value']
+        if 'description' in setting_data:
+            setting.description = setting_data['description']
+        if 'category' in setting_data:
+            setting.category = setting_data['category']
+        
+        db.session.commit()
+        
+        return jsonify(setting.to_dict())
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating setting: {str(e)}")
+        return jsonify({"error": "Failed to update setting"}), 500
+
+@app.route('/api/settings/<string:key>', methods=['DELETE'])
+def delete_setting(key):
+    """API endpoint to delete a setting"""
+    from models import Setting
+    
+    try:
+        setting = Setting.query.filter_by(key=key).first()
+        
+        if setting is None:
+            return jsonify({"error": "Setting not found"}), 404
+        
+        # Store setting details before deletion
+        setting_dict = setting.to_dict()
+        
+        # Remove setting from database
+        db.session.delete(setting)
+        db.session.commit()
+        
+        return jsonify({"message": f"Deleted setting '{key}'", "setting": setting_dict})
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting setting: {str(e)}")
+        return jsonify({"error": "Failed to delete setting"}), 500
 
 @app.route('/logout')
 def logout():

@@ -1,0 +1,256 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="display-4 mb-4">
+            <i class="fas fa-cog me-2"></i> Settings
+        </h1>
+        <p class="lead">Manage your inventory system settings and preferences.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <!-- Settings Navigation -->
+        <div class="list-group" id="settings-nav">
+            <a href="#general-settings" class="list-group-item list-group-item-action active" 
+               data-bs-toggle="list">
+                <i class="fas fa-wrench me-2"></i> General Settings
+            </a>
+            <a href="#appearance-settings" class="list-group-item list-group-item-action" 
+               data-bs-toggle="list">
+                <i class="fas fa-palette me-2"></i> Appearance
+            </a>
+            <a href="#inventory-settings" class="list-group-item list-group-item-action" 
+               data-bs-toggle="list">
+                <i class="fas fa-boxes me-2"></i> Inventory Preferences
+            </a>
+            <a href="#notification-settings" class="list-group-item list-group-item-action" 
+               data-bs-toggle="list">
+                <i class="fas fa-bell me-2"></i> Notification Settings
+            </a>
+            <a href="#advanced-settings" class="list-group-item list-group-item-action" 
+               data-bs-toggle="list">
+                <i class="fas fa-tools me-2"></i> Advanced
+            </a>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <!-- Settings Content -->
+        <div class="tab-content" id="settings-content">
+            <!-- General Settings Tab -->
+            <div class="tab-pane fade show active" id="general-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">General Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="generalSettingsForm">
+                            <div class="mb-3">
+                                <label for="company_name" class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="company_name" name="company_name">
+                                <div class="form-text">Used in reports and exports</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="currency_code" class="form-label">Currency</label>
+                                <input type="text" class="form-control" id="currency_code" name="currency_code" value="TZS">
+                                <div class="form-text">Currency used throughout the application</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="timezone" class="form-label">Timezone</label>
+                                <select class="form-select" id="timezone" name="timezone">
+                                    <option value="Africa/Dar_es_Salaam">East Africa Time (EAT)</option>
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">Eastern Time (ET)</option>
+                                    <option value="Europe/London">Greenwich Mean Time (GMT)</option>
+                                </select>
+                                <div class="form-text">All dates and times will be displayed in this timezone</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="default_language" class="form-label">Language</label>
+                                <select class="form-select" id="default_language" name="default_language">
+                                    <option value="en">English</option>
+                                    <option value="sw">Swahili</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="saveGeneralSettings">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Appearance Settings Tab -->
+            <div class="tab-pane fade" id="appearance-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Appearance Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="appearanceSettingsForm">
+                            <div class="mb-3">
+                                <label class="form-label">Theme</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="theme" id="theme_dark" value="dark" checked>
+                                    <label class="form-check-label" for="theme_dark">
+                                        Dark Theme
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="theme" id="theme_light" value="light">
+                                    <label class="form-check-label" for="theme_light">
+                                        Light Theme
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="items_per_page" class="form-label">Items Per Page</label>
+                                <select class="form-select" id="items_per_page" name="items_per_page">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <div class="form-text">Default number of items to display in tables</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="date_format" class="form-label">Date Format</label>
+                                <select class="form-select" id="date_format" name="date_format">
+                                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="saveAppearanceSettings">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Inventory Settings Tab -->
+            <div class="tab-pane fade" id="inventory-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Inventory Preferences</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="inventorySettingsForm">
+                            <div class="mb-3">
+                                <label for="low_stock_threshold" class="form-label">Low Stock Threshold</label>
+                                <input type="number" class="form-control" id="low_stock_threshold" name="low_stock_threshold" value="10" min="1">
+                                <div class="form-text">Items with stock below this value will be highlighted</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="default_category" class="form-label">Default Category</label>
+                                <input type="text" class="form-control" id="default_category" name="default_category" value="Uncategorized">
+                                <div class="form-text">Default category for new items</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable_sku_generation" name="enable_sku_generation" checked>
+                                    <label class="form-check-label" for="enable_sku_generation">
+                                        Auto-generate SKUs for new items
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="track_inventory_history" name="track_inventory_history" checked>
+                                    <label class="form-check-label" for="track_inventory_history">
+                                        Track inventory history
+                                    </label>
+                                </div>
+                                <div class="form-text">Keep history of all inventory changes</div>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="saveInventorySettings">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notification Settings Tab -->
+            <div class="tab-pane fade" id="notification-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Notification Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="notificationSettingsForm">
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable_low_stock_alerts" name="enable_low_stock_alerts" checked>
+                                    <label class="form-check-label" for="enable_low_stock_alerts">
+                                        Enable low stock alerts
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable_price_change_alerts" name="enable_price_change_alerts">
+                                    <label class="form-check-label" for="enable_price_change_alerts">
+                                        Enable price change alerts
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="notification_email" class="form-label">Notification Email</label>
+                                <input type="email" class="form-control" id="notification_email" name="notification_email">
+                                <div class="form-text">Email address for system notifications</div>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="saveNotificationSettings">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Settings Tab -->
+            <div class="tab-pane fade" id="advanced-settings">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Advanced Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i> Changing these settings may affect system behavior.
+                        </div>
+                        <form id="advancedSettingsForm">
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable_debug_mode" name="enable_debug_mode">
+                                    <label class="form-check-label" for="enable_debug_mode">
+                                        Enable debug mode
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="data_backup_schedule" class="form-label">Data Backup Schedule</label>
+                                <select class="form-select" id="data_backup_schedule" name="data_backup_schedule">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="never">Never</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enable_api_access" name="enable_api_access">
+                                    <label class="form-check-label" for="enable_api_access">
+                                        Enable API access
+                                    </label>
+                                </div>
+                                <div class="form-text">Allow external applications to access your inventory data</div>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="saveAdvancedSettings">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

@@ -42,3 +42,29 @@ class User(db.Model):
     
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class Setting(db.Model):
+    """Model for application settings"""
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(64), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=True)
+    description = db.Column(db.String(255), nullable=True)
+    category = db.Column(db.String(64), default='general')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Setting {self.key}>'
+    
+    def to_dict(self):
+        """Convert setting to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'key': self.key,
+            'value': self.value,
+            'description': self.description,
+            'category': self.category,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
