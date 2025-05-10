@@ -186,29 +186,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module">
-    // Import Firebase modules
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-    import { 
-        getAuth, 
-        EmailAuthProvider,
-        reauthenticateWithCredential,
-        updatePassword,
-        sendEmailVerification
-    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "{{ firebase_api_key }}",
-        authDomain: "{{ firebase_project_id }}.firebaseapp.com",
-        projectId: "{{ firebase_project_id }}",
-        storageBucket: "{{ firebase_project_id }}.appspot.com",
-        appId: "{{ firebase_app_id }}"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+<script>
+    // User profile management code
+    document.addEventListener('DOMContentLoaded', function() {
 
     // DOM elements
     const accountForm = document.getElementById('accountForm');
