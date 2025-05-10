@@ -65,6 +65,11 @@ def settings():
     """Render the settings page"""
     return render_template('settings.html')
 
+@app.route('/on-demand')
+def on_demand():
+    """Render the on-demand products page"""
+    return render_template('on_demand.html')
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 def get_inventory():
@@ -339,6 +344,153 @@ def export_csv():
         as_attachment=True,
         download_name=f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     )
+
+# On-Demand Products API endpoints
+@app.route('/api/on-demand', methods=['GET'])
+def get_on_demand_products():
+    """API endpoint to get all on-demand products"""
+    from models import OnDemandProduct
+    
+    # Start query
+    query = OnDemandProduct.query
+    
+    # Optional filtering
+    category = request.args.get('category')
+    search_term = request.args.get('search', '').lower()
+    active_only = request.args.get('active_only', 'false').lower() == 'true'
+    
+    # Apply filters if provided
+    if category:
+        query = query.filter(OnDemandProduct.category == category)
+    
+    if search_term:
+        search_filter = (
+            OnDemandProduct.name.ilike(f'%{search_term}%') |
+            OnDemandProduct.description.ilike(f'%{search_term}%') |
+            OnDemandProduct.materials.ilike(f'%{search_term}%')
+        )
+        query = query.filter(search_filter)
+    
+    if active_only:
+        query = query.filter(OnDemandProduct.is_active == True)
+    
+    # Execute query and convert to dictionary
+    products = [product.to_dict() for product in query.all()]
+    return jsonify(products)
+
+@app.route('/api/on-demand', methods=['POST'])
+def add_on_demand_product():
+    """API endpoint to add a new on-demand product"""
+    from models import OnDemandProduct
+    
+    try:
+        product_data = request.json
+        
+        # Validate required fields
+        required_fields = ['name', 'base_price']
+        for field in required_fields:
+            if field not in product_data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Create new product
+        new_product = OnDemandProduct(
+            name=product_data["name"],
+            description=product_data.get("description", ""),
+            base_price=float(product_data["base_price"]),
+            production_time=int(product_data.get("production_time", 0)),
+            category=product_data.get("category", "Uncategorized"),
+            materials=product_data.get("materials", ""),
+            is_active=product_data.get("is_active", True)
+        )
+        
+        # Add to database
+        db.session.add(new_product)
+        db.session.commit()
+        
+        return jsonify(new_product.to_dict()), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding on-demand product: {str(e)}")
+        return jsonify({"error": "Failed to add on-demand product"}), 500
+
+@app.route('/api/on-demand/<int:product_id>', methods=['GET'])
+def get_on_demand_product(product_id):
+    """API endpoint to get a specific on-demand product"""
+    from models import OnDemandProduct
+    
+    product = OnDemandProduct.query.get(product_id)
+    
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
+        
+    return jsonify(product.to_dict())
+
+@app.route('/api/on-demand/<int:product_id>', methods=['PUT'])
+def update_on_demand_product(product_id):
+    """API endpoint to update an on-demand product"""
+    from models import OnDemandProduct
+    
+    try:
+        product_data = request.json
+        product = OnDemandProduct.query.get(product_id)
+        
+        if product is None:
+            return jsonify({"error": "Product not found"}), 404
+        
+        # Update the product with new data
+        for key, value in product_data.items():
+            if key not in ['id', 'created_at']:  # Don't allow changing these fields
+                setattr(product, key, value)
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify(product.to_dict())
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating on-demand product: {str(e)}")
+        return jsonify({"error": "Failed to update on-demand product"}), 500
+
+@app.route('/api/on-demand/<int:product_id>', methods=['DELETE'])
+def delete_on_demand_product(product_id):
+    """API endpoint to delete an on-demand product"""
+    from models import OnDemandProduct
+    
+    try:
+        product = OnDemandProduct.query.get(product_id)
+        
+        if product is None:
+            return jsonify({"error": "Product not found"}), 404
+        
+        # Store product details before deletion
+        product_dict = product.to_dict()
+        product_name = product.name
+        
+        # Remove product from database
+        db.session.delete(product)
+        db.session.commit()
+        
+        return jsonify({"message": f"Deleted {product_name}", "product": product_dict})
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting on-demand product: {str(e)}")
+        return jsonify({"error": "Failed to delete on-demand product"}), 500
+
+@app.route('/api/on-demand/categories', methods=['GET'])
+def get_on_demand_categories():
+    """API endpoint to get all unique on-demand product categories"""
+    from models import OnDemandProduct
+    from sqlalchemy import func
+    
+    # Query distinct categories 
+    categories = db.session.query(
+        func.coalesce(OnDemandProduct.category, 'Uncategorized').label('category')
+    ).distinct().all()
+    
+    return jsonify([c.category for c in categories])
 
 # Settings API endpoints
 @app.route('/api/settings', methods=['GET'])

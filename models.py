@@ -44,6 +44,38 @@ class User(db.Model):
         return f'<User {self.username}>'
 
 
+class OnDemandProduct(db.Model):
+    """Model for on-demand products that can be created when needed"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    base_price = db.Column(db.Float, default=0.0)
+    production_time = db.Column(db.Integer)  # In hours
+    category = db.Column(db.String(50))
+    materials = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<OnDemandProduct {self.name}>'
+    
+    def to_dict(self):
+        """Convert on-demand product to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'base_price': self.base_price,
+            'production_time': self.production_time,
+            'category': self.category,
+            'materials': self.materials,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class Setting(db.Model):
     """Model for application settings"""
     id = db.Column(db.Integer, primary_key=True)
