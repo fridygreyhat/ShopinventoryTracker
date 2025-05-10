@@ -34,10 +34,30 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
+# Helper function to get settings
+def get_setting_value(key, default=None):
+    """
+    Get setting value from database
+    
+    Args:
+        key (str): Setting key
+        default: Default value if setting not found
+        
+    Returns:
+        any: Setting value or default
+    """
+    from models import Setting
+    setting = Setting.query.filter_by(key=key).first()
+    return setting.value if setting else default
+
 # Initialize database tables
 with app.app_context():
     # Import models here to avoid circular imports
     from models import Item, User, OnDemandProduct, Setting, Sale, SaleItem  # noqa: F401
+    
+    # When we have schema changes, we need to reset the database
+    # Comment out the line below to avoid data loss in production 
+    db.drop_all()
     db.create_all()
 
 # Initialize Flask-Login
@@ -1663,8 +1683,7 @@ def send_verification():
             """
             
             # Get sender email from settings
-            setting = Setting.query.filter_by(key='email_sender').first()
-            from_email = setting.value if setting else "noreply@example.com"
+            from_email = get_setting_value('email_sender', "noreply@example.com")
             
             # Send email
             success = send_email(
