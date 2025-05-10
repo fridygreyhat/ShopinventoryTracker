@@ -1419,3 +1419,30 @@ canvas {
         font-size: 1.5rem;
     }
 }
+
+/* Compact Charts */
+.compact-chart {
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.compact-chart .card-header {
+    background-color: var(--light-bg);
+    border-bottom: 1px solid var(--card-border);
+}
+
+.compact-chart .card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.compact-chart .card-body {
+    padding: 0.5rem;
+}
+
+.compact-chart canvas {
+    max-height: 180px;
+}

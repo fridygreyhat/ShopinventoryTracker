@@ -365,7 +365,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: false
+                        display: false,
+                        labels: {
+                            boxWidth: 10,
+                            font: {
+                                size: 10
+                            }
+                        }
                     },
                     tooltip: {
                         callbacks: {
@@ -470,8 +476,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         labels: {
                             color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
                             usePointStyle: true,
-                            padding: 15,
+                            padding: 5,
+                            boxWidth: 8,
                             font: {
+                                size: 10,
                                 family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
                             }
                         }
