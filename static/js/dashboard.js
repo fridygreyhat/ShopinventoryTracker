@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const count = healthStats[category.status] || 0;
             healthOverviewHTML += `
                 <div class="col">
-                    <div class="card text-center bg-dark mb-3">
+                    <div class="card summary-card text-center mb-3">
                         <div class="card-body">
                             <div class="d-flex align-items-center justify-content-center mb-2">
                                 <i class="fas fa-${category.icon} text-${category.color} fa-2x me-2"></i>
@@ -479,8 +479,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         displayProducts.forEach(product => {
             const statusBadge = product.is_active 
-                ? '<span class="badge bg-success">Active</span>' 
-                : '<span class="badge bg-secondary">Inactive</span>';
+                ? '<span class="status-badge status-active">Active</span>' 
+                : '<span class="status-badge status-inactive">Inactive</span>';
             
             html += `
                 <tr>
@@ -494,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${product.production_time || 0} hours</td>
                     <td>${statusBadge}</td>
                     <td>
-                        <a href="/on-demand" class="btn btn-sm btn-primary">
+                        <a href="/on-demand" class="btn btn-sm btn-primary btn-action">
                             <i class="fas fa-edit"></i> View
                         </a>
                     </td>

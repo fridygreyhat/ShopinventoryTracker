@@ -724,6 +724,150 @@ footer {
     padding: 2rem 0;
 }
 
+/* Dashboard Card Styles */
+.summary-card {
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--light-bg-alt);
+    background: linear-gradient(135deg, var(--card-bg), var(--light-bg));
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(76, 80, 197, 0.12);
+}
+
+.summary-card .card-title {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.summary-card .display-4 {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-family: var(--heading-font);
+    letter-spacing: -0.02em;
+}
+
+.financial-card {
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--light-bg-alt);
+    background-color: var(--card-bg);
+}
+
+.financial-card .card-header {
+    background-color: rgba(76, 80, 197, 0.03);
+    border-bottom: 1px solid var(--light-bg-alt);
+}
+
+.finance-card {
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.finance-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.finance-card .card-subtitle {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.finance-card .card-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.income-card {
+    background: linear-gradient(135deg, #FFFFFF, #F8FFF9);
+    border-left: 3px solid var(--success-color);
+}
+
+.expense-card {
+    background: linear-gradient(135deg, #FFFFFF, #FFF9F9);
+    border-left: 3px solid var(--danger-color);
+}
+
+.profit-card {
+    background: linear-gradient(135deg, #FFFFFF, #F9FCFF);
+    border-left: 3px solid var(--info-color);
+}
+
+.inventory-card, .chart-card, .data-card {
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--light-bg-alt);
+    box-shadow: 0 4px 15px rgba(76, 80, 197, 0.06);
+    background-color: var(--card-bg);
+    margin-bottom: 1.5rem;
+}
+
+.chart-card {
+    background: linear-gradient(180deg, rgba(76, 80, 197, 0.01) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.data-card .table th {
+    border-bottom-width: 1px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.data-card .table td {
+    padding: 0.85rem 0.75rem;
+    vertical-align: middle;
+    color: var(--text-primary);
+    border-color: var(--light-bg-alt);
+}
+
+.data-card .table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.data-card .table tbody tr:hover {
+    background-color: rgba(76, 80, 197, 0.03);
+}
+
+.data-card .table .btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: var(--border-radius-sm);
+}
+
+.data-card .table .status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.data-card .table .status-badge.status-active {
+    background-color: rgba(50, 184, 115, 0.15);
+    color: var(--success-color);
+}
+
+.data-card .table .status-badge.status-inactive {
+    background-color: rgba(240, 74, 74, 0.15);
+    color: var(--danger-color);
+}
+
+.data-card .table .status-badge.status-low {
+    background-color: rgba(255, 167, 38, 0.15);
+    color: var(--warning-color);
+}
+
 /* Page titles */
 .page-title {
     font-family: var(--heading-font);
