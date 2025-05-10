@@ -124,8 +124,8 @@
             loginButton.disabled = true;
             loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
             
-            // Sign in with Firebase
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            // Sign in with Firebase using our helper function
+            const userCredential = await loginWithEmailPassword(email, password);
             const token = await userCredential.user.getIdToken();
             
             // Create session with server
