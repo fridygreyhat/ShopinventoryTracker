@@ -93,7 +93,7 @@ class User(db.Model):
             'last_name': self.last_name,
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
-            'is_active': self.is_active,
+            'active': self.active,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

@@ -1,109 +1,162 @@
-// Firebase Authentication setup
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import { 
-  getAuth, 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+/**
+ * Firebase Authentication Module
+ * This module provides functions for handling authentication with Firebase
+ */
 
-// Firebase configuration will be injected by the server
-const firebaseConfig = {
-  apiKey: FIREBASE_API_KEY,
-  projectId: FIREBASE_PROJECT_ID,
-  appId: FIREBASE_APP_ID,
-  authDomain: `${FIREBASE_PROJECT_ID}.firebaseapp.com`,
-};
+// Firebase configuration will be injected from the server
+let firebaseConfig = {};
+let app;
+let auth;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+/**
+ * Initialize Firebase with configuration
+ * @param {Object} config - Firebase configuration object
+ */
+export function initializeFirebase(config) {
+    firebaseConfig = config;
+    
+    // Only initialize once
+    if (!app) {
+        app = firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+    }
+    
+    return { app, auth };
+}
 
-// Login with email and password
+/**
+ * Login with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise} Firebase user credential
+ */
 export async function loginWithEmailPassword(email, password) {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const token = await userCredential.user.getIdToken();
-    
-    // Send token to server to create session
-    const response = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ idToken: token }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to authenticate with server');
+    try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        return userCredential;
+    } catch (error) {
+        console.error('Login error:', error);
+        throw error;
     }
-    
-    // Redirect to dashboard on success
-    window.location.href = '/';
-    return await response.json();
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
-  }
 }
 
-// Register with email and password
+/**
+ * Register a new user with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {Object} userData - Additional user data
+ * @returns {Promise} Firebase user credential and server response
+ */
 export async function registerWithEmailPassword(email, password, userData) {
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const token = await userCredential.user.getIdToken();
-    
-    // Send token and user data to server
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        idToken: token,
-        ...userData
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to register with server');
+    try {
+        // Create user in Firebase
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const token = await userCredential.user.getIdToken();
+        
+        // Register user with server
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                idToken: token,
+                ...userData
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to register with server');
+        }
+        
+        const serverData = await response.json();
+        return { userCredential, serverData };
+    } catch (error) {
+        console.error('Registration error:', error);
+        throw error;
     }
-    
-    // Redirect to dashboard on success
-    window.location.href = '/';
-    return await response.json();
-  } catch (error) {
-    console.error('Registration error:', error);
-    throw error;
-  }
 }
 
-// Logout
+/**
+ * Create a session with the server
+ * @param {string} token - Firebase ID token
+ * @param {boolean} remember - Whether to remember the user
+ * @returns {Promise} Server response
+ */
+export async function createSession(token, remember = false) {
+    try {
+        const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                idToken: token,
+                remember: remember
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create session');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Session creation error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Logout the user
+ * @returns {Promise} Void
+ */
 export async function logoutUser() {
-  try {
-    await signOut(auth);
-    
-    // Clear session on server
-    const response = await fetch('/logout', {
-      method: 'GET',
-    });
-    
-    if (!response.ok) {
-      console.error('Error during server logout');
+    try {
+        // Sign out from Firebase
+        await auth.signOut();
+        
+        // Clear session with server
+        await fetch('/logout', {
+            method: 'GET',
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Logout error:', error);
+        throw error;
     }
-    
-    // Redirect to login page
-    window.location.href = '/login';
-  } catch (error) {
-    console.error('Logout error:', error);
-    throw error;
-  }
 }
 
-// Check authentication state
+/**
+ * Check authentication state
+ * @param {Function} callback - Callback function to be called with user
+ * @returns {Function} Unsubscribe function
+ */
 export function checkAuthState(callback) {
-  return onAuthStateChanged(auth, callback);
+    return auth.onAuthStateChanged(callback);
+}
+
+/**
+ * Get current user
+ * @returns {Object|null} Firebase user or null
+ */
+export function getCurrentUser() {
+    return auth.currentUser;
+}
+
+/**
+ * Get ID token for current user
+ * @param {boolean} forceRefresh - Whether to force refresh the token
+ * @returns {Promise<string>} ID token
+ */
+export async function getIdToken(forceRefresh = false) {
+    const user = getCurrentUser();
+    if (!user) {
+        throw new Error('No user is signed in');
+    }
+    
+    return await user.getIdToken(forceRefresh);
 }
