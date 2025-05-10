@@ -41,6 +41,21 @@ export async function loginWithEmailPassword(email, password) {
 }
 
 /**
+ * Send password reset email
+ * @param {string} email - User email
+ * @returns {Promise} Promise that resolves when reset email is sent
+ */
+export async function sendPasswordResetEmail(email) {
+    try {
+        await auth.sendPasswordResetEmail(email);
+        return { success: true };
+    } catch (error) {
+        console.error('Password reset error:', error);
+        throw error;
+    }
+}
+
+/**
  * Register a new user with email and password
  * @param {string} email - User email
  * @param {string} password - User password

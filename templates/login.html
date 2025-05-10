@@ -27,7 +27,10 @@
                         <input type="email" class="form-control" id="email" placeholder="Enter your email" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
+                        <div class="d-flex justify-content-between">
+                            <label for="password" class="form-label">Password</label>
+                            <a href="#" id="forgot-password-link" class="form-text">Forgot password?</a>
+                        </div>
                         <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
                     </div>
                     <div class="mb-3 form-check">
@@ -47,6 +50,31 @@
 </div>
 
 <!-- Registration page is now separate at register.html -->
+
+<!-- Password Reset Modal -->
+<div class="modal fade" id="passwordResetModal" tabindex="-1" aria-labelledby="passwordResetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="passwordResetModalLabel">Reset Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Enter your email address and we'll send you a link to reset your password.</p>
+                <div class="mb-3">
+                    <label for="resetEmail" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="resetEmail" placeholder="Enter your email">
+                </div>
+                <div class="alert alert-danger d-none" id="resetError" role="alert"></div>
+                <div class="alert alert-success d-none" id="resetSuccess" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendResetBtn">Send Reset Link</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -57,7 +85,7 @@
 <script type="module">
     // Import Firebase modules and our authentication module
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { loginWithEmailPassword, createSession } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
 
     // Firebase configuration from server
@@ -136,5 +164,89 @@
             loginButton.click();
         }
     });
+    
+    // Password Reset Functionality
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    const passwordResetModal = new bootstrap.Modal(document.getElementById('passwordResetModal'));
+    const resetEmailInput = document.getElementById('resetEmail');
+    const sendResetBtn = document.getElementById('sendResetBtn');
+    const resetError = document.getElementById('resetError');
+    const resetSuccess = document.getElementById('resetSuccess');
+    
+    // Show reset password modal
+    forgotPasswordLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Pre-fill with email if already entered
+        const loginEmail = document.getElementById('email').value;
+        if (loginEmail) {
+            resetEmailInput.value = loginEmail;
+        }
+        
+        // Reset state
+        resetError.classList.add('d-none');
+        resetSuccess.classList.add('d-none');
+        
+        // Show modal
+        passwordResetModal.show();
+    });
+    
+    // Send password reset email
+    sendResetBtn.addEventListener('click', async function() {
+        const email = resetEmailInput.value.trim();
+        
+        // Validate email
+        if (!email) {
+            resetError.textContent = 'Please enter your email address';
+            resetError.classList.remove('d-none');
+            resetSuccess.classList.add('d-none');
+            return;
+        }
+        
+        // Show loading state
+        sendResetBtn.disabled = true;
+        sendResetBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+        
+        try {
+            // Send password reset email
+            await sendPasswordResetEmail(auth, email);
+            
+            // Show success message
+            resetSuccess.textContent = 'Password reset email sent! Check your inbox.';
+            resetSuccess.classList.remove('d-none');
+            resetError.classList.add('d-none');
+            
+            // Reset form after 3 seconds and close modal
+            setTimeout(() => {
+                passwordResetModal.hide();
+                resetEmailInput.value = '';
+            }, 3000);
+            
+        } catch (error) {
+            // Show error message
+            resetError.textContent = getResetErrorMessage(error);
+            resetError.classList.remove('d-none');
+            resetSuccess.classList.add('d-none');
+            
+            console.error('Password reset error:', error);
+        } finally {
+            // Reset button state
+            sendResetBtn.disabled = false;
+            sendResetBtn.innerHTML = 'Send Reset Link';
+        }
+    });
+    
+    // Get user-friendly error message for password reset
+    function getResetErrorMessage(error) {
+        if (error.code === 'auth/user-not-found') {
+            return 'No account found with this email address.';
+        } else if (error.code === 'auth/invalid-email') {
+            return 'Please enter a valid email address.';
+        } else if (error.code === 'auth/too-many-requests') {
+            return 'Too many requests. Please try again later.';
+        } else {
+            return 'Error sending password reset email. Please try again.';
+        }
+    }
 </script>
 {% endblock %}
