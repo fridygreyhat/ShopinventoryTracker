@@ -1518,15 +1518,113 @@ def update_profile():
             if 'productCategories' in data:
                 user.product_categories = data['productCategories']
                 
+            # Update timestamps
+            user.updated_at = datetime.utcnow()
+                
             db.session.commit()
-            return jsonify(user.to_dict())
+            return jsonify({"success": True, "user": user.to_dict()})
             
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error updating profile: {str(e)}")
-            return jsonify({"error": "Failed to update profile"}), 500
+            return jsonify({"error": f"Failed to update profile: {str(e)}"}), 500
             
     return protected_update_profile()
+
+@app.route('/api/auth/profile', methods=['GET'])
+def get_profile():
+    """API endpoint to get the current user's profile"""
+    from auth_service import login_required
+    
+    @login_required
+    def protected_get_profile():
+        from models import User
+        try:
+            user_id = session.get('user_id')
+            
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+                
+            user = User.query.get_or_404(user_id)
+            return jsonify({"success": True, "user": user.to_dict()})
+            
+        except Exception as e:
+            logger.error(f"Error getting profile: {str(e)}")
+            return jsonify({"error": f"Failed to get profile: {str(e)}"}), 500
+            
+    return protected_get_profile()
+
+@app.route('/api/auth/sync-profile', methods=['POST'])
+def sync_profile():
+    """API endpoint to sync user profile with Firebase"""
+    from auth_service import login_required, verify_firebase_token, update_user_profile
+    
+    @login_required
+    def protected_sync_profile():
+        from models import User
+        try:
+            # Get current user
+            user_id = session.get('user_id')
+            
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+                
+            user = User.query.get_or_404(user_id)
+            
+            # Get Firebase ID token from request
+            auth_header = request.headers.get('Authorization', '')
+            if not auth_header.startswith('Bearer '):
+                return jsonify({"error": "Invalid authorization header"}), 401
+                
+            token = auth_header.split(' ')[1]
+            
+            # Verify token and get user info
+            firebase_user = verify_firebase_token(token)
+            
+            if not firebase_user:
+                return jsonify({"error": "Invalid Firebase token"}), 401
+                
+            # Update user profile with Firebase data
+            if firebase_user.get('displayName'):
+                # Split display name into first and last name if available
+                name_parts = firebase_user.get('displayName', '').split(' ', 1)
+                if len(name_parts) > 0:
+                    user.first_name = name_parts[0]
+                if len(name_parts) > 1:
+                    user.last_name = name_parts[1]
+            
+            # Update email and email verification status
+            if firebase_user.get('email'):
+                user.email = firebase_user.get('email')
+            
+            if 'emailVerified' in firebase_user:
+                user.email_verified = firebase_user.get('emailVerified', False)
+            
+            # Update Firebase UID if needed
+            if firebase_user.get('localId') and not user.firebase_uid:
+                user.firebase_uid = firebase_user.get('localId')
+            
+            # Set last login time
+            user.last_login = datetime.utcnow()
+            
+            # Update timestamps
+            user.updated_at = datetime.utcnow()
+            
+            # Save changes
+            db.session.commit()
+            
+            return jsonify({
+                "success": True, 
+                "message": "Profile synchronized with Firebase",
+                "user": user.to_dict()
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error syncing profile: {str(e)}")
+            return jsonify({"error": f"Failed to sync profile: {str(e)}"}), 500
+            
+    return protected_sync_profile()
 
 
 @app.route('/api/auth/change-password', methods=['POST'])

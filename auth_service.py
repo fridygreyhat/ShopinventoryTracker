@@ -98,6 +98,56 @@ def verify_firebase_token(id_token):
         logger.error(f"Error verifying Firebase token: {str(e)}")
         return None
 
+def update_user_profile(user_id, profile_data):
+    """
+    Update user profile data
+    
+    Args:
+        user_id (int): User ID
+        profile_data (dict): Profile data to update
+        
+    Returns:
+        User: Updated user model instance
+    """
+    try:
+        user = User.query.get(user_id)
+        
+        if not user:
+            logger.error(f"User with ID {user_id} not found")
+            return None
+            
+        # Update fields if provided
+        if 'username' in profile_data:
+            # Check for username uniqueness
+            existing_user = User.query.filter_by(username=profile_data['username']).first()
+            if existing_user and existing_user.id != user.id:
+                logger.error(f"Username {profile_data['username']} already taken")
+                return None
+            user.username = profile_data['username']
+        
+        if 'firstName' in profile_data:
+            user.first_name = profile_data['firstName']
+            
+        if 'lastName' in profile_data:
+            user.last_name = profile_data['lastName']
+            
+        if 'shopName' in profile_data:
+            user.shop_name = profile_data['shopName']
+            
+        if 'productCategories' in profile_data:
+            user.product_categories = profile_data['productCategories']
+            
+        # Update timestamps
+        user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        return user
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating user profile: {str(e)}")
+        return None
+
 def create_or_update_user(user_data, extra_data=None):
     """
     Create or update user in the database based on Firebase user data
