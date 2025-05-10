@@ -373,27 +373,13 @@
                 verifyEmailLink.textContent = 'Sending...';
                 verifyEmailLink.classList.add('disabled');
                 
-                // Send request to server
-                fetch('/api/auth/send-verification', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    } else {
-                        return response.json().then(data => {
-                            throw new Error(data.error || 'Failed to send verification email');
-                        });
-                    }
-                })
-                .then(data => {
-                    alert('Verification email sent. Please check your inbox.');
-                    verifyEmailLink.textContent = 'Resend verification email';
-                    verifyEmailLink.classList.remove('disabled');
-                })
+                // Use Firebase Profile module to send verification email
+                sendEmailVerification()
+                    .then(() => {
+                        alert('Verification email sent. Please check your inbox.');
+                        verifyEmailLink.textContent = 'Resend verification email';
+                        verifyEmailLink.classList.remove('disabled');
+                    })
                 .catch(error => {
                     showError(error.message || 'Failed to send verification email');
                     verifyEmailLink.textContent = 'Resend verification email';
