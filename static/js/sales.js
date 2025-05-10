@@ -477,15 +477,44 @@ document.addEventListener('DOMContentLoaded', function() {
             date: new Date().toISOString()
         };
         
-        // TODO: Send to server to save transaction and update inventory
-        console.log('Transaction data:', transaction);
+        // Show loading state
+        completeTransactionBtn.disabled = true;
+        completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
         
-        // For now, just show success message and clear cart
-        alert('Transaction completed successfully!');
-        clearCart();
-        
-        // Reset form
-        document.getElementById('checkoutForm').reset();
+        // Send transaction data to the server
+        fetch('/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(transaction)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show success message
+            alert('Transaction completed successfully!');
+            
+            // Reset cart and form
+            clearCart();
+            document.getElementById('checkoutForm').reset();
+            
+            // Reset button
+            completeTransactionBtn.disabled = false;
+            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+        })
+        .catch(error => {
+            console.error('Error completing transaction:', error);
+            alert('Failed to complete transaction. Please try again.');
+            
+            // Reset button
+            completeTransactionBtn.disabled = false;
+            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+        });
     }
     
     function createInvoice() {
@@ -494,7 +523,143 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // This would normally generate a printable invoice
-        alert('Invoice generation will be implemented in a future update');
+        // Prepare invoice data
+        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone').value || '';
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        
+        // Create a printable invoice in a new window
+        const invoiceWindow = window.open('', '_blank');
+        invoiceWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Invoice</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    .invoice-header {
+                        text-align: center;
+                        margin-bottom: 30px;
+                        border-bottom: 1px solid #ddd;
+                        padding-bottom: 20px;
+                    }
+                    .invoice-body {
+                        margin-bottom: 30px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        padding: 10px;
+                        border-bottom: 1px solid #ddd;
+                        text-align: left;
+                    }
+                    th {
+                        background-color: #f8f8f8;
+                    }
+                    .text-right {
+                        text-align: right;
+                    }
+                    .total-row {
+                        font-weight: bold;
+                    }
+                    .customer-info {
+                        margin-bottom: 20px;
+                    }
+                    .invoice-footer {
+                        margin-top: 30px;
+                        border-top: 1px solid #ddd;
+                        padding-top: 20px;
+                        font-size: 0.9em;
+                    }
+                    @media print {
+                        body {
+                            padding: 0;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="invoice-header">
+                    <h1>INVOICE</h1>
+                    <p>Shop Inventory Management System</p>
+                    <p>Date: ${new Date().toLocaleDateString()}</p>
+                    <p>Invoice #: INV-${Date.now().toString().substring(6)}</p>
+                </div>
+                
+                <div class="invoice-body">
+                    <div class="customer-info">
+                        <h3>Customer Information</h3>
+                        <p><strong>Name:</strong> ${customerName}</p>
+                        <p><strong>Phone:</strong> ${customerPhone || 'N/A'}</p>
+                    </div>
+                    
+                    <h3>Items</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${cart.map(item => `
+                                <tr>
+                                    <td>
+                                        ${item.name}
+                                        <div style="font-size: 0.8em; color: #777;">${item.sku || 'No SKU'}</div>
+                                    </td>
+                                    <td>TZS ${item.price.toLocaleString()}</td>
+                                    <td>${item.quantity}</td>
+                                    <td class="text-right">TZS ${item.total.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-right">Subtotal:</td>
+                                <td class="text-right">TZS ${parseFloat(cartSubtotal.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-right">Discount:</td>
+                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td colspan="3" class="text-right">Total:</td>
+                                <td class="text-right">TZS ${totalAmount.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <div class="invoice-footer">
+                    <p>Thank you for your business!</p>
+                    <p>For any queries regarding this invoice, please contact us.</p>
+                    <div class="no-print">
+                        <hr>
+                        <button onclick="window.print()">Print Invoice</button>
+                        <button onclick="window.close()">Close</button>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        invoiceWindow.document.close();
     }
 });

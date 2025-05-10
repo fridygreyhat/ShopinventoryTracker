@@ -671,5 +671,137 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('index'))
 
+# Sales API Routes
+@app.route('/api/sales', methods=['GET'])
+def get_sales():
+    """API endpoint to get sales data with optional filtering"""
+    try:
+        # Get query parameters for filtering
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        customer = request.args.get('customer')
+        payment_method = request.args.get('payment_method')
+        
+        # Build query
+        query = Sale.query
+        
+        # Apply filters if provided
+        if start_date:
+            try:
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(Sale.created_at >= start_datetime)
+            except ValueError:
+                pass
+        
+        if end_date:
+            try:
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+                # Add one day to include the entire end date
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+                query = query.filter(Sale.created_at <= end_datetime)
+            except ValueError:
+                pass
+        
+        if customer:
+            query = query.filter(Sale.customer_name.ilike(f'%{customer}%'))
+        
+        if payment_method:
+            query = query.filter(Sale.payment_method == payment_method)
+        
+        # Order by created_at descending (most recent first)
+        sales = query.order_by(Sale.created_at.desc()).all()
+        
+        # Convert to dictionary for JSON response
+        return jsonify([sale.to_dict() for sale in sales])
+    
+    except Exception as e:
+        logger.error(f"Error getting sales data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales', methods=['POST'])
+def create_sale():
+    """API endpoint to create a new sale transaction"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Generate a unique invoice number
+        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        
+        # Create new sale record
+        new_sale = Sale(
+            invoice_number=invoice_number,
+            customer_name=data.get('customer', {}).get('name', 'Walk-in Customer'),
+            customer_phone=data.get('customer', {}).get('phone', ''),
+            sale_type=data.get('sale_type', 'retail'),
+            subtotal=data.get('subtotal', 0),
+            discount_type=data.get('discount', {}).get('type', 'none'),
+            discount_value=data.get('discount', {}).get('value', 0),
+            discount_amount=data.get('discount', {}).get('amount', 0),
+            total=data.get('total', 0),
+            payment_method=data.get('payment', {}).get('method', 'cash'),
+            payment_details=json.dumps(data.get('payment', {}).get('mobile_info', {})),
+            payment_amount=data.get('payment', {}).get('amount', 0),
+            change_amount=data.get('payment', {}).get('change', 0),
+            notes=data.get('notes', '')
+        )
+        
+        db.session.add(new_sale)
+        db.session.flush()  # Flush to get the sale ID
+        
+        # Add sale items
+        for item_data in data.get('items', []):
+            # Get item from database if it exists
+            item = Item.query.filter_by(id=item_data.get('id')).first()
+            
+            # Create sale item record
+            sale_item = SaleItem(
+                sale_id=new_sale.id,
+                item_id=item.id if item else None,
+                product_name=item_data.get('name', 'Unknown Product'),
+                product_sku=item_data.get('sku', ''),
+                price=item_data.get('price', 0),
+                quantity=item_data.get('quantity', 1),
+                total=item_data.get('total', 0)
+            )
+            
+            db.session.add(sale_item)
+            
+            # Update inventory quantity if item exists
+            if item:
+                item.quantity = max(0, item.quantity - item_data.get('quantity', 1))
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Sale created successfully',
+            'sale': new_sale.to_dict()
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating sale: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/<int:sale_id>', methods=['GET'])
+def get_sale(sale_id):
+    """API endpoint to get a specific sale by ID"""
+    try:
+        sale = Sale.query.get_or_404(sale_id)
+        sale_data = sale.to_dict()
+        
+        # Add items to the sale data
+        sale_items = SaleItem.query.filter_by(sale_id=sale_id).all()
+        sale_data['items'] = [item.to_dict() for item in sale_items]
+        
+        return jsonify(sale_data)
+    
+    except Exception as e:
+        logger.error(f"Error getting sale {sale_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
