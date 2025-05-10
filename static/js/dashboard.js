@@ -66,7 +66,9 @@ function getThemeColors() {
         chartText: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
         chartSecondaryText: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#666',
         chartGrid: 'rgba(76, 80, 197, 0.08)',
-        chartBorder: 'rgba(76, 80, 197, 0.2)'
+        chartBorder: 'rgba(76, 80, 197, 0.2)',
+        tooltipBackground: theme === 'dark' ? 'rgba(40, 44, 52, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+        tooltipText: theme === 'dark' ? '#e3e3e3' : '#333'
     };
 }
 
@@ -427,7 +429,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             label: function(context) {
                                 return `Stock: ${context.raw}`;
                             }
-                        }
+                        },
+                        backgroundColor: getThemeColors().tooltipBackground,
+                        titleColor: getThemeColors().tooltipText,
+                        bodyColor: getThemeColors().tooltipText,
+                        titleFont: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 11
+                        },
+                        padding: 8
                     }
                 },
                 scales: {
@@ -450,15 +463,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     x: {
                         grid: {
-                            color: 'rgba(76, 80, 197, 0.04)'
+                            color: getThemeColors().chartGrid
                         },
                         ticks: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
+                            color: getThemeColors().chartSecondaryText
                         },
                         title: {
                             display: true,
                             text: 'Category',
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
+                            color: getThemeColors().chartText,
                             font: {
                                 weight: '600'
                             }
