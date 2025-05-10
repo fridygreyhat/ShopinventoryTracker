@@ -9,280 +9,101 @@
                 <h1 class="auth-heading">Create a New Account</h1>
                 <p class="auth-subheading">Join our inventory management system designed for Tanzanian businesses</p>
 
-                <form id="registrationForm" class="auth-form">
+                <form action="{{ url_for('register') }}" method="post" class="auth-form">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}" role="alert">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user-circle"></i> Username
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Choose a username" required>
+                    </div>
+                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <label for="firstName" class="form-label">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">
                                 <i class="fas fa-user"></i> First Name
                             </label>
-                            <input type="text" class="form-control" id="firstName" placeholder="Enter your first name" required>
+                            <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Enter your first name">
                         </div>
-                        <div class="col-md-6">
-                            <label for="lastName" class="form-label">
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">
                                 <i class="fas fa-user"></i> Last Name
                             </label>
-                            <input type="text" class="form-control" id="lastName" placeholder="Enter your last name" required>
+                            <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Enter your last name">
                         </div>
                     </div>
                     
-                    <label for="shopName" class="form-label">
-                        <i class="fas fa-store"></i> Shop Name
-                    </label>
-                    <input type="text" class="form-control" id="shopName" placeholder="Enter your business name" required>
-                    
-                    <label for="registerEmail" class="form-label">
-                        <i class="fas fa-envelope"></i> Email Address
-                    </label>
-                    <input type="email" class="form-control" id="registerEmail" placeholder="Enter your email address" required>
-                    
-                    <label for="registerPassword" class="form-label">
-                        <i class="fas fa-lock"></i> Password
-                    </label>
-                    <input type="password" class="form-control" id="registerPassword" placeholder="Create a secure password" required>
-                    <div class="form-text mb-3">Password must be at least 6 characters long</div>
-                    
-                    <label for="confirmPassword" class="form-label">
-                        <i class="fas fa-check-circle"></i> Confirm Password
-                    </label>
-                    <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm your password" required>
-                    
-                    <label class="form-label mt-3">
-                        <i class="fas fa-tags"></i> Product Categories
-                    </label>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Electronics" id="categoryElectronics">
-                                <label class="form-check-label" for="categoryElectronics">
-                                    Electronics
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Clothing" id="categoryClothing">
-                                <label class="form-check-label" for="categoryClothing">
-                                    Clothing
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Food" id="categoryFood">
-                                <label class="form-check-label" for="categoryFood">
-                                    Food
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Grocery" id="categoryGrocery">
-                                <label class="form-check-label" for="categoryGrocery">
-                                    Grocery
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Drinks" id="categoryDrinks">
-                                <label class="form-check-label" for="categoryDrinks">
-                                    Drinks
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Furniture" id="categoryFurniture">
-                                <label class="form-check-label" for="categoryFurniture">
-                                    Furniture
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Cosmetics" id="categoryCosmetics">
-                                <label class="form-check-label" for="categoryCosmetics">
-                                    Cosmetics
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Accessories" id="categoryAccessories">
-                                <label class="form-check-label" for="categoryAccessories">
-                                    Accessories
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Vehicle Spare Parts" id="categoryVehicleParts">
-                                <label class="form-check-label" for="categoryVehicleParts">
-                                    Vehicle Spare Parts
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input product-category" type="checkbox" value="Other" id="categoryOther">
-                                <label class="form-check-label" for="categoryOther">
-                                    Other
-                                </label>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="shop_name" class="form-label">
+                            <i class="fas fa-store"></i> Shop Name
+                        </label>
+                        <input type="text" class="form-control" id="shop_name" name="shop_name" placeholder="Enter your business name">
                     </div>
                     
-                    <div class="alert alert-danger d-none" id="registerError" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        <span id="registerErrorMessage">Error message</span>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email address" required>
                     </div>
                     
-                    <button type="button" class="auth-btn" id="registerButton">
-                        <i class="fas fa-user-plus me-2"></i> Create Account
-                    </button>
-                </form>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Create a secure password" required>
+                        <div class="form-text mb-2">Password must be at least 6 characters long</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirm_password" class="form-label">
+                            <i class="fas fa-check-circle"></i> Confirm Password
+                        </label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-tags"></i> Product Categories
+                        </label>
+                        <select class="form-select" id="product_categories" name="product_categories" multiple>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing</option>
+                            <option value="Food">Food</option>
+                            <option value="Grocery">Grocery</option>
+                            <option value="Drinks">Drinks</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Cosmetics">Cosmetics</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Vehicle Spare Parts">Vehicle Spare Parts</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple categories</div>
+                    </div>
 
-                <div class="text-center">
-                    <a href="/login" class="auth-link">
-                        Already have an account? Sign in <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('login') }}" class="auth-link">
+                            Already have an account? Sign in <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<!-- Firebase App (the core Firebase SDK) -->
-<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js" type="module"></script>
-
-<!-- Firebase Auth -->
-<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js" type="module"></script>
-
-<script type="module">
-    // Import Firebase modules
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-    import { 
-        getAuth, 
-        createUserWithEmailAndPassword,
-        onAuthStateChanged
-    } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "{{ firebase_api_key }}",
-        authDomain: "{{ firebase_project_id }}.firebaseapp.com",
-        projectId: "{{ firebase_project_id }}",
-        storageBucket: "{{ firebase_project_id }}.appspot.com",
-        appId: "{{ firebase_app_id }}"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // DOM elements
-    const registerButton = document.getElementById('registerButton');
-    const registerErrorDiv = document.getElementById('registerError');
-    const registerErrorMessageSpan = document.getElementById('registerErrorMessage');
-
-    // Check if user is already signed in
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // User is signed in, redirect to dashboard
-            window.location.href = '/';
-        }
-    });
-
-    // Handle registration form submission
-    registerButton.addEventListener('click', function() {
-        const firstName = document.getElementById('firstName').value;
-        const lastName = document.getElementById('lastName').value;
-        const shopName = document.getElementById('shopName').value;
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        
-        // Get selected product categories
-        const selectedCategories = [];
-        const categoryCheckboxes = document.querySelectorAll('.product-category:checked');
-        categoryCheckboxes.forEach(checkbox => {
-            selectedCategories.push(checkbox.value);
-        });
-        const productCategories = selectedCategories.join(',');
-
-        // Clear previous errors
-        registerErrorDiv.classList.add('d-none');
-
-        // Validate form
-        if (!firstName || !lastName || !shopName || !email || !password || !confirmPassword) {
-            showRegisterError('Please fill in all required fields.');
-            return;
-        }
-
-        // Validate passwords match
-        if (password !== confirmPassword) {
-            showRegisterError('Passwords do not match.');
-            return;
-        }
-
-        // Validate password length
-        if (password.length < 6) {
-            showRegisterError('Password must be at least 6 characters long.');
-            return;
-        }
-
-        // Show loading state
-        registerButton.disabled = true;
-        registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
-
-        // Create user with email and password
-        createUserWithEmailAndPassword(auth, email, password)
-            .then((userCredential) => {
-                // User registered successfully
-                // Get the user token and send it to backend to create a session
-                return userCredential.user.getIdToken();
-            })
-            .then(idToken => {
-                // Send token and user data to backend
-                return fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        idToken, 
-                        email, 
-                        firstName, 
-                        lastName, 
-                        shopName, 
-                        productCategories 
-                    })
-                });
-            })
-            .then(response => {
-                if (response.ok) {
-                    // Registration successful, redirect to dashboard
-                    window.location.href = '/';
-                } else {
-                    // Handle server-side errors
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Registration failed');
-                    });
-                }
-            })
-            .catch((error) => {
-                // Reset loading state
-                registerButton.disabled = false;
-                registerButton.textContent = 'Create Account';
-
-                let errorMessage = 'Registration failed. Please try again.';
-                
-                // Provide more specific error messages for common errors
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = 'This email is already in use.';
-                } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = 'Please enter a valid email address.';
-                } else if (error.code === 'auth/weak-password') {
-                    errorMessage = 'Please choose a stronger password.';
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
-                
-                showRegisterError(errorMessage);
-                console.error('Error during registration:', error);
-            });
-    });
-
-    // Show registration error message
-    function showRegisterError(message) {
-        registerErrorMessageSpan.textContent = message;
-        registerErrorDiv.classList.remove('d-none');
-    }
-</script>
 {% endblock %}

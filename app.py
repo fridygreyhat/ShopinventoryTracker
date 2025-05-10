@@ -52,16 +52,10 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 @app.route('/')
+@login_required
 def index():
     """Render the dashboard page"""
-    # Import login_required decorator
-    from auth_service import login_required
-    
-    @login_required
-    def protected_index():
-        return render_template('index.html')
-        
-    return protected_index()
+    return render_template('index.html')
 
 @app.route('/inventory')
 def inventory():
