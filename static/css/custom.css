@@ -70,6 +70,39 @@ footer {
     }
 }
 
+/* Financial Statement Styles */
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+.financial-summary {
+    transition: all 0.3s ease;
+}
+
+.financial-summary:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.transaction-row {
+    transition: background-color 0.2s ease;
+}
+
+.transaction-row:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.income-amount {
+    color: var(--bs-success);
+    font-weight: bold;
+}
+
+.expense-amount {
+    color: var(--bs-danger);
+    font-weight: bold;
+}
+
 /* Fix for modal backdrop in dark theme */
 .modal-backdrop {
     opacity: 0.7 !important;
