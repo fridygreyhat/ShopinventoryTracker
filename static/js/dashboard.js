@@ -6,14 +6,87 @@ document.addEventListener('DOMContentLoaded', function() {
     const inventoryValueElement = document.getElementById('inventory-value');
     const lowStockTableElement = document.getElementById('low-stock-table');
     const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
+    const inventoryHealthContainer = document.getElementById('inventory-health-container');
     
     // Charts
     let stockChart = null;
     let valueChart = null;
+    let healthDonutChart = null;
     
     // Load dashboard data
     loadDashboardData();
     loadOnDemandProducts();
+    
+    // Calculate inventory health based on quantity
+    function calculateInventoryHealth(quantity) {
+        if (quantity <= 0) {
+            return {
+                status: 'critical',
+                label: 'Out of Stock',
+                color: 'danger',
+                icon: 'exclamation-circle',
+                percentage: 0,
+                bgColor: '#dc3545'
+            };
+        } else if (quantity <= 5) {
+            return {
+                status: 'low',
+                label: 'Low Stock',
+                color: 'warning',
+                icon: 'exclamation-triangle',
+                percentage: 25,
+                bgColor: '#ffc107'
+            };
+        } else if (quantity <= 10) {
+            return {
+                status: 'medium',
+                label: 'Medium Stock',
+                color: 'info',
+                icon: 'info-circle',
+                percentage: 50,
+                bgColor: '#0dcaf0'
+            };
+        } else if (quantity <= 20) {
+            return {
+                status: 'good',
+                label: 'Good Stock',
+                color: 'primary',
+                icon: 'check-circle',
+                percentage: 75,
+                bgColor: '#0d6efd'
+            };
+        } else {
+            return {
+                status: 'optimal',
+                label: 'Optimal Stock',
+                color: 'success',
+                icon: 'check-double',
+                percentage: 100,
+                bgColor: '#198754'
+            };
+        }
+    }
+    
+    // Generate health indicator HTML
+    function generateHealthIndicator(quantity) {
+        const health = calculateInventoryHealth(quantity);
+        
+        return `
+            <div class="inventory-health">
+                <div class="health-indicator">
+                    <div class="progress" style="height: 8px;" title="${health.label}">
+                        <div class="progress-bar bg-${health.color}" role="progressbar" 
+                             style="width: ${health.percentage}%" 
+                             aria-valuenow="${health.percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="mt-1 d-flex align-items-center">
+                        <i class="fas fa-${health.icon} text-${health.color} me-1"></i>
+                        <span class="small ${quantity <= 5 ? 'fw-bold' : ''}">${quantity} ${quantity <= 0 ? health.label : 'units'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
     
     function loadDashboardData() {
         // Load stock status report
@@ -45,6 +118,143 @@ document.addEventListener('DOMContentLoaded', function() {
         totalStockElement.textContent = data.total_stock;
         lowStockCountElement.textContent = data.low_stock_items_count;
         inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + data.total_inventory_value.toLocaleString();
+        
+        // Create inventory health overview if container exists
+        if (inventoryHealthContainer) {
+            // Calculate health stats
+            const healthStats = calculateInventoryHealthStats(data);
+            createInventoryHealthOverview(healthStats);
+        }
+    }
+    
+    function calculateInventoryHealthStats(data) {
+        // Calculate inventory health statistics from stock status data
+        let healthStats = {
+            critical: 0,
+            low: 0,
+            medium: 0,
+            good: 0,
+            optimal: 0
+        };
+        
+        // Process all items to determine their health
+        if (data.all_items && Array.isArray(data.all_items)) {
+            data.all_items.forEach(item => {
+                const health = calculateInventoryHealth(item.quantity);
+                healthStats[health.status]++;
+            });
+        } else if (data.low_stock_items && Array.isArray(data.low_stock_items)) {
+            // If we only have low stock items, estimate based on what we know
+            data.low_stock_items.forEach(item => {
+                const health = calculateInventoryHealth(item.quantity);
+                healthStats[health.status]++;
+            });
+            
+            // Estimate remaining items as good/optimal
+            const remainingItems = data.total_items - data.low_stock_items.length;
+            if (remainingItems > 0) {
+                healthStats.good = Math.floor(remainingItems * 0.4);
+                healthStats.optimal = remainingItems - healthStats.good;
+            }
+        }
+        
+        return healthStats;
+    }
+    
+    function createInventoryHealthOverview(healthStats) {
+        // Create health overview cards and chart
+        const healthCategories = [
+            { status: 'critical', label: 'Out of Stock', color: 'danger', icon: 'exclamation-circle', bgColor: '#dc3545' },
+            { status: 'low', label: 'Low Stock', color: 'warning', icon: 'exclamation-triangle', bgColor: '#ffc107' },
+            { status: 'medium', label: 'Medium Stock', color: 'info', icon: 'info-circle', bgColor: '#0dcaf0' },
+            { status: 'good', label: 'Good Stock', color: 'primary', icon: 'check-circle', bgColor: '#0d6efd' },
+            { status: 'optimal', label: 'Optimal Stock', color: 'success', icon: 'check-double', bgColor: '#198754' }
+        ];
+        
+        // Create HTML for health overview
+        let healthOverviewHTML = '<div class="row">';
+        
+        // Create a card for each health category
+        healthCategories.forEach(category => {
+            const count = healthStats[category.status] || 0;
+            healthOverviewHTML += `
+                <div class="col">
+                    <div class="card text-center bg-dark mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <i class="fas fa-${category.icon} text-${category.color} fa-2x me-2"></i>
+                                <h3 class="m-0">${count}</h3>
+                            </div>
+                            <p class="card-text text-${category.color}">${category.label}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        healthOverviewHTML += '</div>';
+        
+        // Create donut chart canvas
+        healthOverviewHTML += `
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card bg-dark">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Inventory Health Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="healthDonut" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Update DOM with health overview
+        inventoryHealthContainer.innerHTML = healthOverviewHTML;
+        
+        // Create donut chart
+        const ctx = document.getElementById('healthDonut').getContext('2d');
+        
+        if (healthDonutChart) {
+            healthDonutChart.destroy();
+        }
+        
+        healthDonutChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: healthCategories.map(c => c.label),
+                datasets: [{
+                    data: healthCategories.map(c => healthStats[c.status] || 0),
+                    backgroundColor: healthCategories.map(c => c.bgColor),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: 'white'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
     
     function updateLowStockTable(lowStockItems) {
@@ -69,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td>${item.sku || ''}</td>
                     <td>${item.category || 'Uncategorized'}</td>
-                    <td><span class="badge ${quantityClass}">${item.quantity}</span></td>
+                    <td>${generateHealthIndicator(item.quantity)}</td>
                     <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
                     <td>
                         <a href="/item/${item.id}" class="btn btn-sm btn-primary">
