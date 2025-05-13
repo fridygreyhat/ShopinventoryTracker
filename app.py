@@ -10,6 +10,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
 import requests
+from dotenv import load_dotenv 
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,6 +25,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
 app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
 app.config["FIREBASE_APP_ID"] = os.environ.get("FIREBASE_APP_ID")
+print(os.environ.get("FIREBASE_API_KEY"))
 
 # Database configuration
 class Base(DeclarativeBase):
