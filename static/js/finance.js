@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         ticks: {
                             callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
+                                return value.toLocaleString();
                             }
                         }
                     },
