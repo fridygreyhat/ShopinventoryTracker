@@ -256,20 +256,41 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def role_required(allowed_roles):
+    """
+    Decorator for routes that require specific roles
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user_id" not in session:
+                return redirect(url_for("login", next=request.url))
+                
+            user = User.query.get(session["user_id"])
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+                
+            if user.role not in [role.value for role in allowed_roles]:
+                return jsonify({"error": "Unauthorized access"}), 403
+                
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 def admin_required(f):
     """
     Decorator for routes that require admin privileges
     """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check if user is logged in
-        if "user_id" not in session:
-            return redirect(url_for("login", next=request.url))
-            
-        # Check if user is an admin
-        user = User.query.get(session["user_id"])
-        if not user or not user.is_admin:
-            return jsonify({"error": "Unauthorized access"}), 403
-            
-        return f(*args, **kwargs)
-    return decorated_function
+    return role_required([UserRole.ADMIN])(f)
+
+def inventory_manager_required(f):
+    """
+    Decorator for routes that require inventory management privileges
+    """
+    return role_required([UserRole.ADMIN, UserRole.INVENTORY_MANAGER])(f)
+
+def sales_required(f):
+    """
+    Decorator for routes that require sales privileges
+    """
+    return role_required([UserRole.ADMIN, UserRole.SALESPERSON])(f)
