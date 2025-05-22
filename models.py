@@ -25,11 +25,25 @@ class Item(db.Model):
         return f'<Item {self.name}>'
 
     @staticmethod
-    def generate_sku():
-        """Generate a unique SKU for inventory items"""
-        timestamp = datetime.now().strftime('%Y%m%d')
-        random_chars = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
-        return f"SKU-{timestamp}-{random_chars}"
+    def generate_sku(product_name: str, category: str = "") -> str:
+        """
+        Generate a unique SKU based on product name and category.
+        
+        :param product_name: The name of the product
+        :param category: Optional category name
+        :return: A unique SKU string
+        """
+        # Clean and shorten product name
+        name_code = ''.join(filter(str.isalnum, product_name.upper()))[:4]
+        
+        # Clean and shorten category
+        category_code = ''.join(filter(str.isalnum, category.upper()))[:3]
+        
+        # Generate random alphanumeric suffix
+        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        
+        # Format: NAME-CAT-RANDOM
+        return f"{name_code}-{category_code}-{suffix}" if category else f"{name_code}-{suffix}"
     
     def to_dict(self):
         """Convert item to dictionary for API responses"""

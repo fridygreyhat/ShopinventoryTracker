@@ -184,7 +184,10 @@ def add_item():
                 
         # Generate SKU if not provided
         if 'sku' not in item_data or not item_data['sku']:
-            item_data['sku'] = Item.generate_sku()
+            item_data['sku'] = Item.generate_sku(
+                item_data["name"],
+                item_data.get("category", "")
+            )
         
         # Handle price fields
         buying_price = float(item_data.get("buying_price", 0))
