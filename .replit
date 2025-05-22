@@ -1,4 +1,5 @@
 modules = ["nodejs-20", "web", "python-3.11", "python-3.9", "python-3.8", "postgresql-17"]
+run = "python.py"
 
 [nix]
 channel = "stable-24_05"
@@ -6,10 +7,10 @@ packages = ["openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "gce"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Start Flask App"
+runButton = "Run Flask"
 
 [[workflows.workflow]]
 name = "Project"
@@ -31,6 +32,15 @@ waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Start Flask App"
+author = 40995501
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Run Flask"
 author = 40995501
 mode = "sequential"
 
