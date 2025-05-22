@@ -170,7 +170,64 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
-    function loadDashboardData() {
+    function loadSalesPerformance() {
+    // Load top selling items
+    fetch('/api/sales/performance/top')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('top-selling-table');
+            if (data && data.length > 0) {
+                let html = '';
+                data.forEach(item => {
+                    html += `
+                    <tr>
+                        <td>
+                            <a href="/item/${item.id}" class="text-decoration-none">
+                                ${item.name}
+                            </a>
+                        </td>
+                        <td>${item.category || 'Uncategorized'}</td>
+                        <td>${item.units_sold}</td>
+                        <td><span class="currency-symbol">TZS</span> ${item.revenue.toLocaleString()}</td>
+                    </tr>`;
+                });
+                tableBody.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading top selling items:', error);
+        });
+
+    // Load slow moving items
+    fetch('/api/sales/performance/slow')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('slow-moving-table');
+            if (data && data.length > 0) {
+                let html = '';
+                data.forEach(item => {
+                    html += `
+                    <tr>
+                        <td>
+                            <a href="/item/${item.id}" class="text-decoration-none">
+                                ${item.name}
+                            </a>
+                        </td>
+                        <td>${item.category || 'Uncategorized'}</td>
+                        <td>${item.days_in_stock}</td>
+                        <td>${item.quantity}</td>
+                    </tr>`;
+                });
+                tableBody.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading slow moving items:', error);
+        });
+}
+
+function loadDashboardData() {
+        loadSalesPerformance();
         // Load stock status report
         fetch('/api/reports/stock-status')
             .then(response => response.json())

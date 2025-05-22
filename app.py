@@ -1141,6 +1141,94 @@ def get_transaction_categories():
     return jsonify(categories)
 
 # Sales API Routes
+@app.route('/api/sales/performance/top', methods=['GET'])
+def get_top_selling_items():
+    """API endpoint to get top selling items"""
+    try:
+        # Get sales data from last 30 days
+        days = request.args.get('days', 30, type=int)
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Query to get top selling items
+        top_items = db.session.query(
+            Item,
+            func.sum(SaleItem.quantity).label('total_quantity'),
+            func.sum(SaleItem.total).label('total_revenue')
+        ).join(SaleItem).join(Sale).filter(
+            Sale.created_at >= cutoff_date
+        ).group_by(Item.id).order_by(
+            func.sum(SaleItem.quantity).desc()
+        ).limit(5).all()
+        
+        # Format response
+        result = []
+        for item, quantity, revenue in top_items:
+            result.append({
+                'id': item.id,
+                'name': item.name,
+                'category': item.category,
+                'units_sold': int(quantity),
+                'revenue': float(revenue)
+            })
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error getting top selling items: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/performance/slow', methods=['GET'])
+def get_slow_moving_items():
+    """API endpoint to get slow moving items"""
+    try:
+        # Get items with no sales in last 30 days
+        days = request.args.get('days', 30, type=int)
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Subquery to get items that have had sales
+        sold_items = db.session.query(
+            SaleItem.item_id
+        ).join(Sale).filter(
+            Sale.created_at >= cutoff_date
+        ).distinct().subquery()
+        
+        # Query to get items with no recent sales
+        slow_items = Item.query.filter(
+            ~Item.id.in_(sold_items),
+            Item.quantity > 0
+        ).order_by(
+            Item.quantity.desc()
+        ).limit(5).all()
+        
+        # Format response
+        result = []
+        for item in slow_items:
+            # Calculate days in stock based on last sale or creation date
+            last_sale = db.session.query(Sale.created_at).join(
+                SaleItem
+            ).filter(
+                SaleItem.item_id == item.id
+            ).order_by(
+                Sale.created_at.desc()
+            ).first()
+            
+            reference_date = last_sale[0] if last_sale else item.created_at
+            days_in_stock = (datetime.utcnow() - reference_date).days
+            
+            result.append({
+                'id': item.id,
+                'name': item.name,
+                'category': item.category,
+                'days_in_stock': days_in_stock,
+                'quantity': item.quantity
+            })
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error getting slow moving items: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/sales', methods=['GET'])
 def get_sales():
     """API endpoint to get sales data with optional filtering"""
