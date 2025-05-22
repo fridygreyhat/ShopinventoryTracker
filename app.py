@@ -170,6 +170,8 @@ def get_inventory():
 def add_item():
     """API endpoint to add a new inventory item"""
     from models import Item
+    import string
+    import random
     
     try:
         item_data = request.json
@@ -179,6 +181,12 @@ def add_item():
         for field in required_fields:
             if field not in item_data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
+                
+        # Generate SKU if not provided
+        if 'sku' not in item_data or not item_data['sku']:
+            timestamp = datetime.now().strftime('%Y%m%d')
+            random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            item_data['sku'] = f"SKU-{timestamp}-{random_chars}"
         
         # Handle price fields
         buying_price = float(item_data.get("buying_price", 0))
