@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 selling_price_retail: item.selling_price_retail,
                 selling_price_wholesale: item.selling_price_wholesale,
                 quantity: 1,
+                unit_type: item.unit_type || 'quantity',
                 total: price
             });
         }
@@ -295,8 +296,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>
                         <div class="input-group input-group-sm">
                             <button class="btn btn-outline-secondary decrease-qty" data-index="${index}">-</button>
-                            <input type="number" class="form-control text-center item-qty" value="${item.quantity}" data-index="${index}" min="1">
+                            <input type="number" class="form-control text-center item-qty" 
+                                value="${item.quantity}" 
+                                data-index="${index}" 
+                                min="${item.unit_type === 'weight' ? '0.1' : '1'}" 
+                                step="${item.unit_type === 'weight' ? '0.1' : '1'}">
                             <button class="btn btn-outline-secondary increase-qty" data-index="${index}">+</button>
+                            <span class="input-group-text">${item.unit_type === 'weight' ? 'kg' : 'pcs'}</span>
                         </div>
                     </td>
                     <td><span class="currency-symbol">TZS</span> ${item.total.toLocaleString()}</td>

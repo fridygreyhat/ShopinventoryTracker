@@ -9,6 +9,7 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     sku = db.Column(db.String(50), unique=True)
+    unit_type = db.Column(db.String(20), default='quantity')  # 'quantity' or 'weight'
     description = db.Column(db.Text)
     category = db.Column(db.String(50))
     quantity = db.Column(db.Integer, default=0)
