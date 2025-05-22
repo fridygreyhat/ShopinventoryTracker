@@ -23,6 +23,13 @@ class Item(db.Model):
 
     def __repr__(self):
         return f'<Item {self.name}>'
+
+    @staticmethod
+    def generate_sku():
+        """Generate a unique SKU for inventory items"""
+        timestamp = datetime.now().strftime('%Y%m%d')
+        random_chars = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+        return f"SKU-{timestamp}-{random_chars}"
     
     def to_dict(self):
         """Convert item to dictionary for API responses"""
