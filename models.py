@@ -97,11 +97,7 @@ class User(db.Model):
     verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
     verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
     
-    # Phone verification
-    phone_number = db.Column(db.String(20), nullable=True)
-    phone_verified = db.Column(db.Boolean, default=False)
-    otp_code = db.Column(db.String(6), nullable=True)
-    otp_expires = db.Column(db.DateTime, nullable=True)
+    
     
     # User profile
     first_name = db.Column(db.String(64), nullable=True)
