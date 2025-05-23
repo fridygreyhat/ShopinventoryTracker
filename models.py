@@ -14,6 +14,8 @@ class Item(db.Model):
     unit_type = db.Column(db.String(20), default='quantity')  # 'quantity' or 'weight'
     description = db.Column(db.Text)
     category = db.Column(db.String(50))
+    subcategory = db.Column(db.String(50))
+    sell_by = db.Column(db.String(20), default='quantity')  # 'quantity' or 'kilogram'
     quantity = db.Column(db.Integer, default=0)
     buying_price = db.Column(db.Float, default=0.0)
     selling_price_retail = db.Column(db.Float, default=0.0)
