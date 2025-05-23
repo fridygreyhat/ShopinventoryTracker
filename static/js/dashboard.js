@@ -1,7 +1,7 @@
 // Function to get theme-consistent chart colors
 function getThemeColors() {
     const theme = document.body.getAttribute('data-theme-value') || 'tanzanite';
-    
+
     // Theme-specific color palettes
     const themePalettes = {
         tanzanite: {
@@ -50,10 +50,10 @@ function getThemeColors() {
             info: 'rgba(52, 152, 219, 0.8)',
         }
     };
-    
+
     // Get colors for current theme or fallback to tanzanite
     const colors = themePalettes[theme] || themePalettes.tanzanite;
-    
+
     // Add common colors and neutral tones
     return {
         ...colors,
@@ -81,24 +81,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const lowStockTableElement = document.getElementById('low-stock-table');
     const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
     const inventoryHealthContainer = document.getElementById('inventory-health-container');
-    
+
     // Financial Elements
     const monthlyIncomeElement = document.getElementById('monthly-income');
     const monthlyExpensesElement = document.getElementById('monthly-expenses');
     const monthlyProfitElement = document.getElementById('monthly-profit');
     const financialSummaryChartElement = document.getElementById('financialSummaryChart');
-    
+
     // Charts
     let stockChart = null;
     let valueChart = null;
     let healthDonutChart = null;
     let financialChart = null;
-    
+
     // Load dashboard data
     loadDashboardData();
     loadOnDemandProducts();
     loadFinancialSummary();
-    
+
     // Calculate inventory health based on quantity
     function calculateInventoryHealth(quantity) {
         if (quantity <= 0) {
@@ -148,11 +148,11 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
     }
-    
+
     // Generate health indicator HTML
     function generateHealthIndicator(quantity) {
         const health = calculateInventoryHealth(quantity);
-        
+
         return `
             <div class="inventory-health">
                 <div class="health-indicator">
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
-    
+
     function loadSalesPerformance() {
     // Load top selling items
     fetch('/api/sales/performance/top')
@@ -238,7 +238,7 @@ function loadDashboardData() {
             .catch(error => {
                 console.error('Error loading stock status report:', error);
             });
-        
+
         // Load category breakdown for charts
         fetch('/api/reports/category-breakdown')
             .then(response => response.json())
@@ -250,14 +250,14 @@ function loadDashboardData() {
                 console.error('Error loading category breakdown:', error);
             });
     }
-    
+
     function updateDashboardSummary(data) {
         // Update summary cards
         totalItemsElement.textContent = data.total_items;
         totalStockElement.textContent = data.total_stock;
         lowStockCountElement.textContent = data.low_stock_items_count;
         inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + data.total_inventory_value.toLocaleString();
-        
+
         // Create inventory health overview if container exists
         if (inventoryHealthContainer) {
             // Calculate health stats
@@ -265,7 +265,7 @@ function loadDashboardData() {
             createInventoryHealthOverview(healthStats);
         }
     }
-    
+
     function calculateInventoryHealthStats(data) {
         // Calculate inventory health statistics from stock status data
         let healthStats = {
@@ -275,7 +275,7 @@ function loadDashboardData() {
             good: 0,
             optimal: 0
         };
-        
+
         // Process all items to determine their health
         if (data.all_items && Array.isArray(data.all_items)) {
             data.all_items.forEach(item => {
@@ -288,7 +288,7 @@ function loadDashboardData() {
                 const health = calculateInventoryHealth(item.quantity);
                 healthStats[health.status]++;
             });
-            
+
             // Estimate remaining items as good/optimal
             const remainingItems = data.total_items - data.low_stock_items.length;
             if (remainingItems > 0) {
@@ -296,10 +296,10 @@ function loadDashboardData() {
                 healthStats.optimal = remainingItems - healthStats.good;
             }
         }
-        
+
         return healthStats;
     }
-    
+
     function createInventoryHealthOverview(healthStats) {
         // Create health overview cards and chart
         const healthCategories = [
@@ -309,10 +309,10 @@ function loadDashboardData() {
             { status: 'good', label: 'Good Stock', color: 'primary', icon: 'check-circle', bgColor: '#0d6efd' },
             { status: 'optimal', label: 'Optimal Stock', color: 'success', icon: 'check-double', bgColor: '#198754' }
         ];
-        
+
         // Create HTML for health overview
         let healthOverviewHTML = '<div class="row">';
-        
+
         // Create a card for each health category
         healthCategories.forEach(category => {
             const count = healthStats[category.status] || 0;
@@ -330,9 +330,9 @@ function loadDashboardData() {
                 </div>
             `;
         });
-        
+
         healthOverviewHTML += '</div>';
-        
+
         // Create donut chart canvas
         healthOverviewHTML += `
             <div class="row mt-3">
@@ -348,17 +348,17 @@ function loadDashboardData() {
                 </div>
             </div>
         `;
-        
+
         // Update DOM with health overview
         inventoryHealthContainer.innerHTML = healthOverviewHTML;
-        
+
         // Create donut chart
         const ctx = document.getElementById('healthDonut').getContext('2d');
-        
+
         if (healthDonutChart) {
             healthDonutChart.destroy();
         }
-        
+
         healthDonutChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -395,20 +395,20 @@ function loadDashboardData() {
             }
         });
     }
-    
+
     function updateLowStockTable(lowStockItems) {
         if (lowStockItems && lowStockItems.length > 0) {
             let tableHtml = '';
-            
+
             // Sort by quantity (lowest first)
             lowStockItems.sort((a, b) => a.quantity - b.quantity);
-            
+
             // Take only top 10 items
             const itemsToShow = lowStockItems.slice(0, 10);
-            
+
             itemsToShow.forEach(item => {
                 const quantityClass = item.quantity === 0 ? 'bg-danger' : 'bg-warning';
-                
+
                 tableHtml += `
                 <tr>
                     <td>
@@ -431,7 +431,7 @@ function loadDashboardData() {
                 </tr>
                 `;
             });
-            
+
             lowStockTableElement.innerHTML = tableHtml;
         } else {
             lowStockTableElement.innerHTML = `
@@ -441,20 +441,20 @@ function loadDashboardData() {
             `;
         }
     }
-    
+
     function createStockChart(categoryData) {
         // Prepare data for chart
         const categories = Object.keys(categoryData);
         const quantities = categories.map(category => categoryData[category].total_quantity);
-        
+
         // Get canvas context
         const ctx = document.getElementById('stockChart').getContext('2d');
-        
+
         // Destroy existing chart if it exists
         if (stockChart) {
             stockChart.destroy();
         }
-        
+
         // Create new chart
         stockChart = new Chart(ctx, {
             type: 'bar',
@@ -538,20 +538,20 @@ function loadDashboardData() {
             }
         });
     }
-    
+
     function createValueChart(categoryData) {
         // Prepare data for chart
         const categories = Object.keys(categoryData);
         const values = categories.map(category => categoryData[category].total_value);
-        
+
         // Get canvas context
         const ctx = document.getElementById('valueChart').getContext('2d');
-        
+
         // Destroy existing chart if it exists
         if (valueChart) {
             valueChart.destroy();
         }
-        
+
         // Create new chart
         valueChart = new Chart(ctx, {
             type: 'doughnut',
@@ -628,7 +628,7 @@ function loadDashboardData() {
             }
         });
     }
-    
+
     function loadOnDemandProducts() {
         // Fetch active on-demand products
         fetch('/api/on-demand?active_only=true')
@@ -647,7 +647,7 @@ function loadDashboardData() {
                 `;
             });
     }
-    
+
     function displayOnDemandProducts(products) {
         if (products.length === 0) {
             onDemandProductsTableElement.innerHTML = `
@@ -657,20 +657,20 @@ function loadDashboardData() {
             `;
             return;
         }
-        
+
         // Sort products by name for consistent display
         products.sort((a, b) => a.name.localeCompare(b.name));
-        
+
         // Show only the first 10 products for dashboard
         const displayProducts = products.slice(0, 10);
-        
+
         let html = '';
-        
+
         displayProducts.forEach(product => {
             const statusBadge = product.is_active 
                 ? '<span class="status-badge status-active">Active</span>' 
                 : '<span class="status-badge status-inactive">Inactive</span>';
-            
+
             html += `
                 <tr>
                     <td>
@@ -690,7 +690,7 @@ function loadDashboardData() {
                 </tr>
             `;
         });
-        
+
         if (products.length > 10) {
             html += `
                 <tr>
@@ -702,25 +702,25 @@ function loadDashboardData() {
                 </tr>
             `;
         }
-        
+
         onDemandProductsTableElement.innerHTML = html;
     }
-    
+
     // Load financial summary data for dashboard
     function loadFinancialSummary() {
         // Get current date
         const today = new Date();
         const year = today.getFullYear();
         const month = today.getMonth() + 1;
-        
+
         // Get first and last day of current month
         const firstDay = new Date(year, month - 1, 1);
         const lastDay = new Date(year, month, 0);
-        
+
         // Format dates as YYYY-MM-DD
         const startDate = firstDay.toISOString().slice(0, 10);
         const endDate = lastDay.toISOString().slice(0, 10);
-        
+
         // Load monthly transactions data
         fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
             .then(response => response.json())
@@ -730,7 +730,7 @@ function loadDashboardData() {
             .catch(error => {
                 console.error('Error loading financial summary:', error);
             });
-        
+
         // Load yearly data for chart
         fetch(`/api/finance/summaries/monthly?year=${year}`)
             .then(response => response.json())
@@ -741,17 +741,17 @@ function loadDashboardData() {
                 console.error('Error loading monthly financial data:', error);
             });
     }
-    
+
     // Update financial summary on dashboard
     function updateFinancialSummary(summary) {
         if (!monthlyIncomeElement || !monthlyExpensesElement || !monthlyProfitElement) {
             return;
         }
-        
+
         monthlyIncomeElement.textContent = summary.total_income.toLocaleString();
         monthlyExpensesElement.textContent = summary.total_expenses.toLocaleString();
         monthlyProfitElement.textContent = summary.net_profit.toLocaleString();
-        
+
         // Add color to profit value
         if (summary.net_profit > 0) {
             monthlyProfitElement.classList.add('text-success');
@@ -764,26 +764,26 @@ function loadDashboardData() {
             monthlyProfitElement.classList.remove('text-danger');
         }
     }
-    
+
     // Create financial summary chart
     function createFinancialChart(data) {
         if (!financialSummaryChartElement) {
             return;
         }
-        
+
         const ctx = financialSummaryChartElement.getContext('2d');
-        
+
         // Destroy existing chart if it exists
         if (financialChart) {
             financialChart.destroy();
         }
-        
+
         // Extract data for chart
         const months = data.monthly_data.map(item => item.month_name);
         const incomeData = data.monthly_data.map(item => item.income);
         const expenseData = data.monthly_data.map(item => item.expenses);
         const profitData = data.monthly_data.map(item => item.profit);
-        
+
         // Create new chart
         financialChart = new Chart(ctx, {
             type: 'bar',
@@ -882,5 +882,25 @@ function loadDashboardData() {
                 }
             }
         });
+    }
+
+    // Initialize
+    loadShopDetails();
+    updateCartDisplay();
+
+    function loadShopDetails() {
+        // Fetch shop details from the API
+        fetch('/api/shop/details')
+            .then(response => response.json())
+            .then(data => {
+                // Update the shop name in the dashboard
+                const shopNameElement = document.getElementById('shop-name');
+                if (shopNameElement) {
+shopNameElement.textContent = data.shop_name;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading shop details:', error);
+            });
     }
 });
