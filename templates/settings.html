@@ -83,74 +83,104 @@
             
             <!-- Appearance Settings Tab -->
             <div class="tab-pane fade" id="appearance-settings">
-                <div class="card">
+                <div class="card appearance-card">
                     <div class="card-header">
-                        <h5 class="mb-0">Appearance Settings</h5>
+                        <h5 class="mb-0"><i class="fas fa-palette me-2"></i>Appearance Settings</h5>
                     </div>
                     <div class="card-body">
                         <form id="appearanceSettingsForm">
                             <div class="mb-4">
-                                <label class="form-label">Color Theme</label>
-                                <p class="form-text mb-3">Choose a color theme that matches your brand and preferences.</p>
+                                <label class="settings-label">Theme Selection</label>
+                                <p class="settings-description">Choose a theme that suits your style and enhances readability.</p>
 
-                                <div class="row mt-3">
-                                    <div class="col-md-4 mb-3">
+                                <div class="theme-grid">
+                                    <div class="theme-card" data-theme="tanzanite">
                                         <div class="theme-preview theme-tanzanite" data-theme-value="tanzanite">
+                                            <div class="preview-content">
+                                                <div class="preview-header"></div>
+                                                <div class="preview-body">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line"></div>
+                                                </div>
+                                            </div>
                                             <div class="preview-label">Tanzanite</div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input theme-radio" type="radio" name="theme" id="theme_tanzanite" value="tanzanite" {% if session.get('user_theme') == 'tanzanite' or not session.get('user_theme') %}checked{% endif %}>
-                                            <label class="form-check-label" for="theme_tanzanite">
-                                                Tanzanite Theme
-                                            </label>
+                                        <div class="theme-radio">
+                                            <input type="radio" name="theme" id="theme_tanzanite" value="tanzanite" 
+                                                {% if session.get('user_theme') == 'tanzanite' or not session.get('user_theme') %}checked{% endif %}>
+                                            <label for="theme_tanzanite">Tanzanite</label>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-4 mb-3">
+                                    <div class="theme-card" data-theme="forest">
                                         <div class="theme-preview theme-forest" data-theme-value="forest">
+                                            <div class="preview-content">
+                                                <div class="preview-header"></div>
+                                                <div class="preview-body">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line"></div>
+                                                </div>
+                                            </div>
                                             <div class="preview-label">Forest</div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input theme-radio" type="radio" name="theme" id="theme_forest" value="forest" {% if session.get('user_theme') == 'forest' %}checked{% endif %}>
-                                            <label class="form-check-label" for="theme_forest">
-                                                Forest Theme
-                                            </label>
+                                        <div class="theme-radio">
+                                            <input type="radio" name="theme" id="theme_forest" value="forest" 
+                                                {% if session.get('user_theme') == 'forest' %}checked{% endif %}>
+                                            <label for="theme_forest">Forest</label>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-4 mb-3">
+                                    <div class="theme-card" data-theme="ocean">
                                         <div class="theme-preview theme-ocean" data-theme-value="ocean">
+                                            <div class="preview-content">
+                                                <div class="preview-header"></div>
+                                                <div class="preview-body">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line"></div>
+                                                </div>
+                                            </div>
                                             <div class="preview-label">Ocean</div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input theme-radio" type="radio" name="theme" id="theme_ocean" value="ocean" {% if session.get('user_theme') == 'ocean' %}checked{% endif %}>
-                                            <label class="form-check-label" for="theme_ocean">
-                                                Ocean Theme
-                                            </label>
+                                        <div class="theme-radio">
+                                            <input type="radio" name="theme" id="theme_ocean" value="ocean" 
+                                                {% if session.get('user_theme') == 'ocean' %}checked{% endif %}>
+                                            <label for="theme_ocean">Ocean</label>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-4 mb-3">
+                                    <div class="theme-card" data-theme="sunset">
                                         <div class="theme-preview theme-sunset" data-theme-value="sunset">
+                                            <div class="preview-content">
+                                                <div class="preview-header"></div>
+                                                <div class="preview-body">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line"></div>
+                                                </div>
+                                            </div>
                                             <div class="preview-label">Sunset</div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input theme-radio" type="radio" name="theme" id="theme_sunset" value="sunset" {% if session.get('user_theme') == 'sunset' %}checked{% endif %}>
-                                            <label class="form-check-label" for="theme_sunset">
-                                                Sunset Theme
-                                            </label>
+                                        <div class="theme-radio">
+                                            <input type="radio" name="theme" id="theme_sunset" value="sunset" 
+                                                {% if session.get('user_theme') == 'sunset' %}checked{% endif %}>
+                                            <label for="theme_sunset">Sunset</label>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-4 mb-3">
+                                    <div class="theme-card" data-theme="dark">
                                         <div class="theme-preview theme-dark" data-theme-value="dark">
+                                            <div class="preview-content">
+                                                <div class="preview-header"></div>
+                                                <div class="preview-body">
+                                                    <div class="preview-line"></div>
+                                                    <div class="preview-line"></div>
+                                                </div>
+                                            </div>
                                             <div class="preview-label">Dark</div>
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input theme-radio" type="radio" name="theme" id="theme_dark" value="dark" {% if session.get('user_theme') == 'dark' %}checked{% endif %}>
-                                            <label class="form-check-label" for="theme_dark">
-                                                Dark Theme
-                                            </label>
+                                        <div class="theme-radio">
+                                            <input type="radio" name="theme" id="theme_dark" value="dark" 
+                                                {% if session.get('user_theme') == 'dark' %}checked{% endif %}>
+                                            <label for="theme_dark">Dark</label>
                                         </div>
                                     </div>
                                 </div>

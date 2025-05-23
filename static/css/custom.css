@@ -13,34 +13,34 @@
     --primary-color: #4C50C5;      /* Tanzanite blue - main brand color */
     --secondary-color: #41C1E0;    /* Azure blue - secondary brand color */
     --accent-color: #FF7950;       /* Sunset orange - accent for highlights */
-    
+
     /* Background Colors */
     --light-bg: #F8FAFD;           /* Off-white background with slight blue tint */
     --light-bg-alt: #EEF3F8;       /* Secondary light background */
-    
+
     /* UI Element Colors */
     --success-color: #32B873;      /* Green for success/positive messages */
     --warning-color: #FFA726;      /* Amber for warnings */
     --danger-color: #F04A4A;       /* Red for errors/danger */
     --info-color: #3889F7;         /* Blue for information */
-    
+
     /* Container Colors */
     --card-bg: #FFFFFF;            /* Card background */
     --card-border: rgba(0, 0, 0, 0.06);
     --card-shadow: rgba(76, 80, 197, 0.04);
-    
+
     /* Text Colors */
     --text-primary: #19213A;       /* Dark blue-gray for primary text */
     --text-secondary: #455070;     /* Medium gray with blue tint for secondary text */
     --text-muted: #6E7A99;         /* Light gray for less important text */
-    
+
     /* Font Families */
     --heading-font: 'Nunito', sans-serif;         /* Contemporary, friendly sans-serif */
     --body-font: 'Open Sans', sans-serif;         /* Clean, readable sans-serif for body */
     --special-font: 'Comfortaa', cursive;         /* Rounded, modern display font for special elements */
     --brand-font: 'Montserrat', sans-serif;       /* Professional font for branding elements */
     --accent-font: 'Quicksand', sans-serif;       /* Light, elegant font for accents */
-    
+
     /* Component Dimensions */
     --border-radius-sm: 6px;
     --border-radius-md: 10px;
@@ -919,7 +919,7 @@ footer {
 /* Section titles */
 .section-title {
     font-family: var(--heading-font);
-    font-weight: 600;
+    font-weight: 60;
     font-size: 1.35rem;
     margin-bottom: 1.25rem;
     color: var(--text-primary);
@@ -1437,15 +1437,15 @@ canvas {
     .display-4 {
         font-size: 2.5rem;
     }
-    
+
     .table-responsive {
         max-height: 70vh;
     }
-    
+
     .card-body {
         padding: 1.25rem;
     }
-    
+
     .stat-card .stat-value {
         font-size: 1.5rem;
     }
@@ -1476,4 +1476,151 @@ canvas {
 
 .compact-chart canvas {
     max-height: 180px;
+}
+
+/* Appearance Settings Styles */
+.appearance-card {
+    border: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-radius: 16px;
+}
+
+.appearance-card .card-header {
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+}
+
+.settings-label {
+    font-family: var(--heading-font);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.settings-description {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+}
+
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.theme-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.theme-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.theme-preview {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.preview-content {
+    padding: 8px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.preview-header {
+    height: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.preview-body {
+    flex: 1;
+}
+
+.preview-line {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    width: 80%;
+}
+
+.preview-line:last-child {
+    width: 60%;
+}
+
+.preview-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+}
+
+.theme-radio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.theme-radio input[type="radio"] {
+    display: none;
+}
+
+.theme-radio label {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    transition: all 0.2s ease;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-radio input[type="radio"]:checked + label {
+    background: var(--primary-color);
+    color: white;
+}
+
+.theme-card[data-theme="tanzanite"] .theme-preview {
+    background: linear-gradient(135deg, #4C50C5, #41C1E0);
+}
+
+.theme-card[data-theme="forest"] .theme-preview {
+    background: linear-gradient(135deg, #2E7D32, #81C784);
+}
+
+.theme-card[data-theme="ocean"] .theme-preview {
+    background: linear-gradient(135deg, #0277BD, #4FC3F7);
+}
+
+.theme-card[data-theme="sunset"] .theme-preview {
+    background: linear-gradient(135deg, #E65100, #FF9800);
+}
+
+.theme-card[data-theme="dark"] .theme-preview {
+    background: linear-gradient(135deg, #212121, #424242);
 }
