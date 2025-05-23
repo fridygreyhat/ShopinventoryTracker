@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        if (!file.name.endsWith('.csv')) {
+            showImportError('Please select a CSV file');
+            return;
+        }
+        
         const formData = new FormData();
         formData.append('file', file);
         
@@ -24,7 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         fetch('/api/inventory/bulk-import', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         })
         .then(response => response.json())
         .then(data => {
