@@ -44,13 +44,32 @@ def send_sms(to_phone_number, message):
         logger.error(f"Failed to send SMS: {str(e)}")
         return False
 
-def verify_phone_number(phone_number, code):
+def generate_otp():
+    """Generate a 6-digit OTP code"""
+    import random
+    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+def send_otp(phone_number, otp_code):
     """
-    Verify phone number using Twilio Verify
+    Send OTP via SMS
     
     Args:
-        phone_number (str): Phone number in E.164 format (+1XXXXXXXXXX)
-        code (str): Verification code entered by user
+        phone_number (str): Phone number in E.164 format (+XXXXXXXXX)
+        otp_code (str): OTP code to send
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    message = f"Your verification code is: {otp_code}. Valid for 10 minutes."
+    return send_sms(phone_number, message)
+
+def verify_phone_number(phone_number, code):
+    """
+    Verify phone number using OTP
+    
+    Args:
+        phone_number (str): Phone number in E.164 format (+XXXXXXXXX)
+        code (str): OTP code entered by user
         
     Returns:
         bool: True if verification successful, False otherwise
