@@ -1443,6 +1443,26 @@ def test_notifications():
             'errors': [f"Error testing notifications: {str(e)}"]
         }), 500
 
+@app.route('/api/notifications/test-sms', methods=['POST'])
+def test_sms():
+    """API endpoint to test SMS notifications"""
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        message = data.get('message', 'Test SMS from Inventory System')
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+            
+        from notifications.sms_service import send_sms
+        result = send_sms(phone_number, message)
+        
+        return jsonify({'success': result})
+        
+    except Exception as e:
+        logger.error(f"Error sending test SMS: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/notifications/check-stock', methods=['GET'])
 def check_low_stock():
     """API endpoint to check for low stock items without sending notifications"""
