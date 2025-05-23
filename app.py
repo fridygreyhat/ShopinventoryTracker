@@ -395,6 +395,67 @@ def delete_item(item_id):
         logger.error(f"Error deleting item: {str(e)}")
         return jsonify({"error": "Failed to delete item"}), 500
 
+@app.route('/api/inventory/bulk-import', methods=['POST'])
+def bulk_import_inventory():
+    """API endpoint to handle bulk import of inventory items from CSV"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+        
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Only CSV files are supported"}), 400
+    
+    try:
+        # Read CSV file
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_data = csv.DictReader(stream)
+        
+        imported_count = 0
+        errors = []
+        
+        for row in csv_data:
+            try:
+                # Generate SKU if not provided
+                if not row.get('sku'):
+                    row['sku'] = Item.generate_sku(
+                        row.get('name', ''),
+                        row.get('category', '')
+                    )
+                
+                # Create new item
+                new_item = Item(
+                    name=row.get('name'),
+                    sku=row.get('sku'),
+                    description=row.get('description', ''),
+                    category=row.get('category', 'Uncategorized'),
+                    quantity=int(row.get('quantity', 0)),
+                    buying_price=float(row.get('buying_price', 0)),
+                    selling_price_retail=float(row.get('selling_price_retail', 0)),
+                    selling_price_wholesale=float(row.get('selling_price_wholesale', 0)),
+                    sales_type=row.get('sales_type', 'both')
+                )
+                
+                db.session.add(new_item)
+                imported_count += 1
+                
+            except Exception as e:
+                errors.append(f"Error in row {imported_count + 1}: {str(e)}")
+                
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "imported_count": imported_count,
+            "errors": errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+
 @app.route('/api/inventory/categories', methods=['GET'])
 def get_categories():
     """API endpoint to get all unique categories"""

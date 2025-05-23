@@ -1,6 +1,67 @@
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const searchInput = document.getElementById('searchInput');
+    const importButton = document.getElementById('importButton');
+    const importResult = document.getElementById('importResult');
+    
+    // Bulk Import Handler
+    importButton.addEventListener('click', function() {
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showImportError('Please select a file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        importButton.disabled = true;
+        importResult.className = 'alert alert-info';
+        importResult.textContent = 'Importing...';
+        importResult.classList.remove('d-none');
+        
+        fetch('/api/inventory/bulk-import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                importResult.className = 'alert alert-success';
+                importResult.textContent = `Successfully imported ${data.imported_count} items`;
+                if (data.errors.length > 0) {
+                    const errorList = document.createElement('ul');
+                    data.errors.forEach(error => {
+                        const li = document.createElement('li');
+                        li.textContent = error;
+                        errorList.appendChild(li);
+                    });
+                    importResult.appendChild(errorList);
+                }
+                
+                // Reset file input and reload inventory
+                fileInput.value = '';
+                loadInventory();
+                loadCategories();
+            } else {
+                showImportError(data.error);
+            }
+        })
+        .catch(error => {
+            showImportError('Import failed: ' + error.message);
+        })
+        .finally(() => {
+            importButton.disabled = false;
+        });
+    });
+    
+    function showImportError(message) {
+        importResult.className = 'alert alert-danger';
+        importResult.textContent = message;
+        importResult.classList.remove('d-none');
+    }
     const categoryFilter = document.getElementById('categoryFilter');
     const minStockFilter = document.getElementById('minStockFilter');
     const maxStockFilter = document.getElementById('maxStockFilter');
