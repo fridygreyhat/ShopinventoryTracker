@@ -86,6 +86,14 @@
                     </li>
                     {% endif %}
                 </ul>
+                <ul class="navbar-nav me-3">
+                    <li class="nav-item">
+                        <select id="languageSelector" class="form-select form-select-sm">
+                            <option value="en">English</option>
+                            <option value="sw">Kiswahili</option>
+                        </select>
+                    </li>
+                </ul>
                 <ul class="navbar-nav">
                     {% if session.get('user_id') %}
                         <li class="nav-item dropdown">
@@ -165,6 +173,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Theme Switcher -->
     <script src="{{ url_for('static', filename='js/theme-switcher.js') }}"></script>
+    <!-- Translations -->
+    <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 
     <!-- Page-specific JS -->
     {% block scripts %}{% endblock %}

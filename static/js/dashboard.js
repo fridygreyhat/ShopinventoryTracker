@@ -73,6 +73,10 @@ function getThemeColors() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize translations
+    const savedLanguage = localStorage.getItem('preferred_language') || 'en';
+    updatePageLanguage(savedLanguage);
+    
     // DOM Elements
     const totalItemsElement = document.getElementById('total-items');
     const totalStockElement = document.getElementById('total-stock');
