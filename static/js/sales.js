@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     let searchResults = [];
     let saleType = 'retail'; // Default to retail pricing
+    let unitType = 'quantity'; // Default to quantity-based sales
     
     // Initialize
     updateCartDisplay();
@@ -62,6 +63,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sale type selection
     saleTypeSelector.addEventListener('change', function() {
         saleType = this.value;
+        
+    // Unit type selection
+    const unitTypeSelector = document.getElementById('unitTypeSelector');
+    unitTypeSelector.addEventListener('change', function() {
+        unitType = this.value;
+        // Update quantity input step and min values based on unit type
+        document.querySelectorAll('.item-qty').forEach(input => {
+            if (unitType === 'weight') {
+                input.setAttribute('step', '0.1');
+                input.setAttribute('min', '0.1');
+            } else {
+                input.setAttribute('step', '1');
+                input.setAttribute('min', '1');
+            }
+        });
         // If there are items in the cart, update their prices based on the new sale type
         if (cart.length > 0) {
             cart.forEach(item => {
