@@ -12,7 +12,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event Listeners
     saveGeneralSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('generalSettingsForm', 'general');
+        const form = document.getElementById('generalSettingsForm');
+        const settings = {
+            company_name: form.company_name.value,
+            currency_code: form.currency_code.value,
+            timezone: form.timezone.value,
+            default_language: form.default_language.value
+        };
+        
+        // Save each setting individually
+        Promise.all(Object.entries(settings).map(([key, value]) => {
+            return fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    key: key,
+                    value: value,
+                    category: 'general'
+                })
+            }).then(response => response.json());
+        }))
+        .then(() => {
+            // Show success message
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> General settings saved successfully.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            form.insertAdjacentHTML('beforebegin', alertHtml);
+            
+            // Reload page after short delay to reflect changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        })
+        .catch(error => {
+            console.error('Error saving general settings:', error);
+            const alertHtml = `
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            form.insertAdjacentHTML('beforebegin', alertHtml);
+        });
     });
     
     saveAppearanceSettingsBtn.addEventListener('click', function() {
