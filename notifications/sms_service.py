@@ -44,6 +44,32 @@ def send_sms(to_phone_number, message):
         logger.error(f"Failed to send SMS: {str(e)}")
         return False
 
+def verify_phone_number(phone_number, code):
+    """
+    Verify phone number using Twilio Verify
+    
+    Args:
+        phone_number (str): Phone number in E.164 format (+1XXXXXXXXXX)
+        code (str): Verification code entered by user
+        
+    Returns:
+        bool: True if verification successful, False otherwise
+    """
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        
+        verification_check = client.verify \
+            .v2 \
+            .services(os.environ.get('TWILIO_VERIFY_SERVICE_ID')) \
+            .verification_checks \
+            .create(to=phone_number, code=code)
+            
+        return verification_check.status == 'approved'
+        
+    except Exception as e:
+        logger.error(f"Failed to verify phone number: {str(e)}")
+        return False
+
 def send_low_stock_sms(phone_number, low_stock_items):
     """
     Send low stock notification via SMS
