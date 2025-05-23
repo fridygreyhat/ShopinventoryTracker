@@ -15,7 +15,7 @@
     <!-- Theme CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
 </head>
-<body data-theme-value="{{ session.get('user_theme', 'tanzanite') }}">
+<body data-theme-value="sunset">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
@@ -165,8 +165,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Theme Switcher -->
     <script src="{{ url_for('static', filename='js/theme-switcher.js') }}"></script>
-    
+
     <!-- Page-specific JS -->
     {% block scripts %}{% endblock %}
 </body>
 </html>
+```

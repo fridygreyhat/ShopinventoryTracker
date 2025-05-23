@@ -14,22 +14,22 @@ const AVAILABLE_THEMES = [
 
 // DOM variables
 let themeSelectors;
-let currentTheme = 'tanzanite'; // Default theme
+let currentTheme = 'sunset'; // Default theme
 
 /**
  * Initialize theme from stored preference or default
  */
 function initTheme() {
     console.log('Theme switcher initializing...');
-    
+
     // Check what's already on the body
     const bodyTheme = document.body.getAttribute('data-theme-value');
     console.log('Current body theme attribute:', bodyTheme);
-    
+
     // Check if theme is stored in local storage
     const storedTheme = localStorage.getItem('user_theme');
     console.log('Theme from localStorage:', storedTheme);
-    
+
     // Set theme from storage, session, or default to tanzanite
     if (storedTheme && AVAILABLE_THEMES.includes(storedTheme)) {
         console.log('Using theme from localStorage:', storedTheme);
@@ -45,17 +45,17 @@ function initTheme() {
                     console.log('Using theme from server:', data.value);
                     setTheme(data.value);
                 } else {
-                    console.log('No valid theme from server, using default: tanzanite');
-                    setTheme('tanzanite'); // Default theme
+                    console.log('No valid theme from server, using default: sunset');
+                    setTheme('sunset'); // Default theme
                 }
             })
             .catch(error => {
                 console.error('Error fetching theme setting:', error);
-                console.log('Error fetching theme, using default: tanzanite');
-                setTheme('tanzanite'); // Default theme on error
+                console.log('Error fetching theme, using default: sunset');
+                setTheme('sunset'); // Default theme on error
             });
     }
-    
+
     // Initialize theme selectors if on settings page
     themeSelectors = document.querySelectorAll('.theme-preview');
     console.log('Theme selectors found:', themeSelectors ? themeSelectors.length : 0);
@@ -71,26 +71,26 @@ function initTheme() {
  */
 function setTheme(theme) {
     console.log('Setting theme to:', theme);
-    
+
     if (!AVAILABLE_THEMES.includes(theme)) {
         console.error(`Theme "${theme}" is not available`);
         return;
     }
-    
+
     // Update body data attribute
     document.body.setAttribute('data-theme-value', theme);
     console.log('Updated body data-theme-value to:', theme);
-    
+
     // Store in local storage
     localStorage.setItem('user_theme', theme);
     console.log('Saved theme to localStorage');
-    
+
     // Update current theme variable
     currentTheme = theme;
-    
+
     // Update theme selectors if on settings page
     updateThemeSelectors(theme);
-    
+
     // Apply CSS variables (if needed)
     console.log('Theme applied to document body');
 }
@@ -129,13 +129,13 @@ function initThemeSelectors() {
     themeSelectors.forEach(selector => {
         // Get theme value from data attribute
         const theme = selector.getAttribute('data-theme-value');
-        
+
         // Add click event listener
         selector.addEventListener('click', () => {
             setTheme(theme);
             saveThemePreference(theme);
         });
-        
+
         // Mark as selected if current theme
         if (theme === currentTheme) {
             selector.classList.add('selected');
@@ -149,10 +149,10 @@ function initThemeSelectors() {
  */
 function updateThemeSelectors(activeTheme) {
     if (!themeSelectors || themeSelectors.length === 0) return;
-    
+
     themeSelectors.forEach(selector => {
         const theme = selector.getAttribute('data-theme-value');
-        
+
         if (theme === activeTheme) {
             selector.classList.add('selected');
         } else {
