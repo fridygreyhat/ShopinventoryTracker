@@ -3,30 +3,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const importButton = document.getElementById('importButton');
     const importResult = document.getElementById('importResult');
-    
+
     // Bulk Import Handler
     importButton.addEventListener('click', function() {
         const fileInput = document.getElementById('csvFile');
         const file = fileInput.files[0];
-        
+
         if (!file) {
             showImportError('Please select a file');
             return;
         }
-        
+
         if (!file.name.endsWith('.csv')) {
             showImportError('Please select a CSV file');
             return;
         }
-        
+
         const formData = new FormData();
         formData.append('file', file);
-        
+
         importButton.disabled = true;
         importResult.className = 'alert alert-info';
         importResult.textContent = 'Importing...';
         importResult.classList.remove('d-none');
-        
+
         fetch('/api/inventory/bulk-import', {
             method: 'POST',
             body: formData,
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     importResult.appendChild(errorList);
                 }
-                
+
                 // Reset file input and reload inventory
                 fileInput.value = '';
                 loadInventory();
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             importButton.disabled = false;
         });
     });
-    
+
     function showImportError(message) {
         importResult.className = 'alert alert-danger';
         importResult.textContent = message;
@@ -76,37 +76,51 @@ document.addEventListener('DOMContentLoaded', function() {
     const resetFiltersBtn = document.getElementById('resetFilters');
     const inventoryTable = document.getElementById('inventoryTable');
     const noItemsMessage = document.getElementById('noItemsMessage');
-    
+
     // Add Item Form Elements
     const addItemForm = document.getElementById('addItemForm');
     const saveItemBtn = document.getElementById('saveItemBtn');
-    
+
     // Edit Item Form Elements
     const editItemForm = document.getElementById('editItemForm');
     const updateItemBtn = document.getElementById('updateItemBtn');
-    
+
     // Delete Confirmation Elements
     const deleteConfirmModal = document.getElementById('deleteConfirmModal');
     const deleteItemName = document.getElementById('deleteItemName');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    
-    // Load initial data
+
+    // Initialize
     loadInventory();
     loadCategories();
-    
+
+    // Unit type change handler
+    document.getElementById('itemUnitType').addEventListener('change', function() {
+        const quantityInput = document.getElementById('itemQuantity');
+        if (this.value === 'weight') {
+            quantityInput.setAttribute('step', '0.1');
+            quantityInput.setAttribute('min', '0.1');
+            quantityInput.placeholder = 'Enter weight in kg';
+        } else {
+            quantityInput.setAttribute('step', '1');
+            quantityInput.setAttribute('min', '1');
+            quantityInput.placeholder = 'Enter quantity';
+        }
+    });
+
     // Event Listeners
     searchInput.addEventListener('input', applyFilters);
     categoryFilter.addEventListener('change', applyFilters);
     minStockFilter.addEventListener('input', applyFilters);
     maxStockFilter.addEventListener('input', applyFilters);
     resetFiltersBtn.addEventListener('click', resetFilters);
-    
+
     // Add Item Event Listener
     saveItemBtn.addEventListener('click', saveNewItem);
-    
+
     // Update Item Event Listener
     updateItemBtn.addEventListener('click', updateItem);
-    
+
     // Functions
     function loadInventory() {
         fetch('/api/inventory')
@@ -125,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
             });
     }
-    
+
     function loadCategories() {
         // Predefined categories list
         const predefinedCategories = [
@@ -136,47 +150,47 @@ document.addEventListener('DOMContentLoaded', function() {
             'Grocery', 
             'Others'
         ];
-        
+
         fetch('/api/inventory/categories')
             .then(response => response.json())
             .then(categories => {
                 // Combine predefined categories with database categories
                 // and remove duplicates
                 let allCategories = [...predefinedCategories];
-                
+
                 // Add any categories from database that aren't in predefined list
                 categories.forEach(category => {
                     if (!allCategories.includes(category)) {
                         allCategories.push(category);
                     }
                 });
-                
+
                 // Sort alphabetically
                 allCategories.sort();
-                
+
                 // Update categories in filter dropdown
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
-                
+
                 // Also update categories in the add/edit forms
                 const itemCategorySelect = document.getElementById('itemCategory');
                 const editItemCategorySelect = document.getElementById('editItemCategory');
-                
+
                 itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
                 editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-                
+
                 allCategories.forEach(category => {
                     // Add to filter dropdown
                     const option = document.createElement('option');
                     option.value = category;
                     option.textContent = category;
                     categoryFilter.appendChild(option);
-                    
+
                     // Add to new item form
                     const newItemOption = document.createElement('option');
                     newItemOption.value = category;
                     newItemOption.textContent = category;
                     itemCategorySelect.appendChild(newItemOption);
-                    
+
                     // Add to edit item form
                     const editItemOption = document.createElement('option');
                     editItemOption.value = category;
@@ -186,32 +200,32 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading categories:', error);
-                
+
                 // Even if fetch fails, still load predefined categories
                 const itemCategorySelect = document.getElementById('itemCategory');
                 const editItemCategorySelect = document.getElementById('editItemCategory');
-                
+
                 // Sort alphabetically
                 const sortedCategories = [...predefinedCategories].sort();
-                
+
                 // Clear and populate dropdowns with predefined categories
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
                 itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
                 editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-                
+
                 sortedCategories.forEach(category => {
                     // Add to filter dropdown
                     const option = document.createElement('option');
                     option.value = category;
                     option.textContent = category;
                     categoryFilter.appendChild(option);
-                    
+
                     // Add to new item form
                     const newItemOption = document.createElement('option');
                     newItemOption.value = category;
                     newItemOption.textContent = category;
                     itemCategorySelect.appendChild(newItemOption);
-                    
+
                     // Add to edit item form
                     const editItemOption = document.createElement('option');
                     editItemOption.value = category;
@@ -220,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
     }
-    
+
     // Calculate inventory health based on quantity
     function calculateInventoryHealth(quantity) {
         if (quantity <= 0) {
@@ -265,11 +279,11 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
     }
-    
+
     // Generate health indicator HTML
     function generateHealthIndicator(quantity) {
         const health = calculateInventoryHealth(quantity);
-        
+
         return `
             <div class="inventory-health">
                 <div class="health-indicator">
@@ -286,13 +300,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
-    
+
     function displayInventory(items) {
         inventoryTable.innerHTML = '';
-        
+
         items.forEach(item => {
             const row = document.createElement('tr');
-            
+
             // Determine stock status for row styling
             let stockStatusClass = '';
             if (item.quantity <= 0) {
@@ -300,11 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (item.quantity <= 5) {
                 stockStatusClass = 'table-warning';
             }
-            
+
             if (stockStatusClass) {
                 row.classList.add(stockStatusClass);
             }
-            
+
             row.innerHTML = `
                 <td>${item.id}</td>
                 <td>
@@ -336,10 +350,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </td>
             `;
-            
+
             inventoryTable.appendChild(row);
         });
-        
+
         // Add event listeners to the edit and delete buttons
         document.querySelectorAll('.edit-item-btn').forEach(button => {
             button.addEventListener('click', function() {
@@ -347,52 +361,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadItemForEdit(itemId);
             });
         });
-        
+
         document.querySelectorAll('.delete-item-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const itemId = this.dataset.itemId;
                 const itemName = this.dataset.itemName;
-                
+
                 // Set the item name in the confirmation modal
                 deleteItemName.textContent = itemName;
-                
+
                 // Set the item ID to the confirm button
                 confirmDeleteBtn.dataset.itemId = itemId;
-                
+
                 // Show the delete confirmation modal
                 const modal = new bootstrap.Modal(deleteConfirmModal);
                 modal.show();
             });
         });
     }
-    
+
     function applyFilters() {
         const searchTerm = searchInput.value.trim();
         const category = categoryFilter.value;
         const minStock = minStockFilter.value ? parseInt(minStockFilter.value) : '';
         const maxStock = maxStockFilter.value ? parseInt(maxStockFilter.value) : '';
-        
+
         let url = '/api/inventory?';
-        
+
         if (searchTerm) {
             url += `search=${encodeURIComponent(searchTerm)}&`;
         }
-        
+
         if (category) {
             url += `category=${encodeURIComponent(category)}&`;
         }
-        
+
         if (minStock !== '') {
             url += `min_stock=${minStock}&`;
         }
-        
+
         if (maxStock !== '') {
             url += `max_stock=${maxStock}&`;
         }
-        
+
         // Remove trailing ampersand
         url = url.replace(/&$/, '');
-        
+
         fetch(url)
             .then(response => response.json())
             .then(data => {
@@ -409,16 +423,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error applying filters. Please try again.</td></tr>';
             });
     }
-    
+
     function resetFilters() {
         searchInput.value = '';
         categoryFilter.value = '';
         minStockFilter.value = '';
         maxStockFilter.value = '';
-        
+
         loadInventory();
     }
-    
+
     function saveNewItem() {
         // Get form values
         const name = document.getElementById('itemName').value.trim();
@@ -426,46 +440,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('itemDescription').value.trim();
         const category = document.getElementById('itemCategory').value.trim();
         const quantityStr = document.getElementById('itemQuantity').value.trim();
-        
+
         // Get price fields
         const buyingPriceStr = document.getElementById('itemBuyingPrice').value.trim();
         const sellingPriceRetailStr = document.getElementById('itemSellingPriceRetail').value.trim();
         const sellingPriceWholesaleStr = document.getElementById('itemSellingPriceWholesale').value.trim();
-        
+
         // Get sales type
         const salesType = document.querySelector('input[name="salesType"]:checked').value;
-        
+
         // Validate required fields
         if (!name) {
             alert('Item name is required');
             return;
         }
-        
+
         const quantity = parseInt(quantityStr);
         if (isNaN(quantity) || quantity < 0) {
             alert('Quantity must be a non-negative number');
             return;
         }
-        
+
         // Validate price fields
         const buyingPrice = parseFloat(buyingPriceStr) || 0;
         if (buyingPrice < 0) {
             alert('Buying price must be a non-negative number');
             return;
         }
-        
+
         const sellingPriceRetail = parseFloat(sellingPriceRetailStr) || 0;
         if (sellingPriceRetail < 0) {
             alert('Retail price must be a non-negative number');
             return;
         }
-        
+
         const sellingPriceWholesale = parseFloat(sellingPriceWholesaleStr) || 0;
         if (sellingPriceWholesale < 0) {
             alert('Wholesale price must be a non-negative number');
             return;
         }
-        
+
         // Create item object
         const newItem = {
             name,
@@ -479,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
             price: sellingPriceRetail, // For backward compatibility
             sales_type: salesType
         };
-        
+
         // Send POST request to API
         fetch('/api/inventory', {
             method: 'POST',
@@ -497,14 +511,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             // Reset form
             addItemForm.reset();
-            
+
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
             modal.hide();
-            
+
             // Reload inventory
             loadInventory();
-            
+
             // Reload categories (in case a new category was added)
             loadCategories();
         })
@@ -513,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to add item: ' + error.message);
         });
     }
-    
+
     function loadItemForEdit(itemId) {
         fetch(`/api/inventory/${itemId}`)
             .then(response => {
@@ -530,16 +544,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('editItemDescription').value = item.description || '';
                 document.getElementById('editItemCategory').value = item.category || '';
                 document.getElementById('editItemQuantity').value = item.quantity || 0;
-                
+
                 // Price fields
                 document.getElementById('editItemBuyingPrice').value = item.buying_price || 0;
                 document.getElementById('editItemSellingPriceRetail').value = item.selling_price_retail || 0;
                 document.getElementById('editItemSellingPriceWholesale').value = item.selling_price_wholesale || 0;
-                
+
                 // Sales type
                 const salesType = item.sales_type || 'both';
                 document.getElementById(`editSalesType${salesType.charAt(0).toUpperCase() + salesType.slice(1)}`).checked = true;
-                
+
                 // Show the edit modal
                 const editModal = new bootstrap.Modal(document.getElementById('editItemModal'));
                 editModal.show();
@@ -549,56 +563,56 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Failed to load item details: ' + error.message);
             });
     }
-    
+
     function updateItem() {
         const itemId = document.getElementById('editItemId').value;
-        
+
         // Get form values
         const name = document.getElementById('editItemName').value.trim();
         const sku = document.getElementById('editItemSKU').value.trim();
         const description = document.getElementById('editItemDescription').value.trim();
         const category = document.getElementById('editItemCategory').value.trim();
         const quantityStr = document.getElementById('editItemQuantity').value.trim();
-        
+
         // Get price fields
         const buyingPriceStr = document.getElementById('editItemBuyingPrice').value.trim();
         const sellingPriceRetailStr = document.getElementById('editItemSellingPriceRetail').value.trim();
         const sellingPriceWholesaleStr = document.getElementById('editItemSellingPriceWholesale').value.trim();
-        
+
         // Get sales type
         const salesType = document.querySelector('input[name="editSalesType"]:checked').value;
-        
+
         // Validate required fields
         if (!name) {
             alert('Item name is required');
             return;
         }
-        
+
         const quantity = parseInt(quantityStr);
         if (isNaN(quantity) || quantity < 0) {
             alert('Quantity must be a non-negative number');
             return;
         }
-        
+
         // Validate price fields
         const buyingPrice = parseFloat(buyingPriceStr) || 0;
         if (buyingPrice < 0) {
             alert('Buying price must be a non-negative number');
             return;
         }
-        
+
         const sellingPriceRetail = parseFloat(sellingPriceRetailStr) || 0;
         if (sellingPriceRetail < 0) {
             alert('Retail price must be a non-negative number');
             return;
         }
-        
+
         const sellingPriceWholesale = parseFloat(sellingPriceWholesaleStr) || 0;
         if (sellingPriceWholesale < 0) {
             alert('Wholesale price must be a non-negative number');
             return;
         }
-        
+
         // Create updated item object
         const updatedItem = {
             name,
@@ -612,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
             price: sellingPriceRetail, // For backward compatibility
             sales_type: salesType
         };
-        
+
         // Send PUT request to API
         fetch(`/api/inventory/${itemId}`, {
             method: 'PUT',
@@ -631,10 +645,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('editItemModal'));
             modal.hide();
-            
+
             // Reload inventory
             loadInventory();
-            
+
             // Reload categories (in case a new category was added)
             loadCategories();
         })
@@ -643,11 +657,11 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to update item: ' + error.message);
         });
     }
-    
+
     // Set up delete confirmation
     confirmDeleteBtn.addEventListener('click', function() {
         const itemId = this.dataset.itemId;
-        
+
         fetch(`/api/inventory/${itemId}`, {
             method: 'DELETE'
         })
@@ -661,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Close the modal
             const modal = bootstrap.Modal.getInstance(deleteConfirmModal);
             modal.hide();
-            
+
             // Reload inventory
             loadInventory();
         })
