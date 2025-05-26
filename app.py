@@ -113,6 +113,30 @@ with app.app_context():
         else:
             logger.error(f"Unexpected database error during migration: {str(e)}")
     
+    # Add migration for subcategory column in item table if it doesn't exist
+    try:
+        # Check if item table exists first
+        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
+        if result.fetchone():
+            # Check if subcategory column exists by trying to query it
+            db.session.execute(db.text("SELECT subcategory FROM item LIMIT 1"))
+            logger.info("subcategory column already exists")
+        else:
+            logger.info("Item table doesn't exist yet, will be created by db.create_all()")
+    except Exception as e:
+        if "no such column: item.subcategory" in str(e):
+            logger.info("Adding subcategory column to item table")
+            try:
+                # Add the subcategory column
+                db.session.execute(db.text("ALTER TABLE item ADD COLUMN subcategory VARCHAR(100)"))
+                db.session.commit()
+                logger.info("Successfully added subcategory column")
+            except Exception as migration_error:
+                logger.error(f"Error adding subcategory column: {str(migration_error)}")
+                db.session.rollback()
+        else:
+            logger.error(f"Unexpected database error during item migration: {str(e)}")
+    
     # Add migration for subcategory column if it doesn't exist
     try:
         # Check if item table exists first
