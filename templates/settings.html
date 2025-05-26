@@ -91,96 +91,188 @@
                         <form id="appearanceSettingsForm">
                             <div class="mb-4">
                                 <label class="settings-label">Theme Selection</label>
-                                <p class="settings-description">Choose a theme that suits your style and enhances readability.</p>
+                                <p class="settings-description">Choose a theme that suits your style and enhances readability. Click on any theme to preview it instantly.</p>
 
-                                <div class="theme-grid">
-                                    <div class="theme-card" data-theme="tanzanite">
-                                        <div class="theme-preview theme-tanzanite" data-theme-value="tanzanite">
-                                            <div class="preview-content">
-                                                <div class="preview-header"></div>
-                                                <div class="preview-body">
-                                                    <div class="preview-line"></div>
-                                                    <div class="preview-line"></div>
+                                <div class="theme-selection-container">
+                                    <div class="theme-grid">
+                                        <div class="theme-card" data-theme="tanzanite" 
+                                             tabindex="0" role="button" 
+                                             aria-label="Select Tanzanite theme - Professional blue inspired by Tanzanian gemstone"
+                                             data-description="Professional blue tones inspired by the Tanzanian gemstone. Perfect for business and professional use.">
+                                            <div class="theme-preview theme-tanzanite" data-theme-value="tanzanite">
+                                                <div class="preview-content">
+                                                    <div class="preview-header"></div>
+                                                    <div class="preview-body">
+                                                        <div class="preview-line"></div>
+                                                        <div class="preview-line"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="preview-label">Tanzanite</div>
+                                                <div class="theme-checkmark">
+                                                    <i class="fas fa-check"></i>
                                                 </div>
                                             </div>
-                                            <div class="preview-label">Tanzanite</div>
+                                            <div class="theme-radio">
+                                                <input type="radio" name="theme" id="theme_tanzanite" value="tanzanite" 
+                                                    {% if session.get('user_theme') == 'tanzanite' or not session.get('user_theme') %}checked{% endif %}>
+                                                <label for="theme_tanzanite">Tanzanite</label>
+                                            </div>
+                                            <div class="theme-description">
+                                                <i class="fas fa-gem me-1"></i> Professional blue tones for business use
+                                            </div>
                                         </div>
-                                        <div class="theme-radio">
-                                            <input type="radio" name="theme" id="theme_tanzanite" value="tanzanite" 
-                                                {% if session.get('user_theme') == 'tanzanite' or not session.get('user_theme') %}checked{% endif %}>
-                                            <label for="theme_tanzanite">Tanzanite</label>
+
+                                        <div class="theme-card" data-theme="forest" 
+                                             tabindex="0" role="button" 
+                                             aria-label="Select Forest theme - Calming green tones for long reading sessions"
+                                             data-description="Calming green tones inspired by nature. Great for reducing eye strain during long work sessions.">
+                                            <div class="theme-preview theme-forest" data-theme-value="forest">
+                                                <div class="preview-content">
+                                                    <div class="preview-header"></div>
+                                                    <div class="preview-body">
+                                                        <div class="preview-line"></div>
+                                                        <div class="preview-line"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="preview-label">Forest</div>
+                                                <div class="theme-checkmark">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                            </div>
+                                            <div class="theme-radio">
+                                                <input type="radio" name="theme" id="theme_forest" value="forest" 
+                                                    {% if session.get('user_theme') == 'forest' %}checked{% endif %}>
+                                                <label for="theme_forest">Forest</label>
+                                            </div>
+                                            <div class="theme-description">
+                                                <i class="fas fa-leaf me-1"></i> Calming green tones for long sessions
+                                            </div>
+                                        </div>
+
+                                        <div class="theme-card" data-theme="ocean" 
+                                             tabindex="0" role="button" 
+                                             aria-label="Select Ocean theme - Cool blue tones inspired by the ocean"
+                                             data-description="Cool blue tones inspired by ocean depths. Refreshing and clean appearance.">
+                                            <div class="theme-preview theme-ocean" data-theme-value="ocean">
+                                                <div class="preview-content">
+                                                    <div class="preview-header"></div>
+                                                    <div class="preview-body">
+                                                        <div class="preview-line"></div>
+                                                        <div class="preview-line"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="preview-label">Ocean</div>
+                                                <div class="theme-checkmark">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                            </div>
+                                            <div class="theme-radio">
+                                                <input type="radio" name="theme" id="theme_ocean" value="ocean" 
+                                                    {% if session.get('user_theme') == 'ocean' %}checked{% endif %}>
+                                                <label for="theme_ocean">Ocean</label>
+                                            </div>
+                                            <div class="theme-description">
+                                                <i class="fas fa-water me-1"></i> Cool blue tones for a refreshing feel
+                                            </div>
+                                        </div>
+
+                                        <div class="theme-card" data-theme="sunset" 
+                                             tabindex="0" role="button" 
+                                             aria-label="Select Sunset theme - Warm orange and yellow hues for a cozy experience"
+                                             data-description="Warm orange and yellow hues inspired by sunset. Creates a cozy and welcoming atmosphere.">
+                                            <div class="theme-preview theme-sunset" data-theme-value="sunset">
+                                                <div class="preview-content">
+                                                    <div class="preview-header"></div>
+                                                    <div class="preview-body">
+                                                        <div class="preview-line"></div>
+                                                        <div class="preview-line"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="preview-label">Sunset</div>
+                                                <div class="theme-checkmark">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                            </div>
+                                            <div class="theme-radio">
+                                                <input type="radio" name="theme" id="theme_sunset" value="sunset" 
+                                                    {% if session.get('user_theme') == 'sunset' %}checked{% endif %}>
+                                                <label for="theme_sunset">Sunset</label>
+                                            </div>
+                                            <div class="theme-description">
+                                                <i class="fas fa-sun me-1"></i> Warm hues for a cozy experience
+                                            </div>
+                                        </div>
+
+                                        <div class="theme-card" data-theme="dark" 
+                                             tabindex="0" role="button" 
+                                             aria-label="Select Dark theme - Dark mode for comfortable night viewing"
+                                             data-description="Dark theme optimized for low-light environments. Reduces eye strain during night work.">
+                                            <div class="theme-preview theme-dark" data-theme-value="dark">
+                                                <div class="preview-content">
+                                                    <div class="preview-header"></div>
+                                                    <div class="preview-body">
+                                                        <div class="preview-line"></div>
+                                                        <div class="preview-line"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="preview-label">Dark</div>
+                                                <div class="theme-checkmark">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                            </div>
+                                            <div class="theme-radio">
+                                                <input type="radio" name="theme" id="theme_dark" value="dark" 
+                                                    {% if session.get('user_theme') == 'dark' %}checked{% endif %}>
+                                                <label for="theme_dark">Dark</label>
+                                            </div>
+                                            <div class="theme-description">
+                                                <i class="fas fa-moon me-1"></i> Dark mode for comfortable night viewing
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="theme-card" data-theme="forest">
-                                        <div class="theme-preview theme-forest" data-theme-value="forest">
-                                            <div class="preview-content">
-                                                <div class="preview-header"></div>
-                                                <div class="preview-body">
-                                                    <div class="preview-line"></div>
-                                                    <div class="preview-line"></div>
+                                    <!-- Live Preview Section -->
+                                    <div class="live-preview-section">
+                                        <h6 class="live-preview-title">
+                                            <i class="fas fa-eye me-2"></i>Live Preview
+                                        </h6>
+                                        <div class="live-preview-container" id="livePreview">
+                                            <div class="preview-header-section">
+                                                <div class="preview-logo">
+                                                    <i class="fas fa-boxes"></i>
+                                                    <span>Inventory</span>
+                                                </div>
+                                                <div class="preview-nav">
+                                                    <span class="preview-nav-item active">Dashboard</span>
+                                                    <span class="preview-nav-item">Inventory</span>
+                                                    <span class="preview-nav-item">Reports</span>
                                                 </div>
                                             </div>
-                                            <div class="preview-label">Forest</div>
-                                        </div>
-                                        <div class="theme-radio">
-                                            <input type="radio" name="theme" id="theme_forest" value="forest" 
-                                                {% if session.get('user_theme') == 'forest' %}checked{% endif %}>
-                                            <label for="theme_forest">Forest</label>
-                                        </div>
-                                    </div>
-
-                                    <div class="theme-card" data-theme="ocean">
-                                        <div class="theme-preview theme-ocean" data-theme-value="ocean">
-                                            <div class="preview-content">
-                                                <div class="preview-header"></div>
-                                                <div class="preview-body">
-                                                    <div class="preview-line"></div>
-                                                    <div class="preview-line"></div>
+                                            <div class="preview-sidebar">
+                                                <div class="preview-menu-item active">
+                                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                                </div>
+                                                <div class="preview-menu-item">
+                                                    <i class="fas fa-box"></i> Items
+                                                </div>
+                                                <div class="preview-menu-item">
+                                                    <i class="fas fa-chart-bar"></i> Reports
                                                 </div>
                                             </div>
-                                            <div class="preview-label">Ocean</div>
-                                        </div>
-                                        <div class="theme-radio">
-                                            <input type="radio" name="theme" id="theme_ocean" value="ocean" 
-                                                {% if session.get('user_theme') == 'ocean' %}checked{% endif %}>
-                                            <label for="theme_ocean">Ocean</label>
-                                        </div>
-                                    </div>
-
-                                    <div class="theme-card" data-theme="sunset">
-                                        <div class="theme-preview theme-sunset" data-theme-value="sunset">
-                                            <div class="preview-content">
-                                                <div class="preview-header"></div>
-                                                <div class="preview-body">
-                                                    <div class="preview-line"></div>
-                                                    <div class="preview-line"></div>
+                                            <div class="preview-content-area">
+                                                <div class="preview-card">
+                                                    <div class="preview-card-header">Total Items</div>
+                                                    <div class="preview-card-value">1,234</div>
+                                                </div>
+                                                <div class="preview-card">
+                                                    <div class="preview-card-header">Low Stock</div>
+                                                    <div class="preview-card-value warning">23</div>
+                                                </div>
+                                                <div class="preview-button-group">
+                                                    <button class="preview-btn primary">Add Item</button>
+                                                    <button class="preview-btn secondary">Export</button>
                                                 </div>
                                             </div>
-                                            <div class="preview-label">Sunset</div>
-                                        </div>
-                                        <div class="theme-radio">
-                                            <input type="radio" name="theme" id="theme_sunset" value="sunset" 
-                                                {% if session.get('user_theme') == 'sunset' %}checked{% endif %}>
-                                            <label for="theme_sunset">Sunset</label>
-                                        </div>
-                                    </div>
-
-                                    <div class="theme-card" data-theme="dark">
-                                        <div class="theme-preview theme-dark" data-theme-value="dark">
-                                            <div class="preview-content">
-                                                <div class="preview-header"></div>
-                                                <div class="preview-body">
-                                                    <div class="preview-line"></div>
-                                                    <div class="preview-line"></div>
-                                                </div>
-                                            </div>
-                                            <div class="preview-label">Dark</div>
-                                        </div>
-                                        <div class="theme-radio">
-                                            <input type="radio" name="theme" id="theme_dark" value="dark" 
-                                                {% if session.get('user_theme') == 'dark' %}checked{% endif %}>
-                                            <label for="theme_dark">Dark</label>
                                         </div>
                                     </div>
                                 </div>

@@ -2,7 +2,7 @@ import os
 import logging
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -65,7 +65,15 @@ def inject_current_user():
     """Inject current user into all templates"""
     def get_current_user():
         if 'user_id' in session:
-            return User.query.get(session['user_id'])
+            try:
+                user = User.query.get(session['user_id'])
+                return user
+            except Exception as e:
+                # Handle database schema issues gracefully
+                logger.warning(f"Error getting current user: {str(e)}")
+                # Clear the invalid session
+                session.clear()
+                return None
         return None
     return dict(get_current_user=get_current_user)
 
@@ -77,7 +85,60 @@ with app.app_context():
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production 
     # db.drop_all()  # Commented out to prevent data loss
+    
+    # First, create all tables
     db.create_all()
+    
+    # Then, handle migrations for existing databases
+    # Helper function to check if column exists
+    def column_exists(table_name, column_name):
+        try:
+            result = db.session.execute(db.text(f"PRAGMA table_info({table_name})"))
+            columns = [row[1] for row in result.fetchall()]
+            return column_name in columns
+        except Exception:
+            return False
+    
+    # Helper function to add column safely
+    def add_column_safely(table_name, column_name, column_definition, default_value=None):
+        try:
+            if not column_exists(table_name, column_name):
+                logger.info(f"Adding {column_name} column to {table_name} table")
+                db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"))
+                
+                if default_value:
+                    db.session.execute(db.text(f"UPDATE {table_name} SET {column_name} = {default_value}"))
+                
+                db.session.commit()
+                logger.info(f"Successfully added {column_name} column to {table_name}")
+                return True
+            else:
+                logger.info(f"{column_name} column already exists in {table_name}")
+                return False
+        except Exception as e:
+            logger.error(f"Error adding {column_name} column to {table_name}: {str(e)}")
+            db.session.rollback()
+            return False
+    
+    # Check if tables exist and add missing columns
+    try:
+        # Check if user table exists
+        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';"))
+        if result.fetchone():
+            # Add is_active column if missing
+            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
+        
+        # Check if item table exists
+        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
+        if result.fetchone():
+            # Add missing item columns
+            add_column_safely('item', 'subcategory', 'VARCHAR(100)')
+            add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+            add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+    
+    except Exception as e:
+        logger.error(f"Error during database migration: {str(e)}")
+        db.session.rollback()
 
 @app.route('/')
 @login_required
@@ -1217,6 +1278,9 @@ def get_transaction_categories():
 def get_top_selling_items():
     """API endpoint to get top selling items"""
     try:
+        from sqlalchemy import func
+        from models import Item, Sale, SaleItem
+        
         # Get sales data from last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -1253,6 +1317,8 @@ def get_top_selling_items():
 def get_slow_moving_items():
     """API endpoint to get slow moving items"""
     try:
+        from models import Item, Sale, SaleItem
+        
         # Get items with no sales in last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -1839,6 +1905,31 @@ def delete_user(user_id):
         db.session.rollback()
         logger.error(f"Error deleting user: {str(e)}")
         return jsonify({"error": "Failed to delete user"}), 500
+
+@app.route('/api/shop/details', methods=['GET'])
+@login_required
+def get_shop_details():
+    """API endpoint to get shop details for the current user"""
+    try:
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        user = User.query.get_or_404(user_id)
+        
+        # Get shop name from user profile, fallback to username
+        shop_name = user.shop_name or f"{user.username}'s Shop"
+        
+        return jsonify({
+            'shop_name': shop_name,
+            'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+            'product_categories': user.product_categories or ""
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({"error": "Failed to get shop details"}), 500
 
 @app.route('/api/auth/users/stats', methods=['GET'])
 @login_required

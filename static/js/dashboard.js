@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize translations
     const savedLanguage = localStorage.getItem('preferred_language') || 'en';
     updatePageLanguage(savedLanguage);
-    
+
     // DOM Elements
     const totalItemsElement = document.getElementById('total-items');
     const totalStockElement = document.getElementById('total-stock');
@@ -890,21 +890,55 @@ function loadDashboardData() {
 
     // Initialize
     loadShopDetails();
-    updateCartDisplay();
+    loadDashboardData();
 
     function loadShopDetails() {
         // Fetch shop details from the API
         fetch('/api/shop/details')
             .then(response => response.json())
             .then(data => {
-                // Update the shop name in the dashboard
+                if (data.success){
+                const user = data.user;
+
+                // Update DOM elements
                 const shopNameElement = document.getElementById('shop-name');
                 if (shopNameElement) {
-shopNameElement.textContent = data.shop_name;
+                    shopNameElement.textContent = user.shop_name || 'Your Shop';
                 }
             })
             .catch(error => {
                 console.error('Error loading shop details:', error);
+                // Fallback to a default name
+                const shopNameElement = document.getElementById('shop-name');
+                if (shopNameElement) {
+                    shopNameElement.textContent = "Your Shop";
+                }
+            });
+    }
+
+    function loadDashboardData() {
+        // Load stock status report
+        fetch('/api/reports/stock-status')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update summary cards
+                document.getElementById('total-items').textContent = data.total_items || 0;
+                document.getElementById('total-stock').textContent = data.total_stock || 0;
+                document.getElementById('low-stock-count').textContent = data.low_stock_items_count || 0;
+
+                // Update inventory value if element exists
+                const inventoryValueElement = document.getElementById('inventory-value');
+                if (inventoryValueElement) {
+                    inventoryValueElement.textContent = `<span class="currency-symbol">TZS</span> ${(data.total_inventory_value || 0).toLocaleString()}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading stock status report:', error);
             });
     }
 });
