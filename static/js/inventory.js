@@ -210,6 +210,33 @@ document.addEventListener('DOMContentLoaded', function() {
                             editItemOption.textContent = category;
                             editItemCategorySelect.appendChild(editItemOption);
                         });
+
+                        // Also add subcategories from the Categories API
+                        if (categoriesData && categoriesData.length > 0) {
+                            categoriesData.forEach(category => {
+                                if (category.subcategories && category.subcategories.length > 0) {
+                                    category.subcategories.forEach(subcategory => {
+                                        // Add subcategory to filter dropdown
+                                        const subOption = document.createElement('option');
+                                        subOption.value = subcategory.name;
+                                        subOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        categoryFilter.appendChild(subOption);
+
+                                        // Add subcategory to new item form
+                                        const newSubOption = document.createElement('option');
+                                        newSubOption.value = subcategory.name;
+                                        newSubOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        itemCategorySelect.appendChild(newSubOption);
+
+                                        // Add subcategory to edit item form
+                                        const editSubOption = document.createElement('option');
+                                        editSubOption.value = subcategory.name;
+                                        editSubOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        editItemCategorySelect.appendChild(editSubOption);
+                                    });
+                                }
+                            });
+                        }
                     });
             })
             .catch(error => {
