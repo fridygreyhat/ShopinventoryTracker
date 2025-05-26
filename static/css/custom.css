@@ -184,6 +184,55 @@ footer {
     box-shadow: 0 8px 20px var(--card-shadow);
     overflow: hidden;
     background-color: var(--card-bg);
+    word-wrap: break-word;
+}
+
+.card-title, .card-text {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Ensure all containers handle text overflow properly */
+.container, .container-fluid {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Table cell text fitting */
+.table td, .table th {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 200px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Badge and label text fitting */
+.badge, .label {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* Modal content text fitting */
+.modal-body, .modal-header, .modal-footer {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Input group text fitting */
+.input-group-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Buttons */
@@ -295,6 +344,63 @@ footer {
     top: 0;
     z-index: 1000;
 }
+
+/* Text overflow and fitting fixes */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.text-wrap {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Ensure buttons and form elements have proper text fitting */
+.btn, .form-control, .form-select {
+    word-wrap: break-word;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    text-overflow: ellipsis;
+}
+
+/* Language selector and dropdown fixes */
+.dropdown-toggle, .dropdown-item {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    min-width: max-content;
+    max-width: 200px;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Responsive text sizing */
+@media (max-width: 576px) {
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .dropdown-toggle {
+        font-size: 0.875rem;
+        max-width: 120px;
+    }
+}</media>
 
 .navbar::before {
     content: '';
