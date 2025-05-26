@@ -127,9 +127,9 @@ class User(db.Model):
         """Convert user to dictionary for API responses"""
         # Handle missing is_active column gracefully
         try:
-            is_active_value = self.is_active
-        except AttributeError:
-            is_active_value = self.active
+            is_active_value = getattr(self, 'is_active', self.active)
+        except (AttributeError, Exception):
+            is_active_value = getattr(self, 'active', True)
         
         return {
             'id': self.id,
@@ -140,7 +140,7 @@ class User(db.Model):
             'last_name': self.last_name,
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
-            'active': self.active,
+            'active': getattr(self, 'active', True),
             'is_active': is_active_value,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,

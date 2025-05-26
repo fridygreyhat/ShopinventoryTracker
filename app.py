@@ -66,10 +66,13 @@ def inject_current_user():
     def get_current_user():
         if 'user_id' in session:
             try:
-                return User.query.get(session['user_id'])
+                user = User.query.get(session['user_id'])
+                return user
             except Exception as e:
                 # Handle database schema issues gracefully
                 logger.warning(f"Error getting current user: {str(e)}")
+                # Clear the invalid session
+                session.clear()
                 return None
         return None
     return dict(get_current_user=get_current_user)
@@ -87,110 +90,55 @@ with app.app_context():
     db.create_all()
     
     # Then, handle migrations for existing databases
-    # Add migration for is_active column if it doesn't exist
+    # Helper function to check if column exists
+    def column_exists(table_name, column_name):
+        try:
+            result = db.session.execute(db.text(f"PRAGMA table_info({table_name})"))
+            columns = [row[1] for row in result.fetchall()]
+            return column_name in columns
+        except Exception:
+            return False
+    
+    # Helper function to add column safely
+    def add_column_safely(table_name, column_name, column_definition, default_value=None):
+        try:
+            if not column_exists(table_name, column_name):
+                logger.info(f"Adding {column_name} column to {table_name} table")
+                db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"))
+                
+                if default_value:
+                    db.session.execute(db.text(f"UPDATE {table_name} SET {column_name} = {default_value}"))
+                
+                db.session.commit()
+                logger.info(f"Successfully added {column_name} column to {table_name}")
+                return True
+            else:
+                logger.info(f"{column_name} column already exists in {table_name}")
+                return False
+        except Exception as e:
+            logger.error(f"Error adding {column_name} column to {table_name}: {str(e)}")
+            db.session.rollback()
+            return False
+    
+    # Check if tables exist and add missing columns
     try:
-        # Check if user table exists first
+        # Check if user table exists
         result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';"))
         if result.fetchone():
-            # Check if is_active column exists by trying to query it
-            db.session.execute(db.text("SELECT is_active FROM user LIMIT 1"))
-            logger.info("is_active column already exists")
-        else:
-            logger.info("User table doesn't exist yet, will be created by db.create_all()")
-    except Exception as e:
-        if "no such column: user.is_active" in str(e):
-            logger.info("Adding is_active column to user table")
-            try:
-                # Add the is_active column with default value True
-                db.session.execute(db.text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-                # Update existing records to have is_active = active  
-                db.session.execute(db.text("UPDATE user SET is_active = active WHERE active IS NOT NULL"))
-                db.session.commit()
-                logger.info("Successfully added is_active column")
-            except Exception as migration_error:
-                logger.error(f"Error adding is_active column: {str(migration_error)}")
-                db.session.rollback()
-        else:
-            logger.error(f"Unexpected database error during migration: {str(e)}")
-    
-    # Add migration for subcategory column in item table if it doesn't exist
-    try:
-        # Check if item table exists first
+            # Add is_active column if missing
+            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
+        
+        # Check if item table exists
         result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
         if result.fetchone():
-            # Check if subcategory column exists by trying to query it
-            db.session.execute(db.text("SELECT subcategory FROM item LIMIT 1"))
-            logger.info("subcategory column already exists")
-        else:
-            logger.info("Item table doesn't exist yet, will be created by db.create_all()")
-    except Exception as e:
-        if "no such column: item.subcategory" in str(e):
-            logger.info("Adding subcategory column to item table")
-            try:
-                # Add the subcategory column
-                db.session.execute(db.text("ALTER TABLE item ADD COLUMN subcategory VARCHAR(100)"))
-                db.session.commit()
-                logger.info("Successfully added subcategory column")
-            except Exception as migration_error:
-                logger.error(f"Error adding subcategory column: {str(migration_error)}")
-                db.session.rollback()
-        else:
-            logger.error(f"Unexpected database error during item migration: {str(e)}")
+            # Add missing item columns
+            add_column_safely('item', 'subcategory', 'VARCHAR(100)')
+            add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+            add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
     
-    # Add migration for subcategory column if it doesn't exist
-    try:
-        # Check if item table exists first
-        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
-        if result.fetchone():
-            # Check if subcategory column exists by trying to query it
-            db.session.execute(db.text("SELECT subcategory FROM item LIMIT 1"))
-            logger.info("subcategory column already exists")
-        else:
-            logger.info("Item table doesn't exist yet, will be created by db.create_all()")
     except Exception as e:
-        if "no such column: item.subcategory" in str(e):
-            logger.info("Adding subcategory column to item table")
-            try:
-                # Add the subcategory column
-                db.session.execute(db.text("ALTER TABLE item ADD COLUMN subcategory VARCHAR(50)"))
-                db.session.commit()
-                logger.info("Successfully added subcategory column")
-            except Exception as migration_error:
-                logger.error(f"Error adding subcategory column: {str(migration_error)}")
-                db.session.rollback()
-        else:
-            logger.error(f"Unexpected database error during subcategory migration: {str(e)}")
-    
-    # Add missing columns for unit_type and sell_by if they don't exist
-    try:
-        # Check for unit_type column
-        db.session.execute(db.text("SELECT unit_type FROM item LIMIT 1"))
-        logger.info("unit_type column already exists")
-    except Exception as e:
-        if "no such column: item.unit_type" in str(e):
-            logger.info("Adding unit_type column to item table")
-            try:
-                db.session.execute(db.text("ALTER TABLE item ADD COLUMN unit_type VARCHAR(20) DEFAULT 'quantity'"))
-                db.session.commit()
-                logger.info("Successfully added unit_type column")
-            except Exception as migration_error:
-                logger.error(f"Error adding unit_type column: {str(migration_error)}")
-                db.session.rollback()
-    
-    try:
-        # Check for sell_by column
-        db.session.execute(db.text("SELECT sell_by FROM item LIMIT 1"))
-        logger.info("sell_by column already exists")
-    except Exception as e:
-        if "no such column: item.sell_by" in str(e):
-            logger.info("Adding sell_by column to item table")
-            try:
-                db.session.execute(db.text("ALTER TABLE item ADD COLUMN sell_by VARCHAR(20) DEFAULT 'quantity'"))
-                db.session.commit()
-                logger.info("Successfully added sell_by column")
-            except Exception as migration_error:
-                logger.error(f"Error adding sell_by column: {str(migration_error)}")
-                db.session.rollback()
+        logger.error(f"Error during database migration: {str(e)}")
+        db.session.rollback()
 
 @app.route('/')
 @login_required
