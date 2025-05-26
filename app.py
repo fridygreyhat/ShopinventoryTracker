@@ -2,7 +2,7 @@ import os
 import logging
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -112,6 +112,61 @@ with app.app_context():
                 db.session.rollback()
         else:
             logger.error(f"Unexpected database error during migration: {str(e)}")
+    
+    # Add migration for subcategory column if it doesn't exist
+    try:
+        # Check if item table exists first
+        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
+        if result.fetchone():
+            # Check if subcategory column exists by trying to query it
+            db.session.execute(db.text("SELECT subcategory FROM item LIMIT 1"))
+            logger.info("subcategory column already exists")
+        else:
+            logger.info("Item table doesn't exist yet, will be created by db.create_all()")
+    except Exception as e:
+        if "no such column: item.subcategory" in str(e):
+            logger.info("Adding subcategory column to item table")
+            try:
+                # Add the subcategory column
+                db.session.execute(db.text("ALTER TABLE item ADD COLUMN subcategory VARCHAR(50)"))
+                db.session.commit()
+                logger.info("Successfully added subcategory column")
+            except Exception as migration_error:
+                logger.error(f"Error adding subcategory column: {str(migration_error)}")
+                db.session.rollback()
+        else:
+            logger.error(f"Unexpected database error during subcategory migration: {str(e)}")
+    
+    # Add missing columns for unit_type and sell_by if they don't exist
+    try:
+        # Check for unit_type column
+        db.session.execute(db.text("SELECT unit_type FROM item LIMIT 1"))
+        logger.info("unit_type column already exists")
+    except Exception as e:
+        if "no such column: item.unit_type" in str(e):
+            logger.info("Adding unit_type column to item table")
+            try:
+                db.session.execute(db.text("ALTER TABLE item ADD COLUMN unit_type VARCHAR(20) DEFAULT 'quantity'"))
+                db.session.commit()
+                logger.info("Successfully added unit_type column")
+            except Exception as migration_error:
+                logger.error(f"Error adding unit_type column: {str(migration_error)}")
+                db.session.rollback()
+    
+    try:
+        # Check for sell_by column
+        db.session.execute(db.text("SELECT sell_by FROM item LIMIT 1"))
+        logger.info("sell_by column already exists")
+    except Exception as e:
+        if "no such column: item.sell_by" in str(e):
+            logger.info("Adding sell_by column to item table")
+            try:
+                db.session.execute(db.text("ALTER TABLE item ADD COLUMN sell_by VARCHAR(20) DEFAULT 'quantity'"))
+                db.session.commit()
+                logger.info("Successfully added sell_by column")
+            except Exception as migration_error:
+                logger.error(f"Error adding sell_by column: {str(migration_error)}")
+                db.session.rollback()
 
 @app.route('/')
 @login_required
@@ -1251,6 +1306,9 @@ def get_transaction_categories():
 def get_top_selling_items():
     """API endpoint to get top selling items"""
     try:
+        from sqlalchemy import func
+        from models import Item, Sale, SaleItem
+        
         # Get sales data from last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -1287,6 +1345,8 @@ def get_top_selling_items():
 def get_slow_moving_items():
     """API endpoint to get slow moving items"""
     try:
+        from models import Item, Sale, SaleItem
+        
         # Get items with no sales in last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -1873,6 +1933,31 @@ def delete_user(user_id):
         db.session.rollback()
         logger.error(f"Error deleting user: {str(e)}")
         return jsonify({"error": "Failed to delete user"}), 500
+
+@app.route('/api/shop/details', methods=['GET'])
+@login_required
+def get_shop_details():
+    """API endpoint to get shop details for the current user"""
+    try:
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        user = User.query.get_or_404(user_id)
+        
+        # Get shop name from user profile, fallback to username
+        shop_name = user.shop_name or f"{user.username}'s Shop"
+        
+        return jsonify({
+            'shop_name': shop_name,
+            'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+            'product_categories': user.product_categories or ""
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({"error": "Failed to get shop details"}), 500
 
 @app.route('/api/auth/users/stats', methods=['GET'])
 @login_required

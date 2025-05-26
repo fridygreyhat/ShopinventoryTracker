@@ -890,21 +890,57 @@ function loadDashboardData() {
 
     // Initialize
     loadShopDetails();
-    updateCartDisplay();
+    loadDashboardData();
 
     function loadShopDetails() {
         // Fetch shop details from the API
         fetch('/api/shop/details')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 // Update the shop name in the dashboard
                 const shopNameElement = document.getElementById('shop-name');
                 if (shopNameElement) {
-shopNameElement.textContent = data.shop_name;
+                    shopNameElement.textContent = data.shop_name || "Your Shop";
                 }
             })
             .catch(error => {
                 console.error('Error loading shop details:', error);
+                // Fallback to a default name
+                const shopNameElement = document.getElementById('shop-name');
+                if (shopNameElement) {
+                    shopNameElement.textContent = "Your Shop";
+                }
+            });
+    }
+
+    function loadDashboardData() {
+        // Load stock status report
+        fetch('/api/reports/stock-status')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update summary cards
+                document.getElementById('total-items').textContent = data.total_items || 0;
+                document.getElementById('total-stock').textContent = data.total_stock || 0;
+                document.getElementById('low-stock-count').textContent = data.low_stock_items_count || 0;
+                
+                // Update inventory value if element exists
+                const inventoryValueElement = document.getElementById('inventory-value');
+                if (inventoryValueElement) {
+                    inventoryValueElement.textContent = `$${(data.total_inventory_value || 0).toFixed(2)}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading stock status report:', error);
             });
     }
 });
