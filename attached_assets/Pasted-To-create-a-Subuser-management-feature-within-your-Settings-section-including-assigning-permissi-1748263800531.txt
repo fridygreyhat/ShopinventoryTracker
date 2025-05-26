@@ -1,0 +1,104 @@
+To create a “Subuser” management feature within your Settings section — including assigning permissions — here’s a full plan including UI layout, data structure, and backend logic.
+
+✅ Goal: Subuser Management in Settings
+💡 Features:
+Create subusers (e.g., employees, assistants)
+
+Assign login credentials
+
+Set granular permissions (e.g., access to inventory, sales, products, categories)
+
+🖼️ UI Design Outline (Settings > Subusers)
+text
+Copy
+Edit
+[ Profile ] [ Preferences ] [ ⚙️ Subusers ] ← you’re here
+🧩 Interface Sections:
+Add New Subuser Form
+
+List of Existing Subusers
+
+Assign or Revoke Permissions
+
+🧑‍💻 HTML + Tailwind CSS Mockup
+html
+Copy
+Edit
+<div class="p-6 max-w-4xl mx-auto">
+  <h2 class="text-2xl font-bold text-blue-700 mb-4">👥 Manage Subusers & Permissions</h2>
+
+  <!-- Add Subuser Form -->
+  <form class="bg-white p-4 border rounded-lg shadow mb-6 space-y-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <input type="text" placeholder="Full Name" class="border rounded px-3 py-2" />
+      <input type="email" placeholder="Email" class="border rounded px-3 py-2" />
+      <input type="password" placeholder="Password" class="border rounded px-3 py-2" />
+    </div>
+
+    <div>
+      <h4 class="font-semibold text-gray-700 mb-2">Permissions</h4>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-gray-700">
+        <label><input type="checkbox" class="mr-1"> View Products</label>
+        <label><input type="checkbox" class="mr-1"> Edit Products</label>
+        <label><input type="checkbox" class="mr-1"> Manage Categories</label>
+        <label><input type="checkbox" class="mr-1"> View Inventory</label>
+        <label><input type="checkbox" class="mr-1"> Manage Orders</label>
+        <label><input type="checkbox" class="mr-1"> Access Settings</label>
+      </div>
+    </div>
+
+    <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Subuser</button>
+  </form>
+
+  <!-- Existing Subusers List -->
+  <div class="space-y-4">
+    <!-- Example Subuser -->
+    <div class="border rounded-lg p-4 shadow bg-white">
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="font-semibold">John Doe</div>
+          <div class="text-sm text-gray-500">john@example.com</div>
+        </div>
+        <button class="text-red-500 text-sm hover:underline">Remove</button>
+      </div>
+      <div class="mt-2 text-sm text-gray-600">
+        <strong>Permissions:</strong> View Products, View Inventory
+      </div>
+    </div>
+    <!-- Repeat for each subuser -->
+  </div>
+</div>
+🧠 Backend Data Model Example (SQLAlchemy or Django)
+python
+Copy
+Edit
+class SubUser(Base):
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    email = Column(String, unique=True)
+    password_hash = Column(String)
+    parent_user_id = Column(Integer, ForeignKey('user.id'))
+    permissions = Column(JSON)  # or a separate permissions table
+
+# Example permissions payload:
+# {
+#   "view_products": true,
+#   "edit_products": false,
+#   "manage_categories": true,
+#   ...
+# }
+🔐 Security Notes:
+Subusers should never have access to superuser-only actions unless granted.
+
+Use role-based access control (RBAC) or permissions flags.
+
+Protect routes on backend with middleware or decorators that check permissions.
+
+🧪 Optional Enhancements:
+Toggle subuser active/inactive
+
+Allow 2FA setup for subusers
+
+Audit logs of subuser actions
+
+Assign subusers to specific categories or departments

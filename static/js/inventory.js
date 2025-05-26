@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadCategories() {
-        // Predefined categories list
+        // Predefined categories list as fallback
         const predefinedCategories = [
             'Electronics', 
             'Accessories', 
@@ -151,57 +151,98 @@ document.addEventListener('DOMContentLoaded', function() {
             'Others'
         ];
 
-        fetch('/api/inventory/categories')
+        // First try to load from the new Categories API
+        fetch('/api/categories')
             .then(response => response.json())
-            .then(categories => {
-                // Combine predefined categories with database categories
-                // and remove duplicates
-                let allCategories = [...predefinedCategories];
+            .then(categoriesData => {
+                let allCategories = [];
 
-                // Add any categories from database that aren't in predefined list
-                categories.forEach(category => {
-                    if (!allCategories.includes(category)) {
-                        allCategories.push(category);
-                    }
-                });
+                // Extract category names from the Categories API
+                if (categoriesData && categoriesData.length > 0) {
+                    allCategories = categoriesData.map(cat => cat.name);
+                }
 
-                // Sort alphabetically
-                allCategories.sort();
+                // If no categories from API, use predefined ones
+                if (allCategories.length === 0) {
+                    allCategories = [...predefinedCategories];
+                }
 
-                // Update categories in filter dropdown
-                categoryFilter.innerHTML = '<option value="">All Categories</option>';
+                // Also fetch legacy inventory categories and merge them
+                return fetch('/api/inventory/categories')
+                    .then(response => response.json())
+                    .then(legacyCategories => {
+                        // Add any legacy categories that aren't already included
+                        legacyCategories.forEach(category => {
+                            if (!allCategories.includes(category)) {
+                                allCategories.push(category);
+                            }
+                        });
 
-                // Also update categories in the add/edit forms
-                const itemCategorySelect = document.getElementById('itemCategory');
-                const editItemCategorySelect = document.getElementById('editItemCategory');
+                        // Sort alphabetically
+                        allCategories.sort();
 
-                itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-                editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                        // Update categories in filter dropdown
+                        categoryFilter.innerHTML = '<option value="">All Categories</option>';
 
-                allCategories.forEach(category => {
-                    // Add to filter dropdown
-                    const option = document.createElement('option');
-                    option.value = category;
-                    option.textContent = category;
-                    categoryFilter.appendChild(option);
+                        // Also update categories in the add/edit forms
+                        const itemCategorySelect = document.getElementById('itemCategory');
+                        const editItemCategorySelect = document.getElementById('editItemCategory');
 
-                    // Add to new item form
-                    const newItemOption = document.createElement('option');
-                    newItemOption.value = category;
-                    newItemOption.textContent = category;
-                    itemCategorySelect.appendChild(newItemOption);
+                        itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+                        editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
 
-                    // Add to edit item form
-                    const editItemOption = document.createElement('option');
-                    editItemOption.value = category;
-                    editItemOption.textContent = category;
-                    editItemCategorySelect.appendChild(editItemOption);
-                });
+                        allCategories.forEach(category => {
+                            // Add to filter dropdown
+                            const option = document.createElement('option');
+                            option.value = category;
+                            option.textContent = category;
+                            categoryFilter.appendChild(option);
+
+                            // Add to new item form
+                            const newItemOption = document.createElement('option');
+                            newItemOption.value = category;
+                            newItemOption.textContent = category;
+                            itemCategorySelect.appendChild(newItemOption);
+
+                            // Add to edit item form
+                            const editItemOption = document.createElement('option');
+                            editItemOption.value = category;
+                            editItemOption.textContent = category;
+                            editItemCategorySelect.appendChild(editItemOption);
+                        });
+
+                        // Also add subcategories from the Categories API
+                        if (categoriesData && categoriesData.length > 0) {
+                            categoriesData.forEach(category => {
+                                if (category.subcategories && category.subcategories.length > 0) {
+                                    category.subcategories.forEach(subcategory => {
+                                        // Add subcategory to filter dropdown
+                                        const subOption = document.createElement('option');
+                                        subOption.value = subcategory.name;
+                                        subOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        categoryFilter.appendChild(subOption);
+
+                                        // Add subcategory to new item form
+                                        const newSubOption = document.createElement('option');
+                                        newSubOption.value = subcategory.name;
+                                        newSubOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        itemCategorySelect.appendChild(newSubOption);
+
+                                        // Add subcategory to edit item form
+                                        const editSubOption = document.createElement('option');
+                                        editSubOption.value = subcategory.name;
+                                        editSubOption.textContent = `${category.name} > ${subcategory.name}`;
+                                        editItemCategorySelect.appendChild(editSubOption);
+                                    });
+                                }
+                            });
+                        }
+                    });
             })
             .catch(error => {
                 console.error('Error loading categories:', error);
 
-                // Even if fetch fails, still load predefined categories
+                // Fallback to predefined categories
                 const itemCategorySelect = document.getElementById('itemCategory');
                 const editItemCategorySelect = document.getElementById('editItemCategory');
 
