@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "python-3.11", "python-3.9", "python-3.8", "postgresql-17"]
+modules = ["nodejs-20", "web", "python-3.11"]
 run = "python.py"
 
 [nix]
