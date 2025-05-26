@@ -5,6 +5,7 @@ import random
 import string
 from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 class Item(db.Model):
     """Item model for inventory items"""
@@ -33,23 +34,23 @@ class Item(db.Model):
     def generate_sku(product_name: str, category: str = "") -> str:
         """
         Generate a unique SKU based on product name and category.
-        
+
         :param product_name: The name of the product
         :param category: Optional category name
         :return: A unique SKU string
         """
         # Clean and shorten product name
         name_code = ''.join(filter(str.isalnum, product_name.upper()))[:4]
-        
+
         # Clean and shorten category
         category_code = ''.join(filter(str.isalnum, category.upper()))[:3]
-        
+
         # Generate random alphanumeric suffix
         suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        
+
         # Format: NAME-CAT-RANDOM
         return f"{name_code}-{category_code}-{suffix}" if category else f"{name_code}-{suffix}"
-    
+
     def to_dict(self):
         """Convert item to dictionary for API responses"""
         return {
@@ -80,7 +81,7 @@ class UserRole(Enum):
     SALESPERSON = "salesperson"
     VIEWER = "viewer"
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     """User model for authentication"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
@@ -89,41 +90,44 @@ class User(db.Model):
     role = db.Column(db.String(20), default=UserRole.VIEWER.value)
     # Firebase UID for authentication
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
-    
+
     def set_password(self, password):
         """Set the user's password hash"""
         self.password_hash = generate_password_hash(password)
-        
+
     def check_password(self, password):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
-    
+
     # Email verification
     email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
     verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
     verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
-    
-    
-    
+
+
+
     # User profile
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
     shop_name = db.Column(db.String(128), nullable=True)
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
-    
+
     # Account status
     active = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True)  # Alternative name for consistency
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
-    
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
-    
+
+    # Relationships
+    subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<User {self.username}>'
-        
+
     def to_dict(self):
         """Convert user to dictionary for API responses"""
         # Handle missing is_active column gracefully
@@ -131,7 +135,7 @@ class User(db.Model):
             is_active_value = getattr(self, 'is_active', self.active)
         except (AttributeError, Exception):
             is_active_value = getattr(self, 'active', True)
-        
+
         return {
             'id': self.id,
             'username': self.username,
@@ -150,6 +154,93 @@ class User(db.Model):
         }
 
 
+class Subuser(UserMixin, db.Model):
+    """Subuser model for managing team members under main users"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255))
+    parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+
+    # Relationships
+    permissions = db.relationship('SubuserPermission', backref='subuser', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Subuser {self.name}>'
+
+    def set_password(self, password):
+        """Set password hash"""
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check password against hash"""
+        from werkzeug.security import check_password_hash
+        return check_password_hash(self.password_hash, password)
+
+    def has_permission(self, permission_name):
+        """Check if subuser has a specific permission"""
+        permission = SubuserPermission.query.filter_by(
+            subuser_id=self.id, 
+            permission=permission_name, 
+            granted=True
+        ).first()
+        return permission is not None
+
+    def get_permissions(self):
+        """Get all granted permissions"""
+        permissions = SubuserPermission.query.filter_by(
+            subuser_id=self.id, 
+            granted=True
+        ).all()
+        return [p.permission for p in permissions]
+
+    def to_dict(self):
+        """Convert subuser to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'parent_user_id': self.parent_user_id,
+            'is_active': self.is_active,
+            'permissions': self.get_permissions(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+
+
+class SubuserPermission(db.Model):
+    """Model for managing subuser permissions"""
+    id = db.Column(db.Integer, primary_key=True)
+    subuser_id = db.Column(db.Integer, db.ForeignKey('subuser.id'), nullable=False)
+    permission = db.Column(db.String(100), nullable=False)
+    granted = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Ensure unique permission per subuser
+    __table_args__ = (db.UniqueConstraint('subuser_id', 'permission', name='_subuser_permission_uc'),)
+
+    def __repr__(self):
+        return f'<SubuserPermission {self.permission}>'
+
+    def to_dict(self):
+        """Convert permission to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'subuser_id': self.subuser_id,
+            'permission': self.permission,
+            'granted': self.granted,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class OnDemandProduct(db.Model):
     """Model for on-demand products that can be created when needed"""
     id = db.Column(db.Integer, primary_key=True)
@@ -162,10 +253,10 @@ class OnDemandProduct(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<OnDemandProduct {self.name}>'
-    
+
     def to_dict(self):
         """Convert on-demand product to dictionary for API responses"""
         return {
@@ -191,10 +282,10 @@ class Setting(db.Model):
     category = db.Column(db.String(64), default='general')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Setting {self.key}>'
-    
+
     def to_dict(self):
         """Convert setting to dictionary for API responses"""
         return {
@@ -226,10 +317,10 @@ class Sale(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Sale {self.invoice_number}>'
-    
+
     def to_dict(self):
         """Convert sale to dictionary for API responses"""
         payment_details_dict = {}
@@ -238,7 +329,7 @@ class Sale(db.Model):
                 payment_details_dict = json.loads(self.payment_details)
             except json.JSONDecodeError:
                 payment_details_dict = {}
-                
+
         return {
             'id': self.id,
             'invoice_number': self.invoice_number,
@@ -274,14 +365,14 @@ class SaleItem(db.Model):
     quantity = db.Column(db.Integer, default=1)
     total = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Define relationships
     sale = db.relationship('Sale', backref=db.backref('items', lazy=True, cascade='all, delete-orphan'))
     item = db.relationship('Item', backref=db.backref('sale_items', lazy=True))
-    
+
     def __repr__(self):
         return f'<SaleItem {self.product_name}>'
-    
+
     def to_dict(self):
         """Convert sale item to dictionary for API responses"""
         return {
@@ -335,10 +426,10 @@ class FinancialTransaction(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<FinancialTransaction {self.description} {self.amount}>'
-    
+
     def to_dict(self):
         """Convert financial transaction to dictionary for API responses"""
         return {
@@ -368,10 +459,10 @@ class FinancialSummary(db.Model):
     summary_data = db.Column(db.Text)  # JSON string with detailed breakdown
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<FinancialSummary {self.period_type} {self.period_start} to {self.period_end}>'
-    
+
     def to_dict(self):
         """Convert financial summary to dictionary for API responses"""
         summary_data_dict = {}
@@ -380,7 +471,7 @@ class FinancialSummary(db.Model):
                 summary_data_dict = json.loads(self.summary_data)
             except json.JSONDecodeError:
                 summary_data_dict = {}
-                
+
         return {
             'id': self.id,
             'period_type': self.period_type,
@@ -405,14 +496,14 @@ class Category(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     subcategories = db.relationship('Subcategory', backref='category', lazy=True, cascade='all, delete-orphan')
     items = db.relationship('Item', backref='category_obj', lazy=True, foreign_keys='Item.category_id')
-    
+
     def __repr__(self):
         return f'<Category {self.name}>'
-    
+
     def to_dict(self):
         """Convert category to dictionary for API responses"""
         return {
@@ -438,13 +529,13 @@ class Subcategory(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Ensure unique subcategory names within each category
     __table_args__ = (db.UniqueConstraint('name', 'category_id', name='_category_subcategory_uc'),)
-    
+
     def __repr__(self):
         return f'<Subcategory {self.name}>'
-    
+
     def to_dict(self):
         """Convert subcategory to dictionary for API responses"""
         return {

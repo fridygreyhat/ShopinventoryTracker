@@ -536,3 +536,316 @@ document.addEventListener('DOMContentLoaded', function() {
         announcer.textContent = `${themeNames[themeValue]} theme selected`;
     }
 });
+
+// Settings page JavaScript functionality
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize settings page
+    loadUserSettings();
+
+    // Save buttons event listeners
+    document.getElementById('saveProfileSettings').addEventListener('click', saveProfileSettings);
+    document.getElementById('saveAppearanceSettings').addEventListener('click', saveAppearanceSettings);
+    document.getElementById('saveInventorySettings').addEventListener('click', saveInventorySettings);
+    document.getElementById('saveSecuritySettings').addEventListener('click', saveSecuritySettings);
+
+    // Initialize subusers tab
+    const subusersTab = document.getElementById('subusers-tab');
+    if (subusersTab) {
+        subusersTab.addEventListener('shown.bs.tab', function() {
+            loadSubusers();
+            loadPermissions();
+        });
+    }
+
+    // Subuser form submission
+    document.getElementById('subuserForm').addEventListener('submit', handleSubuserSubmit);
+
+    // Delete confirmation
+    document.getElementById('confirmDeleteSubuser').addEventListener('click', handleDeleteSubuser);
+});
+
+// Global variables for subuser management
+let currentPermissions = [];
+let editingSubuserId = null;
+
+function showAlert(message, type = 'info') {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at the top of the content
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Subuser Management Functions
+async function loadSubusers() {
+    try {
+        showSubusersLoading(true);
+
+        const response = await fetch('/api/subusers');
+        if (!response.ok) {
+            throw new Error('Failed to load subusers');
+        }
+
+        const subusers = await response.json();
+        renderSubusers(subusers);
+
+    } catch (error) {
+        console.error('Error loading subusers:', error);
+        showAlert('Failed to load subusers', 'danger');
+    } finally {
+        showSubusersLoading(false);
+    }
+}
+
+function renderSubusers(subusers) {
+    const container = document.getElementById('subusers-container');
+    const noSubusersDiv = document.getElementById('no-subusers');
+
+    if (subusers.length === 0) {
+        container.innerHTML = '';
+        noSubusersDiv.classList.remove('d-none');
+        return;
+    }
+
+    noSubusersDiv.classList.add('d-none');
+
+    container.innerHTML = subusers.map(subuser => createSubuserCard(subuser)).join('');
+}
+
+function createSubuserCard(subuser) {
+    const permissionsList = subuser.permissions.length > 0 
+        ? subuser.permissions.join(', ') 
+        : 'No permissions assigned';
+
+    const statusBadge = subuser.is_active 
+        ? '<span class="badge bg-success">Active</span>'
+        : '<span class="badge bg-secondary">Inactive</span>';
+
+    return `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <h6 class="mb-0 me-3">${subuser.name}</h6>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-muted small mb-2">${subuser.email}</div>
+                        <div class="small">
+                            <strong>Permissions:</strong> ${permissionsList}
+                        </div>
+                        <div class="text-muted small">
+                            Created: ${new Date(subuser.created_at).toLocaleDateString()}
+                            ${subuser.last_login ? `| Last login: ${new Date(subuser.last_login).toLocaleDateString()}` : ''}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSubuser(${subuser.id})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteSubuser(${subuser.id}, '${subuser.name}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadPermissions() {
+    try {
+        const response = await fetch('/api/subusers/permissions');
+        if (!response.ok) {
+            throw new Error('Failed to load permissions');
+        }
+
+        const data = await response.json();
+        currentPermissions = data.permissions;
+        renderPermissions(data.permissions, data.descriptions);
+
+    } catch (error) {
+        console.error('Error loading permissions:', error);
+        showAlert('Failed to load permissions', 'danger');
+    }
+}
+
+function renderPermissions(permissions, descriptions) {
+    const container = document.getElementById('permissions-container');
+
+    container.innerHTML = permissions.map(permission => `
+        <div class="col-md-6 col-lg-4 mb-2">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${permission}" id="perm_${permission}">
+                <label class="form-check-label small" for="perm_${permission}" title="${descriptions[permission]}">
+                    ${descriptions[permission]}
+                </label>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function handleSubuserSubmit(event) {
+    event.preventDefault();
+
+    const formData = {
+        name: document.getElementById('subuserName').value.trim(),
+        email: document.getElementById('subuserEmail').value.trim(),
+        password: document.getElementById('subuserPassword').value,
+        is_active: document.getElementById('subuserStatus').value === 'true',
+        permissions: Array.from(document.querySelectorAll('#permissions-container input:checked')).map(cb => cb.value)
+    };
+
+    if (!formData.name || !formData.email) {
+        showAlert('Name and email are required', 'danger');
+        return;
+    }
+
+    if (!editingSubuserId && !formData.password) {
+        showAlert('Password is required for new subusers', 'danger');
+        return;
+    }
+
+    try {
+        const url = editingSubuserId ? `/api/subusers/${editingSubuserId}` : '/api/subusers';
+        const method = editingSubuserId ? 'PUT' : 'POST';
+
+        // Don't send empty password for updates
+        if (editingSubuserId && !formData.password) {
+            delete formData.password;
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save subuser');
+        }
+
+        // Close modal and reload subusers
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
+        modal.hide();
+
+        showAlert(editingSubuserId ? 'Subuser updated successfully' : 'Subuser created successfully', 'success');
+        loadSubusers();
+
+    } catch (error) {
+        console.error('Error saving subuser:', error);
+        showAlert(error.message, 'danger');
+    }
+}
+
+function editSubuser(subuserId) {
+    // Find the subuser data
+    fetch(`/api/subusers`)
+        .then(response => response.json())
+        .then(subusers => {
+            const subuser = subusers.find(s => s.id === subuserId);
+            if (!subuser) return;
+
+            editingSubuserId = subuserId;
+
+            // Fill form
+            document.getElementById('subuserId').value = subuser.id;
+            document.getElementById('subuserName').value = subuser.name;
+            document.getElementById('subuserEmail').value = subuser.email;
+            document.getElementById('subuserPassword').value = ''; // Don't show existing password
+            document.getElementById('subuserStatus').value = subuser.is_active.toString();
+
+            // Update modal title
+            document.getElementById('addSubuserModalLabel').textContent = 'Edit Subuser';
+
+            // Mark permissions
+            document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
+                cb.checked = subuser.permissions.includes(cb.value);
+            });
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('addSubuserModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error loading subuser:', error);
+            showAlert('Failed to load subuser details', 'danger');
+        });
+}
+
+function confirmDeleteSubuser(subuserId, subuserName) {
+    document.getElementById('deleteSubuserName').textContent = subuserName;
+    document.getElementById('confirmDeleteSubuser').dataset.subuserId = subuserId;
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteSubuserModal'));
+    modal.show();
+}
+
+async function handleDeleteSubuser() {
+    const subuserId = document.getElementById('confirmDeleteSubuser').dataset.subuserId;
+
+    try {
+        const response = await fetch(`/api/subusers/${subuserId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete subuser');
+        }
+
+        // Close modal and reload subusers
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteSubuserModal'));
+        modal.hide();
+
+        showAlert('Subuser deleted successfully', 'success');
+        loadSubusers();
+
+    } catch (error) {
+        console.error('Error deleting subuser:', error);
+        showAlert(error.message, 'danger');
+    }
+}
+
+function showSubusersLoading(show) {
+    const spinner = document.getElementById('subusers-loading');
+    const container = document.getElementById('subusers-container');
+
+    if (show) {
+        spinner.classList.remove('d-none');
+        container.classList.add('d-none');
+    } else {
+        spinner.classList.add('d-none');
+        container.classList.remove('d-none');
+    }
+}
+
+// Reset modal when hidden
+document.getElementById('addSubuserModal').addEventListener('hidden.bs.modal', function() {
+    editingSubuserId = null;
+    document.getElementById('subuserForm').reset();
+    document.getElementById('subuserId').value = '';
+    document.getElementById('addSubuserModalLabel').textContent = 'Add New Subuser';
+
+    // Uncheck all permissions
+    document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+});
