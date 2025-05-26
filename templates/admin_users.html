@@ -2,6 +2,42 @@
 
 {% block content %}
 <div class="container my-4">
+    <!-- User Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-primary bg-opacity-10">
+                <div class="card-body">
+                    <h5 class="card-title">{{ users|length }}</h5>
+                    <p class="card-text text-muted">Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-success bg-opacity-10">
+                <div class="card-body">
+                    <h5 class="card-title">{{ users|selectattr('active')|list|length }}</h5>
+                    <p class="card-text text-muted">Active Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-info bg-opacity-10">
+                <div class="card-body">
+                    <h5 class="card-title">{{ users|selectattr('is_admin')|list|length }}</h5>
+                    <p class="card-text text-muted">Admin Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 bg-warning bg-opacity-10">
+                <div class="card-body">
+                    <h5 class="card-title">{{ users|rejectattr('email_verified')|list|length }}</h5>
+                    <p class="card-text text-muted">Unverified</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
@@ -40,8 +76,8 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ user.is_active ? 'success' : 'danger' }}">
-                                            {{ user.is_active ? 'Active' : 'Inactive' }}
+                                        <span class="badge bg-{{ user.active ? 'success' : 'danger' }}">
+                                            {{ user.active ? 'Active' : 'Inactive' }}
                                         </span>
                                     </td>
                                     <td>
@@ -53,12 +89,17 @@
                                     <td>{{ user.last_login|date('Y-m-d H:i') if user.last_login else 'Never' }}</td>
                                     <td class="text-end">
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary edit-user-btn">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary edit-user-btn" title="Edit User">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-{{ user.is_active ? 'danger' : 'success' }} toggle-status-btn">
-                                                <i class="fas fa-{{ user.is_active ? 'ban' : 'check' }}"></i>
+                                            <button type="button" class="btn btn-sm btn-outline-{{ user.active ? 'danger' : 'success' }} toggle-status-btn" title="{{ user.active ? 'Deactivate' : 'Activate' }} User">
+                                                <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
                                             </button>
+                                            {% if user.id != session.get('user_id') %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-user-btn" title="Delete User">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -171,6 +212,19 @@
             });
         });
 
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-user-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const userId = row.dataset.userId;
+                const username = row.cells[0].textContent.trim();
+                
+                if (confirm(`Are you sure you want to permanently delete user "${username}"? This action cannot be undone.`)) {
+                    deleteUser(userId);
+                }
+            });
+        });
+
         // Handle form submission for editing user
         saveUserBtn.addEventListener('click', function() {
             // Get form data
@@ -265,6 +319,35 @@
         function showEditError(message) {
             editErrorMessage.textContent = message;
             editUserError.classList.remove('d-none');
+        }
+
+        // Delete user function
+        function deleteUser(userId) {
+            fetch(`/api/auth/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to delete user');
+                    });
+                }
+            })
+            .then(data => {
+                // Show success message
+                alert(data.message || 'User deleted successfully');
+                
+                // Refresh to reflect changes
+                location.reload();
+            })
+            .catch(error => {
+                alert(error.message || 'Failed to delete user');
+            });
         }
     });
 </script>
