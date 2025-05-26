@@ -78,6 +78,27 @@ with app.app_context():
     # Comment out the line below to avoid data loss in production 
     # db.drop_all()  # Commented out to prevent data loss
     db.create_all()
+    
+    # Add migration for is_active column if it doesn't exist
+    try:
+        # Check if is_active column exists by trying to query it
+        db.session.execute(db.text("SELECT is_active FROM user LIMIT 1"))
+        logger.info("is_active column already exists")
+    except Exception as e:
+        if "no such column: user.is_active" in str(e):
+            logger.info("Adding is_active column to user table")
+            try:
+                # Add the is_active column with default value True
+                db.session.execute(db.text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+                # Update existing records to have is_active = active
+                db.session.execute(db.text("UPDATE user SET is_active = active"))
+                db.session.commit()
+                logger.info("Successfully added is_active column")
+            except Exception as migration_error:
+                logger.error(f"Error adding is_active column: {str(migration_error)}")
+                db.session.rollback()
+        else:
+            logger.error(f"Unexpected database error: {str(e)}")
 
 @app.route('/')
 @login_required
