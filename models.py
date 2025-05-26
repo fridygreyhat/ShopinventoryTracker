@@ -13,7 +13,8 @@ class Item(db.Model):
     sku = db.Column(db.String(50), unique=True)
     unit_type = db.Column(db.String(20), default='quantity')  # 'quantity' or 'weight'
     description = db.Column(db.Text)
-    category = db.Column(db.String(50))
+    category = db.Column(db.String(50))  # Legacy string category for backward compatibility
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)  # New FK to Category
     subcategory = db.Column(db.String(50))
     sell_by = db.Column(db.String(20), default='quantity')  # 'quantity' or 'kilogram'
     quantity = db.Column(db.Integer, default=0)
@@ -389,6 +390,71 @@ class FinancialSummary(db.Model):
             'total_expenses': self.total_expenses,
             'net_profit': self.net_profit,
             'summary_data': summary_data_dict,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class Category(db.Model):
+    """Model for product categories"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    icon = db.Column(db.String(50))  # Font Awesome icon class
+    color = db.Column(db.String(7), default='#007bff')  # Hex color code
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    subcategories = db.relationship('Subcategory', backref='category', lazy=True, cascade='all, delete-orphan')
+    items = db.relationship('Item', backref='category_obj', lazy=True, foreign_keys='Item.category_id')
+    
+    def __repr__(self):
+        return f'<Category {self.name}>'
+    
+    def to_dict(self):
+        """Convert category to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'icon': self.icon,
+            'color': self.color,
+            'is_active': self.is_active,
+            'subcategories': [sub.to_dict() for sub in self.subcategories if sub.is_active],
+            'item_count': len([item for item in self.items if item.category == self.name]),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class Subcategory(db.Model):
+    """Model for product subcategories"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Ensure unique subcategory names within each category
+    __table_args__ = (db.UniqueConstraint('name', 'category_id', name='_category_subcategory_uc'),)
+    
+    def __repr__(self):
+        return f'<Subcategory {self.name}>'
+    
+    def to_dict(self):
+        """Convert subcategory to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'category_id': self.category_id,
+            'category_name': self.category.name if self.category else None,
+            'is_active': self.is_active,
+            'item_count': Item.query.filter_by(subcategory=self.name).count(),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

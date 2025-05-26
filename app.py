@@ -80,7 +80,7 @@ def inject_current_user():
 # Initialize database tables
 with app.app_context():
     # Import models here to avoid circular imports
-    from models import Item, User, OnDemandProduct, Setting, Sale, SaleItem  # noqa: F401
+    from models import Item, User, OnDemandProduct, Setting, Sale, SaleItem, Category, Subcategory  # noqa: F401
     
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production 
@@ -135,6 +135,7 @@ with app.app_context():
             add_column_safely('item', 'subcategory', 'VARCHAR(100)')
             add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+            add_column_safely('item', 'category_id', 'INTEGER')
     
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -191,6 +192,12 @@ def on_demand():
 def sales():
     """Render the sales management page"""
     return render_template('sales.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Render the categories management page"""
+    return render_template('categories.html')
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
@@ -1498,6 +1505,247 @@ def get_sale(sale_id):
         logger.error(f"Error getting sale {sale_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
+# Category Management API Routes
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def get_categories():
+    """API endpoint to get all categories with subcategories"""
+    try:
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        return jsonify([category.to_dict() for category in categories])
+    except Exception as e:
+        logger.error(f"Error getting categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+@login_required
+def create_category():
+    """API endpoint to create a new category"""
+    try:
+        data = request.json
+        
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Category name is required'}), 400
+        
+        # Check if category already exists
+        existing_category = Category.query.filter_by(name=data['name']).first()
+        if existing_category:
+            return jsonify({'error': 'Category already exists'}), 400
+        
+        # Create new category
+        new_category = Category(
+            name=data['name'],
+            description=data.get('description', ''),
+            icon=data.get('icon', 'fas fa-box'),
+            color=data.get('color', '#007bff')
+        )
+        
+        db.session.add(new_category)
+        db.session.commit()
+        
+        return jsonify(new_category.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['PUT'])
+@login_required
+def update_category(category_id):
+    """API endpoint to update a category"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Update category fields
+        if 'name' in data:
+            # Check if new name conflicts with existing categories
+            existing_category = Category.query.filter_by(name=data['name']).filter(Category.id != category_id).first()
+            if existing_category:
+                return jsonify({'error': 'Category name already exists'}), 400
+            category.name = data['name']
+        
+        if 'description' in data:
+            category.description = data['description']
+        
+        if 'icon' in data:
+            category.icon = data['icon']
+        
+        if 'color' in data:
+            category.color = data['color']
+        
+        if 'is_active' in data:
+            category.is_active = data['is_active']
+        
+        category.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify(category.to_dict())
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
+@login_required
+def delete_category(category_id):
+    """API endpoint to delete a category"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        
+        # Check if category has items
+        item_count = Item.query.filter_by(category=category.name).count()
+        if item_count > 0:
+            return jsonify({'error': f'Cannot delete category with {item_count} items. Move or delete items first.'}), 400
+        
+        # Soft delete - mark as inactive
+        category.is_active = False
+        category.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'message': f'Category "{category.name}" deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
+@login_required
+def get_subcategories(category_id):
+    """API endpoint to get subcategories for a category"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        subcategories = Subcategory.query.filter_by(category_id=category_id, is_active=True).order_by(Subcategory.name).all()
+        return jsonify([subcategory.to_dict() for subcategory in subcategories])
+    except Exception as e:
+        logger.error(f"Error getting subcategories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
+@login_required
+def create_subcategory(category_id):
+    """API endpoint to create a new subcategory"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        data = request.json
+        
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Subcategory name is required'}), 400
+        
+        # Check if subcategory already exists in this category
+        existing_subcategory = Subcategory.query.filter_by(name=data['name'], category_id=category_id).first()
+        if existing_subcategory:
+            return jsonify({'error': 'Subcategory already exists in this category'}), 400
+        
+        # Create new subcategory
+        new_subcategory = Subcategory(
+            name=data['name'],
+            description=data.get('description', ''),
+            category_id=category_id
+        )
+        
+        db.session.add(new_subcategory)
+        db.session.commit()
+        
+        return jsonify(new_subcategory.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subcategories/<int:subcategory_id>', methods=['GET'])
+@login_required
+def get_subcategory(subcategory_id):
+    """API endpoint to get a single subcategory"""
+    try:
+        subcategory = Subcategory.query.get_or_404(subcategory_id)
+        return jsonify(subcategory.to_dict())
+    except Exception as e:
+        logger.error(f"Error getting subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subcategories/<int:subcategory_id>', methods=['PUT'])
+@login_required
+def update_subcategory(subcategory_id):
+    """API endpoint to update a subcategory"""
+    try:
+        subcategory = Subcategory.query.get_or_404(subcategory_id)
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Update subcategory fields
+        if 'name' in data:
+            # Check if new name conflicts within the same category
+            existing_subcategory = Subcategory.query.filter_by(
+                name=data['name'], 
+                category_id=subcategory.category_id
+            ).filter(Subcategory.id != subcategory_id).first()
+            
+            if existing_subcategory:
+                return jsonify({'error': 'Subcategory name already exists in this category'}), 400
+            subcategory.name = data['name']
+        
+        if 'description' in data:
+            subcategory.description = data['description']
+        
+        if 'is_active' in data:
+            subcategory.is_active = data['is_active']
+        
+        subcategory.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify(subcategory.to_dict())
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/subcategories/<int:subcategory_id>', methods=['DELETE'])
+@login_required
+def delete_subcategory(subcategory_id):
+    """API endpoint to delete a subcategory"""
+    try:
+        subcategory = Subcategory.query.get_or_404(subcategory_id)
+        
+        # Check if subcategory has items
+        item_count = Item.query.filter_by(subcategory=subcategory.name).count()
+        if item_count > 0:
+            return jsonify({'error': f'Cannot delete subcategory with {item_count} items. Move or delete items first.'}), 400
+        
+        # Soft delete - mark as inactive
+        subcategory.is_active = False
+        subcategory.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'message': f'Subcategory "{subcategory.name}" deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>/items', methods=['GET'])
+@login_required
+def get_category_items(category_id):
+    """API endpoint to get items in a category"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        items = Item.query.filter_by(category=category.name).all()
+        return jsonify([item.to_dict() for item in items])
+    except Exception as e:
+        logger.error(f"Error getting category items: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # Notification API Routes
 @app.route('/api/notifications/test', methods=['POST'])
