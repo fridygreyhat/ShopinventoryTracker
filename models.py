@@ -32,23 +32,23 @@ class Item(db.Model):
     def generate_sku(product_name: str, category: str = "") -> str:
         """
         Generate a unique SKU based on product name and category.
-        
+
         :param product_name: The name of the product
         :param category: Optional category name
         :return: A unique SKU string
         """
         # Clean and shorten product name
         name_code = ''.join(filter(str.isalnum, product_name.upper()))[:4]
-        
+
         # Clean and shorten category
         category_code = ''.join(filter(str.isalnum, category.upper()))[:3]
-        
+
         # Generate random alphanumeric suffix
         suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        
+
         # Format: NAME-CAT-RANDOM
         return f"{name_code}-{category_code}-{suffix}" if category else f"{name_code}-{suffix}"
-    
+
     def to_dict(self):
         """Convert item to dictionary for API responses"""
         return {
@@ -59,7 +59,6 @@ class Item(db.Model):
             'description': self.description,
             'category': self.category,
             'subcategory': self.subcategory,
-            'sell_by': self.sell_by,
             'quantity': self.quantity,
             'buying_price': self.buying_price,
             'selling_price_retail': self.selling_price_retail,
@@ -88,40 +87,40 @@ class User(db.Model):
     role = db.Column(db.String(20), default=UserRole.VIEWER.value)
     # Firebase UID for authentication
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
-    
+
     def set_password(self, password):
         """Set the user's password hash"""
         self.password_hash = generate_password_hash(password)
-        
+
     def check_password(self, password):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
-    
+
     # Email verification
     email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
     verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
     verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
-    
-    
-    
+
+
+
     # User profile
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
     shop_name = db.Column(db.String(128), nullable=True)
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
-    
+
     # Account status
     active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
-    
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
-    
+
     def __repr__(self):
         return f'<User {self.username}>'
-        
+
     def to_dict(self):
         """Convert user to dictionary for API responses"""
         return {
@@ -153,10 +152,10 @@ class OnDemandProduct(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<OnDemandProduct {self.name}>'
-    
+
     def to_dict(self):
         """Convert on-demand product to dictionary for API responses"""
         return {
@@ -182,10 +181,10 @@ class Setting(db.Model):
     category = db.Column(db.String(64), default='general')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Setting {self.key}>'
-    
+
     def to_dict(self):
         """Convert setting to dictionary for API responses"""
         return {
@@ -217,10 +216,10 @@ class Sale(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Sale {self.invoice_number}>'
-    
+
     def to_dict(self):
         """Convert sale to dictionary for API responses"""
         payment_details_dict = {}
@@ -229,7 +228,7 @@ class Sale(db.Model):
                 payment_details_dict = json.loads(self.payment_details)
             except json.JSONDecodeError:
                 payment_details_dict = {}
-                
+
         return {
             'id': self.id,
             'invoice_number': self.invoice_number,
@@ -265,16 +264,16 @@ class SaleItem(db.Model):
     quantity = db.Column(db.Integer, default=1)
     total = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Define relationships
     sale = db.relationship('Sale', backref=db.backref('items', lazy=True, cascade='all, delete-orphan'))
     item = db.relationship('Item', backref=db.backref('sale_items', lazy=True))
-    
+
     def __repr__(self):
         return f'<SaleItem {self.product_name}>'
-    
+
     def to_dict(self):
-        """Convert sale item to dictionary for API responses"""
+        """Convert sale item to dictionary for API responses"""```python
         return {
             'id': self.id,
             'sale_id': self.sale_id,
@@ -326,10 +325,10 @@ class FinancialTransaction(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<FinancialTransaction {self.description} {self.amount}>'
-    
+
     def to_dict(self):
         """Convert financial transaction to dictionary for API responses"""
         return {
@@ -359,10 +358,10 @@ class FinancialSummary(db.Model):
     summary_data = db.Column(db.Text)  # JSON string with detailed breakdown
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<FinancialSummary {self.period_type} {self.period_start} to {self.period_end}>'
-    
+
     def to_dict(self):
         """Convert financial summary to dictionary for API responses"""
         summary_data_dict = {}
@@ -371,7 +370,7 @@ class FinancialSummary(db.Model):
                 summary_data_dict = json.loads(self.summary_data)
             except json.JSONDecodeError:
                 summary_data_dict = {}
-                
+
         return {
             'id': self.id,
             'period_type': self.period_type,

@@ -2,7 +2,7 @@ import os
 import logging
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -1941,6 +1941,22 @@ def sync_profile():
             
     return protected_sync_profile()
 
+
+@app.route('/api/shop/details', methods=['GET'])
+def get_shop_details():
+    """API endpoint to get shop details"""
+    try:
+        # Get shop name from settings or use default
+        shop_name = get_setting_value('company_name', 'My Shop')
+        
+        return jsonify({
+            'shop_name': shop_name,
+            'currency': get_setting_value('currency_code', 'TZS'),
+            'timezone': get_setting_value('timezone', 'UTC')
+        })
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({'error': 'Failed to get shop details'}), 500
 
 @app.route('/api/auth/change-password', methods=['POST'])
 def change_password():

@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize translations
     const savedLanguage = localStorage.getItem('preferred_language') || 'en';
     updatePageLanguage(savedLanguage);
-    
+
     // DOM Elements
     const totalItemsElement = document.getElementById('total-items');
     const totalStockElement = document.getElementById('total-stock');
@@ -889,8 +889,9 @@ function loadDashboardData() {
     }
 
     // Initialize
+    // Note: updateCartDisplay is only needed in sales page
+
     loadShopDetails();
-    updateCartDisplay();
 
     function loadShopDetails() {
         // Fetch shop details from the API
