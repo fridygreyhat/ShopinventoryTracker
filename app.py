@@ -2671,7 +2671,7 @@ def verify_email(token):
         user.verification_token_expires = None
         db.session.commit()
 
-                flash('Your email has been successfully verified!', 'success')
+        flash('Your email has been successfully verified!', 'success')
         return redirect(url_for('account'))
 
     except Exception as e:
