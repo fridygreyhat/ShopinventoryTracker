@@ -281,7 +281,20 @@ def admin_required(f):
     """
     Decorator for routes that require admin privileges
     """
-    return role_required([UserRole.ADMIN])(f)
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login", next=request.url))
+            
+        user = User.query.get(session["user_id"])
+        if not user:
+            return redirect(url_for("login"))
+            
+        if not user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
 
 def inventory_manager_required(f):
     """

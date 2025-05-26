@@ -112,6 +112,7 @@ class User(db.Model):
     
     # Account status
     active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)  # Alternative name for consistency
     is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
     
     # Timestamps
@@ -134,6 +135,7 @@ class User(db.Model):
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
             'active': self.active,
+            'is_active': getattr(self, 'is_active', self.active),  # Fallback to active if is_active doesn't exist
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

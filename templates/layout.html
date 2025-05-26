@@ -75,9 +75,24 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == url_for('settings') %}active{% endif %}" 
                            href="{{ url_for('settings') }}">
-                            <i class="fas fa-cog me-1"></i> Settings
+                            <i class="fas fa-cog me-2"></i>Settings
                         </a>
                     </li>
+                    {% if session.get('user_id') %}
+                        {% set current_user = get_current_user() %}
+                        {% if current_user and current_user.is_admin %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-shield me-2"></i>Admin
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">
+                                <i class="fas fa-users me-2"></i>User Management
+                            </a></li>
+                        </ul>
+                    </li>
+                        {% endif %}
+                    {% endif %}
                     {% else %}
                     <li class="nav-item">
                         <a class="nav-link" href="#">
@@ -180,4 +195,3 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
-```

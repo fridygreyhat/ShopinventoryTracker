@@ -59,6 +59,16 @@ def get_setting_value(key, default=None):
 # Import auth service
 from auth_service import login_required, verify_firebase_token, create_or_update_user
 
+# Template helper function
+@app.context_processor
+def inject_current_user():
+    """Inject current user into all templates"""
+    def get_current_user():
+        if 'user_id' in session:
+            return User.query.get(session['user_id'])
+        return None
+    return dict(get_current_user=get_current_user)
+
 # Initialize database tables
 with app.app_context():
     # Import models here to avoid circular imports
@@ -1731,74 +1741,136 @@ def account():
     return protected_account()
 
 @app.route('/admin/users')
+@login_required
 def admin_users():
     """Render the user management page (admin only)"""
-    from auth_service import admin_required
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
+        return redirect(url_for('index'))
     
-    @admin_required
-    def protected_admin_users():
-        from models import User
-        users = User.query.all()
-        return render_template('admin_users.html', users=users)
-        
-    return protected_admin_users()
+    users = User.query.all()
+    return render_template('admin_users.html', users=users)
 
 @app.route('/api/auth/users', methods=['GET'])
+@login_required
 def get_users():
     """API endpoint to get all users (admin only)"""
-    from auth_service import admin_required
-    
-    @admin_required
-    def protected_get_users():
-        from models import User
-        users = User.query.all()
-        return jsonify([user.to_dict() for user in users])
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
         
-    return protected_get_users()
+    users = User.query.all()
+    return jsonify([user.to_dict() for user in users])
 
 @app.route('/api/auth/users/<int:user_id>', methods=['PUT'])
+@login_required
 def update_user(user_id):
     """API endpoint to update user (admin only)"""
-    from auth_service import admin_required
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+        
+    try:
+        data = request.json
+        user = User.query.get_or_404(user_id)
+        
+        # Only allow updating specific fields
+        if 'is_active' in data:
+            user.active = data['is_active']
+            
+        if 'is_admin' in data:
+            user.is_admin = data['is_admin']
+            
+        if 'username' in data:
+            # Check for username uniqueness
+            existing_user = User.query.filter_by(username=data['username']).first()
+            if existing_user and existing_user.id != user.id:
+                return jsonify({"error": "Username already taken"}), 400
+            user.username = data['username']
+            
+        if 'firstName' in data:
+            user.first_name = data['firstName']
+            
+        if 'lastName' in data:
+            user.last_name = data['lastName']
+            
+        if 'shopName' in data:
+            user.shop_name = data['shopName']
+            
+        if 'productCategories' in data:
+            user.product_categories = data['productCategories']
+            
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify(user.to_dict())
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating user: {str(e)}")
+        return jsonify({"error": "Failed to update user"}), 500
+
+@app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    """API endpoint to delete user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
     
-    @admin_required
-    def protected_update_user():
-        from models import User
-        try:
-            data = request.json
-            user = User.query.get_or_404(user_id)
-            
-            # Only allow updating specific fields
-            if 'is_active' in data:
-                user.is_active = data['is_active']
-                
-            if 'is_admin' in data:
-                user.is_admin = data['is_admin']
-                
-            if 'username' in data:
-                user.username = data['username']
-                
-            if 'firstName' in data:
-                user.first_name = data['firstName']
-                
-            if 'lastName' in data:
-                user.last_name = data['lastName']
-                
-            if 'shopName' in data:
-                user.shop_name = data['shopName']
-                
-            if 'productCategories' in data:
-                user.product_categories = data['productCategories']
-                
-            db.session.commit()
-            return jsonify(user.to_dict())
-            
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error updating user: {str(e)}")
-            return jsonify({"error": "Failed to update user"}), 500
-            
-    return protected_update_user()
+    # Prevent admin from deleting themselves
+    if user_id == current_user.id:
+        return jsonify({"error": "Cannot delete your own account"}), 400
+        
+    try:
+        user = User.query.get_or_404(user_id)
+        username = user.username
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({"message": f"User {username} deleted successfully"})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting user: {str(e)}")
+        return jsonify({"error": "Failed to delete user"}), 500
+
+@app.route('/api/auth/users/stats', methods=['GET'])
+@login_required
+def get_user_stats():
+    """API endpoint to get user statistics (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+    
+    try:
+        total_users = User.query.count()
+        active_users = User.query.filter_by(active=True).count()
+        admin_users = User.query.filter_by(is_admin=True).count()
+        unverified_users = User.query.filter_by(email_verified=False).count()
+        
+        # Get recent registrations (last 30 days)
+        from datetime import timedelta
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_registrations = User.query.filter(User.created_at >= thirty_days_ago).count()
+        
+        return jsonify({
+            'total_users': total_users,
+            'active_users': active_users,
+            'admin_users': admin_users,
+            'unverified_users': unverified_users,
+            'recent_registrations': recent_registrations
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting user stats: {str(e)}")
+        return jsonify({"error": "Failed to get user statistics"}), 500
     
 @app.route('/api/auth/profile', methods=['PUT'])
 def update_profile():
