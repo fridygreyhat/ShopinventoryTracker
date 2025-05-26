@@ -65,7 +65,12 @@ def inject_current_user():
     """Inject current user into all templates"""
     def get_current_user():
         if 'user_id' in session:
-            return User.query.get(session['user_id'])
+            try:
+                return User.query.get(session['user_id'])
+            except Exception as e:
+                # Handle database schema issues gracefully
+                logger.warning(f"Error getting current user: {str(e)}")
+                return None
         return None
     return dict(get_current_user=get_current_user)
 
@@ -77,28 +82,36 @@ with app.app_context():
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production 
     # db.drop_all()  # Commented out to prevent data loss
+    
+    # First, create all tables
     db.create_all()
     
+    # Then, handle migrations for existing databases
     # Add migration for is_active column if it doesn't exist
     try:
-        # Check if is_active column exists by trying to query it
-        db.session.execute(db.text("SELECT is_active FROM user LIMIT 1"))
-        logger.info("is_active column already exists")
+        # Check if user table exists first
+        result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';"))
+        if result.fetchone():
+            # Check if is_active column exists by trying to query it
+            db.session.execute(db.text("SELECT is_active FROM user LIMIT 1"))
+            logger.info("is_active column already exists")
+        else:
+            logger.info("User table doesn't exist yet, will be created by db.create_all()")
     except Exception as e:
         if "no such column: user.is_active" in str(e):
             logger.info("Adding is_active column to user table")
             try:
                 # Add the is_active column with default value True
                 db.session.execute(db.text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-                # Update existing records to have is_active = active
-                db.session.execute(db.text("UPDATE user SET is_active = active"))
+                # Update existing records to have is_active = active  
+                db.session.execute(db.text("UPDATE user SET is_active = active WHERE active IS NOT NULL"))
                 db.session.commit()
                 logger.info("Successfully added is_active column")
             except Exception as migration_error:
                 logger.error(f"Error adding is_active column: {str(migration_error)}")
                 db.session.rollback()
         else:
-            logger.error(f"Unexpected database error: {str(e)}")
+            logger.error(f"Unexpected database error during migration: {str(e)}")
 
 @app.route('/')
 @login_required
