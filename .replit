@@ -10,6 +10,7 @@ deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
+runButton = "Run Flask App"
 
 [[workflows.workflow]]
 name = "Project"
@@ -40,6 +41,15 @@ args = "python main.py"
 
 [[workflows.workflow]]
 name = "Run Flask"
+author = 40995501
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Run Flask App"
 author = 40995501
 mode = "sequential"
 

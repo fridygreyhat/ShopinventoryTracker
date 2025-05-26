@@ -535,8 +535,8 @@ def bulk_import_inventory():
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
 @app.route('/api/inventory/categories', methods=['GET'])
-def get_categories():
-    """API endpoint to get all unique categories"""
+def get_inventory_categories():
+    """API endpoint to get all unique inventory categories"""
     from models import Item
     from sqlalchemy import func
     
@@ -801,7 +801,7 @@ def delete_on_demand_product(product_id):
         return jsonify({"error": "Failed to delete on-demand product"}), 500
 
 @app.route('/api/on-demand/categories', methods=['GET'])
-def get_on_demand_categories():
+def get_on_demand_product_categories():
     """API endpoint to get all unique on-demand product categories"""
     from models import OnDemandProduct
     from sqlalchemy import func
@@ -1271,7 +1271,7 @@ def get_monthly_summary():
     })
 
 @app.route('/api/finance/categories', methods=['GET'])
-def get_transaction_categories():
+def get_finance_categories():
     """API endpoint to get all transaction categories"""
     from models import TransactionCategory
     
