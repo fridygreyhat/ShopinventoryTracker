@@ -543,9 +543,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const userPermissionsTab = document.querySelector('a[href="#user-permissions"]');
     if (userPermissionsTab) {
         userPermissionsTab.addEventListener('shown.bs.tab', function() {
+            console.log('User permissions tab shown, loading data...');
             loadSubusers();
             loadPermissions();
         });
+        
+        // Also load if the tab is already active on page load
+        if (userPermissionsTab.classList.contains('active')) {
+            loadSubusers();
+            loadPermissions();
+        }
     }
 
     // Subuser form submission
@@ -564,6 +571,25 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global variables for subuser management
 let currentPermissions = [];
 let editingSubuserId = null;
+
+// Helper function to get permission display names
+function getPermissionDisplayName(permission) {
+    const permissionNames = {
+        'view_inventory': 'View Inventory',
+        'edit_inventory': 'Edit Inventory',
+        'delete_inventory': 'Delete Inventory',
+        'view_sales': 'View Sales',
+        'create_sales': 'Create Sales',
+        'view_reports': 'View Reports',
+        'export_data': 'Export Data',
+        'manage_categories': 'Manage Categories',
+        'view_financial': 'View Financial',
+        'edit_financial': 'Edit Financial',
+        'manage_settings': 'Manage Settings',
+        'manage_users': 'Manage Users'
+    };
+    return permissionNames[permission] || permission;
+}
 
 function showAlert(message, type = 'info') {
     // Create alert element
@@ -621,13 +647,15 @@ function renderSubusers(subusers) {
 }
 
 function createSubuserCard(subuser) {
-    const permissionsList = subuser.permissions.length > 0 
-        ? subuser.permissions.join(', ') 
+    const permissionsList = subuser.permissions && subuser.permissions.length > 0 
+        ? subuser.permissions.map(perm => getPermissionDisplayName(perm)).join(', ')
         : 'No permissions assigned';
 
     const statusBadge = subuser.is_active 
         ? '<span class="badge bg-success">Active</span>'
         : '<span class="badge bg-secondary">Inactive</span>';
+
+    const safeName = subuser.name.replace(/'/g, "\\'");
 
     return `
         <div class="card mb-3">
@@ -639,12 +667,18 @@ function createSubuserCard(subuser) {
                             ${statusBadge}
                         </div>
                         <div class="text-muted small mb-2">${subuser.email}</div>
-                        <div class="small">
-                            <strong>Permissions:</strong> ${permissionsList}
+                        <div class="small mb-2">
+                            <strong>Permissions:</strong> 
+                            <div class="mt-1">
+                                ${subuser.permissions && subuser.permissions.length > 0 
+                                    ? subuser.permissions.map(perm => `<span class="badge bg-light text-dark me-1">${getPermissionDisplayName(perm)}</span>`).join('')
+                                    : '<span class="text-muted">No permissions assigned</span>'
+                                }
+                            </div>
                         </div>
                         <div class="text-muted small">
                             Created: ${new Date(subuser.created_at).toLocaleDateString()}
-                            ${subuser.last_login ? `| Last login: ${new Date(subuser.last_login).toLocaleDateString()}` : ''}
+                            ${subuser.last_login ? ` | Last login: ${new Date(subuser.last_login).toLocaleDateString()}` : ''}
                         </div>
                     </div>
                     <div class="col-md-4 text-end">
@@ -652,7 +686,7 @@ function createSubuserCard(subuser) {
                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSubuser(${subuser.id})">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteSubuser(${subuser.id}, '${subuser.name}')">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteSubuser(${subuser.id}, '${safeName}')">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </div>
@@ -701,10 +735,15 @@ async function handleSubuserSubmit(event) {
     const formData = {
         name: document.getElementById('subuserName').value.trim(),
         email: document.getElementById('subuserEmail').value.trim(),
-        password: document.getElementById('subuserPassword').value,
         is_active: document.getElementById('subuserStatus').value === 'true',
         permissions: Array.from(document.querySelectorAll('#permissions-container input:checked')).map(cb => cb.value)
     };
+
+    // Only include password if provided
+    const passwordField = document.getElementById('subuserPassword');
+    if (passwordField.value.trim()) {
+        formData.password = passwordField.value;
+    }
 
     if (!formData.name || !formData.email) {
         showAlert('Name and email are required', 'danger');
@@ -729,6 +768,8 @@ async function handleSubuserSubmit(event) {
 
         const method = editingSubuserId ? 'PUT' : 'POST';
 
+        console.log('Submitting subuser data:', formData);
+
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -737,15 +778,21 @@ async function handleSubuserSubmit(event) {
             body: JSON.stringify(formData)
         });
 
+        const responseData = await response.json();
+        console.log('Server response:', responseData);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to save user');
+            throw new Error(responseData.error || 'Failed to save user');
         }
 
         // Close modal and refresh list
-        bootstrap.Modal.getInstance(document.getElementById('addSubuserModal')).hide();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
+        modal.hide();
+        
         showAlert(editingSubuserId ? 'User updated successfully' : 'User added successfully', 'success');
-        loadSubusers();
+        
+        // Reload subusers to show the updated list
+        await loadSubusers();
 
         // Reset form
         document.getElementById('subuserForm').reset();
@@ -756,8 +803,15 @@ async function handleSubuserSubmit(event) {
         showAlert(error.message || 'Failed to save user', 'danger');
     } finally {
         // Reset button state
-        document.getElementById('submit-btn-text').textContent = editingSubuserId ? 'Update User' : 'Add User';
-        document.getElementById('submit-spinner').classList.add('d-none');
+        const submitBtn = document.querySelector('#submit-btn-text');
+        const submitSpinner = document.getElementById('submit-spinner');
+        
+        if (submitBtn) {
+            submitBtn.textContent = editingSubuserId ? 'Update User' : 'Add User';
+        }
+        if (submitSpinner) {
+            submitSpinner.classList.add('d-none');
+        }
     }
 }
 
@@ -852,16 +906,35 @@ function showSubusersLoading(show) {
 }
 
 // Reset modal when hidden
-document.getElementById('addSubuserModal').addEventListener('hidden.bs.modal', function() {
-    editingSubuserId = null;
-    document.getElementById('subuserForm').reset();
-    document.getElementById('subuserId').value = '';
-    document.getElementById('addSubuserModalLabel').textContent = 'Add New Subuser';
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('addSubuserModal');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function() {
+            editingSubuserId = null;
+            document.getElementById('subuserForm').reset();
+            const subuserIdField = document.getElementById('subuserId');
+            if (subuserIdField) {
+                subuserIdField.value = '';
+            }
+            document.getElementById('addSubuserModalLabel').textContent = 'Add Team Member';
 
-    // Uncheck all permissions
-    document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
-        cb.checked = false;
-    });
+            // Uncheck all permissions
+            document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+
+            // Reset button text
+            const submitBtn = document.querySelector('#submit-btn-text');
+            const submitSpinner = document.getElementById('submit-spinner');
+            
+            if (submitBtn) {
+                submitBtn.textContent = 'Add User';
+            }
+            if (submitSpinner) {
+                submitSpinner.classList.add('d-none');
+            }
+        });
+    }
 });
 
 // Helper function to show alerts
