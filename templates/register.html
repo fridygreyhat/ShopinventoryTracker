@@ -165,7 +165,7 @@
 
 
         // Validate form
-        if (!email || !password || !confirmPassword || !username || !phone) {  // Add phone to the validation
+        if (!email || !password || !confirmPassword || !username || !phone) {
             showError('Please fill in all required fields.');
             return;
         }
@@ -195,7 +195,7 @@
                 lastName: lastNameInput.value.trim(),
                 shopName: shopNameInput.value.trim(),
                 productCategories: selectedCategories.join(','),
-                phone: phone  // Include the phone number
+                phone: phone
             };
 
             // Create user with Firebase and register with server using our helper function

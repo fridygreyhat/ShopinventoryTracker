@@ -127,6 +127,8 @@ with app.app_context():
         if result.fetchone():
             # Add is_active column if missing
             add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
+            # Add phone column if missing
+            add_column_safely('user', 'phone', 'VARCHAR(20)')
 
         # Check if item table exists
         result = db.session.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';"))
