@@ -1526,6 +1526,7 @@ def create_subuser():
     """Create a new subuser"""
     try:
         data = request.get_json()
+        logger.info(f"Creating subuser with data: {data}")
 
         # Validate required fields
         if not data.get('name') or not data.get('email') or not data.get('password'):
@@ -1550,8 +1551,12 @@ def create_subuser():
         db.session.add(subuser)
         db.session.flush()  # Get the subuser ID
 
+        logger.info(f"Created subuser with ID: {subuser.id}")
+
         # Add permissions
         permissions = data.get('permissions', [])
+        logger.info(f"Adding permissions: {permissions}")
+        
         for permission in permissions:
             perm = SubuserPermission(
                 subuser_id=subuser.id,
@@ -1561,16 +1566,21 @@ def create_subuser():
             db.session.add(perm)
 
         db.session.commit()
+        logger.info(f"Successfully created subuser: {subuser.name}")
+
+        # Return the created subuser with permissions
+        created_subuser = subuser.to_dict()
+        logger.info(f"Returning subuser data: {created_subuser}")
 
         return jsonify({
             'success': True,
-            'subuser': subuser.to_dict()
+            'subuser': created_subuser
         }), 201
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating subuser: {str(e)}")
-        return jsonify({'error': 'Failed to create subuser'}), 500
+        return jsonify({'error': f'Failed to create subuser: {str(e)}'}), 500
 
 @app.route('/api/subusers/<int:subuser_id>', methods=['PUT'])
 @login_required
@@ -1660,7 +1670,7 @@ def get_available_permissions():
     """Get all available permissions for subusers"""
     try:
         # Define available permissions and their descriptions
-        permissions = {
+        permissions_data = {
             'view_inventory': 'View Inventory',
             'edit_inventory': 'Edit Inventory Items',
             'delete_inventory': 'Delete Inventory Items',
@@ -1690,14 +1700,23 @@ def get_available_permissions():
             'manage_users': 'Can manage team members and permissions'
         }
 
-        return jsonify({
-            'permissions': list(permissions.keys()),
+        result = {
+            'success': True,
+            'permissions': list(permissions_data.keys()),
             'descriptions': descriptions
-        })
+        }
+
+        logger.info(f"Returning permissions data: {result}")
+        return jsonify(result)
 
     except Exception as e:
         logger.error(f"Error getting permissions: {str(e)}")
-        return jsonify({'error': 'Failed to load permissions'}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Failed to load permissions',
+            'permissions': [],
+            'descriptions': {}
+        }), 500
 
 
 # Categories API Routes
