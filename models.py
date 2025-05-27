@@ -109,6 +109,7 @@ class User(UserMixin, db.Model):
     # User profile
     first_name = db.Column(db.String(64), nullable=True)
     last_name = db.Column(db.String(64), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     shop_name = db.Column(db.String(128), nullable=True)
     product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
 
@@ -143,6 +144,7 @@ class User(UserMixin, db.Model):
             'email_verified': self.email_verified,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone': self.phone,
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
             'active': getattr(self, 'active', True),
