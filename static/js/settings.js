@@ -537,32 +537,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Settings page JavaScript functionality
-
+// Initialize settings on tab show
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize settings page
-    loadUserSettings();
-
-    // Save buttons event listeners
-    document.getElementById('saveProfileSettings').addEventListener('click', saveProfileSettings);
-    document.getElementById('saveAppearanceSettings').addEventListener('click', saveAppearanceSettings);
-    document.getElementById('saveInventorySettings').addEventListener('click', saveInventorySettings);
-    document.getElementById('saveSecuritySettings').addEventListener('click', saveSecuritySettings);
-
-    // Initialize subusers tab
-    const subusersTab = document.getElementById('subusers-tab');
-    if (subusersTab) {
-        subusersTab.addEventListener('shown.bs.tab', function() {
+    // Initialize subusers tab when clicked
+    const userPermissionsTab = document.querySelector('a[href="#user-permissions"]');
+    if (userPermissionsTab) {
+        userPermissionsTab.addEventListener('shown.bs.tab', function() {
             loadSubusers();
             loadPermissions();
         });
     }
 
     // Subuser form submission
-    document.getElementById('subuserForm').addEventListener('submit', handleSubuserSubmit);
+    const subuserForm = document.getElementById('subuserForm');
+    if (subuserForm) {
+        subuserForm.addEventListener('submit', handleSubuserSubmit);
+    }
 
     // Delete confirmation
-    document.getElementById('confirmDeleteSubuser').addEventListener('click', handleDeleteSubuser);
+    const confirmDeleteBtn = document.getElementById('confirmDeleteSubuser');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', handleDeleteSubuser);
+    }
 });
 
 // Global variables for subuser management
@@ -721,13 +717,17 @@ async function handleSubuserSubmit(event) {
     }
 
     try {
-        const url = editingSubuserId ? `/api/subusers/${editingSubuserId}` : '/api/subusers';
-        const method = editingSubuserId ? 'PUT' : 'POST';
+        const submitBtn = document.querySelector('#submit-btn-text');
+        const submitSpinner = document.getElementById('submit-spinner');
 
-        // Don't send empty password for updates
-        if (editingSubuserId && !formData.password) {
-            delete formData.password;
-        }
+        submitBtn.textContent = 'Saving...';
+        submitSpinner.classList.remove('d-none');
+
+        const url = editingSubuserId 
+            ? `/api/subusers/${editingSubuserId}` 
+            : '/api/subusers';
+
+        const method = editingSubuserId ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
             method: method,
@@ -738,20 +738,26 @@ async function handleSubuserSubmit(event) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to save subuser');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to save user');
         }
 
-        // Close modal and reload subusers
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
-        modal.hide();
-
-        showAlert(editingSubuserId ? 'Subuser updated successfully' : 'Subuser created successfully', 'success');
+        // Close modal and refresh list
+        bootstrap.Modal.getInstance(document.getElementById('addSubuserModal')).hide();
+        showAlert(editingSubuserId ? 'User updated successfully' : 'User added successfully', 'success');
         loadSubusers();
+
+        // Reset form
+        document.getElementById('subuserForm').reset();
+        editingSubuserId = null;
 
     } catch (error) {
         console.error('Error saving subuser:', error);
-        showAlert(error.message, 'danger');
+        showAlert(error.message || 'Failed to save user', 'danger');
+    } finally {
+        // Reset button state
+        document.getElementById('submit-btn-text').textContent = editingSubuserId ? 'Update User' : 'Add User';
+        document.getElementById('submit-spinner').classList.add('d-none');
     }
 }
 
@@ -825,15 +831,23 @@ async function handleDeleteSubuser() {
 }
 
 function showSubusersLoading(show) {
-    const spinner = document.getElementById('subusers-loading');
+    const spinner = document.getElementById('loading-subusers');
     const container = document.getElementById('subusers-container');
 
-    if (show) {
-        spinner.classList.remove('d-none');
-        container.classList.add('d-none');
-    } else {
-        spinner.classList.add('d-none');
-        container.classList.remove('d-none');
+    if (spinner) {
+        if (show) {
+            spinner.classList.remove('d-none');
+        } else {
+            spinner.classList.add('d-none');
+        }
+    }
+
+    if (container) {
+        if (show) {
+            container.classList.add('d-none');
+        } else {
+            container.classList.remove('d-none');
+        }
     }
 }
 
@@ -849,3 +863,25 @@ document.getElementById('addSubuserModal').addEventListener('hidden.bs.modal', f
         cb.checked = false;
     });
 });
+
+// Helper function to show alerts
+function showAlert(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at top of page
+    const container = document.querySelector('.container') || document.body;
+    container.insertBefore(alertDiv, container.firstChild);
+
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}

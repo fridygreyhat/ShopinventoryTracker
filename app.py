@@ -1507,6 +1507,8 @@ def get_sale(sale_id):
 
 
 # Subusers API Routes
+
+
 @app.route('/api/subusers', methods=['GET'])
 @login_required
 def get_subusers():
@@ -1515,8 +1517,8 @@ def get_subusers():
         subusers = Subuser.query.filter_by(parent_user_id=session['user_id']).all()
         return jsonify([subuser.to_dict() for subuser in subusers])
     except Exception as e:
-        logger.error(f"Error fetching subusers: {str(e)}")
-        return jsonify({'error': 'Failed to fetch subusers'}), 500
+        logger.error(f"Error getting subusers: {str(e)}")
+        return jsonify({'error': 'Failed to load subusers'}), 500
 
 @app.route('/api/subusers', methods=['POST'])
 @login_required
@@ -1540,7 +1542,8 @@ def create_subuser():
         subuser = Subuser(
             name=data['name'],
             email=data['email'],
-            parent_user_id=session['user_id']
+            parent_user_id=session['user_id'],
+            is_active=data.get('is_active', True)
         )
         subuser.set_password(data['password'])
 
@@ -1654,41 +1657,48 @@ def delete_subuser(subuser_id):
 @app.route('/api/subusers/permissions', methods=['GET'])
 @login_required
 def get_available_permissions():
-    """Get list of available permissions"""
-    permissions = [
-        'view_inventory',
-        'edit_inventory',
-        'delete_inventory',
-        'view_categories',
-        'edit_categories',
-        'delete_categories',
-        'view_sales',
-        'edit_sales',
-        'delete_sales',
-        'view_reports',
-        'view_settings',
-        'edit_settings',
-        'manage_users'
-    ]
-
-    return jsonify({
-        'permissions': permissions,
-        'descriptions': {
-            'view_inventory': 'View inventory items',
-            'edit_inventory': 'Add and edit inventory items',
-            'delete_inventory': 'Delete inventory items',
-            'view_categories': 'View product categories',
-            'edit_categories': 'Add and edit categories',
-            'delete_categories': 'Delete categories',
-            'view_sales': 'View sales data',
-            'edit_sales': 'Create and edit sales',
-            'delete_sales': 'Delete sales records',
-            'view_reports': 'Access reports and analytics',
-            'view_settings': 'View system settings',
-            'edit_settings': 'Modify system settings',
-            'manage_users': 'Manage other subusers'
+    """Get all available permissions for subusers"""
+    try:
+        # Define available permissions and their descriptions
+        permissions = {
+            'view_inventory': 'View Inventory',
+            'edit_inventory': 'Edit Inventory Items',
+            'delete_inventory': 'Delete Inventory Items',
+            'view_sales': 'View Sales Data',
+            'create_sales': 'Create Sales Records',
+            'view_reports': 'View Reports',
+            'export_data': 'Export Data',
+            'manage_categories': 'Manage Categories',
+            'view_financial': 'View Financial Data',
+            'edit_financial': 'Edit Financial Records',
+            'manage_settings': 'Manage Settings',
+            'manage_users': 'Manage Users'
         }
-    })
+
+        descriptions = {
+            'view_inventory': 'Can view inventory items and stock levels',
+            'edit_inventory': 'Can add, edit, and update inventory items',
+            'delete_inventory': 'Can delete inventory items',
+            'view_sales': 'Can view sales transactions and history',
+            'create_sales': 'Can create new sales transactions',
+            'view_reports': 'Can view and generate reports',
+            'export_data': 'Can export data to various formats',
+            'manage_categories': 'Can create and manage product categories',
+            'view_financial': 'Can view financial data and statements',
+            'edit_financial': 'Can edit and manage financial records',
+            'manage_settings': 'Can modify system settings',
+            'manage_users': 'Can manage team members and permissions'
+        }
+
+        return jsonify({
+            'permissions': list(permissions.keys()),
+            'descriptions': descriptions
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting permissions: {str(e)}")
+        return jsonify({'error': 'Failed to load permissions'}), 500
+
 
 # Categories API Routes
 @app.route('/api/categories', methods=['GET'])
