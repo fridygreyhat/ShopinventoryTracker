@@ -1651,8 +1651,195 @@ def delete_subuser(subuser_id):
         logger.error(f"Error deleting subuser: {str(e)}")
         return jsonify({'error': 'Failed to delete subuser'}), 500
 
+@app.route('/api/subusers', methods=['GET'])
+@login_required
+def get_subusers():
+    """Get all subusers for the current user"""
+    try:
+        subusers = Subuser.query.filter_by(parent_user_id=session['user_id']).all()
+        return jsonify([subuser.to_dict() for subuser in subusers])
+    except Exception as e:
+        logger.error(f"Error getting subusers: {str(e)}")
+        return jsonify({'error': 'Failed to load subusers'}), 500
+
+@app.route('/api/subusers', methods=['POST'])
+@login_required
+def create_subuser():
+    """Create a new subuser"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('name') or not data.get('email') or not data.get('password'):
+            return jsonify({'error': 'Name, email, and password are required'}), 400
+
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=data['email']).first()
+        existing_subuser = Subuser.query.filter_by(email=data['email']).first()
+
+        if existing_user or existing_subuser:
+            return jsonify({'error': 'Email already exists'}), 400
+
+        # Create new subuser
+        subuser = Subuser(
+            name=data['name'],
+            email=data['email'],
+            parent_user_id=session['user_id'],
+            is_active=data.get('is_active', True)
+        )
+        subuser.set_password(data['password'])
+
+        db.session.add(subuser)
+        db.session.flush()  # Get the subuser ID
+
+        # Add permissions
+        permissions = data.get('permissions', [])
+        for permission in permissions:
+            perm = SubuserPermission(
+                subuser_id=subuser.id,
+                permission=permission,
+                granted=True
+            )
+            db.session.add(perm)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'subuser': subuser.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating subuser: {str(e)}")
+        return jsonify({'error': 'Failed to create subuser'}), 500
+
+@app.route('/api/subusers/<int:subuser_id>', methods=['PUT'])
+@login_required
+def update_subuser(subuser_id):
+    """Update a subuser"""
+    try:
+        subuser = Subuser.query.filter_by(
+            id=subuser_id, 
+            parent_user_id=session['user_id']
+        ).first()
+
+        if not subuser:
+            return jsonify({'error': 'Subuser not found'}), 404
+
+        data = request.get_json()
+
+        # Update basic info
+        if 'name' in data:
+            subuser.name = data['name']
+        if 'email' in data:
+            # Check email uniqueness
+            existing = Subuser.query.filter(
+                Subuser.email == data['email'],
+                Subuser.id != subuser_id
+            ).first()
+            if existing:
+                return jsonify({'error': 'Email already exists'}), 400
+            subuser.email = data['email']
+        if 'password' in data and data['password']:
+            subuser.set_password(data['password'])
+        if 'is_active' in data:
+            subuser.is_active = data['is_active']
+
+        # Update permissions
+        if 'permissions' in data:
+            # Remove all existing permissions
+            SubuserPermission.query.filter_by(subuser_id=subuser.id).delete()
+
+            # Add new permissions
+            for permission in data['permissions']:
+                perm = SubuserPermission(
+                    subuser_id=subuser.id,
+                    permission=permission,
+                    granted=True
+                )
+                db.session.add(perm)
+
+        subuser.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'subuser': subuser.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating subuser: {str(e)}")
+        return jsonify({'error': 'Failed to update subuser'}), 500
+
+@app.route('/api/subusers/<int:subuser_id>', methods=['DELETE'])
+@login_required
+def delete_subuser(subuser_id):
+    """Delete a subuser"""
+    try:
+        subuser = Subuser.query.filter_by(
+            id=subuser_id, 
+            parent_user_id=session['user_id']
+        ).first()
+
+        if not subuser:
+            return jsonify({'error': 'Subuser not found'}), 404
+
+        db.session.delete(subuser)
+        db.session.commit()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting subuser: {str(e)}")
+        return jsonify({'error': 'Failed to delete subuser'}), 500
+
 @app.route('/api/subusers/permissions', methods=['GET'])
 @login_required
+def get_available_permissions():
+    """Get all available permissions for subusers"""
+    try:
+        # Define available permissions and their descriptions
+        permissions = {
+            'view_inventory': 'View Inventory',
+            'edit_inventory': 'Edit Inventory Items',
+            'delete_inventory': 'Delete Inventory Items',
+            'view_sales': 'View Sales Data',
+            'create_sales': 'Create Sales Records',
+            'view_reports': 'View Reports',
+            'export_data': 'Export Data',
+            'manage_categories': 'Manage Categories',
+            'view_financial': 'View Financial Data',
+            'edit_financial': 'Edit Financial Records',
+            'manage_settings': 'Manage Settings',
+            'manage_users': 'Manage Users'
+        }
+
+        descriptions = {
+            'view_inventory': 'Can view inventory items and stock levels',
+            'edit_inventory': 'Can add, edit, and update inventory items',
+            'delete_inventory': 'Can delete inventory items',
+            'view_sales': 'Can view sales transactions and history',
+            'create_sales': 'Can create new sales transactions',
+            'view_reports': 'Can view and generate reports',
+            'export_data': 'Can export data to various formats',
+            'manage_categories': 'Can create and manage product categories',
+            'view_financial': 'Can view financial data and statements',
+            'edit_financial': 'Can edit and manage financial records',
+            'manage_settings': 'Can modify system settings',
+            'manage_users': 'Can manage team members and permissions'
+        }
+
+        return jsonify({
+            'permissions': list(permissions.keys()),
+            'descriptions': descriptions
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting permissions: {str(e)}")
+        return jsonify({'error': 'Failed to load permissions'}), 500
 def get_available_permissions():
     """Get list of available permissions"""
     permissions = [

@@ -537,32 +537,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Settings page JavaScript functionality
-
+// Initialize settings on tab show
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize settings page
-    loadUserSettings();
-
-    // Save buttons event listeners
-    document.getElementById('saveProfileSettings').addEventListener('click', saveProfileSettings);
-    document.getElementById('saveAppearanceSettings').addEventListener('click', saveAppearanceSettings);
-    document.getElementById('saveInventorySettings').addEventListener('click', saveInventorySettings);
-    document.getElementById('saveSecuritySettings').addEventListener('click', saveSecuritySettings);
-
-    // Initialize subusers tab
-    const subusersTab = document.getElementById('subusers-tab');
-    if (subusersTab) {
-        subusersTab.addEventListener('shown.bs.tab', function() {
+    // Initialize subusers tab when clicked
+    const userPermissionsTab = document.querySelector('a[href="#user-permissions"]');
+    if (userPermissionsTab) {
+        userPermissionsTab.addEventListener('shown.bs.tab', function() {
             loadSubusers();
             loadPermissions();
         });
     }
 
     // Subuser form submission
-    document.getElementById('subuserForm').addEventListener('submit', handleSubuserSubmit);
+    const subuserForm = document.getElementById('subuserForm');
+    if (subuserForm) {
+        subuserForm.addEventListener('submit', handleSubuserSubmit);
+    }
 
     // Delete confirmation
-    document.getElementById('confirmDeleteSubuser').addEventListener('click', handleDeleteSubuser);
+    const confirmDeleteBtn = document.getElementById('confirmDeleteSubuser');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', handleDeleteSubuser);
+    }
 });
 
 // Global variables for subuser management
@@ -835,15 +831,23 @@ async function handleDeleteSubuser() {
 }
 
 function showSubusersLoading(show) {
-    const spinner = document.getElementById('subusers-loading');
+    const spinner = document.getElementById('loading-subusers');
     const container = document.getElementById('subusers-container');
 
-    if (show) {
-        spinner.classList.remove('d-none');
-        container.classList.add('d-none');
-    } else {
-        spinner.classList.add('d-none');
-        container.classList.remove('d-none');
+    if (spinner) {
+        if (show) {
+            spinner.classList.remove('d-none');
+        } else {
+            spinner.classList.add('d-none');
+        }
+    }
+
+    if (container) {
+        if (show) {
+            container.classList.add('d-none');
+        } else {
+            container.classList.remove('d-none');
+        }
     }
 }
 
