@@ -705,12 +705,20 @@ async function loadPermissions() {
         }
 
         const data = await response.json();
-        currentPermissions = data.permissions;
-        renderPermissions(data.permissions, data.descriptions);
+        console.log('Permissions loaded successfully:', data);
+        
+        currentPermissions = data.permissions || [];
+        renderPermissions(data.permissions || [], data.descriptions || {});
 
     } catch (error) {
         console.error('Error loading permissions:', error);
         showAlert('Failed to load permissions', 'danger');
+        
+        // Fallback: render empty permissions container
+        const container = document.getElementById('permissions-container');
+        if (container) {
+            container.innerHTML = '<div class="col-12"><p class="text-muted">Unable to load permissions at this time.</p></div>';
+        }
     }
 }
 
@@ -721,8 +729,8 @@ function renderPermissions(permissions, descriptions) {
         <div class="col-md-6 col-lg-4 mb-2">
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" value="${permission}" id="perm_${permission}">
-                <label class="form-check-label small" for="perm_${permission}" title="${descriptions[permission]}">
-                    ${descriptions[permission]}
+                <label class="form-check-label small" for="perm_${permission}" title="${descriptions[permission] || permission}">
+                    ${descriptions[permission] || permission}
                 </label>
             </div>
         </div>

@@ -1670,7 +1670,7 @@ def get_available_permissions():
     """Get all available permissions for subusers"""
     try:
         # Define available permissions and their descriptions
-        permissions = {
+        permissions_data = {
             'view_inventory': 'View Inventory',
             'edit_inventory': 'Edit Inventory Items',
             'delete_inventory': 'Delete Inventory Items',
@@ -1700,14 +1700,23 @@ def get_available_permissions():
             'manage_users': 'Can manage team members and permissions'
         }
 
-        return jsonify({
-            'permissions': list(permissions.keys()),
+        result = {
+            'success': True,
+            'permissions': list(permissions_data.keys()),
             'descriptions': descriptions
-        })
+        }
+
+        logger.info(f"Returning permissions data: {result}")
+        return jsonify(result)
 
     except Exception as e:
         logger.error(f"Error getting permissions: {str(e)}")
-        return jsonify({'error': 'Failed to load permissions'}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Failed to load permissions',
+            'permissions': [],
+            'descriptions': {}
+        }), 500
 
 
 # Categories API Routes
