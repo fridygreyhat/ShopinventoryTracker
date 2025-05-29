@@ -128,6 +128,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Checkout
     completeTransactionBtn.addEventListener('click', completeTransaction);
     createInvoiceBtn.addEventListener('click', createInvoice);
+    
+    // Split Payment Features
+    const splitPaymentBtn = document.getElementById('splitPaymentBtn');
+    const splitPaymentModal = document.getElementById('splitPaymentModal');
+    
+    if (splitPaymentBtn) {
+        splitPaymentBtn.addEventListener('click', initializeSplitPayment);
+    }
 
     // Discount application
     applyDiscountModalBtn.addEventListener('click', applyDiscount);
@@ -660,6 +668,165 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset button
             completeTransactionBtn.disabled = false;
             completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+        });
+    }
+
+    // Split Payment Management
+    let splitPayments = [];
+    
+    function initializeSplitPayment() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        splitPayments = [];
+        updateSplitPaymentDisplay();
+        
+        // Show split payment modal
+        const modal = new bootstrap.Modal(splitPaymentModal);
+        modal.show();
+    }
+    
+    function addSplitPayment() {
+        const method = document.getElementById('splitPaymentMethod').value;
+        const amount = parseFloat(document.getElementById('splitPaymentAmount').value);
+        const reference = document.getElementById('splitPaymentReference').value;
+        
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid payment amount');
+            return;
+        }
+        
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const currentTotal = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        if (currentTotal + amount > totalAmount) {
+            alert('Payment amount exceeds remaining balance');
+            return;
+        }
+        
+        splitPayments.push({
+            method: method,
+            amount: amount,
+            reference: reference || '',
+            timestamp: new Date().toISOString()
+        });
+        
+        updateSplitPaymentDisplay();
+        
+        // Clear form
+        document.getElementById('splitPaymentAmount').value = '';
+        document.getElementById('splitPaymentReference').value = '';
+    }
+    
+    function updateSplitPaymentDisplay() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const remainingAmount = totalAmount - paidAmount;
+        
+        const splitPaymentsList = document.getElementById('splitPaymentsList');
+        const remainingAmountDisplay = document.getElementById('remainingAmount');
+        
+        // Update payments list
+        splitPaymentsList.innerHTML = '';
+        splitPayments.forEach((payment, index) => {
+            const paymentRow = document.createElement('div');
+            paymentRow.className = 'row mb-2';
+            paymentRow.innerHTML = `
+                <div class="col-4">${payment.method}</div>
+                <div class="col-4">TZS ${payment.amount.toLocaleString()}</div>
+                <div class="col-4">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeSplitPayment(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            splitPaymentsList.appendChild(paymentRow);
+        });
+        
+        // Update remaining amount
+        remainingAmountDisplay.textContent = `TZS ${remainingAmount.toLocaleString()}`;
+        
+        // Enable/disable complete button
+        const completeSplitBtn = document.getElementById('completeSplitPayment');
+        completeSplitBtn.disabled = remainingAmount > 0;
+    }
+    
+    function removeSplitPayment(index) {
+        splitPayments.splice(index, 1);
+        updateSplitPaymentDisplay();
+    }
+    
+    function completeSplitPayment() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        if (paidAmount < totalAmount) {
+            alert('Payment amount is less than total. Please add more payments.');
+            return;
+        }
+        
+        // Process the transaction with split payments
+        processSplitPaymentTransaction();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(splitPaymentModal);
+        modal.hide();
+    }
+    
+    function processSplitPaymentTransaction() {
+        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone').value || '';
+        const notes = document.getElementById('saleNotes').value || '';
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        
+        const transaction = {
+            customer: {
+                name: customerName,
+                phone: customerPhone
+            },
+            items: cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                sku: item.sku,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total
+            })),
+            payment: {
+                method: 'split',
+                amount: totalAmount,
+                change: 0,
+                split_payments: splitPayments
+            },
+            sale_type: saleType,
+            subtotal: parseFloat(cartSubtotal.textContent.replace(/,/g, '')),
+            discount: {
+                type: currentDiscount.type,
+                value: currentDiscount.value,
+                amount: parseFloat(cartDiscount.textContent.replace(/,/g, ''))
+            },
+            total: totalAmount,
+            notes: notes,
+            date: new Date().toISOString()
+        };
+        
+        // Send to server
+        fetch('/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(transaction)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Split payment transaction completed successfully!');
+            clearCart();
+            document.getElementById('checkoutForm').reset();
+            splitPayments = [];
+            loadAllProducts();
+        })
+        .catch(error => {
+            console.error('Error processing split payment:', error);
+            alert('Failed to process split payment transaction');
         });
     }
 

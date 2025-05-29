@@ -2689,6 +2689,96 @@ def get_inventory_turnover():
         logger.error(f"Error calculating inventory turnover: {str(e)}")
         return jsonify({"error": "Failed to calculate inventory turnover"}), 500
 
+# Automation Management API Routes
+@app.route('/api/automation/purchase-orders', methods=['POST'])
+@login_required
+def generate_purchase_orders():
+    """Generate automatic purchase orders"""
+    try:
+        from automation_manager import AutomationManager
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        automation = AutomationManager()
+        result = automation.generate_auto_purchase_orders(user_id)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error generating purchase orders: {str(e)}")
+        return jsonify({"error": "Failed to generate purchase orders"}), 500
+
+@app.route('/api/automation/price-updates', methods=['POST'])
+@login_required
+def update_supplier_prices():
+    """Update prices from suppliers"""
+    try:
+        from automation_manager import AutomationManager
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        automation = AutomationManager()
+        result = automation.update_prices_from_suppliers(user_id)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error updating supplier prices: {str(e)}")
+        return jsonify({"error": "Failed to update prices"}), 500
+
+@app.route('/api/automation/scheduled-reports', methods=['POST'])
+@login_required
+def generate_scheduled_report():
+    """Generate and send scheduled report"""
+    try:
+        from automation_manager import AutomationManager
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        data = request.json
+        report_type = data.get('report_type', 'daily')
+        
+        automation = AutomationManager()
+        result = automation.generate_scheduled_reports(user_id, report_type)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error generating scheduled report: {str(e)}")
+        return jsonify({"error": "Failed to generate report"}), 500
+
+@app.route('/api/notifications/whatsapp', methods=['POST'])
+@login_required
+def send_whatsapp_notification():
+    """Send WhatsApp notification"""
+    try:
+        from notifications.sms_service import send_whatsapp_message
+        
+        data = request.json
+        phone_number = data.get('phone_number')
+        message = data.get('message')
+        template_name = data.get('template_name')
+        
+        if not phone_number or not message:
+            return jsonify({"error": "Phone number and message are required"}), 400
+        
+        success = send_whatsapp_message(phone_number, message, template_name)
+        
+        return jsonify({
+            "success": success,
+            "message": "WhatsApp message sent successfully" if success else "Failed to send WhatsApp message"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error sending WhatsApp notification: {str(e)}")
+        return jsonify({"error": "Failed to send WhatsApp notification"}), 500
+
 # Customer Management API Routes
 @app.route('/api/customers', methods=['GET'])
 @login_required

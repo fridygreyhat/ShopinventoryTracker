@@ -444,6 +444,13 @@ class FinancialTransaction(db.Model):
     category = db.Column(db.String(50), nullable=False)
     reference_id = db.Column(db.String(100))  # To link to sales or other records
     payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
+    
+    # Tax and COGS tracking
+    tax_rate = db.Column(db.Float, default=0.0)  # Tax rate percentage
+    tax_amount = db.Column(db.Float, default=0.0)  # Calculated tax amount
+    cost_of_goods_sold = db.Column(db.Float, default=0.0)  # COGS for sales transactions
+    gross_amount = db.Column(db.Float, default=0.0)  # Amount before tax
+    
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -462,6 +469,10 @@ class FinancialTransaction(db.Model):
             'category': self.category,
             'reference_id': self.reference_id,
             'payment_method': self.payment_method,
+            'tax_rate': self.tax_rate or 0,
+            'tax_amount': self.tax_amount or 0,
+            'cost_of_goods_sold': self.cost_of_goods_sold or 0,
+            'gross_amount': self.gross_amount or 0,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
