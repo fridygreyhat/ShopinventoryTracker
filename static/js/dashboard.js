@@ -87,6 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const inventoryHealthContainer = document.getElementById('inventory-health-container');
 
     // Financial Elements
+    const dailyIncomeElement = document.getElementById('daily-income');
+    const weeklyIncomeElement = document.getElementById('weekly-income');
     const monthlyIncomeElement = document.getElementById('monthly-income');
     const monthlyExpensesElement = document.getElementById('monthly-expenses');
     const monthlyProfitElement = document.getElementById('monthly-profit');
@@ -756,16 +758,56 @@ function loadDashboardData() {
         const year = today.getFullYear();
         const month = today.getMonth() + 1;
 
+        // Get today's date for daily income
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+        // Get week start (Sunday) for weekly income
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+
         // Get first and last day of current month
         const firstDay = new Date(year, month - 1, 1);
         const lastDay = new Date(year, month, 0);
 
-        // Format dates as YYYY-MM-DD
-        const startDate = firstDay.toISOString().slice(0, 10);
-        const endDate = lastDay.toISOString().slice(0, 10);
+        // Load daily income
+        const dailyStartDate = todayStart.toISOString().slice(0, 10);
+        const dailyEndDate = today.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${dailyStartDate}&end_date=${dailyEndDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const dailyIncome = data.summary.total_income || 0;
+                if (dailyIncomeElement) {
+                    dailyIncomeElement.textContent = dailyIncome.toLocaleString();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading daily income:', error);
+            });
+
+        // Load weekly income
+        const weeklyStartDate = weekStart.toISOString().slice(0, 10);
+        const weeklyEndDate = today.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${weeklyStartDate}&end_date=${weeklyEndDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const weeklyIncome = data.summary.total_income || 0;
+                if (weeklyIncomeElement) {
+                    weeklyIncomeElement.textContent = weeklyIncome.toLocaleString();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading weekly income:', error);
+            });
 
         // Load monthly transactions data
-        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
+        const monthlyStartDate = firstDay.toISOString().slice(0, 10);
+        const monthlyEndDate = lastDay.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}`)
             .then(response => response.json())
             .then(data => {
                 updateFinancialSummary(data.summary);
