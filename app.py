@@ -1728,12 +1728,21 @@ def get_sale(sale_id):
 def get_subusers():
     """Get all subusers for the current user"""
     try:
-        subusers = Subuser.query.filter_by(
-            parent_user_id=session['user_id']).all()
-        return jsonify([subuser.to_dict() for subuser in subusers])
+        user_id = session.get('user_id')
+        if not user_id:
+            logger.error("No user_id in session")
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        logger.info(f"Loading subusers for user_id: {user_id}")
+        subusers = Subuser.query.filter_by(parent_user_id=user_id).all()
+        
+        result = [subuser.to_dict() for subuser in subusers]
+        logger.info(f"Found {len(result)} subusers for user {user_id}")
+        
+        return jsonify(result)
     except Exception as e:
         logger.error(f"Error getting subusers: {str(e)}")
-        return jsonify({'error': 'Failed to load subusers'}), 500
+        return jsonify({'error': f'Failed to load subusers: {str(e)}'}), 500
 
 
 @app.route('/api/subusers', methods=['POST'])

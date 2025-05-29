@@ -562,14 +562,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userPermissionsTab) {
         userPermissionsTab.addEventListener('shown.bs.tab', function() {
             console.log('User permissions tab shown, loading data...');
-            loadSubusers();
-            loadPermissions();
+            // Add a small delay to ensure the tab is fully shown
+            setTimeout(() => {
+                loadSubusers();
+                loadPermissions();
+            }, 100);
         });
 
         // Also load if the tab is already active on page load
         if (userPermissionsTab.classList.contains('active')) {
-            loadSubusers();
-            loadPermissions();
+            setTimeout(() => {
+                loadSubusers();
+                loadPermissions();
+            }, 100);
         }
     }
 
@@ -597,18 +602,37 @@ function loadSubusers() {
     const noSubusersElement = document.getElementById('no-subusers');
     const subusersContainer = document.getElementById('subusers-container');
 
+    console.log('Loading subusers...');
+
     if (loadingElement) loadingElement.classList.remove('d-none');
     if (noSubusersElement) noSubusersElement.classList.add('d-none');
     if (subusersContainer) subusersContainer.innerHTML = '';
 
-    fetch('/api/subusers')
+    fetch('/api/subusers', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        credentials: 'same-origin'
+    })
         .then(response => {
+            console.log('Subusers response status:', response.status);
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                if (response.status === 403) {
+                    throw new Error('Access denied - insufficient permissions');
+                } else if (response.status === 401) {
+                    throw new Error('Authentication required - please login again');
+                } else if (response.status >= 500) {
+                    throw new Error('Server error - please try again later');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
             }
             return response.json();
         })
         .then(data => {
+            console.log('Subusers data loaded:', data);
             if (loadingElement) loadingElement.classList.add('d-none');
 
             if (!data || data.length === 0) {
@@ -621,10 +645,22 @@ function loadSubusers() {
             console.error('Error loading subusers:', error);
             if (loadingElement) loadingElement.classList.add('d-none');
             
-            // Show error message instead of just hiding
+            // Show specific error message
+            let errorMessage = 'Failed to load users';
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error - please check your connection and try again';
+            } else {
+                errorMessage = error.message;
+            }
+            
             const errorHtml = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-circle me-2"></i>Failed to load users: ${error.message}
+                    <i class="fas fa-exclamation-circle me-2"></i>${errorMessage}
+                    <br><small class="mt-2 d-block">
+                        <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadSubusers()">
+                            <i class="fas fa-redo me-1"></i>Try Again
+                        </button>
+                    </small>
                 </div>
             `;
             if (subusersContainer) {
