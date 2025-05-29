@@ -611,6 +611,49 @@ def get_inventory_categories():
     return jsonify([c.category for c in categories])
 
 
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    """API endpoint to get all products (alias for inventory)"""
+    from models import Item
+
+    # Start query
+    query = Item.query
+
+    # Optional filtering
+    category = request.args.get('category')
+    search_term = request.args.get('search', '').lower()
+    min_stock = request.args.get('min_stock')
+    max_stock = request.args.get('max_stock')
+
+    # Apply filters if provided
+    if category:
+        query = query.filter(Item.category == category)
+
+    if search_term:
+        search_filter = (Item.name.ilike(f'%{search_term}%')
+                         | Item.sku.ilike(f'%{search_term}%')
+                         | Item.description.ilike(f'%{search_term}%'))
+        query = query.filter(search_filter)
+
+    if min_stock:
+        try:
+            min_stock = int(min_stock)
+            query = query.filter(Item.quantity >= min_stock)
+        except ValueError:
+            pass
+
+    if max_stock:
+        try:
+            max_stock = int(max_stock)
+            query = query.filter(Item.quantity <= max_stock)
+        except ValueError:
+            pass
+
+    # Execute query and convert to dictionary
+    items = [item.to_dict() for item in query.all()]
+    return jsonify(items)
+
+
 @app.route('/api/reports/stock-status', methods=['GET'])
 def stock_status_report():
     """API endpoint to get stock status report"""
