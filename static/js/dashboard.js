@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadDashboardData() {
         console.log('Loading dashboard data...');
         loadSalesPerformance();
-        
+
         // Load stock status report
         fetch('/api/reports/stock-status')
             .then(response => {
@@ -278,7 +278,7 @@ function loadDashboardData() {
 
     function updateDashboardSummary(data) {
         console.log('Updating dashboard summary with data:', data);
-        
+
         // Update summary cards with safe fallbacks
         if (totalItemsElement) {
             totalItemsElement.textContent = data.total_items || 0;
@@ -751,80 +751,83 @@ function loadDashboardData() {
         onDemandProductsTableElement.innerHTML = html;
     }
 
-    // Load financial summary data for dashboard
+    // Load financial summary data
     function loadFinancialSummary() {
-        // Get current date
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = today.getMonth() + 1;
-
-        // Get today's date for daily income
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
-        // Get week start (Sunday) for weekly income
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-
-        // Get first and last day of current month
-        const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0);
+        console.log('Loading financial summary...');
 
         // Load daily income
-        const dailyStartDate = todayStart.toISOString().slice(0, 10);
-        const dailyEndDate = today.toISOString().slice(0, 10);
-        
-        fetch(`/api/finance/transactions?start_date=${dailyStartDate}&end_date=${dailyEndDate}`)
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        fetch(`/api/finance/transactions?start_date=${todayStr}&end_date=${todayStr}`)
             .then(response => response.json())
             .then(data => {
-                const dailyIncome = data.summary.total_income || 0;
+                const dailyIncome = data.summary ? data.summary.total_income : 0;
                 if (dailyIncomeElement) {
                     dailyIncomeElement.textContent = dailyIncome.toLocaleString();
+                    animateCounter(dailyIncomeElement, dailyIncome);
                 }
             })
-            .catch(error => {
-                console.error('Error loading daily income:', error);
-            });
+            .catch(error => console.error('Error loading daily income:', error));
 
         // Load weekly income
-        const weeklyStartDate = weekStart.toISOString().slice(0, 10);
-        const weeklyEndDate = today.toISOString().slice(0, 10);
-        
-        fetch(`/api/finance/transactions?start_date=${weeklyStartDate}&end_date=${weeklyEndDate}`)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+        fetch(`/api/finance/transactions?start_date=${weekAgoStr}&end_date=${todayStr}`)
             .then(response => response.json())
             .then(data => {
-                const weeklyIncome = data.summary.total_income || 0;
+                const weeklyIncome = data.summary ? data.summary.total_income : 0;
                 if (weeklyIncomeElement) {
                     weeklyIncomeElement.textContent = weeklyIncome.toLocaleString();
+                    animateCounter(weeklyIncomeElement, weeklyIncome);
                 }
             })
-            .catch(error => {
-                console.error('Error loading weekly income:', error);
-            });
+            .catch(error => console.error('Error loading weekly income:', error));
 
-        // Load monthly transactions data
-        const monthlyStartDate = firstDay.toISOString().slice(0, 10);
-        const monthlyEndDate = lastDay.toISOString().slice(0, 10);
-        
-        fetch(`/api/finance/transactions?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}`)
+        // Load monthly income
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthStartStr = monthStart.toISOString().split('T')[0];
+
+        fetch(`/api/finance/transactions?start_date=${monthStartStr}&end_date=${todayStr}`)
             .then(response => response.json())
             .then(data => {
-                updateFinancialSummary(data.summary);
-            })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
+                const monthlyIncome = data.summary ? data.summary.total_income : 0;
+                const monthlyExpenses = data.summary ? data.summary.total_expenses : 0;
+                const monthlyProfit = data.summary ? data.summary.net_profit : 0;
 
-        // Load yearly data for chart
-        fetch(`/api/finance/summaries/monthly?year=${year}`)
-            .then(response => response.json())
-            .then(data => {
-                createFinancialChart(data);
+                if (monthlyIncomeElement) {
+                    monthlyIncomeElement.textContent = monthlyIncome.toLocaleString();
+                    animateCounter(monthlyIncomeElement, monthlyIncome);
+                }
+                if (monthlyExpensesElement) {
+                    monthlyExpensesElement.textContent = monthlyExpenses.toLocaleString();
+                    animateCounter(monthlyExpensesElement, monthlyExpenses);
+                }
+                if (monthlyProfitElement) {
+                    monthlyProfitElement.textContent = monthlyProfit.toLocaleString();
+                    animateCounter(monthlyProfitElement, monthlyProfit);
+
+                    // Add color coding for profit
+                    const profitElement = monthlyProfitElement.closest('.card-body');
+                    if (profitElement) {
+                        profitElement.classList.remove('text-success', 'text-danger', 'text-warning');
+                        if (monthlyProfit > 0) {
+                            profitElement.classList.add('text-success');
+                        } else if (monthlyProfit < 0) {
+                            profitElement.classList.add('text-danger');
+                        } else {
+                            profitElement.classList.add('text-warning');
+                        }
+                    }
+                }
             })
-            .catch(error => {
-                console.error('Error loading monthly financial data:', error);
-            });
+            .catch(error => console.error('Error loading monthly income:', error));
+
+        // Load financial chart data
+        loadFinancialChart();
+        loadIncomeChart();
     }
 
     // Update financial summary on dashboard
@@ -850,123 +853,208 @@ function loadDashboardData() {
         }
     }
 
-    // Create financial summary chart
-    function createFinancialChart(data) {
-        if (!financialSummaryChartElement) {
-            return;
+    // Load financial chart data
+    function loadFinancialChart() {
+        const currentYear = new Date().getFullYear();
+
+        fetch(`/api/finance/summaries/monthly?year=${currentYear}`)
+            .then(response => response.json())
+            .then(data => {
+                createFinancialChart(data);
+            })
+            .catch(error => console.error('Error loading financial chart data:', error));
+    }
+
+    // Load income trend chart
+    function loadIncomeChart() {
+        const today = new Date();
+        const last7Days = [];
+
+        // Get last 7 days of data
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(today.getDate() - i);
+            last7Days.push(date.toISOString().split('T')[0]);
         }
 
-        const ctx = financialSummaryChartElement.getContext('2d');
+        Promise.all(
+            last7Days.map(date => 
+                fetch(`/api/finance/transactions?start_date=${date}&end_date=${date}`)
+                    .then(response => response.json())
+            )
+        ).then(results => {
+            const incomeData = results.map((data, index) => ({
+                date: last7Days[index],
+                income: data.summary ? data.summary.total_income : 0,
+                expenses: data.summary ? data.summary.total_expenses : 0,
+                profit: data.summary ? data.summary.net_profit : 0
+            }));
 
-        // Destroy existing chart if it exists
-        if (financialChart) {
-            financialChart.destroy();
+            createIncomeChart(incomeData);
+        }).catch(error => console.error('Error loading income chart data:', error));
+    }
+
+    // Create income trend chart
+    function createIncomeChart(data) {
+        const ctx = document.getElementById('incomeChart');
+        if (!ctx) return;
+
+        const dates = data.map(item => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        });
+        const incomeData = data.map(item => item.income);
+        const expenseData = data.map(item => item.expenses);
+        const profitData = data.map(item => item.profit);
+
+        if (window.incomeChart) {
+            window.incomeChart.destroy();
         }
 
-        // Extract data for chart
-        const months = data.monthly_data.map(item => item.month_name);
-        const incomeData = data.monthly_data.map(item => item.income);
-        const expenseData = data.monthly_data.map(item => item.expenses);
-        const profitData = data.monthly_data.map(item => item.profit);
-
-        // Create new chart
-        financialChart = new Chart(ctx, {
-            type: 'bar',
+        window.incomeChart = new Chart(ctx, {
+            type: 'line',
             data: {
-                labels: months,
+                labels: dates,
                 datasets: [
                     {
                         label: 'Income',
                         data: incomeData,
-                        backgroundColor: getThemeColors().success,
-                        borderColor: getThemeColors().success.replace('0.8', '1'),
-                        borderWidth: 1
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(40, 167, 69, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     },
                     {
                         label: 'Expenses',
                         data: expenseData,
-                        backgroundColor: getThemeColors().danger,
-                        borderColor: getThemeColors().danger.replace('0.8', '1'),
-                        borderWidth: 1
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     },
                     {
                         label: 'Net Profit',
                         data: profitData,
-                        type: 'line',
-                        backgroundColor: getThemeColors().info.replace('0.8', '0.2'),
-                        borderColor: getThemeColors().info.replace('0.8', '1'),
-                        borderWidth: 2,
-                        pointBackgroundColor: getThemeColors().info.replace('0.8', '1'),
-                        pointRadius: 4,
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        borderWidth: 3,
                         fill: false,
-                        tension: 0.1
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText,
-                            callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText
-                        }
-                    }
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 },
                 plugins: {
                     legend: {
+                        display: true,
+                        position: 'top',
                         labels: {
-                            color: getThemeColors().chartText,
                             usePointStyle: true,
-                            padding: 5,
-                            boxWidth: 8,
+                            padding: 20,
                             font: {
-                                size: 10,
-                                family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
+                                size: 12,
+                                weight: '500'
                             }
                         }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        displayColors: true,
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += 'TZS ' + context.raw.toLocaleString();
-                                return label;
+                                return `${context.dataset.label}: TZS ${context.raw.toLocaleString()}`;
                             }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
                         },
-                        backgroundColor: getThemeColors().tooltipBackground,
-                        titleColor: getThemeColors().tooltipText,
-                        bodyColor: getThemeColors().tooltipText,
-                        titleFont: {
-                            size: 12,
-                            weight: 'bold'
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
                         },
-                        bodyFont: {
-                            size: 11
-                        },
-                        padding: 8
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: '#ffffff'
                     }
                 }
             }
         });
+    }
+
+    // Animate counter function
+    function animateCounter(element, finalValue) {
+        const duration = 1500;
+        const startTime = performance.now();
+        const startValue = 0;
+
+        function updateCounter(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Easing function for smooth animation
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const currentValue = Math.floor(startValue + (finalValue - startValue) * easeOut);
+
+            element.textContent = currentValue.toLocaleString();
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            } else {
+                element.textContent = finalValue.toLocaleString();
+            }
+        }
+
+        requestAnimationFrame(updateCounter);
     }
 
     // Initialize
