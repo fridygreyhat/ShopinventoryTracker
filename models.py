@@ -581,3 +581,144 @@ class Subcategory(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+class LayawayPlan(db.Model):
+    """Model for layaway/installment plans"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_name = db.Column(db.String(100), nullable=False)
+    customer_phone = db.Column(db.String(20))
+    customer_email = db.Column(db.String(120))
+    total_amount = db.Column(db.Float, nullable=False)
+    down_payment = db.Column(db.Float, default=0.0)
+    remaining_balance = db.Column(db.Float, nullable=False)
+    installment_amount = db.Column(db.Float, nullable=False)
+    payment_frequency = db.Column(db.String(20), default='monthly')  # weekly, bi-weekly, monthly
+    next_payment_date = db.Column(db.Date)
+    completion_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default='active')  # active, completed, cancelled, defaulted
+    items_data = db.Column(db.Text)  # JSON string with item details
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    payments = db.relationship('LayawayPayment', backref='layaway_plan', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<LayawayPlan {self.customer_name} - {self.total_amount}>'
+
+    def to_dict(self):
+        """Convert layaway plan to dictionary for API responses"""
+        items_data_dict = {}
+        if self.items_data:
+            try:
+                items_data_dict = json.loads(self.items_data)
+            except json.JSONDecodeError:
+                items_data_dict = {}
+
+        return {
+            'id': self.id,
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'customer_email': self.customer_email,
+            'total_amount': self.total_amount,
+            'down_payment': self.down_payment,
+            'remaining_balance': self.remaining_balance,
+            'installment_amount': self.installment_amount,
+            'payment_frequency': self.payment_frequency,
+            'next_payment_date': self.next_payment_date.isoformat() if self.next_payment_date else None,
+            'completion_date': self.completion_date.isoformat() if self.completion_date else None,
+            'status': self.status,
+            'items': items_data_dict,
+            'notes': self.notes,
+            'total_paid': sum(payment.amount for payment in self.payments),
+            'payments_count': len(self.payments),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class LayawayPayment(db.Model):
+    """Model for layaway payments"""
+    id = db.Column(db.Integer, primary_key=True)
+    layaway_plan_id = db.Column(db.Integer, db.ForeignKey('layaway_plan.id', ondelete='CASCADE'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(20), default='cash')
+    payment_date = db.Column(db.Date, default=datetime.utcnow().date)
+    reference_number = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<LayawayPayment {self.amount} for Plan {self.layaway_plan_id}>'
+
+    def to_dict(self):
+        """Convert layaway payment to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'layaway_plan_id': self.layaway_plan_id,
+            'amount': self.amount,
+            'payment_method': self.payment_method,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'reference_number': self.reference_number,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class PricingRule(db.Model):
+    """Model for dynamic pricing rules"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    rule_type = db.Column(db.String(20), nullable=False)  # bulk, promotional, time_based, competitor
+    conditions = db.Column(db.Text)  # JSON string with conditions
+    discount_type = db.Column(db.String(20), default='percentage')  # percentage, fixed_amount
+    discount_value = db.Column(db.Float, default=0.0)
+    min_quantity = db.Column(db.Integer, default=1)
+    max_quantity = db.Column(db.Integer)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    applicable_items = db.Column(db.Text)  # JSON string with item IDs or categories
+    is_active = db.Column(db.Boolean, default=True)
+    priority = db.Column(db.Integer, default=1)  # Higher number = higher priority
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<PricingRule {self.name}>'
+
+    def to_dict(self):
+        """Convert pricing rule to dictionary for API responses"""
+        conditions_dict = {}
+        applicable_items_list = []
+        
+        if self.conditions:
+            try:
+                conditions_dict = json.loads(self.conditions)
+            except json.JSONDecodeError:
+                conditions_dict = {}
+        
+        if self.applicable_items:
+            try:
+                applicable_items_list = json.loads(self.applicable_items)
+            except json.JSONDecodeError:
+                applicable_items_list = []
+
+        return {
+            'id': self.id,
+            'name': self.name,
+            'rule_type': self.rule_type,
+            'conditions': conditions_dict,
+            'discount_type': self.discount_type,
+            'discount_value': self.discount_value,
+            'min_quantity': self.min_quantity,
+            'max_quantity': self.max_quantity,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'applicable_items': applicable_items_list,
+            'is_active': self.is_active,
+            'priority': self.priority,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
