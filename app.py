@@ -260,6 +260,13 @@ def categories():
     return render_template('categories.html')
 
 
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Render the predictive analytics page"""
+    return render_template('analytics.html')
+
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 @login_required
@@ -2395,6 +2402,376 @@ def update_appearance_settings():
         logger.error(f"Error updating appearance settings: {str(e)}")
         return jsonify({"error": "Failed to update appearance settings"}), 500
 
+
+# Predictive Analytics API Routes
+@app.route('/api/analytics/demand-forecast/<int:item_id>', methods=['GET'])
+@login_required
+def forecast_item_demand(item_id):
+    """API endpoint to forecast demand for a specific item"""
+    try:
+        from predictive_analytics import PredictiveStockManager
+        from models import Item, Sale, SaleItem
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Verify item belongs to user
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+        
+        # Get forecast parameters
+        forecast_days = request.args.get('days', 30, type=int)
+        
+        # Initialize predictive manager
+        predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
+        
+        # Get demand forecast
+        forecast = predictor.forecast_demand(item_id, forecast_days)
+        
+        return jsonify(forecast)
+        
+    except Exception as e:
+        logger.error(f"Error forecasting demand for item {item_id}: {str(e)}")
+        return jsonify({"error": "Failed to forecast demand"}), 500
+
+@app.route('/api/analytics/reorder-points/<int:item_id>', methods=['GET'])
+@login_required
+def get_reorder_point(item_id):
+    """API endpoint to get reorder point recommendations for an item"""
+    try:
+        from predictive_analytics import PredictiveStockManager
+        from models import Item, Sale, SaleItem
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Verify item belongs to user
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+        
+        # Get parameters
+        lead_time_days = request.args.get('lead_time', 7, type=int)
+        service_level = request.args.get('service_level', 0.95, type=float)
+        
+        # Initialize predictive manager
+        predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
+        
+        # Calculate reorder point
+        reorder_data = predictor.calculate_reorder_point(item_id, lead_time_days, service_level)
+        
+        return jsonify(reorder_data)
+        
+    except Exception as e:
+        logger.error(f"Error calculating reorder point for item {item_id}: {str(e)}")
+        return jsonify({"error": "Failed to calculate reorder point"}), 500
+
+@app.route('/api/analytics/purchase-recommendations', methods=['GET'])
+@login_required
+def get_purchase_recommendations():
+    """API endpoint to get smart purchase recommendations"""
+    try:
+        from predictive_analytics import PredictiveStockManager
+        from models import Item, Sale, SaleItem
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Initialize predictive manager
+        predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
+        
+        # Get purchase recommendations
+        recommendations = predictor.get_purchase_recommendations(user_id)
+        
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations,
+            'total_recommendations': len(recommendations)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting purchase recommendations: {str(e)}")
+        return jsonify({"error": "Failed to get purchase recommendations"}), 500
+
+@app.route('/api/analytics/abc-analysis', methods=['GET'])
+@login_required
+def get_abc_analysis():
+    """API endpoint to perform ABC analysis on inventory"""
+    try:
+        from predictive_analytics import analyze_abc_classification
+        from models import Item, Sale, SaleItem
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Perform ABC analysis
+        abc_data = analyze_abc_classification(db, Item, Sale, SaleItem, user_id)
+        
+        return jsonify(abc_data)
+        
+    except Exception as e:
+        logger.error(f"Error performing ABC analysis: {str(e)}")
+        return jsonify({"error": "Failed to perform ABC analysis"}), 500
+
+@app.route('/api/reports/profit-margin', methods=['GET'])
+@login_required
+def get_profit_margin_analysis():
+    """API endpoint to get profit margin analysis by product/category"""
+    try:
+        from models import Item, Sale, SaleItem
+        from sqlalchemy import func
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get profit margin data
+        margin_data = db.session.query(
+            Item.id,
+            Item.name,
+            Item.category,
+            Item.buying_price,
+            Item.selling_price_retail,
+            func.sum(SaleItem.quantity).label('units_sold'),
+            func.sum(SaleItem.total).label('total_revenue'),
+            func.sum(SaleItem.quantity * Item.buying_price).label('total_cost')
+        ).outerjoin(
+            SaleItem, Item.id == SaleItem.item_id
+        ).filter(
+            Item.user_id == user_id
+        ).group_by(Item.id).all()
+        
+        # Calculate margins
+        margin_analysis = []
+        for item in margin_data:
+            if item.selling_price_retail and item.buying_price:
+                margin_amount = item.selling_price_retail - item.buying_price
+                margin_percentage = (margin_amount / item.selling_price_retail) * 100
+                
+                total_revenue = item.total_revenue or 0
+                total_cost = item.total_cost or 0
+                total_profit = total_revenue - total_cost
+                
+                margin_analysis.append({
+                    'item_id': item.id,
+                    'item_name': item.name,
+                    'category': item.category,
+                    'buying_price': item.buying_price,
+                    'selling_price': item.selling_price_retail,
+                    'margin_amount': round(margin_amount, 2),
+                    'margin_percentage': round(margin_percentage, 2),
+                    'units_sold': item.units_sold or 0,
+                    'total_revenue': round(total_revenue, 2),
+                    'total_cost': round(total_cost, 2),
+                    'total_profit': round(total_profit, 2)
+                })
+        
+        # Sort by margin percentage
+        margin_analysis.sort(key=lambda x: x['margin_percentage'], reverse=True)
+        
+        # Category summary
+        category_margins = {}
+        for item in margin_analysis:
+            category = item['category'] or 'Uncategorized'
+            if category not in category_margins:
+                category_margins[category] = {
+                    'total_revenue': 0,
+                    'total_cost': 0,
+                    'total_profit': 0,
+                    'item_count': 0
+                }
+            
+            category_margins[category]['total_revenue'] += item['total_revenue']
+            category_margins[category]['total_cost'] += item['total_cost']
+            category_margins[category]['total_profit'] += item['total_profit']
+            category_margins[category]['item_count'] += 1
+        
+        # Calculate category margin percentages
+        for category, data in category_margins.items():
+            if data['total_revenue'] > 0:
+                data['margin_percentage'] = round((data['total_profit'] / data['total_revenue']) * 100, 2)
+            else:
+                data['margin_percentage'] = 0
+        
+        return jsonify({
+            'success': True,
+            'item_margins': margin_analysis,
+            'category_margins': category_margins
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting profit margin analysis: {str(e)}")
+        return jsonify({"error": "Failed to get profit margin analysis"}), 500
+
+@app.route('/api/reports/inventory-turnover', methods=['GET'])
+@login_required
+def get_inventory_turnover():
+    """API endpoint to calculate inventory turnover ratios"""
+    try:
+        from models import Item, Sale, SaleItem
+        from sqlalchemy import func
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get period from query params (default to 365 days)
+        days = request.args.get('days', 365, type=int)
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Calculate turnover for each item
+        turnover_data = db.session.query(
+            Item.id,
+            Item.name,
+            Item.category,
+            Item.quantity,
+            Item.buying_price,
+            func.sum(SaleItem.quantity).label('units_sold'),
+            func.avg(Item.quantity).label('avg_inventory')
+        ).outerjoin(
+            SaleItem, Item.id == SaleItem.item_id
+        ).outerjoin(
+            Sale, SaleItem.sale_id == Sale.id
+        ).filter(
+            Item.user_id == user_id,
+            Sale.created_at >= cutoff_date
+        ).group_by(Item.id).all()
+        
+        turnover_analysis = []
+        for item in turnover_data:
+            units_sold = item.units_sold or 0
+            current_inventory = item.quantity or 0
+            avg_inventory = max(current_inventory, 1)  # Avoid division by zero
+            
+            # Calculate turnover ratio
+            turnover_ratio = units_sold / avg_inventory if avg_inventory > 0 else 0
+            
+            # Calculate days of inventory
+            days_of_inventory = days / turnover_ratio if turnover_ratio > 0 else float('inf')
+            
+            # Classify turnover speed
+            if turnover_ratio >= 12:
+                turnover_speed = 'Fast'
+            elif turnover_ratio >= 6:
+                turnover_speed = 'Medium'
+            elif turnover_ratio >= 3:
+                turnover_speed = 'Slow'
+            else:
+                turnover_speed = 'Very Slow'
+            
+            turnover_analysis.append({
+                'item_id': item.id,
+                'item_name': item.name,
+                'category': item.category,
+                'current_inventory': current_inventory,
+                'units_sold': units_sold,
+                'turnover_ratio': round(turnover_ratio, 2),
+                'days_of_inventory': round(days_of_inventory, 1) if days_of_inventory != float('inf') else 'N/A',
+                'turnover_speed': turnover_speed,
+                'inventory_value': current_inventory * (item.buying_price or 0)
+            })
+        
+        # Sort by turnover ratio
+        turnover_analysis.sort(key=lambda x: x['turnover_ratio'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'period_days': days,
+            'turnover_analysis': turnover_analysis
+        })
+        
+    except Exception as e:
+        logger.error(f"Error calculating inventory turnover: {str(e)}")
+        return jsonify({"error": "Failed to calculate inventory turnover"}), 500
+
+# Customer Management API Routes
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers():
+    """API endpoint to get all customers"""
+    try:
+        # For now, extract customers from sales data since we don't have separate customer table yet
+        from models import Sale
+        from sqlalchemy import func, distinct
+        
+        # Get unique customers from sales
+        customers = db.session.query(
+            Sale.customer_name,
+            Sale.customer_phone,
+            func.count(Sale.id).label('total_purchases'),
+            func.sum(Sale.total).label('total_spent'),
+            func.max(Sale.created_at).label('last_purchase_date'),
+            func.min(Sale.created_at).label('first_purchase_date')
+        ).filter(
+            Sale.customer_name != 'Walk-in Customer'
+        ).group_by(
+            Sale.customer_name, Sale.customer_phone
+        ).order_by(
+            func.sum(Sale.total).desc()
+        ).all()
+        
+        customer_list = []
+        for customer in customers:
+            # Calculate customer metrics
+            total_spent = customer.total_spent or 0
+            total_purchases = customer.total_purchases or 0
+            avg_order_value = total_spent / total_purchases if total_purchases > 0 else 0
+            
+            # Calculate customer lifetime (days)
+            if customer.first_purchase_date and customer.last_purchase_date:
+                lifetime_days = (customer.last_purchase_date - customer.first_purchase_date).days + 1
+            else:
+                lifetime_days = 1
+            
+            # Purchase frequency (purchases per month)
+            purchase_frequency = (total_purchases * 30) / lifetime_days if lifetime_days > 0 else 0
+            
+            customer_list.append({
+                'name': customer.customer_name,
+                'phone': customer.customer_phone,
+                'total_purchases': total_purchases,
+                'total_spent': round(total_spent, 2),
+                'average_order_value': round(avg_order_value, 2),
+                'purchase_frequency': round(purchase_frequency, 2),
+                'last_purchase_date': customer.last_purchase_date.isoformat() if customer.last_purchase_date else None,
+                'first_purchase_date': customer.first_purchase_date.isoformat() if customer.first_purchase_date else None,
+                'lifetime_days': lifetime_days
+            })
+        
+        return jsonify({
+            'success': True,
+            'customers': customer_list,
+            'total_customers': len(customer_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting customers: {str(e)}")
+        return jsonify({"error": "Failed to get customers"}), 500
+
+@app.route('/api/customers/<customer_name>/analytics', methods=['GET'])
+@login_required
+def get_customer_analytics(customer_name):
+    """API endpoint to get detailed analytics for a specific customer"""
+    try:
+        from customer_management import calculate_customer_metrics
+        
+        # Get customer analytics
+        analytics = calculate_customer_metrics(db, customer_name)
+        
+        return jsonify({
+            'success': True,
+            'customer_name': customer_name,
+            'analytics': analytics
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting customer analytics for {customer_name}: {str(e)}")
+        return jsonify({"error": "Failed to get customer analytics"}), 500
 
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])
