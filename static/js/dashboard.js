@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let valueChart = null;
     let healthDonutChart = null;
     let financialChart = null;
+    let expensesChart = null;
 
     // Load dashboard data
     loadDashboardData();
@@ -828,6 +829,7 @@ function loadDashboardData() {
         // Load financial chart data
         loadFinancialChart();
         loadIncomeChart();
+        loadExpensesChart();
     }
 
     // Update financial summary on dashboard
@@ -1025,6 +1027,118 @@ function loadDashboardData() {
                 elements: {
                     point: {
                         hoverBackgroundColor: '#ffffff'
+                    }
+                }
+            }
+        });
+    }
+
+    // Load expenses chart data for last 7 days
+    function loadExpensesChart() {
+        const today = new Date();
+        const last7Days = [];
+
+        // Get last 7 days of data
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(today.getDate() - i);
+            last7Days.push(date.toISOString().split('T')[0]);
+        }
+
+        Promise.all(
+            last7Days.map(date => 
+                fetch(`/api/finance/transactions?start_date=${date}&end_date=${date}`)
+                    .then(response => response.json())
+            )
+        ).then(results => {
+            const expenseData = results.map((data, index) => ({
+                date: last7Days[index],
+                expenses: data.summary ? data.summary.total_expenses : 0
+            }));
+
+            createExpensesChart(expenseData);
+        }).catch(error => console.error('Error loading expenses chart data:', error));
+    }
+
+    // Create expenses chart
+    function createExpensesChart(data) {
+        const ctx = document.getElementById('expensesChart');
+        if (!ctx) return;
+
+        const dates = data.map(item => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString('en-US', { weekday: 'short' });
+        });
+        const expenseData = data.map(item => item.expenses);
+
+        if (expensesChart) {
+            expensesChart.destroy();
+        }
+
+        const colors = getThemeColors();
+
+        expensesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Daily Expenses',
+                    data: expenseData,
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.chartBorder,
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        padding: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return `Expenses: TZS ${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 9
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: colors.chartGrid
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 9
+                            },
+                            callback: function(value) {
+                                return value > 1000 ? (value/1000).toFixed(0) + 'K' : value;
+                            }
+                        }
                     }
                 }
             }
