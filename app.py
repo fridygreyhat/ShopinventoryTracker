@@ -2556,6 +2556,20 @@ def account():
     return protected_account()
 
 
+@app.route('/admin')
+@login_required
+def admin_portal():
+    """Render the main admin portal page (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
+        return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
@@ -2566,7 +2580,7 @@ def admin_users():
         flash('Admin access required', 'danger')
         return redirect(url_for('index'))
 
-    users = User.query.all()
+    users = User.query.order_by(User.created_at.desc()).all()
     return render_template('admin_users.html', users=users)
 
 
@@ -2596,11 +2610,22 @@ def update_user(user_id):
         data = request.json
         user = User.query.get_or_404(user_id)
 
+        # Handle status toggle
+        if 'toggle_status' in data:
+            user.active = not user.active
+            user.updated_at = datetime.utcnow()
+            db.session.commit()
+            logger.info(f"Admin {current_user.username} toggled status for user {user.username} to {'active' if user.active else 'inactive'}")
+            return jsonify(user.to_dict())
+
         # Only allow updating specific fields
         if 'is_active' in data:
             user.active = data['is_active']
 
         if 'is_admin' in data:
+            # Prevent removing admin status from self
+            if user_id == current_user.id and not data['is_admin']:
+                return jsonify({"error": "Cannot remove admin status from your own account"}), 400
             user.is_admin = data['is_admin']
 
         if 'username' in data:
@@ -2625,12 +2650,73 @@ def update_user(user_id):
 
         user.updated_at = datetime.utcnow()
         db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} updated user: {user.username}")
         return jsonify(user.to_dict())
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating user: {str(e)}")
         return jsonify({"error": "Failed to update user"}), 500
+
+
+@app.route('/api/auth/users', methods=['POST'])
+@login_required
+def create_user_admin():
+    """API endpoint to create a new user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Validate required fields
+        required_fields = ['username', 'email', 'password']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        # Check if username already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({"error": "Username already exists"}), 400
+
+        # Check if email already exists
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({"error": "Email already exists"}), 400
+
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            first_name=data.get('firstName', ''),
+            last_name=data.get('lastName', ''),
+            active=data.get('is_active', True),
+            is_admin=data.get('is_admin', False),
+            email_verified=True  # Admin-created users are pre-verified
+        )
+        
+        # Set password
+        new_user.set_password(data['password'])
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} created new user: {new_user.username}")
+        
+        return jsonify({
+            "message": f"User {new_user.username} created successfully",
+            "user": new_user.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating user: {str(e)}")
+        return jsonify({"error": "Failed to create user"}), 500
 
 
 @app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
@@ -2652,6 +2738,8 @@ def delete_user(user_id):
 
         db.session.delete(user)
         db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} deleted user: {username}")
 
         return jsonify({"message": f"User {username} deleted successfully"})
 
