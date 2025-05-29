@@ -1,0 +1,187 @@
+
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-chart-line"></i> Predictive Analytics</h1>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary" id="refresh-analytics">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Analytics Dashboard -->
+    <div class="row mb-4">
+        <!-- Purchase Recommendations -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Smart Purchase Recommendations</h5>
+                    <span class="badge bg-warning" id="recommendation-count">0</span>
+                </div>
+                <div class="card-body">
+                    <div id="recommendations-loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="recommendations-content" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Current Stock</th>
+                                        <th>Suggested Qty</th>
+                                        <th>Priority</th>
+                                        <th>Est. Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recommendations-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="recommendations-empty" class="text-center py-4 d-none">
+                        <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                        <p class="text-muted">No purchase recommendations at this time.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABC Analysis -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-layer-group"></i> ABC Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div id="abc-loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="abc-content" class="d-none">
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="border rounded p-3">
+                                    <h6 class="text-primary">Class A</h6>
+                                    <h4 id="class-a-count">0</h4>
+                                    <small class="text-muted">High Value (80%)</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border rounded p-3">
+                                    <h6 class="text-warning">Class B</h6>
+                                    <h4 id="class-b-count">0</h4>
+                                    <small class="text-muted">Medium Value (15%)</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border rounded p-3">
+                                    <h6 class="text-secondary">Class C</h6>
+                                    <h4 id="class-c-count">0</h4>
+                                    <small class="text-muted">Low Value (5%)</small>
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="abc-chart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="row">
+        <!-- Profit Margin Analysis -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-percentage"></i> Profit Margin Analysis</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary" id="view-by-product">Products</button>
+                        <button type="button" class="btn btn-outline-primary" id="view-by-category">Categories</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="margin-loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="margin-content" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead id="margin-table-header"></thead>
+                                <tbody id="margin-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Turnover -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-recycle"></i> Inventory Turnover Analysis</h5>
+                    <select class="form-select form-select-sm" id="turnover-period" style="width: auto;">
+                        <option value="90">Last 90 Days</option>
+                        <option value="180">Last 6 Months</option>
+                        <option value="365" selected>Last Year</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div id="turnover-loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="turnover-content" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Current Stock</th>
+                                        <th>Units Sold</th>
+                                        <th>Turnover Ratio</th>
+                                        <th>Days of Inventory</th>
+                                        <th>Speed</th>
+                                        <th>Inventory Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="turnover-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Forecast Modal -->
+    <div class="modal fade" id="forecastModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Demand Forecast</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="forecast-content">
+                        <!-- Forecast content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/analytics.js"></script>
+{% endblock %}
