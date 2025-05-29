@@ -87,6 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const inventoryHealthContainer = document.getElementById('inventory-health-container');
 
     // Financial Elements
+    const dailyIncomeElement = document.getElementById('daily-income');
+    const weeklyIncomeElement = document.getElementById('weekly-income');
     const monthlyIncomeElement = document.getElementById('monthly-income');
     const monthlyExpensesElement = document.getElementById('monthly-expenses');
     const monthlyProfitElement = document.getElementById('monthly-profit');
@@ -231,11 +233,24 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 function loadDashboardData() {
+        console.log('Loading dashboard data...');
         loadSalesPerformance();
+        
         // Load stock status report
         fetch('/api/reports/stock-status')
-            .then(response => response.json())
+            .then(response => {
+                console.log('Stock status response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Stock status data loaded:', data);
+                console.log('Total items:', data.total_items);
+                console.log('Total stock:', data.total_stock);
+                console.log('Low stock count:', data.low_stock_items_count);
+                console.log('Inventory value:', data.total_inventory_value);
                 updateDashboardSummary(data);
                 updateLowStockTable(data.low_stock_items);
             })
@@ -245,8 +260,14 @@ function loadDashboardData() {
 
         // Load category breakdown for charts
         fetch('/api/reports/category-breakdown')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Category breakdown data loaded:', data);
                 createStockChart(data);
                 createValueChart(data);
             })
@@ -256,11 +277,31 @@ function loadDashboardData() {
     }
 
     function updateDashboardSummary(data) {
-        // Update summary cards
-        totalItemsElement.textContent = data.total_items;
-        totalStockElement.textContent = data.total_stock;
-        lowStockCountElement.textContent = data.low_stock_items_count;
-        inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + data.total_inventory_value.toLocaleString();
+        console.log('Updating dashboard summary with data:', data);
+        
+        // Update summary cards with safe fallbacks
+        if (totalItemsElement) {
+            totalItemsElement.textContent = data.total_items || 0;
+        }
+        if (totalStockElement) {
+            totalStockElement.textContent = data.total_stock || 0;
+        }
+        if (lowStockCountElement) {
+            lowStockCountElement.textContent = data.low_stock_items_count || 0;
+        }
+        if (inventoryValueElement) {
+            const value = data.total_inventory_value || 0;
+            inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + value.toLocaleString();
+        }
+
+        // Also update the total-value element if it exists
+        const totalValueElement = document.getElementById('total-value');
+        if (totalValueElement) {
+            const valueSpan = totalValueElement.querySelector('span:last-child');
+            if (valueSpan) {
+                valueSpan.textContent = (data.total_inventory_value || 0).toLocaleString();
+            }
+        }
 
         // Create inventory health overview if container exists
         if (inventoryHealthContainer) {
@@ -717,16 +758,56 @@ function loadDashboardData() {
         const year = today.getFullYear();
         const month = today.getMonth() + 1;
 
+        // Get today's date for daily income
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+        // Get week start (Sunday) for weekly income
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+
         // Get first and last day of current month
         const firstDay = new Date(year, month - 1, 1);
         const lastDay = new Date(year, month, 0);
 
-        // Format dates as YYYY-MM-DD
-        const startDate = firstDay.toISOString().slice(0, 10);
-        const endDate = lastDay.toISOString().slice(0, 10);
+        // Load daily income
+        const dailyStartDate = todayStart.toISOString().slice(0, 10);
+        const dailyEndDate = today.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${dailyStartDate}&end_date=${dailyEndDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const dailyIncome = data.summary.total_income || 0;
+                if (dailyIncomeElement) {
+                    dailyIncomeElement.textContent = dailyIncome.toLocaleString();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading daily income:', error);
+            });
+
+        // Load weekly income
+        const weeklyStartDate = weekStart.toISOString().slice(0, 10);
+        const weeklyEndDate = today.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${weeklyStartDate}&end_date=${weeklyEndDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const weeklyIncome = data.summary.total_income || 0;
+                if (weeklyIncomeElement) {
+                    weeklyIncomeElement.textContent = weeklyIncome.toLocaleString();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading weekly income:', error);
+            });
 
         // Load monthly transactions data
-        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
+        const monthlyStartDate = firstDay.toISOString().slice(0, 10);
+        const monthlyEndDate = lastDay.toISOString().slice(0, 10);
+        
+        fetch(`/api/finance/transactions?start_date=${monthlyStartDate}&end_date=${monthlyEndDate}`)
             .then(response => response.json())
             .then(data => {
                 updateFinancialSummary(data.summary);
@@ -897,13 +978,14 @@ function loadDashboardData() {
         fetch('/api/shop/details')
             .then(response => response.json())
             .then(data => {
-                if (data.success){
-                const user = data.user;
+                if (data.success) {
+                    const user = data.user;
 
-                // Update DOM elements
-                const shopNameElement = document.getElementById('shop-name');
-                if (shopNameElement) {
-                    shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    // Update DOM elements
+                    const shopNameElement = document.getElementById('shop-name');
+                    if (shopNameElement) {
+                        shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    }
                 }
             })
             .catch(error => {
@@ -916,29 +998,24 @@ function loadDashboardData() {
             });
     }
 
-    function loadDashboardData() {
-        // Load stock status report
-        fetch('/api/reports/stock-status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update summary cards
-                document.getElementById('total-items').textContent = data.total_items || 0;
-                document.getElementById('total-stock').textContent = data.total_stock || 0;
-                document.getElementById('low-stock-count').textContent = data.low_stock_items_count || 0;
-
-                // Update inventory value if element exists
-                const inventoryValueElement = document.getElementById('inventory-value');
-                if (inventoryValueElement) {
-                    inventoryValueElement.textContent = `<span class="currency-symbol">TZS</span> ${(data.total_inventory_value || 0).toLocaleString()}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading stock status report:', error);
-            });
+    // Refresh dashboard data periodically and on focus
+    function refreshDashboardData() {
+        console.log('Refreshing dashboard data...');
+        loadDashboardData();
+        loadOnDemandProducts();
+        loadFinancialSummary();
     }
+
+    // Set up auto-refresh
+    setInterval(refreshDashboardData, 30000); // Refresh every 30 seconds
+
+    // Refresh when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshDashboardData();
+        }
+    });
+
+    // Additional function for manual refresh
+    window.refreshDashboard = refreshDashboardData;
 });

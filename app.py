@@ -251,42 +251,56 @@ def get_inventory():
     """API endpoint to get all inventory items"""
     from models import Item
 
-    # Start query
-    query = Item.query
+    try:
+        logger.info("Getting inventory items...")
+        
+        # Start query
+        query = Item.query
 
-    # Optional filtering
-    category = request.args.get('category')
-    search_term = request.args.get('search', '').lower()
-    min_stock = request.args.get('min_stock')
-    max_stock = request.args.get('max_stock')
+        # Optional filtering
+        category = request.args.get('category')
+        search_term = request.args.get('search', '').lower()
+        min_stock = request.args.get('min_stock')
+        max_stock = request.args.get('max_stock')
 
-    # Apply filters if provided
-    if category:
-        query = query.filter(Item.category == category)
+        logger.info(f"Filters - category: {category}, search: {search_term}, min_stock: {min_stock}, max_stock: {max_stock}")
 
-    if search_term:
-        search_filter = (Item.name.ilike(f'%{search_term}%')
-                         | Item.sku.ilike(f'%{search_term}%')
-                         | Item.description.ilike(f'%{search_term}%'))
-        query = query.filter(search_filter)
+        # Apply filters if provided
+        if category:
+            query = query.filter(Item.category == category)
 
-    if min_stock:
-        try:
-            min_stock = int(min_stock)
-            query = query.filter(Item.quantity >= min_stock)
-        except ValueError:
-            pass
+        if search_term:
+            search_filter = (Item.name.ilike(f'%{search_term}%')
+                             | Item.sku.ilike(f'%{search_term}%')
+                             | Item.description.ilike(f'%{search_term}%'))
+            query = query.filter(search_filter)
 
-    if max_stock:
-        try:
-            max_stock = int(max_stock)
-            query = query.filter(Item.quantity <= max_stock)
-        except ValueError:
-            pass
+        if min_stock:
+            try:
+                min_stock = int(min_stock)
+                query = query.filter(Item.quantity >= min_stock)
+            except ValueError:
+                pass
 
-    # Execute query and convert to dictionary
-    items = [item.to_dict() for item in query.all()]
-    return jsonify(items)
+        if max_stock:
+            try:
+                max_stock = int(max_stock)
+                query = query.filter(Item.quantity <= max_stock)
+            except ValueError:
+                pass
+
+        # Execute query and convert to dictionary
+        items = query.all()
+        logger.info(f"Found {len(items)} items in database")
+        
+        items_dict = [item.to_dict() for item in items]
+        logger.info(f"Returning {len(items_dict)} items as JSON")
+        
+        return jsonify(items_dict)
+        
+    except Exception as e:
+        logger.error(f"Error getting inventory items: {str(e)}")
+        return jsonify({"error": "Failed to get inventory items"}), 500
 
 
 @app.route('/api/inventory', methods=['POST'])
@@ -611,6 +625,49 @@ def get_inventory_categories():
     return jsonify([c.category for c in categories])
 
 
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    """API endpoint to get all products (alias for inventory)"""
+    from models import Item
+
+    # Start query
+    query = Item.query
+
+    # Optional filtering
+    category = request.args.get('category')
+    search_term = request.args.get('search', '').lower()
+    min_stock = request.args.get('min_stock')
+    max_stock = request.args.get('max_stock')
+
+    # Apply filters if provided
+    if category:
+        query = query.filter(Item.category == category)
+
+    if search_term:
+        search_filter = (Item.name.ilike(f'%{search_term}%')
+                         | Item.sku.ilike(f'%{search_term}%')
+                         | Item.description.ilike(f'%{search_term}%'))
+        query = query.filter(search_filter)
+
+    if min_stock:
+        try:
+            min_stock = int(min_stock)
+            query = query.filter(Item.quantity >= min_stock)
+        except ValueError:
+            pass
+
+    if max_stock:
+        try:
+            max_stock = int(max_stock)
+            query = query.filter(Item.quantity <= max_stock)
+        except ValueError:
+            pass
+
+    # Execute query and convert to dictionary
+    items = [item.to_dict() for item in query.all()]
+    return jsonify(items)
+
+
 @app.route('/api/reports/stock-status', methods=['GET'])
 def stock_status_report():
     """API endpoint to get stock status report"""
@@ -629,9 +686,9 @@ def stock_status_report():
         Item.quantity <= low_stock_threshold).all()
     out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
 
-    # Calculate inventory value using selling price retail
+    # Calculate inventory value using selling price retail with fallback to price
     total_value_query = db.session.query(
-        func.sum(Item.quantity * Item.selling_price_retail)).scalar()
+        func.sum(Item.quantity * func.coalesce(Item.selling_price_retail, Item.price, 0))).scalar()
     total_value = float(
         total_value_query) if total_value_query is not None else 0
 
@@ -2218,6 +2275,45 @@ def update_appearance_settings():
         return jsonify({"error": "Failed to update appearance settings"}), 500
 
 
+# Debug endpoint to check database
+@app.route('/api/debug/database', methods=['GET'])
+@login_required
+def debug_database():
+    """Debug endpoint to check database status"""
+    try:
+        from models import Item
+        
+        # Count total items
+        total_items = Item.query.count()
+        
+        # Get sample items
+        sample_items = Item.query.limit(5).all()
+        
+        # Calculate total stock
+        total_stock = db.session.query(db.func.sum(Item.quantity)).scalar() or 0
+        
+        # Calculate inventory value
+        total_value = db.session.query(
+            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
+        ).scalar() or 0
+        
+        return jsonify({
+            'success': True,
+            'database_status': 'connected',
+            'total_items': total_items,
+            'total_stock': total_stock,
+            'total_value': float(total_value),
+            'sample_items': [item.to_dict() for item in sample_items]
+        })
+    
+    except Exception as e:
+        logger.error(f"Database debug error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2512,17 +2608,17 @@ def get_shop_details():
         shop_name = user.shop_name or f"{user.username}'s Shop"
 
         return jsonify({
-            'shop_name':
-            shop_name,
-            'owner_name':
-            f"{user.first_name} {user.last_name}".strip() or user.username,
-            'product_categories':
-            user.product_categories or ""
+            'success': True,
+            'user': {
+                'shop_name': shop_name,
+                'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'product_categories': user.product_categories or ""
+            }
         })
 
     except Exception as e:
         logger.error(f"Error getting shop details: {str(e)}")
-        return jsonify({"error": "Failed to get shop details"}), 500
+        return jsonify({"success": False, "error": "Failed to get shop details"}), 500
 
 
 @app.route('/api/auth/users/stats', methods=['GET'])
