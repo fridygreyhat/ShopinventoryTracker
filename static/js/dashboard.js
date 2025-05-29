@@ -90,6 +90,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const dailyIncomeElement = document.getElementById('daily-income');
     const weeklyIncomeElement = document.getElementById('weekly-income');
     const monthlyIncomeElement = document.getElementById('monthly-income');
+    const dailyExpensesElement = document.getElementById('daily-expenses');
+    const weeklyExpensesElement = document.getElementById('weekly-expenses');
     const monthlyExpensesElement = document.getElementById('monthly-expenses');
     const monthlyProfitElement = document.getElementById('monthly-profit');
     const financialSummaryChartElement = document.getElementById('financialSummaryChart');
@@ -764,12 +766,17 @@ function loadDashboardData() {
             .then(response => response.json())
             .then(data => {
                 const dailyIncome = data.summary ? data.summary.total_income : 0;
+                const dailyExpenses = data.summary ? data.summary.total_expenses : 0;
                 if (dailyIncomeElement) {
                     dailyIncomeElement.textContent = dailyIncome.toLocaleString();
                     animateCounter(dailyIncomeElement, dailyIncome);
                 }
+                if (dailyExpensesElement) {
+                    dailyExpensesElement.textContent = dailyExpenses.toLocaleString();
+                    animateCounter(dailyExpensesElement, dailyExpenses);
+                }
             })
-            .catch(error => console.error('Error loading daily income:', error));
+            .catch(error => console.error('Error loading daily financial data:', error));
 
         // Load weekly income
         const weekAgo = new Date();
@@ -780,12 +787,17 @@ function loadDashboardData() {
             .then(response => response.json())
             .then(data => {
                 const weeklyIncome = data.summary ? data.summary.total_income : 0;
+                const weeklyExpenses = data.summary ? data.summary.total_expenses : 0;
                 if (weeklyIncomeElement) {
                     weeklyIncomeElement.textContent = weeklyIncome.toLocaleString();
                     animateCounter(weeklyIncomeElement, weeklyIncome);
                 }
+                if (weeklyExpensesElement) {
+                    weeklyExpensesElement.textContent = weeklyExpenses.toLocaleString();
+                    animateCounter(weeklyExpensesElement, weeklyExpenses);
+                }
             })
-            .catch(error => console.error('Error loading weekly income:', error));
+            .catch(error => console.error('Error loading weekly financial data:', error));
 
         // Load monthly income
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
