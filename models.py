@@ -156,64 +156,58 @@ class User(UserMixin, db.Model):
         }
 
 
-class Subuser(UserMixin, db.Model):
-    """Subuser model for managing team members under main users"""
+class Subuser(db.Model):
+    """Subuser model for managing team members"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255))
+    password_hash = db.Column(db.String(256), nullable=False)
     parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
 
     # Relationships
     permissions = db.relationship('SubuserPermission', backref='subuser', lazy=True, cascade='all, delete-orphan')
 
-    def __repr__(self):
-        return f'<Subuser {self.name}>'
-
     def set_password(self, password):
-        """Set password hash"""
-        from werkzeug.security import generate_password_hash
+        """Set the subuser's password hash"""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Check password against hash"""
-        from werkzeug.security import check_password_hash
+        """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
-
-    def has_permission(self, permission_name):
-        """Check if subuser has a specific permission"""
-        permission = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            permission=permission_name, 
-            granted=True
-        ).first()
-        return permission is not None
-
-    def get_permissions(self):
-        """Get all granted permissions"""
-        permissions = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            granted=True
-        ).all()
-        return [p.permission for p in permissions]
 
     def to_dict(self):
         """Convert subuser to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'parent_user_id': self.parent_user_id,
-            'is_active': self.is_active,
-            'permissions': self.get_permissions(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
+        try:
+            permissions_list = []
+            for perm in self.permissions:
+                if hasattr(perm, 'granted') and perm.granted:
+                    permissions_list.append(perm.permission)
+                elif hasattr(perm, 'permission'):
+                    permissions_list.append(perm.permission)
+
+            return {
+                'id': self.id,
+                'name': self.name or '',
+                'email': self.email or '',
+                'is_active': getattr(self, 'is_active', True),
+                'created_at': self.created_at.isoformat() if self.created_at else None,
+                'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+                'permissions': permissions_list
+            }
+        except Exception as e:
+            # Fallback for any attribute errors
+            return {
+                'id': getattr(self, 'id', 0),
+                'name': getattr(self, 'name', ''),
+                'email': getattr(self, 'email', ''),
+                'is_active': getattr(self, 'is_active', True),
+                'created_at': None,
+                'updated_at': None,
+                'permissions': []
+            }
 
 
 class SubuserPermission(db.Model):

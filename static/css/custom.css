@@ -2221,6 +2221,28 @@ canvas {
         margin-bottom: 0.5rem;
     }
 
+    /* Admin portal specific styles */
+    .avatar-sm {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .admin-stat-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .admin-stat-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .bulk-actions-bar {
+        background-color: var(--bs-light);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
     /* Auth card mobile */
     .auth-card {
         margin: 1rem auto;
