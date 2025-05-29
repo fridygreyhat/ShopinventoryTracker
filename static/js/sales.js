@@ -526,6 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Transaction Functions
     function completeTransaction() {
+        console.log('Complete transaction button clicked');
+        
         if (cart.length === 0) {
             alert('Please add items to the cart before completing transaction');
             return;
@@ -537,19 +539,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
         const notes = document.getElementById('saleNotes').value || '';
 
+        console.log('Payment amount entered:', amount);
+        console.log('Current cart:', cart);
+
         let mobileInfo = {};
         if (payment === 'mobile_money') {
-            mobileInfo = {
-                provider: document.getElementById('mobileProvider').value,
-                reference: document.getElementById('transactionReference').value
-            };
+            const providerElement = document.getElementById('mobileProvider');
+            const referenceElement = document.getElementById('transactionReference');
+            
+            if (providerElement && referenceElement) {
+                mobileInfo = {
+                    provider: providerElement.value,
+                    reference: referenceElement.value
+                };
+            }
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        console.log('Total amount:', totalAmount, 'Payment amount:', amount);
+
+        if (amount <= 0) {
+            alert('Please enter a valid payment amount');
+            document.getElementById('paymentAmount').focus();
+            return;
+        }
 
         if (amount < totalAmount) {
-            alert('Payment amount is less than the total');
-            return;
+            const confirmation = confirm(`Payment amount (TZS ${amount.toLocaleString()}) is less than the total (TZS ${totalAmount.toLocaleString()}). Do you want to continue with partial payment?`);
+            if (!confirmation) {
+                return;
+            }
         }
 
         // Prepare transaction data
@@ -569,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
             payment: {
                 method: payment,
                 amount: amount,
-                change: amount - totalAmount,
+                change: Math.max(0, amount - totalAmount),
                 mobile_info: payment === 'mobile_money' ? mobileInfo : null
             },
             sale_type: saleType,
@@ -584,6 +603,8 @@ document.addEventListener('DOMContentLoaded', function() {
             date: new Date().toISOString()
         };
 
+        console.log('Transaction data to send:', transaction);
+
         // Show loading state
         completeTransactionBtn.disabled = true;
         completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
@@ -597,27 +618,44 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify(transaction)
         })
         .then(response => {
+            console.log('Transaction response status:', response.status);
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.text().then(text => {
+                    throw new Error(`HTTP error! Status: ${response.status}, Response: ${text}`);
+                });
             }
             return response.json();
         })
         .then(data => {
-            // Show success message
-            alert('Transaction completed successfully!');
+            console.log('Transaction completed successfully:', data);
+            
+            // Show success message with transaction details
+            const changeAmount = Math.max(0, amount - totalAmount);
+            let successMessage = 'Transaction completed successfully!';
+            if (changeAmount > 0) {
+                successMessage += `\n\nChange to give: TZS ${changeAmount.toLocaleString()}`;
+            }
+            alert(successMessage);
 
             // Clear the cart and reset form
-            cart = [];
-            updateCartDisplay();
+            clearCart();
             document.getElementById('checkoutForm').reset();
+            
+            // Reset payment amount to 0
+            document.getElementById('paymentAmount').value = '';
 
             // Reset button
             completeTransactionBtn.disabled = false;
             completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            
+            // Refresh products to update stock quantities
+            if (typeof loadAllProducts === 'function') {
+                loadAllProducts();
+            }
         })
         .catch(error => {
             console.error('Error completing transaction:', error);
-            alert('Failed to complete transaction. Please try again.');
+            alert(`Failed to complete transaction: ${error.message}. Please try again.`);
 
             // Reset button
             completeTransactionBtn.disabled = false;
