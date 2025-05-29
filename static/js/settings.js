@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const saveGeneralSettingsBtn = document.getElementById('saveGeneralSettings');
@@ -11,123 +12,133 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
 
     // Event Listeners
-    saveGeneralSettingsBtn.addEventListener('click', function() {
-        const form = document.getElementById('generalSettingsForm');
-        const settings = {
-            company_name: form.company_name.value,
-            currency_code: form.currency_code.value,
-            timezone: form.timezone.value,
-            default_language: form.default_language.value
-        };
+    if (saveGeneralSettingsBtn) {
+        saveGeneralSettingsBtn.addEventListener('click', function() {
+            const form = document.getElementById('generalSettingsForm');
+            const settings = {
+                company_name: form.company_name.value,
+                currency_code: form.currency_code.value,
+                timezone: form.timezone.value,
+                default_language: form.default_language.value
+            };
 
-        // Save each setting individually
-        Promise.all(Object.entries(settings).map(([key, value]) => {
-            return fetch('/api/settings', {
+            // Save each setting individually
+            Promise.all(Object.entries(settings).map(([key, value]) => {
+                return fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key: key,
+                        value: value,
+                        category: 'general'
+                    })
+                }).then(response => response.json());
+            }))
+            .then(() => {
+                // Show success message
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> General settings saved successfully.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                form.insertAdjacentHTML('beforebegin', alertHtml);
+
+                // Reload page after short delay to reflect changes
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Error saving general settings:', error);
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                form.insertAdjacentHTML('beforebegin', alertHtml);
+            });
+        });
+    }
+
+    if (saveAppearanceSettingsBtn) {
+        saveAppearanceSettingsBtn.addEventListener('click', function() {
+            // Save appearance settings using the dedicated API endpoint
+            const form = document.getElementById('appearanceSettingsForm');
+            const formData = new FormData(form);
+
+            const theme = formData.get('theme');
+            const itemsPerPage = formData.get('items_per_page');
+            const dateFormat = formData.get('date_format');
+
+            // Call the appearance settings API
+            fetch('/api/settings/appearance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    key: key,
-                    value: value,
-                    category: 'general'
+                    theme: theme,
+                    itemsPerPage: itemsPerPage,
+                    dateFormat: dateFormat
                 })
-            }).then(response => response.json());
-        }))
-        .then(() => {
-            // Show success message
-            const alertHtml = `
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i> General settings saved successfully.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
-
-            // Reload page after short delay to reflect changes
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        })
-        .catch(error => {
-            console.error('Error saving general settings:', error);
-            const alertHtml = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
-        });
-    });
-
-    saveAppearanceSettingsBtn.addEventListener('click', function() {
-        // Save appearance settings using the dedicated API endpoint
-        const form = document.getElementById('appearanceSettingsForm');
-        const formData = new FormData(form);
-
-        const theme = formData.get('theme');
-        const itemsPerPage = formData.get('items_per_page');
-        const dateFormat = formData.get('date_format');
-
-        // Call the appearance settings API
-        fetch('/api/settings/appearance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                theme: theme,
-                itemsPerPage: itemsPerPage,
-                dateFormat: dateFormat
             })
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                // Apply the theme immediately
-                if (theme) {
-                    // Use the global setTheme function from theme-switcher.js
-                    setTheme(theme);
-                }
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Apply the theme immediately
+                    if (theme) {
+                        // Use the global setTheme function from theme-switcher.js
+                        setTheme(theme);
+                    }
 
-                // Show success message
+                    // Show success message
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> Appearance settings saved successfully.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                } else {
+                    throw new Error(result.error || 'Failed to save appearance settings');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving appearance settings:', error);
+
+                // Show error message
                 const alertHtml = `
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i> Appearance settings saved successfully.
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i> Failed to save appearance settings: ${error.message}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 `;
                 form.insertAdjacentHTML('beforebegin', alertHtml);
-            } else {
-                throw new Error(result.error || 'Failed to save appearance settings');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving appearance settings:', error);
-
-            // Show error message
-            const alertHtml = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save appearance settings: ${error.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
+            });
         });
-    });
+    }
 
-    saveInventorySettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('inventorySettingsForm', 'inventory');
-    });
+    if (saveInventorySettingsBtn) {
+        saveInventorySettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('inventorySettingsForm', 'inventory');
+        });
+    }
 
-    saveNotificationSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('notificationSettingsForm', 'notification');
-    });
+    if (saveNotificationSettingsBtn) {
+        saveNotificationSettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('notificationSettingsForm', 'notification');
+        });
+    }
 
-    saveAdvancedSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('advancedSettingsForm', 'advanced');
-    });
+    if (saveAdvancedSettingsBtn) {
+        saveAdvancedSettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('advancedSettingsForm', 'advanced');
+        });
+    }
 
     // Test notifications button
     if (testNotificationsBtn) {
@@ -174,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function saveSettingsGroup(formId, category) {
         const form = document.getElementById(formId);
+        if (!form) return Promise.reject(new Error('Form not found'));
+        
         const formData = new FormData(form);
         const settingsToSave = [];
 
@@ -218,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return Promise.all(savePromises)
             .then(() => {
                 // Show success message (unless this is being called from the test function)
-                const callerFunction = arguments.callee.caller.name;
+                const callerFunction = arguments.callee.caller?.name;
                 if (callerFunction !== 'testNotifications') {
                     const alertHtml = `
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -243,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error saving settings:', error);
 
                 // Show error message (unless this is being called from the test function)
-                const callerFunction = arguments.callee.caller.name;
+                const callerFunction = arguments.callee.caller?.name;
                 if (callerFunction !== 'testNotifications') {
                     const alertHtml = `
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -277,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function testNotifications() {
         // Get the form with notification settings
         const form = document.getElementById('notificationSettingsForm');
+        if (!form) return;
 
         // First save the current settings to ensure we're testing with the latest configuration
         saveSettingsGroup('notificationSettingsForm', 'notification')
@@ -372,6 +386,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Insert the alert before the form
                     form.insertAdjacentHTML('beforebegin', alertHtml);
                 });
+            })
+            .catch(error => {
+                console.error('Error saving settings before test:', error);
+                showAlert('Failed to save settings before testing', 'danger');
             });
     }
 
@@ -544,14 +562,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userPermissionsTab) {
         userPermissionsTab.addEventListener('shown.bs.tab', function() {
             console.log('User permissions tab shown, loading data...');
-            loadSubusers();
-            loadPermissions();
+            // Add a small delay to ensure the tab is fully shown
+            setTimeout(() => {
+                loadSubusers();
+                loadPermissions();
+            }, 100);
         });
-        
+
         // Also load if the tab is already active on page load
         if (userPermissionsTab.classList.contains('active')) {
-            loadSubusers();
-            loadPermissions();
+            setTimeout(() => {
+                loadSubusers();
+                loadPermissions();
+            }, 100);
         }
     }
 
@@ -569,400 +592,501 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Global variables for subuser management
-let currentPermissions = [];
-let editingSubuserId = null;
+let currentEditingSubuserId = null;
+let currentDeletingSubuserId = null;
+let availablePermissions = [];
 
-// Helper function to get permission display names
-function getPermissionDisplayName(permission) {
-    const permissionNames = {
-        'view_inventory': 'View Inventory',
-        'edit_inventory': 'Edit Inventory',
-        'delete_inventory': 'Delete Inventory',
-        'view_sales': 'View Sales',
-        'create_sales': 'Create Sales',
-        'view_reports': 'View Reports',
-        'export_data': 'Export Data',
-        'manage_categories': 'Manage Categories',
-        'view_financial': 'View Financial',
-        'edit_financial': 'Edit Financial',
-        'manage_settings': 'Manage Settings',
-        'manage_users': 'Manage Users'
-    };
-    return permissionNames[permission] || permission;
+// Function to load subusers
+function loadSubusers() {
+    const loadingElement = document.getElementById('loading-subusers');
+    const noSubusersElement = document.getElementById('no-subusers');
+    const subusersContainer = document.getElementById('subusers-container');
+
+    console.log('Loading subusers...');
+
+    if (loadingElement) loadingElement.classList.remove('d-none');
+    if (noSubusersElement) noSubusersElement.classList.add('d-none');
+    if (subusersContainer) subusersContainer.innerHTML = '';
+
+    fetch('/api/subusers', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            console.log('Subusers response status:', response.status);
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('Access denied - insufficient permissions');
+                } else if (response.status === 401) {
+                    throw new Error('Authentication required - please login again');
+                } else if (response.status >= 500) {
+                    throw new Error('Server error - please try again later');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Subusers data loaded:', data);
+            if (loadingElement) loadingElement.classList.add('d-none');
+
+            if (!data || data.length === 0) {
+                if (noSubusersElement) noSubusersElement.classList.remove('d-none');
+            } else {
+                renderSubusers(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading subusers:', error);
+            if (loadingElement) loadingElement.classList.add('d-none');
+            
+            // Show specific error message
+            let errorMessage = 'Failed to load users';
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error - please check your connection and try again';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            const errorHtml = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>${errorMessage}
+                    <br><small class="mt-2 d-block">
+                        <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadSubusers()">
+                            <i class="fas fa-redo me-1"></i>Try Again
+                        </button>
+                    </small>
+                </div>
+            `;
+            if (subusersContainer) {
+                subusersContainer.innerHTML = errorHtml;
+            }
+        });
 }
 
-function showAlert(message, type = 'info') {
-    // Create alert element
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    // Insert at the top of the content
-    const container = document.querySelector('.container-fluid');
-    container.insertBefore(alertDiv, container.firstChild);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 5000);
-}
-
-// Subuser Management Functions
-async function loadSubusers() {
-    try {
-        showSubusersLoading(true);
-
-        const response = await fetch('/api/subusers');
-        if (!response.ok) {
-            throw new Error('Failed to load subusers');
-        }
-
-        const subusers = await response.json();
-        renderSubusers(subusers);
-
-    } catch (error) {
-        console.error('Error loading subusers:', error);
-        showAlert('Failed to load subusers', 'danger');
-    } finally {
-        showSubusersLoading(false);
+// Function to load permissions
+function loadPermissions() {
+    const permissionsContainer = document.getElementById('permissions-container');
+    
+    // Show loading state
+    if (permissionsContainer) {
+        permissionsContainer.innerHTML = `
+            <div class="col-12 text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading permissions...</span>
+                </div>
+                <p class="mt-2 text-muted small">Loading permissions...</p>
+            </div>
+        `;
     }
+
+    fetch('/api/subusers/permissions')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Failed to load permissions`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Permissions loaded successfully:', data);
+            if (data.success && data.permissions) {
+                availablePermissions = data.permissions;
+                renderPermissionsForm(data.permissions, data.descriptions || {});
+            } else {
+                throw new Error(data.error || 'Invalid permissions data received');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading permissions:', error);
+            showAlert('Failed to load permissions: ' + error.message, 'danger');
+            
+            // Show fallback permissions form
+            if (permissionsContainer) {
+                permissionsContainer.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Failed to load permissions. Please refresh the page and try again.
+                        </div>
+                    </div>
+                `;
+            }
+        });
 }
 
-function renderSubusers(subusers) {
-    const container = document.getElementById('subusers-container');
-    const noSubusersDiv = document.getElementById('no-subusers');
+// Function to render permissions in the form
+function renderPermissionsForm(permissions, descriptions) {
+    const permissionsContainer = document.getElementById('permissions-container');
+    if (!permissionsContainer) return;
 
-    if (subusers.length === 0) {
-        container.innerHTML = '';
-        noSubusersDiv.classList.remove('d-none');
+    permissionsContainer.innerHTML = '';
+
+    if (!permissions || permissions.length === 0) {
+        permissionsContainer.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No permissions available to assign.
+                </div>
+            </div>
+        `;
         return;
     }
 
-    noSubusersDiv.classList.add('d-none');
+    permissions.forEach(permission => {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 mb-2';
 
-    container.innerHTML = subusers.map(subuser => createSubuserCard(subuser)).join('');
+        const description = descriptions[permission] || permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        col.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${permission}" id="perm_${permission}" name="permissions">
+                <label class="form-check-label" for="perm_${permission}">
+                    ${description}
+                </label>
+            </div>
+        `;
+
+        permissionsContainer.appendChild(col);
+    });
 }
 
-function createSubuserCard(subuser) {
-    const permissionsList = subuser.permissions && subuser.permissions.length > 0 
-        ? subuser.permissions.map(perm => getPermissionDisplayName(perm)).join(', ')
-        : 'No permissions assigned';
+// Function to render subusers
+function renderSubusers(subusers) {
+    const container = document.getElementById('subusers-container');
+    if (!container) return;
 
-    const statusBadge = subuser.is_active 
-        ? '<span class="badge bg-success">Active</span>'
-        : '<span class="badge bg-secondary">Inactive</span>';
+    container.innerHTML = '';
 
-    const safeName = subuser.name.replace(/'/g, "\\'");
+    if (!subusers || subusers.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h6 class="text-muted">No team members yet</h6>
+                <p class="text-muted">Add team members to collaborate on your inventory management.</p>
+            </div>
+        `;
+        return;
+    }
 
-    return `
-        <div class="card mb-3">
+    subusers.forEach(subuser => {
+        const subuserCard = document.createElement('div');
+        subuserCard.className = 'card mb-3';
+        subuserCard.innerHTML = `
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <div class="d-flex align-items-center mb-2">
-                            <h6 class="mb-0 me-3">${subuser.name}</h6>
-                            ${statusBadge}
-                        </div>
-                        <div class="text-muted small mb-2">${subuser.email}</div>
-                        <div class="small mb-2">
-                            <strong>Permissions:</strong> 
-                            <div class="mt-1">
-                                ${subuser.permissions && subuser.permissions.length > 0 
-                                    ? subuser.permissions.map(perm => `<span class="badge bg-light text-dark me-1">${getPermissionDisplayName(perm)}</span>`).join('')
-                                    : '<span class="text-muted">No permissions assigned</span>'
-                                }
-                            </div>
-                        </div>
-                        <div class="text-muted small">
-                            Created: ${new Date(subuser.created_at).toLocaleDateString()}
-                            ${subuser.last_login ? ` | Last login: ${new Date(subuser.last_login).toLocaleDateString()}` : ''}
-                        </div>
+                        <h6 class="card-title mb-1">${subuser.name || 'Unknown User'}</h6>
+                        <p class="card-text text-muted mb-1">${subuser.email || 'No email'}</p>
+                        <span class="badge bg-${subuser.is_active ? 'success' : 'secondary'} me-2">
+                            ${subuser.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <small class="text-muted">${(subuser.permissions || []).length} permissions</small>
                     </div>
                     <div class="col-md-4 text-end">
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSubuser(${subuser.id})">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteSubuser(${subuser.id}, '${safeName}')">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="editSubuser(${subuser.id})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteSubuser(${subuser.id}, '${(subuser.name || 'Unknown User').replace(/'/g, "\\'")}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                     </div>
                 </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <strong>Permissions:</strong> 
+                        ${(subuser.permissions || []).length > 0 ? (subuser.permissions || []).join(', ') : 'No permissions assigned'}
+                    </small>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+        container.appendChild(subuserCard);
+    });
 }
 
-async function loadPermissions() {
-    try {
-        const response = await fetch('/api/subusers/permissions');
-        if (!response.ok) {
-            throw new Error('Failed to load permissions');
-        }
-
-        const data = await response.json();
-        console.log('Permissions loaded successfully:', data);
-        
-        currentPermissions = data.permissions || [];
-        renderPermissions(data.permissions || [], data.descriptions || {});
-
-    } catch (error) {
-        console.error('Error loading permissions:', error);
-        showAlert('Failed to load permissions', 'danger');
-        
-        // Fallback: render empty permissions container
-        const container = document.getElementById('permissions-container');
-        if (container) {
-            container.innerHTML = '<div class="col-12"><p class="text-muted">Unable to load permissions at this time.</p></div>';
-        }
-    }
-}
-
-function renderPermissions(permissions, descriptions) {
-    const container = document.getElementById('permissions-container');
-
-    container.innerHTML = permissions.map(permission => `
-        <div class="col-md-6 col-lg-4 mb-2">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="${permission}" id="perm_${permission}">
-                <label class="form-check-label small" for="perm_${permission}" title="${descriptions[permission] || permission}">
-                    ${descriptions[permission] || permission}
-                </label>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function handleSubuserSubmit(event) {
+// Function to handle subuser form submission
+function handleSubuserSubmit(event) {
     event.preventDefault();
 
-    const formData = {
-        name: document.getElementById('subuserName').value.trim(),
-        email: document.getElementById('subuserEmail').value.trim(),
-        is_active: document.getElementById('subuserStatus').value === 'true',
-        permissions: Array.from(document.querySelectorAll('#permissions-container input:checked')).map(cb => cb.value)
+    // Get form elements with proper null checks
+    const nameInput = document.getElementById('subuserName');
+    const emailInput = document.getElementById('subuserEmail');
+    const passwordInput = document.getElementById('subuserPassword');
+    const statusInput = document.getElementById('subuserStatus');
+
+    if (!nameInput || !emailInput || !passwordInput || !statusInput) {
+        showAlert('Form elements not found. Please refresh the page.', 'danger');
+        return;
+    }
+
+    const permissions = Array.from(document.querySelectorAll('input[name="permissions"]:checked')).map(cb => cb.value);
+
+    const subuserData = {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        password: passwordInput.value,
+        is_active: statusInput.value === 'true',
+        permissions: permissions
     };
 
-    // Only include password if provided
-    const passwordField = document.getElementById('subuserPassword');
-    if (passwordField.value.trim()) {
-        formData.password = passwordField.value;
-    }
+    console.log('Submitting subuser data:', subuserData);
 
-    if (!formData.name || !formData.email) {
-        showAlert('Name and email are required', 'danger');
+    // Validate required fields
+    if (!subuserData.name || !subuserData.email || (!currentEditingSubuserId && !subuserData.password)) {
+        showAlert('Please fill in all required fields', 'danger');
         return;
     }
 
-    if (!editingSubuserId && !formData.password) {
-        showAlert('Password is required for new subusers', 'danger');
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(subuserData.email)) {
+        showAlert('Please enter a valid email address', 'danger');
         return;
     }
 
-    try {
-        const submitBtn = document.querySelector('#submit-btn-text');
-        const submitSpinner = document.getElementById('submit-spinner');
+    // Password validation for new users
+    if (!currentEditingSubuserId && subuserData.password.length < 6) {
+        showAlert('Password must be at least 6 characters long', 'danger');
+        return;
+    }
 
-        submitBtn.textContent = 'Saving...';
-        submitSpinner.classList.remove('d-none');
+    // Show loading state
+    const submitBtn = document.querySelector('#subuserForm button[type="submit"]');
+    const submitBtnText = document.getElementById('submit-btn-text');
+    const submitSpinner = document.getElementById('submit-spinner');
 
-        const url = editingSubuserId 
-            ? `/api/subusers/${editingSubuserId}` 
-            : '/api/subusers';
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitBtnText) submitBtnText.textContent = currentEditingSubuserId ? 'Updating...' : 'Creating...';
+    if (submitSpinner) submitSpinner.classList.remove('d-none');
 
-        const method = editingSubuserId ? 'PUT' : 'POST';
+    const url = currentEditingSubuserId ? `/api/subusers/${currentEditingSubuserId}` : '/api/subusers';
+    const method = currentEditingSubuserId ? 'PUT' : 'POST';
 
-        console.log('Submitting subuser data:', formData);
+    // Remove password from data if editing and password is empty
+    if (currentEditingSubuserId && !subuserData.password) {
+        delete subuserData.password;
+    }
 
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        const responseData = await response.json();
-        console.log('Server response:', responseData);
-
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(subuserData)
+    })
+    .then(response => {
         if (!response.ok) {
-            throw new Error(responseData.error || 'Failed to save user');
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Subuser operation response:', data);
 
-        // Close modal and refresh list
-        const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
-        modal.hide();
-        
-        showAlert(editingSubuserId ? 'User updated successfully' : 'User added successfully', 'success');
-        
-        // Reload subusers to show the updated list
-        await loadSubusers();
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
+            if (modal) modal.hide();
 
-        // Reset form
-        document.getElementById('subuserForm').reset();
-        editingSubuserId = null;
+            // Show success message
+            showAlert(currentEditingSubuserId ? 'User updated successfully' : 'User created successfully', 'success');
 
-    } catch (error) {
+            // Reload subusers
+            loadSubusers();
+
+            // Reset form
+            resetSubuserForm();
+        } else {
+            throw new Error(data.error || 'Failed to save user');
+        }
+    })
+    .catch(error => {
         console.error('Error saving subuser:', error);
-        showAlert(error.message || 'Failed to save user', 'danger');
-    } finally {
+        showAlert('Failed to save user: ' + error.message, 'danger');
+    })
+    .finally(() => {
         // Reset button state
-        const submitBtn = document.querySelector('#submit-btn-text');
-        const submitSpinner = document.getElementById('submit-spinner');
-        
-        if (submitBtn) {
-            submitBtn.textContent = editingSubuserId ? 'Update User' : 'Add User';
-        }
-        if (submitSpinner) {
-            submitSpinner.classList.add('d-none');
-        }
-    }
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitBtnText) submitBtnText.textContent = currentEditingSubuserId ? 'Update User' : 'Add User';
+        if (submitSpinner) submitSpinner.classList.add('d-none');
+    });
 }
 
+// Function to edit subuser
 function editSubuser(subuserId) {
-    // Find the subuser data
-    fetch(`/api/subusers`)
-        .then(response => response.json())
-        .then(subusers => {
-            const subuser = subusers.find(s => s.id === subuserId);
-            if (!subuser) return;
+    currentEditingSubuserId = subuserId;
 
-            editingSubuserId = subuserId;
+    // Find subuser data
+    fetch(`/api/subusers/${subuserId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Failed to load user data`);
+            }
+            return response.json();
+        })
+        .then(subuser => {
+            // Fill form with subuser data
+            const nameInput = document.getElementById('subuserName');
+            const emailInput = document.getElementById('subuserEmail');
+            const passwordInput = document.getElementById('subuserPassword');
+            const statusInput = document.getElementById('subuserStatus');
 
-            // Fill form
-            document.getElementById('subuserId').value = subuser.id;
-            document.getElementById('subuserName').value = subuser.name;
-            document.getElementById('subuserEmail').value = subuser.email;
-            document.getElementById('subuserPassword').value = ''; // Don't show existing password
-            document.getElementById('subuserStatus').value = subuser.is_active.toString();
+            if (nameInput) nameInput.value = subuser.name || '';
+            if (emailInput) emailInput.value = subuser.email || '';
+            if (statusInput) statusInput.value = subuser.is_active ? 'true' : 'false';
 
-            // Update modal title
-            document.getElementById('addSubuserModalLabel').textContent = 'Edit Subuser';
+            // Clear password field for editing and make it optional
+            if (passwordInput) {
+                passwordInput.value = '';
+                passwordInput.required = false;
+                passwordInput.placeholder = 'Leave blank to keep current password';
+            }
 
-            // Mark permissions
-            document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
-                cb.checked = subuser.permissions.includes(cb.value);
+            // Check permissions
+            document.querySelectorAll('input[name="permissions"]').forEach(cb => {
+                cb.checked = (subuser.permissions || []).includes(cb.value);
             });
+
+            // Update modal title and button
+            const modalLabel = document.getElementById('addSubuserModalLabel');
+            const submitBtnText = document.getElementById('submit-btn-text');
+            
+            if (modalLabel) modalLabel.textContent = 'Edit User';
+            if (submitBtnText) submitBtnText.textContent = 'Update User';
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('addSubuserModal'));
             modal.show();
         })
         .catch(error => {
-            console.error('Error loading subuser:', error);
-            showAlert('Failed to load subuser details', 'danger');
+            console.error('Error loading subuser for editing:', error);
+            showAlert('Failed to load user data: ' + error.message, 'danger');
         });
 }
 
-function confirmDeleteSubuser(subuserId, subuserName) {
-    document.getElementById('deleteSubuserName').textContent = subuserName;
-    document.getElementById('confirmDeleteSubuser').dataset.subuserId = subuserId;
+// Function to delete subuser
+function deleteSubuser(subuserId, subuserName) {
+    currentDeletingSubuserId = subuserId;
 
+    // Update delete modal
+    const deleteNameElement = document.getElementById('deleteSubuserName');
+    if (deleteNameElement) {
+        deleteNameElement.textContent = subuserName || 'Unknown User';
+    }
+
+    // Show delete modal
     const modal = new bootstrap.Modal(document.getElementById('deleteSubuserModal'));
     modal.show();
 }
 
-async function handleDeleteSubuser() {
-    const subuserId = document.getElementById('confirmDeleteSubuser').dataset.subuserId;
+// Function to handle subuser deletion
+function handleDeleteSubuser() {
+    if (!currentDeletingSubuserId) return;
 
-    try {
-        const response = await fetch(`/api/subusers/${subuserId}`, {
-            method: 'DELETE'
-        });
+    const confirmBtn = document.getElementById('confirmDeleteSubuser');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Deleting...';
+    }
 
+    fetch(`/api/subusers/${currentDeletingSubuserId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete subuser');
-        }
-
-        // Close modal and reload subusers
-        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteSubuserModal'));
-        modal.hide();
-
-        showAlert('Subuser deleted successfully', 'success');
-        loadSubusers();
-
-    } catch (error) {
-        console.error('Error deleting subuser:', error);
-        showAlert(error.message, 'danger');
-    }
-}
-
-function showSubusersLoading(show) {
-    const spinner = document.getElementById('loading-subusers');
-    const container = document.getElementById('subusers-container');
-
-    if (spinner) {
-        if (show) {
-            spinner.classList.remove('d-none');
-        } else {
-            spinner.classList.add('d-none');
-        }
-    }
-
-    if (container) {
-        if (show) {
-            container.classList.add('d-none');
-        } else {
-            container.classList.remove('d-none');
-        }
-    }
-}
-
-// Reset modal when hidden
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('addSubuserModal');
-    if (modal) {
-        modal.addEventListener('hidden.bs.modal', function() {
-            editingSubuserId = null;
-            document.getElementById('subuserForm').reset();
-            const subuserIdField = document.getElementById('subuserId');
-            if (subuserIdField) {
-                subuserIdField.value = '';
-            }
-            document.getElementById('addSubuserModalLabel').textContent = 'Add Team Member';
-
-            // Uncheck all permissions
-            document.querySelectorAll('#permissions-container input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
             });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteSubuserModal'));
+            if (modal) modal.hide();
 
-            // Reset button text
-            const submitBtn = document.querySelector('#submit-btn-text');
-            const submitSpinner = document.getElementById('submit-spinner');
-            
-            if (submitBtn) {
-                submitBtn.textContent = 'Add User';
-            }
-            if (submitSpinner) {
-                submitSpinner.classList.add('d-none');
-            }
-        });
+            // Show success message
+            showAlert('User deleted successfully', 'success');
+
+            // Reload subusers
+            loadSubusers();
+        } else {
+            throw new Error(data.error || 'Failed to delete user');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting subuser:', error);
+        showAlert('Failed to delete user: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        currentDeletingSubuserId = null;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Delete User';
+        }
+    });
+}
+
+// Function to reset subuser form
+function resetSubuserForm() {
+    currentEditingSubuserId = null;
+
+    // Reset form fields
+    const form = document.getElementById('subuserForm');
+    if (form) form.reset();
+
+    const passwordInput = document.getElementById('subuserPassword');
+    if (passwordInput) {
+        passwordInput.required = true;
+        passwordInput.placeholder = 'Minimum 6 characters';
     }
-});
+
+    // Uncheck all permissions
+    document.querySelectorAll('input[name="permissions"]').forEach(cb => {
+        cb.checked = false;
+    });
+
+    // Reset modal title and button
+    const modalLabel = document.getElementById('addSubuserModalLabel');
+    const submitBtnText = document.getElementById('submit-btn-text');
+    
+    if (modalLabel) modalLabel.textContent = 'Add Team Member';
+    if (submitBtnText) submitBtnText.textContent = 'Add User';
+}
 
 // Helper function to show alerts
 function showAlert(message, type) {
     // Create alert element
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    // Insert at top of page
+    // Find container for alerts
     const container = document.querySelector('.container') || document.body;
-    container.insertBefore(alertDiv, container.firstChild);
+    container.insertBefore(alert, container.firstChild);
 
-    // Auto dismiss after 5 seconds
+    // Auto-dismiss after 5 seconds
     setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
+        if (alert && alert.parentNode) {
+            alert.remove();
         }
     }, 5000);
 }
+
+// Event listener for modal reset
+document.addEventListener('hidden.bs.modal', function(event) {
+    if (event.target.id === 'addSubuserModal') {
+        resetSubuserForm();
+    }
+});

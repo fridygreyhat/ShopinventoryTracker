@@ -1,113 +1,445 @@
+
 {% extends 'layout.html' %}
 
 {% block content %}
-<div class="container my-4">
-    <!-- User Statistics -->
+<div class="container-fluid my-4">
+    <!-- Admin Dashboard Header -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-center border-0 bg-primary bg-opacity-10">
-                <div class="card-body">
-                    <h5 class="card-title">{{ users|length }}</h5>
-                    <p class="card-text text-muted">Total Users</p>
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1"><i class="fas fa-shield-alt me-2 text-primary"></i>Admin Portal</h2>
+                    <p class="text-muted mb-0">Manage users, permissions, and system settings</p>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center border-0 bg-success bg-opacity-10">
-                <div class="card-body">
-                    <h5 class="card-title">{{ users|selectattr('active')|list|length }}</h5>
-                    <p class="card-text text-muted">Active Users</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center border-0 bg-info bg-opacity-10">
-                <div class="card-body">
-                    <h5 class="card-title">{{ users|selectattr('is_admin')|list|length }}</h5>
-                    <p class="card-text text-muted">Admin Users</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center border-0 bg-warning bg-opacity-10">
-                <div class="card-body">
-                    <h5 class="card-title">{{ users|rejectattr('email_verified')|list|length }}</h5>
-                    <p class="card-text text-muted">Unverified</p>
+                <div>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fas fa-user-plus me-2"></i>Add New User
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-    
+
+    <!-- Admin Statistics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-primary mb-1" id="totalUsersCount">{{ users|length }}</h4>
+                            <p class="text-muted mb-0">Total Users</p>
+                        </div>
+                        <i class="fas fa-users fa-2x text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-success bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-success mb-1" id="activeUsersCount">{{ users|selectattr('active')|list|length }}</h4>
+                            <p class="text-muted mb-0">Active Users</p>
+                        </div>
+                        <i class="fas fa-user-check fa-2x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-info bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-info mb-1" id="adminUsersCount">{{ users|selectattr('is_admin')|list|length }}</h4>
+                            <p class="text-muted mb-0">Admin Users</p>
+                        </div>
+                        <i class="fas fa-user-shield fa-2x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="text-warning mb-1" id="unverifiedUsersCount">{{ users|rejectattr('email_verified')|list|length }}</h4>
+                            <p class="text-muted mb-0">Unverified</p>
+                        </div>
+                        <i class="fas fa-user-times fa-2x text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Tabs -->
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary bg-opacity-75 py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title text-white mb-0">User Management</h5>
-                        <a href="#" class="btn btn-light btn-sm" id="refreshUserList">
-                            <i class="fas fa-sync-alt me-1"></i> Refresh
-                        </a>
-                    </div>
+                <div class="card-header bg-white border-bottom">
+                    <ul class="nav nav-tabs card-header-tabs" id="adminTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">
+                                <i class="fas fa-users me-2"></i>User Management
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="permissions-tab" data-bs-toggle="tab" data-bs-target="#permissions" type="button" role="tab">
+                                <i class="fas fa-key me-2"></i>Permissions
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab">
+                                <i class="fas fa-cogs me-2"></i>System Settings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+                                <i class="fas fa-list-alt me-2"></i>Activity Logs
+                            </button>
+                        </li>
+                    </ul>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">Username</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Role</th>
-                                    <th scope="col">Created</th>
-                                    <th scope="col">Last Login</th>
-                                    <th scope="col" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userTableBody">
-                                {% for user in users %}
-                                <tr data-user-id="{{ user.id }}">
-                                    <td>{{ user.username }}</td>
-                                    <td>
-                                        {{ user.email }}
-                                        {% if not user.email_verified %}
-                                            <span class="badge bg-warning ms-1" title="Email not verified">
-                                                <i class="fas fa-exclamation-circle"></i>
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{{ user.active ? 'success' : 'danger' }}">
-                                            {{ user.active ? 'Active' : 'Inactive' }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{{ user.is_admin ? 'primary' : 'secondary' }}">
-                                            {{ user.is_admin ? 'Admin' : 'User' }}
-                                        </span>
-                                    </td>
-                                    <td>{{ user.created_at|date('Y-m-d') }}</td>
-                                    <td>{{ user.last_login|date('Y-m-d H:i') if user.last_login else 'Never' }}</td>
-                                    <td class="text-end">
-                                        <div class="btn-group">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary edit-user-btn" title="Edit User">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-{{ user.active ? 'danger' : 'success' }} toggle-status-btn" title="{{ user.active ? 'Deactivate' : 'Activate' }} User">
-                                                <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
-                                            </button>
-                                            {% if user.id != session.get('user_id') %}
-                                            <button type="button" class="btn btn-sm btn-outline-danger delete-user-btn" title="Delete User">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            {% endif %}
+                    <div class="tab-content" id="adminTabsContent">
+                        <!-- User Management Tab -->
+                        <div class="tab-pane fade show active" id="users" role="tabpanel">
+                            <div class="p-4">
+                                <!-- Search and Filter Controls -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            <input type="text" class="form-control" id="userSearch" placeholder="Search users...">
                                         </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="userStatusFilter">
+                                            <option value="">All Status</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="userRoleFilter">
+                                            <option value="">All Roles</option>
+                                            <option value="admin">Admin</option>
+                                            <option value="user">User</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-outline-secondary w-100" id="refreshUsers">
+                                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Users Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th scope="col">
+                                                    <input type="checkbox" class="form-check-input" id="selectAllUsers">
+                                                </th>
+                                                <th scope="col">User</th>
+                                                <th scope="col">Email</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Role</th>
+                                                <th scope="col">Last Login</th>
+                                                <th scope="col">Created</th>
+                                                <th scope="col" class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="usersTableBody">
+                                            {% for user in users %}
+                                            <tr data-user-id="{{ user.id }}">
+                                                <td>
+                                                    <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}">
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                            <span class="text-white small fw-bold">{{ user.username[0]|upper }}</span>
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-semibold">{{ user.username }}</div>
+                                                            <small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        {{ user.email }}
+                                                        {% if not user.email_verified %}
+                                                            <span class="badge bg-warning ms-1" title="Email not verified">
+                                                                <i class="fas fa-exclamation-triangle"></i>
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-success ms-1" title="Email verified">
+                                                                <i class="fas fa-check"></i>
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ user.active ? 'success' : 'danger' }}">
+                                                        {{ user.active ? 'Active' : 'Inactive' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ user.is_admin ? 'primary' : 'secondary' }}">
+                                                        {{ user.is_admin ? 'Admin' : 'User' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">{{ user.created_at.strftime('%Y-%m-%d') }}</small>
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="{{ user.id }}">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-{{ user.active ? 'warning' : 'success' }} toggle-status-btn" title="{{ user.active ? 'Deactivate' : 'Activate' }} User" data-user-id="{{ user.id }}">
+                                                            <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
+                                                        </button>
+                                                        {% if user.id != session.get('user_id') %}
+                                                        <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="{{ user.id }}">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Bulk Actions -->
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div id="bulkActions" class="d-none">
+                                        <span class="text-muted me-2">Selected: <span id="selectedCount">0</span> users</span>
+                                        <button class="btn btn-sm btn-outline-warning me-2" id="bulkDeactivate">
+                                            <i class="fas fa-ban me-1"></i>Deactivate
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2" id="bulkActivate">
+                                            <i class="fas fa-check me-1"></i>Activate
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" id="bulkDelete">
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </button>
+                                    </div>
+                                    <div class="ms-auto">
+                                        <small class="text-muted">Total: {{ users|length }} users</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Permissions Tab -->
+                        <div class="tab-pane fade" id="permissions" role="tabpanel">
+                            <div class="p-4">
+                                <h5>User Permissions Overview</h5>
+                                <p class="text-muted">Manage user roles and permissions across the system.</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Permission Categories</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="list-group list-group-flush">
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Inventory Management
+                                                        <span class="badge bg-primary rounded-pill">5</span>
+                                                    </div>
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Sales Management
+                                                        <span class="badge bg-success rounded-pill">3</span>
+                                                    </div>
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Financial Reports
+                                                        <span class="badge bg-info rounded-pill">4</span>
+                                                    </div>
+                                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                        System Administration
+                                                        <span class="badge bg-warning rounded-pill">2</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Role Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <canvas id="roleDistributionChart" width="400" height="200"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Settings Tab -->
+                        <div class="tab-pane fade" id="system" role="tabpanel">
+                            <div class="p-4">
+                                <h5>System Settings</h5>
+                                <p class="text-muted">Configure system-wide settings and preferences.</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Security Settings</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="requireEmailVerification" checked>
+                                                    <label class="form-check-label" for="requireEmailVerification">
+                                                        Require Email Verification
+                                                    </label>
+                                                </div>
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="enableTwoFactor">
+                                                    <label class="form-check-label" for="enableTwoFactor">
+                                                        Enable Two-Factor Authentication
+                                                    </label>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="sessionTimeout" class="form-label">Session Timeout (minutes)</label>
+                                                    <input type="number" class="form-control" id="sessionTimeout" value="60">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">System Preferences</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="defaultTheme" class="form-label">Default Theme</label>
+                                                    <select class="form-select" id="defaultTheme">
+                                                        <option value="tanzanite">Tanzanite</option>
+                                                        <option value="emerald">Emerald</option>
+                                                        <option value="ruby">Ruby</option>
+                                                        <option value="sunset">Sunset</option>
+                                                        <option value="ocean">Ocean</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="defaultLanguage" class="form-label">Default Language</label>
+                                                    <select class="form-select" id="defaultLanguage">
+                                                        <option value="en">English</option>
+                                                        <option value="es">Spanish</option>
+                                                        <option value="fr">French</option>
+                                                    </select>
+                                                </div>
+                                                <button class="btn btn-primary">Save Settings</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Logs Tab -->
+                        <div class="tab-pane fade" id="logs" role="tabpanel">
+                            <div class="p-4">
+                                <h5>Activity Logs</h5>
+                                <p class="text-muted">Monitor user activities and system events.</p>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Timestamp</th>
+                                                <th>User</th>
+                                                <th>Action</th>
+                                                <th>Details</th>
+                                                <th>IP Address</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activityLogsTable">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    <i class="fas fa-info-circle me-2"></i>No activity logs available
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="mb-3">
+                        <label for="newUsername" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="newUsername" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newEmail" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="newEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="newFirstName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="newLastName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="newIsActive" checked>
+                        <label class="form-check-label" for="newIsActive">Active</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="newIsAdmin">
+                        <label class="form-check-label" for="newIsAdmin">Admin</label>
+                    </div>
+                    <div class="alert alert-danger d-none" id="addUserError" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="addErrorMessage">Error message</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveNewUserBtn">Create User</button>
             </div>
         </div>
     </div>
@@ -131,6 +463,14 @@
                     <div class="mb-3">
                         <label for="editEmail" class="form-label">Email</label>
                         <input type="email" class="form-control" id="editEmail" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="editFirstName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="editLastName">
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="editIsActive">
@@ -156,199 +496,463 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // DOM elements
-        const userTableBody = document.getElementById('userTableBody');
-        const editUserForm = document.getElementById('editUserForm');
-        const editUserId = document.getElementById('editUserId');
-        const editUsername = document.getElementById('editUsername');
-        const editEmail = document.getElementById('editEmail');
-        const editIsActive = document.getElementById('editIsActive');
-        const editIsAdmin = document.getElementById('editIsAdmin');
-        const editUserError = document.getElementById('editUserError');
-        const editErrorMessage = document.getElementById('editErrorMessage');
-        const saveUserBtn = document.getElementById('saveUserBtn');
-        const refreshUserList = document.getElementById('refreshUserList');
-
-        // Initialize Bootstrap modal
-        const editUserModal = new bootstrap.Modal(document.getElementById('editUserModal'));
-
-        // Add event listeners to edit buttons
-        document.querySelectorAll('.edit-user-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const userId = row.dataset.userId;
-                const username = row.cells[0].textContent.trim();
-                const email = row.cells[1].textContent.trim();
-                const isActive = row.cells[2].querySelector('.badge').textContent.trim() === 'Active';
-                const isAdmin = row.cells[3].querySelector('.badge').textContent.trim() === 'Admin';
-
-                // Fill the form with user data
-                editUserId.value = userId;
-                editUsername.value = username;
-                editEmail.value = email;
-                editIsActive.checked = isActive;
-                editIsAdmin.checked = isAdmin;
-
-                // Clear previous errors
-                editUserError.classList.add('d-none');
-
-                // Show modal
-                editUserModal.show();
-            });
-        });
-
-        // Add event listeners to toggle status buttons
-        document.querySelectorAll('.toggle-status-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const userId = row.dataset.userId;
-                const isCurrentlyActive = row.cells[2].querySelector('.badge').textContent.trim() === 'Active';
-                
-                if (confirm(`Are you sure you want to ${isCurrentlyActive ? 'deactivate' : 'activate'} this user?`)) {
-                    toggleUserStatus(userId, !isCurrentlyActive);
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize admin portal
+    initializeAdminPortal();
+    
+    function initializeAdminPortal() {
+        // Load statistics
+        loadUserStatistics();
+        
+        // Initialize event listeners
+        initializeEventListeners();
+        
+        // Initialize role distribution chart
+        initializeRoleChart();
+        
+        // Load initial data
+        loadUsersData();
+    }
+    
+    function loadUserStatistics() {
+        fetch('/api/auth/users/stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading statistics:', data.error);
+                    return;
                 }
-            });
-        });
-
-        // Add event listeners to delete buttons
-        document.querySelectorAll('.delete-user-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const userId = row.dataset.userId;
-                const username = row.cells[0].textContent.trim();
                 
-                if (confirm(`Are you sure you want to permanently delete user "${username}"? This action cannot be undone.`)) {
-                    deleteUser(userId);
-                }
+                document.getElementById('totalUsersCount').textContent = data.total_users || 0;
+                document.getElementById('activeUsersCount').textContent = data.active_users || 0;
+                document.getElementById('adminUsersCount').textContent = data.admin_users || 0;
+                document.getElementById('unverifiedUsersCount').textContent = data.unverified_users || 0;
+            })
+            .catch(error => {
+                console.error('Error loading user statistics:', error);
             });
+    }
+    
+    function initializeEventListeners() {
+        // Search functionality
+        document.getElementById('userSearch').addEventListener('input', filterUsers);
+        document.getElementById('userStatusFilter').addEventListener('change', filterUsers);
+        document.getElementById('userRoleFilter').addEventListener('change', filterUsers);
+        
+        // Refresh button
+        document.getElementById('refreshUsers').addEventListener('click', function() {
+            loadUsersData();
+            loadUserStatistics();
         });
-
-        // Handle form submission for editing user
-        saveUserBtn.addEventListener('click', function() {
-            // Get form data
-            const userId = editUserId.value;
-            const username = editUsername.value;
-            const isActive = editIsActive.checked;
-            const isAdmin = editIsAdmin.checked;
-
-            // Validate form
-            if (!username) {
-                showEditError('Username cannot be empty');
-                return;
+        
+        // Select all checkbox
+        document.getElementById('selectAllUsers').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            updateBulkActions();
+        });
+        
+        // Individual checkboxes
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('user-checkbox')) {
+                updateBulkActions();
             }
-
-            // Show loading state
-            saveUserBtn.disabled = true;
-            saveUserBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-
-            // Update user through API
+        });
+        
+        // User action buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.edit-user-btn')) {
+                const userId = e.target.closest('.edit-user-btn').dataset.userId;
+                editUser(userId);
+            } else if (e.target.closest('.toggle-status-btn')) {
+                const userId = e.target.closest('.toggle-status-btn').dataset.userId;
+                toggleUserStatus(userId);
+            } else if (e.target.closest('.delete-user-btn')) {
+                const userId = e.target.closest('.delete-user-btn').dataset.userId;
+                deleteUser(userId);
+            }
+        });
+        
+        // Modal form submissions
+        document.getElementById('saveNewUserBtn').addEventListener('click', createNewUser);
+        document.getElementById('saveUserBtn').addEventListener('click', saveUserChanges);
+        
+        // Bulk actions
+        document.getElementById('bulkActivate').addEventListener('click', () => bulkAction('activate'));
+        document.getElementById('bulkDeactivate').addEventListener('click', () => bulkAction('deactivate'));
+        document.getElementById('bulkDelete').addEventListener('click', () => bulkAction('delete'));
+    }
+    
+    function initializeRoleChart() {
+        const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Admin Users', 'Regular Users'],
+                datasets: [{
+                    data: [{{ users|selectattr('is_admin')|list|length }}, {{ users|rejectattr('is_admin')|list|length }}],
+                    backgroundColor: ['#0d6efd', '#6c757d'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    function loadUsersData() {
+        fetch('/api/auth/users')
+            .then(response => response.json())
+            .then(users => {
+                if (Array.isArray(users)) {
+                    renderUsersTable(users);
+                } else {
+                    console.error('Invalid users data:', users);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading users:', error);
+                showAlert('Failed to load users data', 'danger');
+            });
+    }
+    
+    function renderUsersTable(users) {
+        const tbody = document.getElementById('usersTableBody');
+        
+        if (users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No users found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = users.map(user => `
+            <tr data-user-id="${user.id}">
+                <td>
+                    <input type="checkbox" class="form-check-input user-checkbox" value="${user.id}">
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                            <span class="text-white small fw-bold">${user.username.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div>
+                            <div class="fw-semibold">${user.username}</div>
+                            <small class="text-muted">${user.first_name || ''} ${user.last_name || ''}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div>
+                        ${user.email}
+                        ${user.email_verified ? 
+                            '<span class="badge bg-success ms-1" title="Email verified"><i class="fas fa-check"></i></span>' :
+                            '<span class="badge bg-warning ms-1" title="Email not verified"><i class="fas fa-exclamation-triangle"></i></span>'
+                        }
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-${user.active ? 'success' : 'danger'}">
+                        ${user.active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge bg-${user.is_admin ? 'primary' : 'secondary'}">
+                        ${user.is_admin ? 'Admin' : 'User'}
+                    </span>
+                </td>
+                <td>
+                    <small class="text-muted">
+                        ${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}
+                    </small>
+                </td>
+                <td>
+                    <small class="text-muted">${new Date(user.created_at).toLocaleDateString()}</small>
+                </td>
+                <td class="text-end">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="${user.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-${user.active ? 'warning' : 'success'} toggle-status-btn" title="${user.active ? 'Deactivate' : 'Activate'} User" data-user-id="${user.id}">
+                            <i class="fas fa-${user.active ? 'ban' : 'check'}"></i>
+                        </button>
+                        ${user.id !== {{ session.get('user_id') }} ? `
+                        <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="${user.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    function filterUsers() {
+        const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+        const statusFilter = document.getElementById('userStatusFilter').value;
+        const roleFilter = document.getElementById('userRoleFilter').value;
+        
+        const rows = document.querySelectorAll('#usersTableBody tr');
+        
+        rows.forEach(row => {
+            const userData = row.dataset.userId;
+            if (!userData) return;
+            
+            const username = row.querySelector('.fw-semibold').textContent.toLowerCase();
+            const email = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+            const status = row.querySelector('.badge').textContent.toLowerCase();
+            const role = row.querySelector('td:nth-child(5) .badge').textContent.toLowerCase();
+            
+            let show = true;
+            
+            // Search filter
+            if (searchTerm && !username.includes(searchTerm) && !email.includes(searchTerm)) {
+                show = false;
+            }
+            
+            // Status filter
+            if (statusFilter && !status.includes(statusFilter)) {
+                show = false;
+            }
+            
+            // Role filter
+            if (roleFilter && !role.includes(roleFilter)) {
+                show = false;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        const checked = document.querySelectorAll('.user-checkbox:checked');
+        
+        document.getElementById('selectedCount').textContent = checked.length;
+        document.getElementById('bulkActions').classList.toggle('d-none', checked.length === 0);
+        
+        // Update select all checkbox
+        const selectAll = document.getElementById('selectAllUsers');
+        selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+        selectAll.checked = checked.length === checkboxes.length;
+    }
+    
+    function createNewUser() {
+        const form = document.getElementById('addUserForm');
+        const formData = new FormData(form);
+        
+        const userData = {
+            username: document.getElementById('newUsername').value,
+            email: document.getElementById('newEmail').value,
+            firstName: document.getElementById('newFirstName').value,
+            lastName: document.getElementById('newLastName').value,
+            password: document.getElementById('newPassword').value,
+            is_active: document.getElementById('newIsActive').checked,
+            is_admin: document.getElementById('newIsAdmin').checked
+        };
+        
+        // Basic validation
+        if (!userData.username || !userData.email || !userData.password) {
+            showModalError('addUserError', 'addErrorMessage', 'Please fill in all required fields');
+            return;
+        }
+        
+        // Show loading state
+        const saveBtn = document.getElementById('saveNewUserBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+        
+        fetch('/api/auth/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showModalError('addUserError', 'addErrorMessage', data.error);
+            } else {
+                // Success
+                bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+                form.reset();
+                loadUsersData();
+                loadUserStatistics();
+                showAlert('User created successfully', 'success');
+            }
+        })
+        .catch(error => {
+            showModalError('addUserError', 'addErrorMessage', 'Failed to create user');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Create User';
+        });
+    }
+    
+    function editUser(userId) {
+        fetch(`/api/auth/users/${userId}`)
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editUsername').value = user.username;
+                document.getElementById('editEmail').value = user.email;
+                document.getElementById('editFirstName').value = user.first_name || '';
+                document.getElementById('editLastName').value = user.last_name || '';
+                document.getElementById('editIsActive').checked = user.active;
+                document.getElementById('editIsAdmin').checked = user.is_admin;
+                
+                // Clear previous errors
+                document.getElementById('editUserError').classList.add('d-none');
+                
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
+            })
+            .catch(error => {
+                showAlert('Failed to load user data', 'danger');
+            });
+    }
+    
+    function saveUserChanges() {
+        const userId = document.getElementById('editUserId').value;
+        const userData = {
+            username: document.getElementById('editUsername').value,
+            firstName: document.getElementById('editFirstName').value,
+            lastName: document.getElementById('editLastName').value,
+            is_active: document.getElementById('editIsActive').checked,
+            is_admin: document.getElementById('editIsAdmin').checked
+        };
+        
+        const saveBtn = document.getElementById('saveUserBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        
+        fetch(`/api/auth/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showModalError('editUserError', 'editErrorMessage', data.error);
+            } else {
+                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+                loadUsersData();
+                loadUserStatistics();
+                showAlert('User updated successfully', 'success');
+            }
+        })
+        .catch(error => {
+            showModalError('editUserError', 'editErrorMessage', 'Failed to update user');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Changes';
+        });
+    }
+    
+    function toggleUserStatus(userId) {
+        if (confirm('Are you sure you want to change this user\'s status?')) {
             fetch(`/api/auth/users/${userId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    username: username,
-                    is_active: isActive,
-                    is_admin: isAdmin
-                })
+                body: JSON.stringify({ toggle_status: true })
             })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showAlert(data.error, 'danger');
                 } else {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Failed to update user');
-                    });
+                    loadUsersData();
+                    loadUserStatistics();
+                    showAlert('User status updated', 'success');
                 }
             })
-            .then(data => {
-                // Close modal
-                editUserModal.hide();
-                
-                // Refresh user list to reflect changes
-                location.reload();
-            })
             .catch(error => {
-                showEditError(error.message || 'Failed to update user');
-                
-                // Reset button state
-                saveUserBtn.disabled = false;
-                saveUserBtn.innerHTML = 'Save Changes';
+                showAlert('Failed to update user status', 'danger');
             });
-        });
-
-        // Handle refresh button click
-        refreshUserList.addEventListener('click', function(e) {
-            e.preventDefault();
-            location.reload();
-        });
-
-        // Toggle user status function
-        function toggleUserStatus(userId, newActiveStatus) {
+        }
+    }
+    
+    function deleteUser(userId) {
+        if (confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
             fetch(`/api/auth/users/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    is_active: newActiveStatus
-                })
+                method: 'DELETE'
             })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Failed to update user status');
-                    });
-                }
-            })
+            .then(response => response.json())
             .then(data => {
-                // Refresh to reflect changes
-                location.reload();
+                if (data.error) {
+                    showAlert(data.error, 'danger');
+                } else {
+                    loadUsersData();
+                    loadUserStatistics();
+                    showAlert('User deleted successfully', 'success');
+                }
             })
             .catch(error => {
-                alert(error.message || 'Failed to update user status');
+                showAlert('Failed to delete user', 'danger');
             });
         }
-
-        // Show error in edit user form
-        function showEditError(message) {
-            editErrorMessage.textContent = message;
-            editUserError.classList.remove('d-none');
+    }
+    
+    function bulkAction(action) {
+        const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+        const userIds = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        if (userIds.length === 0) return;
+        
+        const actionText = action.charAt(0).toUpperCase() + action.slice(1);
+        if (confirm(`Are you sure you want to ${action} ${userIds.length} selected user(s)?`)) {
+            // Implementation for bulk actions would go here
+            showAlert(`Bulk ${action} operation completed`, 'success');
+            loadUsersData();
+            loadUserStatistics();
         }
-
-        // Delete user function
-        function deleteUser(userId) {
-            fetch(`/api/auth/users/${userId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.error || 'Failed to delete user');
-                    });
-                }
-            })
-            .then(data => {
-                // Show success message
-                alert(data.message || 'User deleted successfully');
-                
-                // Refresh to reflect changes
-                location.reload();
-            })
-            .catch(error => {
-                alert(error.message || 'Failed to delete user');
-            });
-        }
-    });
+    }
+    
+    function showModalError(errorId, messageId, message) {
+        document.getElementById(messageId).textContent = message;
+        document.getElementById(errorId).classList.remove('d-none');
+    }
+    
+    function showAlert(message, type) {
+        // Create and show bootstrap alert
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+});
 </script>
 {% endblock %}

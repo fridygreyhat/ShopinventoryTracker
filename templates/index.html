@@ -8,7 +8,7 @@
             <h5 class="text-muted" id="shop-name">Loading shop details...</h5>
         </div>
     </div>
-    
+
     <div class="row g-4 mb-4">
         <!-- Summary Cards with new design -->
         <div class="col-sm-6 col-xl-3">
@@ -46,74 +46,146 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Financial Summary Section -->
-    <div class="card financial-card compact-chart mb-4">
-        <div class="card-header py-2">
+    <div class="card financial-card compact-chart mb-3">
+        <div class="card-header py-1">
             <div class="d-flex justify-content-between align-items-center">
                 <h6 class="card-title small mb-0">Financial Summary</h6>
-                <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-external-link-alt"></i> View Reports
+                <a href="{{ url_for('finance') }}" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                    <i class="fas fa-external-link-alt"></i> Reports
                 </a>
             </div>
         </div>
-        <div class="card-body p-2">
-            <div class="row">
+        <div class="card-body p-1">
+            <div class="row g-1">
                 <!-- Monthly Summary Chart -->
-                <div class="col-md-8">
-                    <div class="chart-container">
-                        <canvas id="financialSummaryChart" height="180"></canvas>
+                <div class="col-lg-7">
+                    <div class="chart-container" style="height: 160px;">
+                        <canvas id="financialSummaryChart" width="400" height="160"></canvas>
                     </div>
                 </div>
                 <!-- Financial Metrics Cards -->
-                <div class="col-md-4">
-                    <div class="card finance-card mb-3 financial-summary income-card compact-chart">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle small">This Month</h6>
-                                    <h6 class="card-title mb-0">Income</h6>
+                <div class="col-lg-5">
+                    <div class="row g-1">
+                        <!-- Income Cards Row -->
+                        <div class="col-6">
+                            <div class="card compact-income-card mb-1" style="background: linear-gradient(135deg, #e8f5e8, #f0fdf4); min-height: 60px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="income-icon me-1" style="background: linear-gradient(135deg, #22c55e, #16a34a); width: 24px; height: 24px; font-size: 0.7rem;">
+                                            <i class="fas fa-calendar-day"></i>
+                                        </div>
+                                        <div class="income-details flex-grow-1" style="min-width: 0;">
+                                            <div class="income-label" style="font-size: 0.6rem;">Daily Income</div>
+                                            <div class="income-amount text-success" style="font-size: 0.8rem; font-weight: 600;">
+                                                <span class="currency-symbol">TZS</span> <span id="daily-income">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <i class="fas fa-arrow-circle-down text-success"></i>
                             </div>
-                            <p class="mt-1 mb-0 fs-5">
-                                <span class="currency-symbol">TZS</span> <span id="monthly-income">0</span>
-                            </p>
                         </div>
-                    </div>
-                    <div class="card finance-card mb-3 financial-summary expense-card compact-chart">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle small">This Month</h6>
-                                    <h6 class="card-title mb-0">Expenses</h6>
+
+                        <div class="col-6">
+                            <div class="card compact-income-card mb-1" style="background: linear-gradient(135deg, #e0f2fe, #f0fdf9); min-height: 60px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="income-icon me-1" style="background: linear-gradient(135deg, #0ea5e9, #0284c7); width: 24px; height: 24px; font-size: 0.7rem;">
+                                            <i class="fas fa-calendar-week"></i>
+                                        </div>
+                                        <div class="income-details flex-grow-1" style="min-width: 0;">
+                                            <div class="income-label" style="font-size: 0.6rem;">Weekly Income</div>
+                                            <div class="income-amount text-info" style="font-size: 0.8rem; font-weight: 600;">
+                                                <span class="currency-symbol">TZS</span> <span id="weekly-income">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <i class="fas fa-arrow-circle-up text-danger"></i>
                             </div>
-                            <p class="mt-1 mb-0 fs-5">
-                                <span class="currency-symbol">TZS</span> <span id="monthly-expenses">0</span>
-                            </p>
                         </div>
-                    </div>
-                    <div class="card finance-card financial-summary profit-card compact-chart mb-3">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-subtitle small">This Month</h6>
-                                    <h6 class="card-title mb-0">Net Profit</h6>
+
+                        <div class="col-12">
+                            <div class="card compact-income-card mb-1" style="background: linear-gradient(135deg, #fef3e2, #fefce8); min-height: 60px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="income-icon me-1" style="background: linear-gradient(135deg, #f59e0b, #d97706); width: 24px; height: 24px; font-size: 0.7rem;">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </div>
+                                        <div class="income-details flex-grow-1" style="min-width: 0;">
+                                            <div class="income-label" style="font-size: 0.6rem;">Monthly Income</div>
+                                            <div class="income-amount text-warning" style="font-size: 0.8rem; font-weight: 600;">
+                                                <span class="currency-symbol">TZS</span> <span id="monthly-income">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="income-badge bg-warning bg-opacity-10 text-warning" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">
+                                            30D
+                                        </div>
+                                    </div>
                                 </div>
-                                <i class="fas fa-chart-line text-info"></i>
                             </div>
-                            <p class="mt-1 mb-0 fs-5">
-                                <span class="currency-symbol">TZS</span> <span id="monthly-profit">0</span>
-                            </p>
+                        </div>
+
+                        <!-- Expenses Cards Row -->
+                        <div class="col-6">
+                            <div class="card compact-income-card mb-1" style="background: linear-gradient(135deg, #fff2f2, #fef5f5); min-height: 60px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="income-icon me-1" style="background: linear-gradient(135deg, #dc3545, #c82333); width: 24px; height: 24px; font-size: 0.7rem;">
+                                            <i class="fas fa-credit-card"></i>
+                                        </div>
+                                        <div class="income-details flex-grow-1" style="min-width: 0;">
+                                            <div class="income-label" style="font-size: 0.6rem;">Daily Expenses</div>
+                                            <div class="income-amount text-danger" style="font-size: 0.8rem; font-weight: 600;">
+                                                <span class="currency-symbol">TZS</span> <span id="daily-expenses">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-6">
+                            <div class="card compact-income-card mb-1" style="background: linear-gradient(135deg, #fff8f2, #fffaf5); min-height: 60px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex align-items-center">
+                                        <div class="income-icon me-1" style="background: linear-gradient(135deg, #fd7e14, #e8610c); width: 24px; height: 24px; font-size: 0.7rem;">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="income-details flex-grow-1" style="min-width: 0;">
+                                            <div class="income-label" style="font-size: 0.6rem;">Weekly Expenses</div>
+                                            <div class="income-amount text-warning" style="font-size: 0.8rem; font-weight: 600;">
+                                                <span class="currency-symbol">TZS</span> <span id="weekly-expenses">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Summary -->
+                        <div class="col-12">
+                            <div class="card finance-card mb-1 financial-summary" style="background: linear-gradient(135deg, #f8f9fa, #ffffff); min-height: 50px;">
+                                <div class="card-body p-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div style="font-size: 0.6rem; color: #6c757d;">Monthly Summary</div>
+                                            <div class="d-flex gap-2" style="font-size: 0.7rem;">
+                                                <span class="text-danger">Exp: <span class="currency-symbol">TZS</span> <span id="monthly-expenses">0</span></span>
+                                                <span class="text-success">Profit: <span class="currency-symbol">TZS</span> <span id="monthly-profit">0</span></span>
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-chart-pie text-primary" style="font-size: 1rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Inventory Health Overview -->
     <div class="row">
         <div class="col-12 mb-4">
@@ -135,6 +207,73 @@
         </div>
     </div>
 
+    <!-- Dashboard Stats -->
+    <div class="row">
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card sales">
+                <div class="card-body">
+                    <div class="stat-icon sales">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h6 class="card-title">Total Sales</h6>
+                    <p class="stat-value" id="total-sales">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 12% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card inventory">
+                <div class="card-body">
+                    <div class="stat-icon inventory">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h6 class="card-title">Total Items</h6>
+                    <p class="stat-value" id="total-items">0</p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 5 new items
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card profit">
+                <div class="card-body">
+                    <div class="stat-icon profit">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h6 class="card-title">Low Stock</h6>
+                    <p class="stat-value" id="low-stock-count">0</p>
+                    <div class="stat-trend stat-trend-down d-none d-sm-block">
+                        <i class="fas fa-exclamation-triangle"></i> Needs attention
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card customers">
+                <div class="card-body">
+                    <div class="stat-icon customers">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h6 class="card-title">Total Value</h6>
+                    <p class="stat-value" id="total-value">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 8% increase
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <!-- Stock Level Chart -->
         <div class="col-md-6 mb-4">
@@ -147,7 +286,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Value by Category Chart -->
         <div class="col-md-6 mb-4">
             <div class="card chart-card compact-chart">
@@ -160,7 +299,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <!-- Low Stock Items -->
         <div class="col-md-12 mb-4">
@@ -193,7 +332,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <!-- Sales Performance -->
         <div class="col-md-6 mb-4">

@@ -87,7 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const inventoryHealthContainer = document.getElementById('inventory-health-container');
 
     // Financial Elements
+    const dailyIncomeElement = document.getElementById('daily-income');
+    const weeklyIncomeElement = document.getElementById('weekly-income');
     const monthlyIncomeElement = document.getElementById('monthly-income');
+    const dailyExpensesElement = document.getElementById('daily-expenses');
+    const weeklyExpensesElement = document.getElementById('weekly-expenses');
     const monthlyExpensesElement = document.getElementById('monthly-expenses');
     const monthlyProfitElement = document.getElementById('monthly-profit');
     const financialSummaryChartElement = document.getElementById('financialSummaryChart');
@@ -97,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let valueChart = null;
     let healthDonutChart = null;
     let financialChart = null;
+    let expensesChart = null;
 
     // Load dashboard data
     loadDashboardData();
@@ -231,11 +236,24 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 function loadDashboardData() {
+        console.log('Loading dashboard data...');
         loadSalesPerformance();
+
         // Load stock status report
         fetch('/api/reports/stock-status')
-            .then(response => response.json())
+            .then(response => {
+                console.log('Stock status response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Stock status data loaded:', data);
+                console.log('Total items:', data.total_items);
+                console.log('Total stock:', data.total_stock);
+                console.log('Low stock count:', data.low_stock_items_count);
+                console.log('Inventory value:', data.total_inventory_value);
                 updateDashboardSummary(data);
                 updateLowStockTable(data.low_stock_items);
             })
@@ -245,8 +263,14 @@ function loadDashboardData() {
 
         // Load category breakdown for charts
         fetch('/api/reports/category-breakdown')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Category breakdown data loaded:', data);
                 createStockChart(data);
                 createValueChart(data);
             })
@@ -256,11 +280,31 @@ function loadDashboardData() {
     }
 
     function updateDashboardSummary(data) {
-        // Update summary cards
-        totalItemsElement.textContent = data.total_items;
-        totalStockElement.textContent = data.total_stock;
-        lowStockCountElement.textContent = data.low_stock_items_count;
-        inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + data.total_inventory_value.toLocaleString();
+        console.log('Updating dashboard summary with data:', data);
+
+        // Update summary cards with safe fallbacks
+        if (totalItemsElement) {
+            totalItemsElement.textContent = data.total_items || 0;
+        }
+        if (totalStockElement) {
+            totalStockElement.textContent = data.total_stock || 0;
+        }
+        if (lowStockCountElement) {
+            lowStockCountElement.textContent = data.low_stock_items_count || 0;
+        }
+        if (inventoryValueElement) {
+            const value = data.total_inventory_value || 0;
+            inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + value.toLocaleString();
+        }
+
+        // Also update the total-value element if it exists
+        const totalValueElement = document.getElementById('total-value');
+        if (totalValueElement) {
+            const valueSpan = totalValueElement.querySelector('span:last-child');
+            if (valueSpan) {
+                valueSpan.textContent = (data.total_inventory_value || 0).toLocaleString();
+            }
+        }
 
         // Create inventory health overview if container exists
         if (inventoryHealthContainer) {
@@ -710,40 +754,94 @@ function loadDashboardData() {
         onDemandProductsTableElement.innerHTML = html;
     }
 
-    // Load financial summary data for dashboard
+    // Load financial summary data
     function loadFinancialSummary() {
-        // Get current date
+        console.log('Loading financial summary...');
+
+        // Load daily income
         const today = new Date();
-        const year = today.getFullYear();
-        const month = today.getMonth() + 1;
+        const todayStr = today.toISOString().split('T')[0];
 
-        // Get first and last day of current month
-        const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0);
-
-        // Format dates as YYYY-MM-DD
-        const startDate = firstDay.toISOString().slice(0, 10);
-        const endDate = lastDay.toISOString().slice(0, 10);
-
-        // Load monthly transactions data
-        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`/api/finance/transactions?start_date=${todayStr}&end_date=${todayStr}`)
             .then(response => response.json())
             .then(data => {
-                updateFinancialSummary(data.summary);
+                const dailyIncome = data.summary ? data.summary.total_income : 0;
+                const dailyExpenses = data.summary ? data.summary.total_expenses : 0;
+                if (dailyIncomeElement) {
+                    dailyIncomeElement.textContent = dailyIncome.toLocaleString();
+                    animateCounter(dailyIncomeElement, dailyIncome);
+                }
+                if (dailyExpensesElement) {
+                    dailyExpensesElement.textContent = dailyExpenses.toLocaleString();
+                    animateCounter(dailyExpensesElement, dailyExpenses);
+                }
             })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
+            .catch(error => console.error('Error loading daily financial data:', error));
 
-        // Load yearly data for chart
-        fetch(`/api/finance/summaries/monthly?year=${year}`)
+        // Load weekly income
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+        fetch(`/api/finance/transactions?start_date=${weekAgoStr}&end_date=${todayStr}`)
             .then(response => response.json())
             .then(data => {
-                createFinancialChart(data);
+                const weeklyIncome = data.summary ? data.summary.total_income : 0;
+                const weeklyExpenses = data.summary ? data.summary.total_expenses : 0;
+                if (weeklyIncomeElement) {
+                    weeklyIncomeElement.textContent = weeklyIncome.toLocaleString();
+                    animateCounter(weeklyIncomeElement, weeklyIncome);
+                }
+                if (weeklyExpensesElement) {
+                    weeklyExpensesElement.textContent = weeklyExpenses.toLocaleString();
+                    animateCounter(weeklyExpensesElement, weeklyExpenses);
+                }
             })
-            .catch(error => {
-                console.error('Error loading monthly financial data:', error);
-            });
+            .catch(error => console.error('Error loading weekly financial data:', error));
+
+        // Load monthly income
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthStartStr = monthStart.toISOString().split('T')[0];
+
+        fetch(`/api/finance/transactions?start_date=${monthStartStr}&end_date=${todayStr}`)
+            .then(response => response.json())
+            .then(data => {
+                const monthlyIncome = data.summary ? data.summary.total_income : 0;
+                const monthlyExpenses = data.summary ? data.summary.total_expenses : 0;
+                const monthlyProfit = data.summary ? data.summary.net_profit : 0;
+
+                if (monthlyIncomeElement) {
+                    monthlyIncomeElement.textContent = monthlyIncome.toLocaleString();
+                    animateCounter(monthlyIncomeElement, monthlyIncome);
+                }
+                if (monthlyExpensesElement) {
+                    monthlyExpensesElement.textContent = monthlyExpenses.toLocaleString();
+                    animateCounter(monthlyExpensesElement, monthlyExpenses);
+                }
+                if (monthlyProfitElement) {
+                    monthlyProfitElement.textContent = monthlyProfit.toLocaleString();
+                    animateCounter(monthlyProfitElement, monthlyProfit);
+
+                    // Add color coding for profit
+                    const profitElement = monthlyProfitElement.closest('.card-body');
+                    if (profitElement) {
+                        profitElement.classList.remove('text-success', 'text-danger', 'text-warning');
+                        if (monthlyProfit > 0) {
+                            profitElement.classList.add('text-success');
+                        } else if (monthlyProfit < 0) {
+                            profitElement.classList.add('text-danger');
+                        } else {
+                            profitElement.classList.add('text-warning');
+                        }
+                    }
+                }
+            })
+            .catch(error => console.error('Error loading monthly income:', error));
+
+        // Load financial chart data
+        loadFinancialChart();
+        loadIncomeChart();
+        loadExpensesChart();
     }
 
     // Update financial summary on dashboard
@@ -769,123 +867,320 @@ function loadDashboardData() {
         }
     }
 
-    // Create financial summary chart
-    function createFinancialChart(data) {
-        if (!financialSummaryChartElement) {
-            return;
+    // Load financial chart data
+    function loadFinancialChart() {
+        const currentYear = new Date().getFullYear();
+
+        fetch(`/api/finance/summaries/monthly?year=${currentYear}`)
+            .then(response => response.json())
+            .then(data => {
+                createFinancialChart(data);
+            })
+            .catch(error => console.error('Error loading financial chart data:', error));
+    }
+
+    // Load income trend chart
+    function loadIncomeChart() {
+        const today = new Date();
+        const last7Days = [];
+
+        // Get last 7 days of data
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(today.getDate() - i);
+            last7Days.push(date.toISOString().split('T')[0]);
         }
 
-        const ctx = financialSummaryChartElement.getContext('2d');
+        Promise.all(
+            last7Days.map(date => 
+                fetch(`/api/finance/transactions?start_date=${date}&end_date=${date}`)
+                    .then(response => response.json())
+            )
+        ).then(results => {
+            const incomeData = results.map((data, index) => ({
+                date: last7Days[index],
+                income: data.summary ? data.summary.total_income : 0,
+                expenses: data.summary ? data.summary.total_expenses : 0,
+                profit: data.summary ? data.summary.net_profit : 0
+            }));
 
-        // Destroy existing chart if it exists
-        if (financialChart) {
-            financialChart.destroy();
+            createIncomeChart(incomeData);
+        }).catch(error => console.error('Error loading income chart data:', error));
+    }
+
+    // Create income trend chart
+    function createIncomeChart(data) {
+        const ctx = document.getElementById('incomeChart');
+        if (!ctx) return;
+
+        const dates = data.map(item => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        });
+        const incomeData = data.map(item => item.income);
+        const expenseData = data.map(item => item.expenses);
+        const profitData = data.map(item => item.profit);
+
+        if (window.incomeChart) {
+            window.incomeChart.destroy();
         }
 
-        // Extract data for chart
-        const months = data.monthly_data.map(item => item.month_name);
-        const incomeData = data.monthly_data.map(item => item.income);
-        const expenseData = data.monthly_data.map(item => item.expenses);
-        const profitData = data.monthly_data.map(item => item.profit);
-
-        // Create new chart
-        financialChart = new Chart(ctx, {
-            type: 'bar',
+        window.incomeChart = new Chart(ctx, {
+            type: 'line',
             data: {
-                labels: months,
+                labels: dates,
                 datasets: [
                     {
                         label: 'Income',
                         data: incomeData,
-                        backgroundColor: getThemeColors().success,
-                        borderColor: getThemeColors().success.replace('0.8', '1'),
-                        borderWidth: 1
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(40, 167, 69, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     },
                     {
                         label: 'Expenses',
                         data: expenseData,
-                        backgroundColor: getThemeColors().danger,
-                        borderColor: getThemeColors().danger.replace('0.8', '1'),
-                        borderWidth: 1
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     },
                     {
                         label: 'Net Profit',
                         data: profitData,
-                        type: 'line',
-                        backgroundColor: getThemeColors().info.replace('0.8', '0.2'),
-                        borderColor: getThemeColors().info.replace('0.8', '1'),
-                        borderWidth: 2,
-                        pointBackgroundColor: getThemeColors().info.replace('0.8', '1'),
-                        pointRadius: 4,
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        borderWidth: 3,
                         fill: false,
-                        tension: 0.1
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(23, 162, 184, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText,
-                            callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText
-                        }
-                    }
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 },
                 plugins: {
                     legend: {
+                        display: true,
+                        position: 'top',
                         labels: {
-                            color: getThemeColors().chartText,
                             usePointStyle: true,
-                            padding: 5,
-                            boxWidth: 8,
+                            padding: 20,
                             font: {
-                                size: 10,
-                                family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
+                                size: 12,
+                                weight: '500'
                             }
                         }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        displayColors: true,
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += 'TZS ' + context.raw.toLocaleString();
-                                return label;
+                                return `${context.dataset.label}: TZS ${context.raw.toLocaleString()}`;
                             }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
                         },
-                        backgroundColor: getThemeColors().tooltipBackground,
-                        titleColor: getThemeColors().tooltipText,
-                        bodyColor: getThemeColors().tooltipText,
-                        titleFont: {
-                            size: 12,
-                            weight: 'bold'
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
                         },
-                        bodyFont: {
-                            size: 11
-                        },
-                        padding: 8
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: '#ffffff'
                     }
                 }
             }
         });
+    }
+
+    // Load expenses chart data for last 7 days
+    function loadExpensesChart() {
+        const today = new Date();
+        const last7Days = [];
+
+        // Get last 7 days of data
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(today.getDate() - i);
+            last7Days.push(date.toISOString().split('T')[0]);
+        }
+
+        Promise.all(
+            last7Days.map(date => 
+                fetch(`/api/finance/transactions?start_date=${date}&end_date=${date}`)
+                    .then(response => response.json())
+            )
+        ).then(results => {
+            const expenseData = results.map((data, index) => ({
+                date: last7Days[index],
+                expenses: data.summary ? data.summary.total_expenses : 0
+            }));
+
+            createExpensesChart(expenseData);
+        }).catch(error => console.error('Error loading expenses chart data:', error));
+    }
+
+    // Create expenses chart
+    function createExpensesChart(data) {
+        const ctx = document.getElementById('expensesChart');
+        if (!ctx) return;
+
+        const dates = data.map(item => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString('en-US', { weekday: 'short' });
+        });
+        const expenseData = data.map(item => item.expenses);
+
+        if (expensesChart) {
+            expensesChart.destroy();
+        }
+
+        const colors = getThemeColors();
+
+        expensesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Daily Expenses',
+                    data: expenseData,
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.chartBorder,
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        padding: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return `Expenses: TZS ${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 9
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: colors.chartGrid
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 9
+                            },
+                            callback: function(value) {
+                                return value > 1000 ? (value/1000).toFixed(0) + 'K' : value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Animate counter function
+    function animateCounter(element, finalValue) {
+        const duration = 1500;
+        const startTime = performance.now();
+        const startValue = 0;
+
+        function updateCounter(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Easing function for smooth animation
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const currentValue = Math.floor(startValue + (finalValue - startValue) * easeOut);
+
+            element.textContent = currentValue.toLocaleString();
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            } else {
+                element.textContent = finalValue.toLocaleString();
+            }
+        }
+
+        requestAnimationFrame(updateCounter);
     }
 
     // Initialize
@@ -897,13 +1192,14 @@ function loadDashboardData() {
         fetch('/api/shop/details')
             .then(response => response.json())
             .then(data => {
-                if (data.success){
-                const user = data.user;
+                if (data.success) {
+                    const user = data.user;
 
-                // Update DOM elements
-                const shopNameElement = document.getElementById('shop-name');
-                if (shopNameElement) {
-                    shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    // Update DOM elements
+                    const shopNameElement = document.getElementById('shop-name');
+                    if (shopNameElement) {
+                        shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    }
                 }
             })
             .catch(error => {
@@ -916,29 +1212,177 @@ function loadDashboardData() {
             });
     }
 
-    function loadDashboardData() {
-        // Load stock status report
-        fetch('/api/reports/stock-status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update summary cards
-                document.getElementById('total-items').textContent = data.total_items || 0;
-                document.getElementById('total-stock').textContent = data.total_stock || 0;
-                document.getElementById('low-stock-count').textContent = data.low_stock_items_count || 0;
+    // Refresh dashboard data periodically and on focus
+    function refreshDashboardData() {
+        console.log('Refreshing dashboard data...');
+        loadDashboardData();
+        loadOnDemandProducts();
+        loadFinancialSummary();
+    }
 
-                // Update inventory value if element exists
-                const inventoryValueElement = document.getElementById('inventory-value');
-                if (inventoryValueElement) {
-                    inventoryValueElement.textContent = `<span class="currency-symbol">TZS</span> ${(data.total_inventory_value || 0).toLocaleString()}`;
+    // Set up auto-refresh
+    setInterval(refreshDashboardData, 30000); // Refresh every 30 seconds
+
+    // Refresh when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshDashboardData();
+        }
+    });
+
+    // Additional function for manual refresh
+    window.refreshDashboard = refreshDashboardData;
+
+    // Create financial chart data
+    function createFinancialChart(data) {
+        const ctx = document.getElementById('financialSummaryChart');
+        if (!ctx) {
+            console.log('Financial chart canvas not found');
+            return;
+        }
+
+        // Prepare chart data from monthly summaries
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const incomeData = new Array(12).fill(0);
+        const expenseData = new Array(12).fill(0);
+        const profitData = new Array(12).fill(0);
+
+        // Fill data from API response
+        if (data && Array.isArray(data)) {
+            data.forEach(monthData => {
+                const monthIndex = monthData.month - 1; // Convert to 0-based index
+                if (monthIndex >= 0 && monthIndex < 12) {
+                    incomeData[monthIndex] = monthData.total_income || 0;
+                    expenseData[monthIndex] = monthData.total_expenses || 0;
+                    profitData[monthIndex] = monthData.net_profit || 0;
                 }
-            })
-            .catch(error => {
-                console.error('Error loading stock status report:', error);
             });
+        }
+
+        // Destroy existing chart
+        if (financialChart) {
+            financialChart.destroy();
+        }
+
+        const colors = getThemeColors();
+
+        financialChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: colors.success,
+                        backgroundColor: colors.success.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.success,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: colors.danger,
+                        backgroundColor: colors.danger.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.danger,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Net Profit',
+                        data: profitData,
+                        borderColor: colors.info,
+                        backgroundColor: colors.info.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.info,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 11,
+                                weight: '500'
+                            },
+                            color: colors.chartText
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.chartBorder,
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: TZS ${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: colors.chartGrid
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 10
+                            },
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log('Financial chart created successfully');
     }
 });

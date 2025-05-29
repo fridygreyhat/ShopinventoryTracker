@@ -24,6 +24,8 @@ class Item(db.Model):
     selling_price_wholesale = db.Column(db.Float, default=0.0)
     price = db.Column(db.Float, default=0.0)  # For backward compatibility
     sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
+    # User ownership
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -56,18 +58,18 @@ class Item(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'sku': self.sku,
-            'unit_type': self.unit_type,
-            'description': self.description,
-            'category': self.category,
-            'subcategory': self.subcategory,
-            'sell_by': self.sell_by,
-            'quantity': self.quantity,
-            'buying_price': self.buying_price,
-            'selling_price_retail': self.selling_price_retail,
-            'selling_price_wholesale': self.selling_price_wholesale,
-            'price': self.price,  # For backward compatibility
-            'sales_type': self.sales_type,
+            'sku': self.sku or '',
+            'unit_type': self.unit_type or 'quantity',
+            'description': self.description or '',
+            'category': self.category or 'Uncategorized',
+            'subcategory': self.subcategory or '',
+            'sell_by': self.sell_by or 'quantity',
+            'quantity': self.quantity or 0,
+            'buying_price': float(self.buying_price or 0),
+            'selling_price_retail': float(self.selling_price_retail or 0),
+            'selling_price_wholesale': float(self.selling_price_wholesale or 0),
+            'price': float(self.price or self.selling_price_retail or 0),  # For backward compatibility
+            'sales_type': self.sales_type or 'both',
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -125,6 +127,7 @@ class User(UserMixin, db.Model):
 
     # Relationships
     subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
+    items = db.relationship('Item', backref='owner', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -156,64 +159,58 @@ class User(UserMixin, db.Model):
         }
 
 
-class Subuser(UserMixin, db.Model):
-    """Subuser model for managing team members under main users"""
+class Subuser(db.Model):
+    """Subuser model for managing team members"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255))
+    password_hash = db.Column(db.String(256), nullable=False)
     parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
 
     # Relationships
     permissions = db.relationship('SubuserPermission', backref='subuser', lazy=True, cascade='all, delete-orphan')
 
-    def __repr__(self):
-        return f'<Subuser {self.name}>'
-
     def set_password(self, password):
-        """Set password hash"""
-        from werkzeug.security import generate_password_hash
+        """Set the subuser's password hash"""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Check password against hash"""
-        from werkzeug.security import check_password_hash
+        """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
-
-    def has_permission(self, permission_name):
-        """Check if subuser has a specific permission"""
-        permission = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            permission=permission_name, 
-            granted=True
-        ).first()
-        return permission is not None
-
-    def get_permissions(self):
-        """Get all granted permissions"""
-        permissions = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            granted=True
-        ).all()
-        return [p.permission for p in permissions]
 
     def to_dict(self):
         """Convert subuser to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'parent_user_id': self.parent_user_id,
-            'is_active': self.is_active,
-            'permissions': self.get_permissions(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
+        try:
+            permissions_list = []
+            for perm in self.permissions:
+                if hasattr(perm, 'granted') and perm.granted:
+                    permissions_list.append(perm.permission)
+                elif hasattr(perm, 'permission'):
+                    permissions_list.append(perm.permission)
+
+            return {
+                'id': self.id,
+                'name': self.name or '',
+                'email': self.email or '',
+                'is_active': getattr(self, 'is_active', True),
+                'created_at': self.created_at.isoformat() if self.created_at else None,
+                'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+                'permissions': permissions_list
+            }
+        except Exception as e:
+            # Fallback for any attribute errors
+            return {
+                'id': getattr(self, 'id', 0),
+                'name': getattr(self, 'name', ''),
+                'email': getattr(self, 'email', ''),
+                'is_active': getattr(self, 'is_active', True),
+                'created_at': None,
+                'updated_at': None,
+                'permissions': []
+            }
 
 
 class SubuserPermission(db.Model):
@@ -322,6 +319,28 @@ class Sale(db.Model):
 
     def __repr__(self):
         return f'<Sale {self.invoice_number}>'
+
+    def to_dict(self):
+        """Convert sale to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'invoice_number': self.invoice_number,
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'sale_type': self.sale_type,
+            'subtotal': self.subtotal,
+            'discount_type': self.discount_type,
+            'discount_value': self.discount_value,
+            'discount_amount': self.discount_amount,
+            'total': self.total,
+            'payment_method': self.payment_method,
+            'payment_details': self.payment_details,
+            'payment_amount': self.payment_amount,
+            'change_amount': self.change_amount,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
     def to_dict(self):
         """Convert sale to dictionary for API responses"""

@@ -91,7 +91,8 @@ def inject_current_user():
 # Initialize database tables
 with app.app_context():
     # Import models to ensure they are registered with SQLAlchemy
-    from models import User, Item, Sale, SaleItem, Category, Subcategory, Subuser, SubuserPermission
+    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory
+    import json
 
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production
@@ -171,6 +172,21 @@ with app.app_context():
             add_column_safely('item', 'sell_by',
                               'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'category_id', 'INTEGER')
+            add_column_safely('item', 'user_id', 'INTEGER')
+            
+            # Set user_id for existing items (assign to first admin user if exists)
+            try:
+                first_admin = User.query.filter_by(is_admin=True).first()
+                if first_admin:
+                    db.session.execute(
+                        db.text("UPDATE item SET user_id = :user_id WHERE user_id IS NULL"),
+                        {"user_id": first_admin.id}
+                    )
+                    db.session.commit()
+                    logger.info(f"Assigned existing items to admin user: {first_admin.username}")
+            except Exception as e:
+                logger.error(f"Error assigning existing items to admin: {str(e)}")
+                db.session.rollback()
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -246,46 +262,66 @@ def categories():
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
+@login_required
 def get_inventory():
-    """API endpoint to get all inventory items"""
+    """API endpoint to get all inventory items for the current user"""
     from models import Item
 
-    # Start query
-    query = Item.query
+    try:
+        logger.info("Getting inventory items...")
+        
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Start query filtered by user
+        query = Item.query.filter(Item.user_id == user_id)
 
-    # Optional filtering
-    category = request.args.get('category')
-    search_term = request.args.get('search', '').lower()
-    min_stock = request.args.get('min_stock')
-    max_stock = request.args.get('max_stock')
+        # Optional filtering
+        category = request.args.get('category')
+        search_term = request.args.get('search', '').lower()
+        min_stock = request.args.get('min_stock')
+        max_stock = request.args.get('max_stock')
 
-    # Apply filters if provided
-    if category:
-        query = query.filter(Item.category == category)
+        logger.info(f"Filters - category: {category}, search: {search_term}, min_stock: {min_stock}, max_stock: {max_stock}")
 
-    if search_term:
-        search_filter = (Item.name.ilike(f'%{search_term}%')
-                         | Item.sku.ilike(f'%{search_term}%')
-                         | Item.description.ilike(f'%{search_term}%'))
-        query = query.filter(search_filter)
+        # Apply filters if provided
+        if category:
+            query = query.filter(Item.category == category)
 
-    if min_stock:
-        try:
-            min_stock = int(min_stock)
-            query = query.filter(Item.quantity >= min_stock)
-        except ValueError:
-            pass
+        if search_term:
+            search_filter = (Item.name.ilike(f'%{search_term}%')
+                             | Item.sku.ilike(f'%{search_term}%')
+                             | Item.description.ilike(f'%{search_term}%'))
+            query = query.filter(search_filter)
 
-    if max_stock:
-        try:
-            max_stock = int(max_stock)
-            query = query.filter(Item.quantity <= max_stock)
-        except ValueError:
-            pass
+        if min_stock:
+            try:
+                min_stock = int(min_stock)
+                query = query.filter(Item.quantity >= min_stock)
+            except ValueError:
+                pass
 
-    # Execute query and convert to dictionary
-    items = [item.to_dict() for item in query.all()]
-    return jsonify(items)
+        if max_stock:
+            try:
+                max_stock = int(max_stock)
+                query = query.filter(Item.quantity <= max_stock)
+            except ValueError:
+                pass
+
+        # Execute query and convert to dictionary
+        items = query.all()
+        logger.info(f"Found {len(items)} items for user {user_id}")
+        
+        items_dict = [item.to_dict() for item in items]
+        logger.info(f"Returning {len(items_dict)} items as JSON")
+        
+        return jsonify(items_dict)
+        
+    except Exception as e:
+        logger.error(f"Error getting inventory items: {str(e)}")
+        return jsonify({"error": "Failed to get inventory items"}), 500
 
 
 @app.route('/api/inventory', methods=['POST'])
@@ -319,6 +355,11 @@ def add_item():
         # Use retail price as default price for backward compatibility
         price = selling_price_retail
 
+        # Get current user ID
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         # Create new item
         new_item = Item(name=item_data["name"],
                         description=item_data.get("description", ""),
@@ -331,7 +372,8 @@ def add_item():
                         category=item_data.get("category", "Uncategorized"),
                         sku=item_data.get(
                             "sku",
-                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
+                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"),
+                        user_id=user_id)
 
         # Add to database
         db.session.add(new_item)
@@ -400,11 +442,16 @@ def add_item():
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['GET'])
+@login_required
 def get_item(item_id):
     """API endpoint to get a specific inventory item"""
     from models import Item
 
-    item = Item.query.get(item_id)
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
     if not item:
         return jsonify({"error": "Item not found"}), 404
@@ -413,13 +460,18 @@ def get_item(item_id):
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['PUT'])
+@login_required
 def update_item(item_id):
     """API endpoint to update an inventory item"""
     from models import Item
 
     try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         item_data = request.json
-        item = Item.query.get(item_id)
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
         if item is None:
             return jsonify({"error": "Item not found"}), 404
@@ -474,8 +526,7 @@ def update_item(item_id):
 
                 email_enabled = email_setting and email_setting.value.lower(
                 ) == 'true'
-                sms_enabled = sms_setting and sms_setting.value.lower(
-                ) == 'true'
+                sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
 
                 notifications_enabled = email_enabled or sms_enabled
             except Exception as e:
@@ -511,12 +562,17 @@ def update_item(item_id):
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
+@login_required
 def delete_item(item_id):
     """API endpoint to delete an inventory item"""
     from models import Item
 
     try:
-        item = Item.query.get(item_id)
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
         if item is None:
             return jsonify({"error": "Item not found"}), 404
@@ -611,27 +667,75 @@ def get_inventory_categories():
     return jsonify([c.category for c in categories])
 
 
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    """API endpoint to get all products (alias for inventory)"""
+    from models import Item
+
+    # Start query
+    query = Item.query
+
+    # Optional filtering
+    category = request.args.get('category')
+    search_term = request.args.get('search', '').lower()
+    min_stock = request.args.get('min_stock')
+    max_stock = request.args.get('max_stock')
+
+    # Apply filters if provided
+    if category:
+        query = query.filter(Item.category == category)
+
+    if search_term:
+        search_filter = (Item.name.ilike(f'%{search_term}%')
+                         | Item.sku.ilike(f'%{search_term}%')
+                         | Item.description.ilike(f'%{search_term}%'))
+        query = query.filter(search_filter)
+
+    if min_stock:
+        try:
+            min_stock = int(min_stock)
+            query = query.filter(Item.quantity >= min_stock)
+        except ValueError:
+            pass
+
+    if max_stock:
+        try:
+            max_stock = int(max_stock)
+            query = query.filter(Item.quantity <= max_stock)
+        except ValueError:
+            pass
+
+    # Execute query and convert to dictionary
+    items = [item.to_dict() for item in query.all()]
+    return jsonify(items)
+
+
 @app.route('/api/reports/stock-status', methods=['GET'])
+@login_required
 def stock_status_report():
     """API endpoint to get stock status report"""
     from models import Item
     from sqlalchemy import func
 
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
     low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
 
-    # Get counts and sums
-    item_count = db.session.query(func.count(Item.id)).scalar() or 0
-    total_stock = db.session.query(func.sum(Item.quantity)).scalar() or 0
+    # Get counts and sums for current user only
+    item_count = db.session.query(func.count(Item.id)).filter(Item.user_id == user_id).scalar() or 0
+    total_stock = db.session.query(func.sum(Item.quantity)).filter(Item.user_id == user_id).scalar() or 0
 
-    # Get all items, low stock items, and out of stock items
-    all_items = Item.query.all()
+    # Get all items, low stock items, and out of stock items for current user
+    all_items = Item.query.filter(Item.user_id == user_id).all()
     low_stock_items = Item.query.filter(
-        Item.quantity <= low_stock_threshold).all()
-    out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
+        Item.quantity <= low_stock_threshold, Item.user_id == user_id).all()
+    out_of_stock_items = Item.query.filter(Item.quantity == 0, Item.user_id == user_id).all()
 
-    # Calculate inventory value using selling price retail
+    # Calculate inventory value using selling price retail with fallback to price
     total_value_query = db.session.query(
-        func.sum(Item.quantity * Item.selling_price_retail)).scalar()
+        func.sum(Item.quantity * func.coalesce(Item.selling_price_retail, Item.price, 0))).scalar()
     total_value = float(
         total_value_query) if total_value_query is not None else 0
 
@@ -652,38 +756,43 @@ def stock_status_report():
 
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])
+@login_required
 def category_breakdown_report():
     """API endpoint to get category breakdown report"""
     from models import Item
     from sqlalchemy import func
 
-    # Group items by category
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Group items by category for current user
     categories = {}
 
-    # First get all distinct categories
+    # First get all distinct categories for current user
     category_list = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(Item.user_id == user_id).distinct().all()
 
     # For each category, get the stats
     for cat in category_list:
         category = cat.category
 
-        # Get items count in this category
+        # Get items count in this category for current user
         count = db.session.query(func.count(Item.id)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == user_id).scalar() or 0
 
-        # Get total quantity
+        # Get total quantity for current user
         total_quantity = db.session.query(func.sum(Item.quantity)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == user_id).scalar() or 0
 
-        # Get total value based on retail selling price
+        # Get total value based on retail selling price for current user
         total_value_query = db.session.query(
             func.sum(Item.quantity * Item.selling_price_retail)).filter(
-                func.coalesce(Item.category, 'Uncategorized') ==
-                category).scalar()
+                func.coalesce(Item.category, 'Uncategorized') == category,
+                Item.user_id == user_id).scalar()
         total_value = float(
             total_value_query) if total_value_query is not None else 0
 
@@ -951,7 +1060,7 @@ def get_user_theme():
             session['user_theme'] = setting.value
             return jsonify({'success': True, 'value': setting.value})
 
-    # Return default theme if not found
+    # Return defaulttheme if not found
     return jsonify({
         'success': True,
         'value': 'tanzanite'  # Default theme
@@ -1460,6 +1569,141 @@ def get_slow_moving_items():
         logger.error(f"Error getting slow moving items: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/sales', methods=['POST'])
+def create_sale():
+    """API endpoint to create a new sale"""
+    try:
+        data = request.get_json()
+        logger.info(f"Received sales data: {data}")
+
+        if not data:
+            logger.error("No data provided in sales request")
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Validate required fields
+        if not data.get('items') or len(data.get('items', [])) == 0:
+            logger.error("No items provided in sales request")
+            return jsonify({'error': 'No items provided'}), 400
+
+        # Generate a unique invoice number
+        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        logger.info(f"Generated invoice number: {invoice_number}")
+
+        # Extract customer data
+        customer_data = data.get('customer', {})
+        payment_data = data.get('payment', {})
+        discount_data = data.get('discount', {})
+
+        # Create new sale record
+        new_sale = Sale(
+            invoice_number=invoice_number,
+            customer_name=customer_data.get('name', 'Walk-in Customer'),
+            customer_phone=customer_data.get('phone', ''),
+            sale_type=data.get('sale_type', 'retail'),
+            subtotal=float(data.get('subtotal', 0)),
+            discount_type=discount_data.get('type', 'none'),
+            discount_value=float(discount_data.get('value', 0)),
+            discount_amount=float(discount_data.get('amount', 0)),
+            total=float(data.get('total', 0)),
+            payment_method=payment_data.get('method', 'cash'),
+            payment_details=json.dumps(payment_data.get('mobile_info', {})),
+            payment_amount=float(payment_data.get('amount', 0)),
+            change_amount=float(payment_data.get('change', 0)),
+            notes=data.get('notes', ''))
+
+        db.session.add(new_sale)
+        db.session.flush()  # Flush to get the sale ID
+        logger.info(f"Created sale record with ID: {new_sale.id}")
+
+        # Add sale items and update inventory
+        items_processed = 0
+        for item_data in data.get('items', []):
+            try:
+                # Get item from database if it exists
+                item_id = item_data.get('id')
+                item = Item.query.filter_by(id=item_id).first() if item_id else None
+                
+                if not item:
+                    logger.warning(f"Item with ID {item_id} not found in database")
+                    continue
+
+                # Validate quantity
+                quantity_sold = float(item_data.get('quantity', 1))
+                if quantity_sold <= 0:
+                    logger.warning(f"Invalid quantity {quantity_sold} for item {item.name}")
+                    continue
+
+                # Check if enough stock is available
+                if item.quantity < quantity_sold:
+                    logger.warning(f"Insufficient stock for item {item.name}. Available: {item.quantity}, Requested: {quantity_sold}")
+                    # Continue anyway but log the issue
+                
+                # Create sale item record
+                sale_item = SaleItem(
+                    sale_id=new_sale.id,
+                    item_id=item.id,
+                    product_name=item_data.get('name', item.name),
+                    product_sku=item_data.get('sku', item.sku),
+                    price=float(item_data.get('price', 0)),
+                    quantity=quantity_sold,
+                    total=float(item_data.get('total', 0)))
+
+                db.session.add(sale_item)
+
+                # Update inventory quantity
+                item.quantity = max(0, item.quantity - quantity_sold)
+                logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
+                
+                items_processed += 1
+
+            except Exception as item_error:
+                logger.error(f"Error processing item {item_data}: {str(item_error)}")
+                continue
+
+        if items_processed == 0:
+            db.session.rollback()
+            logger.error("No items were successfully processed")
+            return jsonify({'error': 'No valid items could be processed'}), 400
+
+        # Commit the transaction
+        db.session.commit()
+        logger.info(f"Sale completed successfully. Processed {items_processed} items.")
+
+        # Create financial transaction record for income
+        try:
+            from models import FinancialTransaction
+            financial_transaction = FinancialTransaction(
+                description=f"Sale - Invoice {invoice_number}",
+                amount=float(data.get('total', 0)),
+                transaction_type='Income',
+                category='Sales',
+                payment_method=payment_data.get('method', 'cash'),
+                reference_id=invoice_number,
+                date=datetime.utcnow().date()
+            )
+            db.session.add(financial_transaction)
+            db.session.commit()
+            logger.info("Financial transaction record created")
+        except Exception as finance_error:
+            logger.error(f"Error creating financial transaction: {str(finance_error)}")
+            # Don't fail the sale if financial record creation fails
+
+        response_data = {
+            'success': True,
+            'message': 'Sale created successfully',
+            'sale': new_sale.to_dict(),
+            'invoice_number': invoice_number,
+            'items_processed': items_processed
+        }
+        
+        logger.info(f"Returning success response: {response_data}")
+        return jsonify(response_data)
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating sale: {str(e)}")
+        return jsonify({'error': f'Failed to create sale: {str(e)}'}), 500
+
 
 @app.route('/api/sales', methods=['GET'])
 def get_sales():
@@ -1510,82 +1754,6 @@ def get_sales():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/sales', methods=['POST'])
-def create_sale():
-    """API endpoint to create a new sale transaction"""
-    try:
-        data = request.json
-
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        # Generate a unique invoice number
-        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-
-        # Create new sale record
-        new_sale = Sale(invoice_number=invoice_number,
-                        customer_name=data.get('customer',
-                                               {}).get('name',
-                                                       'Walk-in Customer'),
-                        customer_phone=data.get('customer',
-                                                {}).get('phone', ''),
-                        sale_type=data.get('sale_type', 'retail'),
-                        subtotal=data.get('subtotal', 0),
-                        discount_type=data.get('discount',
-                                               {}).get('type', 'none'),
-                        discount_value=data.get('discount',
-                                                {}).get('value', 0),
-                        discount_amount=data.get('discount',
-                                                 {}).get('amount', 0),
-                        total=data.get('total', 0),
-                        payment_method=data.get('payment',
-                                                {}).get('method', 'cash'),
-                        payment_details=json.dumps(
-                            data.get('payment', {}).get('mobile_info', {})),
-                        payment_amount=data.get('payment',
-                                                {}).get('amount', 0),
-                        change_amount=data.get('payment', {}).get('change', 0),
-                        notes=data.get('notes', ''))
-
-        db.session.add(new_sale)
-        db.session.flush()  # Flush to get the sale ID
-
-        # Add sale items
-        for item_data in data.get('items', []):
-            # Get item from database if it exists
-            item = Item.query.filter_by(id=item_data.get('id')).first()
-
-            # Create sale item record
-            sale_item = SaleItem(sale_id=new_sale.id,
-                                 item_id=item.id if item else None,
-                                 product_name=item_data.get(
-                                     'name', 'Unknown Product'),
-                                 product_sku=item_data.get('sku', ''),
-                                 price=item_data.get('price', 0),
-                                 quantity=item_data.get('quantity', 1),
-                                 total=item_data.get('total', 0))
-
-            db.session.add(sale_item)
-
-            # Update inventory quantity if item exists
-            if item:
-                item.quantity = max(
-                    0, item.quantity - item_data.get('quantity', 1))
-
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'message': 'Sale created successfully',
-            'sale': new_sale.to_dict()
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating sale: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/sales/<int:sale_id>', methods=['GET'])
 def get_sale(sale_id):
     """API endpoint to get a specific sale by ID"""
@@ -1612,12 +1780,21 @@ def get_sale(sale_id):
 def get_subusers():
     """Get all subusers for the current user"""
     try:
-        subusers = Subuser.query.filter_by(
-            parent_user_id=session['user_id']).all()
-        return jsonify([subuser.to_dict() for subuser in subusers])
+        user_id = session.get('user_id')
+        if not user_id:
+            logger.error("No user_id in session")
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        logger.info(f"Loading subusers for user_id: {user_id}")
+        subusers = Subuser.query.filter_by(parent_user_id=user_id).all()
+        
+        result = [subuser.to_dict() for subuser in subusers]
+        logger.info(f"Found {len(result)} subusers for user {user_id}")
+        
+        return jsonify(result)
     except Exception as e:
         logger.error(f"Error getting subusers: {str(e)}")
-        return jsonify({'error': 'Failed to load subusers'}), 500
+        return jsonify({'error': f'Failed to load subusers: {str(e)}'}), 500
 
 
 @app.route('/api/subusers', methods=['POST'])
@@ -2219,6 +2396,45 @@ def update_appearance_settings():
         return jsonify({"error": "Failed to update appearance settings"}), 500
 
 
+# Debug endpoint to check database
+@app.route('/api/debug/database', methods=['GET'])
+@login_required
+def debug_database():
+    """Debug endpoint to check database status"""
+    try:
+        from models import Item
+        
+        # Count total items
+        total_items = Item.query.count()
+        
+        # Get sample items
+        sample_items = Item.query.limit(5).all()
+        
+        # Calculate total stock
+        total_stock = db.session.query(db.func.sum(Item.quantity)).scalar() or 0
+        
+        # Calculate inventory value
+        total_value = db.session.query(
+            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
+        ).scalar() or 0
+        
+        return jsonify({
+            'success': True,
+            'database_status': 'connected',
+            'total_items': total_items,
+            'total_stock': total_stock,
+            'total_value': float(total_value),
+            'sample_items': [item.to_dict() for item in sample_items]
+        })
+    
+    except Exception as e:
+        logger.error(f"Database debug error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2392,6 +2608,20 @@ def account():
     return protected_account()
 
 
+@app.route('/admin')
+@login_required
+def admin_portal():
+    """Render the main admin portal page (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
+        return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
@@ -2402,7 +2632,7 @@ def admin_users():
         flash('Admin access required', 'danger')
         return redirect(url_for('index'))
 
-    users = User.query.all()
+    users = User.query.order_by(User.created_at.desc()).all()
     return render_template('admin_users.html', users=users)
 
 
@@ -2432,11 +2662,22 @@ def update_user(user_id):
         data = request.json
         user = User.query.get_or_404(user_id)
 
+        # Handle status toggle
+        if 'toggle_status' in data:
+            user.active = not user.active
+            user.updated_at = datetime.utcnow()
+            db.session.commit()
+            logger.info(f"Admin {current_user.username} toggled status for user {user.username} to {'active' if user.active else 'inactive'}")
+            return jsonify(user.to_dict())
+
         # Only allow updating specific fields
         if 'is_active' in data:
             user.active = data['is_active']
 
         if 'is_admin' in data:
+            # Prevent removing admin status from self
+            if user_id == current_user.id and not data['is_admin']:
+                return jsonify({"error": "Cannot remove admin status from your own account"}), 400
             user.is_admin = data['is_admin']
 
         if 'username' in data:
@@ -2461,12 +2702,73 @@ def update_user(user_id):
 
         user.updated_at = datetime.utcnow()
         db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} updated user: {user.username}")
         return jsonify(user.to_dict())
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating user: {str(e)}")
         return jsonify({"error": "Failed to update user"}), 500
+
+
+@app.route('/api/auth/users', methods=['POST'])
+@login_required
+def create_user_admin():
+    """API endpoint to create a new user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Validate required fields
+        required_fields = ['username', 'email', 'password']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        # Check if username already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({"error": "Username already exists"}), 400
+
+        # Check if email already exists
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({"error": "Email already exists"}), 400
+
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            first_name=data.get('firstName', ''),
+            last_name=data.get('lastName', ''),
+            active=data.get('is_active', True),
+            is_admin=data.get('is_admin', False),
+            email_verified=True  # Admin-created users are pre-verified
+        )
+        
+        # Set password
+        new_user.set_password(data['password'])
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} created new user: {new_user.username}")
+        
+        return jsonify({
+            "message": f"User {new_user.username} created successfully",
+            "user": new_user.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating user: {str(e)}")
+        return jsonify({"error": "Failed to create user"}), 500
 
 
 @app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
@@ -2488,6 +2790,8 @@ def delete_user(user_id):
 
         db.session.delete(user)
         db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} deleted user: {username}")
 
         return jsonify({"message": f"User {username} deleted successfully"})
 
@@ -2513,17 +2817,17 @@ def get_shop_details():
         shop_name = user.shop_name or f"{user.username}'s Shop"
 
         return jsonify({
-            'shop_name':
-            shop_name,
-            'owner_name':
-            f"{user.first_name} {user.last_name}".strip() or user.username,
-            'product_categories':
-            user.product_categories or ""
+            'success': True,
+            'user': {
+                'shop_name': shop_name,
+                'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'product_categories': user.product_categories or ""
+            }
         })
 
     except Exception as e:
         logger.error(f"Error getting shop details: {str(e)}")
-        return jsonify({"error": "Failed to get shop details"}), 500
+        return jsonify({"success": False, "error": "Failed to get shop details"}), 500
 
 
 @app.route('/api/auth/users/stats', methods=['GET'])
@@ -2793,7 +3097,8 @@ def send_verification():
             <h2>Email Verification</h2>
             <p>Hello {user.first_name or user.username},</p>
             <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
-            <p><a href="{verification_url}" style="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
+            <p><a href="{verification_url}" style```python
+="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
             <p>This link will expire in 24 hours.</p>
             <p>If you did not create an account, please ignore this email.</p>
             """

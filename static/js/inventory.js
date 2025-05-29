@@ -562,6 +562,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Reload categories (in case a new category was added)
             loadCategories();
+
+            // Refresh dashboard if function exists
+            if (typeof window.refreshDashboard === 'function') {
+                window.refreshDashboard();
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -692,6 +697,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Reload categories (in case a new category was added)
             loadCategories();
+
+            // Refresh dashboard if function exists
+            if (typeof window.refreshDashboard === 'function') {
+                window.refreshDashboard();
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -719,6 +729,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Reload inventory
             loadInventory();
+
+            // Refresh dashboard if function exists
+            if (typeof window.refreshDashboard === 'function') {
+                window.refreshDashboard();
+            }
         })
         .catch(error => {
             console.error('Error:', error);
