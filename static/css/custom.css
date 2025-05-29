@@ -2875,3 +2875,20 @@ canvas {
     width: 100% !important;
     height: 200px !important;
 }
+
+/* Expenses Chart Styles */
+.expense-card .card-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+}
+
+.expense-card .chart-container {
+    position: relative;
+    height: 100px;
+    margin-top: 10px;
+}
+
+.expense-card .chart-container canvas {
+    width: 100% !important;
+    height: 100px !important;
+}
