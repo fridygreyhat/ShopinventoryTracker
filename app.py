@@ -251,42 +251,56 @@ def get_inventory():
     """API endpoint to get all inventory items"""
     from models import Item
 
-    # Start query
-    query = Item.query
+    try:
+        logger.info("Getting inventory items...")
+        
+        # Start query
+        query = Item.query
 
-    # Optional filtering
-    category = request.args.get('category')
-    search_term = request.args.get('search', '').lower()
-    min_stock = request.args.get('min_stock')
-    max_stock = request.args.get('max_stock')
+        # Optional filtering
+        category = request.args.get('category')
+        search_term = request.args.get('search', '').lower()
+        min_stock = request.args.get('min_stock')
+        max_stock = request.args.get('max_stock')
 
-    # Apply filters if provided
-    if category:
-        query = query.filter(Item.category == category)
+        logger.info(f"Filters - category: {category}, search: {search_term}, min_stock: {min_stock}, max_stock: {max_stock}")
 
-    if search_term:
-        search_filter = (Item.name.ilike(f'%{search_term}%')
-                         | Item.sku.ilike(f'%{search_term}%')
-                         | Item.description.ilike(f'%{search_term}%'))
-        query = query.filter(search_filter)
+        # Apply filters if provided
+        if category:
+            query = query.filter(Item.category == category)
 
-    if min_stock:
-        try:
-            min_stock = int(min_stock)
-            query = query.filter(Item.quantity >= min_stock)
-        except ValueError:
-            pass
+        if search_term:
+            search_filter = (Item.name.ilike(f'%{search_term}%')
+                             | Item.sku.ilike(f'%{search_term}%')
+                             | Item.description.ilike(f'%{search_term}%'))
+            query = query.filter(search_filter)
 
-    if max_stock:
-        try:
-            max_stock = int(max_stock)
-            query = query.filter(Item.quantity <= max_stock)
-        except ValueError:
-            pass
+        if min_stock:
+            try:
+                min_stock = int(min_stock)
+                query = query.filter(Item.quantity >= min_stock)
+            except ValueError:
+                pass
 
-    # Execute query and convert to dictionary
-    items = [item.to_dict() for item in query.all()]
-    return jsonify(items)
+        if max_stock:
+            try:
+                max_stock = int(max_stock)
+                query = query.filter(Item.quantity <= max_stock)
+            except ValueError:
+                pass
+
+        # Execute query and convert to dictionary
+        items = query.all()
+        logger.info(f"Found {len(items)} items in database")
+        
+        items_dict = [item.to_dict() for item in items]
+        logger.info(f"Returning {len(items_dict)} items as JSON")
+        
+        return jsonify(items_dict)
+        
+    except Exception as e:
+        logger.error(f"Error getting inventory items: {str(e)}")
+        return jsonify({"error": "Failed to get inventory items"}), 500
 
 
 @app.route('/api/inventory', methods=['POST'])

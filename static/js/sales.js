@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize
     updateCartDisplay();
+    loadAllProducts(); // Load all products initially
 
     // Event Listeners
 
@@ -53,7 +54,15 @@ document.addEventListener('DOMContentLoaded', function() {
     cancelScanBtn.addEventListener('click', stopScanner);
 
     // Product search
+    const refreshProductsBtn = document.getElementById('refreshProductsBtn');
+    
     searchProductsBtn.addEventListener('click', searchProducts);
+    refreshProductsBtn.addEventListener('click', function() {
+        console.log('Refreshing products...');
+        productSearchInput.value = '';
+        loadAllProducts();
+    });
+    
     productSearchInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter') {
             searchProducts();
@@ -192,28 +201,43 @@ document.addEventListener('DOMContentLoaded', function() {
     function searchProducts() {
         const query = productSearchInput.value.trim();
 
-        if (!query) {
-            productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Enter a search term</td></tr>';
-            return;
-        }
-
         // Show loading state
         productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
 
+        // If no query, load all products
+        const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
+        
+        console.log('Searching products with URL:', searchUrl);
+
         // Make API request to search inventory
-        fetch(`/api/inventory?search=${encodeURIComponent(query)}`)
-            .then(response => response.json())
+        fetch(searchUrl)
+            .then(response => {
+                console.log('Search response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(items => {
+                console.log('Search results received:', items);
                 searchResults = items;
                 displaySearchResults(items);
             })
             .catch(error => {
                 console.error('Error searching products:', error);
-                productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products. Please try again.</td></tr>';
             });
     }
 
+    // Load all products on page load
+    function loadAllProducts() {
+        console.log('Loading all products...');
+        searchProducts();
+    }
+
     function displaySearchResults(items) {
+        console.log('Displaying search results:', items);
+        
         if (items.length === 0) {
             productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found</td></tr>';
             return;
@@ -224,31 +248,46 @@ document.addEventListener('DOMContentLoaded', function() {
         items.forEach(item => {
             // Determine which price to display based on the sale type
             const displayPrice = saleType === 'retail' 
-                ? item.selling_price_retail 
-                : item.selling_price_wholesale;
+                ? (item.selling_price_retail || item.price || 0)
+                : (item.selling_price_wholesale || item.price || 0);
 
-            html += `
-                <tr>
-                    <td>${item.name}</td>
-                    <td>${item.sku || 'N/A'}</td>
-                    <td>${item.category || 'Uncategorized'}</td>
-                    <td><span class="currency-symbol">TZS</span> ${displayPrice.toLocaleString()}</td>
-                    <td>${item.quantity}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+            // Only show items with stock
+            if (item.quantity > 0) {
+                html += `
+                    <tr>
+                        <td>
+                            <div class="fw-bold">${item.name}</div>
+                            <div class="small text-muted">${item.description || ''}</div>
+                        </td>
+                        <td>${item.sku || 'N/A'}</td>
+                        <td>
+                            <span class="badge bg-secondary">${item.category || 'Uncategorized'}</span>
+                        </td>
+                        <td><span class="currency-symbol">TZS</span> ${displayPrice.toLocaleString()}</td>
+                        <td>
+                            <span class="badge ${item.quantity <= 10 ? 'bg-warning' : 'bg-success'}">${item.quantity}</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}" title="Add to cart">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
         });
 
-        productResultsTable.innerHTML = html;
+        if (html === '') {
+            productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products with stock found</td></tr>';
+        } else {
+            productResultsTable.innerHTML = html;
+        }
 
         // Add event listeners to Add buttons
         document.querySelectorAll('.add-to-cart').forEach(button => {
             button.addEventListener('click', function() {
                 const itemId = this.getAttribute('data-id');
+                console.log('Adding item to cart:', itemId);
                 addToCart(itemId);
             });
         });
@@ -256,10 +295,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cart Functions
     function addToCart(itemId) {
+        console.log('Adding to cart, item ID:', itemId);
+        console.log('Current search results:', searchResults);
+        
         const item = searchResults.find(item => item.id == itemId);
 
         if (!item) {
-            console.error('Item not found:', itemId);
+            console.error('Item not found in search results:', itemId);
+            alert('Item not found. Please search again.');
+            return;
+        }
+
+        console.log('Found item:', item);
+
+        // Check stock availability
+        if (item.quantity <= 0) {
+            alert('This item is out of stock');
             return;
         }
 
@@ -267,27 +318,58 @@ document.addEventListener('DOMContentLoaded', function() {
         const existingItemIndex = cart.findIndex(cartItem => cartItem.id == itemId);
 
         if (existingItemIndex >= 0) {
+            // Check if we can add more quantity
+            const currentCartQty = cart[existingItemIndex].quantity;
+            if (currentCartQty >= item.quantity) {
+                alert('Cannot add more items. Insufficient stock.');
+                return;
+            }
+            
             // Increment quantity if already in cart
             cart[existingItemIndex].quantity += 1;
             cart[existingItemIndex].total = cart[existingItemIndex].price * cart[existingItemIndex].quantity;
         } else {
             // Add new item to cart
-            const price = saleType === 'retail' ? item.selling_price_retail : item.selling_price_wholesale;
+            const price = saleType === 'retail' 
+                ? (item.selling_price_retail || item.price || 0) 
+                : (item.selling_price_wholesale || item.price || 0);
+
+            if (price <= 0) {
+                alert('This item has no valid price set');
+                return;
+            }
 
             cart.push({
                 id: item.id,
                 name: item.name,
                 sku: item.sku,
                 price: price,
-                selling_price_retail: item.selling_price_retail,
-                selling_price_wholesale: item.selling_price_wholesale,
+                selling_price_retail: item.selling_price_retail || item.price || 0,
+                selling_price_wholesale: item.selling_price_wholesale || item.price || 0,
                 quantity: 1,
                 unit_type: item.unit_type || 'quantity',
-                total: price
+                total: price,
+                max_quantity: item.quantity // Track available stock
             });
         }
 
+        console.log('Cart after adding item:', cart);
         updateCartDisplay();
+        
+        // Show success feedback
+        const button = document.querySelector(`[data-id="${itemId}"]`);
+        if (button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-success');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-primary');
+            }, 1000);
+        }
     }
 
     function updateCartDisplay() {
