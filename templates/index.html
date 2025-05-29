@@ -8,7 +8,7 @@
             <h5 class="text-muted" id="shop-name">Loading shop details...</h5>
         </div>
     </div>
-    
+
     <div class="row g-4 mb-4">
         <!-- Summary Cards with new design -->
         <div class="col-sm-6 col-xl-3">
@@ -46,7 +46,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Financial Summary Section -->
     <div class="card financial-card compact-chart mb-4">
         <div class="card-header py-2">
@@ -113,7 +113,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Inventory Health Overview -->
     <div class="row">
         <div class="col-12 mb-4">
@@ -135,6 +135,73 @@
         </div>
     </div>
 
+    <!-- Dashboard Stats -->
+    <div class="row">
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card sales">
+                <div class="card-body">
+                    <div class="stat-icon sales">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h6 class="card-title">Total Sales</h6>
+                    <p class="stat-value" id="total-sales">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 12% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card inventory">
+                <div class="card-body">
+                    <div class="stat-icon inventory">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h6 class="card-title">Total Items</h6>
+                    <p class="stat-value" id="total-items">0</p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 5 new items
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card profit">
+                <div class="card-body">
+                    <div class="stat-icon profit">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h6 class="card-title">Low Stock</h6>
+                    <p class="stat-value" id="low-stock-count">0</p>
+                    <div class="stat-trend stat-trend-down d-none d-sm-block">
+                        <i class="fas fa-exclamation-triangle"></i> Needs attention
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card customers">
+                <div class="card-body">
+                    <div class="stat-icon customers">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h6 class="card-title">Total Value</h6>
+                    <p class="stat-value" id="total-value">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 8% increase
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <!-- Stock Level Chart -->
         <div class="col-md-6 mb-4">
@@ -147,7 +214,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Value by Category Chart -->
         <div class="col-md-6 mb-4">
             <div class="card chart-card compact-chart">
@@ -160,7 +227,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <!-- Low Stock Items -->
         <div class="col-md-12 mb-4">
@@ -193,7 +260,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <!-- Sales Performance -->
         <div class="col-md-6 mb-4">

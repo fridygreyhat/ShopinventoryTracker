@@ -1943,14 +1943,277 @@ canvas {
     background-color: rgba(63, 131, 248, 0.1);
 }
 
-/* Responsive adjustments */
+/* Mobile-first responsive adjustments */
+@media (max-width: 576px) {
+    /* Base typography adjustments */
+    body {
+        font-size: 0.9rem;
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    h2 {
+        font-size: 1.6rem;
+    }
+    
+    h3 {
+        font-size: 1.4rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    /* Navigation optimizations */
+    .navbar {
+        padding: 0.75rem 1rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    .brand-logo {
+        height: 32px;
+        margin-right: 8px;
+    }
+    
+    .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .navbar-nav .nav-link i {
+        margin-right: 0.3rem;
+    }
+
+    /* Container and spacing */
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+        border-radius: 8px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .card-header {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+
+    /* Statistics cards mobile layout */
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 1.8rem;
+    }
+    
+    .stat-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    .stat-card .stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.4rem;
+        top: 1.25rem;
+        right: 1.25rem;
+    }
+
+    /* Table optimizations */
+    .table-responsive {
+        max-height: 60vh;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table th, .table td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.85rem;
+        max-width: 120px;
+    }
+    
+    .table th {
+        font-size: 0.8rem;
+        padding: 0.75rem 0.25rem;
+    }
+    
+    /* Hide less important columns on mobile */
+    .table .d-none-mobile {
+        display: none !important;
+    }
+
+    /* Button optimizations */
+    .btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+    }
+    
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.4rem;
+    }
+
+    /* Form optimizations */
+    .form-control, .form-select {
+        font-size: 0.9rem;
+        padding: 0.6rem 0.75rem;
+    }
+    
+    .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .input-group-text {
+        font-size: 0.85rem;
+        padding: 0.6rem 0.75rem;
+    }
+
+    /* Modal optimizations */
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100vw - 1rem);
+    }
+    
+    .modal-content {
+        border-radius: 12px;
+    }
+    
+    .modal-header {
+        padding: 1.25rem;
+    }
+    
+    .modal-body {
+        padding: 1.25rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem 1.25rem;
+    }
+    
+    .modal-title {
+        font-size: 1.2rem;
+    }
+
+    /* Chart containers */
+    .chart-container {
+        height: 250px;
+        padding: 1rem;
+    }
+    
+    .compact-chart canvas {
+        max-height: 150px;
+    }
+
+    /* Financial summary cards */
+    .financial-summary {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .financial-summary .amount {
+        font-size: 1.6rem;
+    }
+
+    /* Filter controls */
+    .row.align-items-end > .col-md-3,
+    .row.align-items-end > .col-md-4,
+    .row.align-items-end > .col-md-5 {
+        margin-bottom: 0.75rem;
+    }
+    
+    .btn-group {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    /* Floating action button */
+    .fab {
+        width: 50px;
+        height: 50px;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 1.3rem;
+    }
+
+    /* Theme selection mobile */
+    .theme-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .theme-card {
+        padding: 0.75rem;
+    }
+    
+    .theme-preview {
+        height: 80px;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Auth card mobile */
+    .auth-card {
+        margin: 1rem auto;
+        max-width: calc(100vw - 2rem);
+    }
+    
+    .auth-card .card-body {
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth-logo {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-heading {
+        font-size: 2rem;
+    }
+
+    /* Status indicators */
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .margin-label {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Utility classes for mobile */
+    .text-truncate-mobile {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100px;
+    }
+}
+
 @media (max-width: 768px) {
     .display-4 {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
     }
 
     .table-responsive {
-        max-height: 70vh;
+        max-height: 65vh;
     }
 
     .card-body {
@@ -1958,7 +2221,55 @@ canvas {
     }
 
     .stat-card .stat-value {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
+    }
+    
+    /* Hide medium priority columns on tablets */
+    .table .d-none-tablet {
+        display: none !important;
+    }
+    
+    .theme-selection-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Increase touch targets */
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .nav-link {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-control, .form-select {
+        min-height: 44px;
+    }
+    
+    .table tbody tr {
+        cursor: pointer;
+    }
+    
+    /* Remove hover effects on touch devices */
+    .card:hover {
+        transform: none;
+        box-shadow: 0 8px 20px var(--card-shadow);
+    }
+    
+    .btn:hover {
+        transform: none;
+    }
+    
+    .stat-card:hover {
+        transform: none;
+        box-shadow: 0 12px 28px rgba(76, 80, 197, 0.08);
     }
 }
 
