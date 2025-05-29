@@ -395,7 +395,7 @@ footer {
         font-size: 0.875rem;
         padding: 0.5rem 0.75rem;
     }
-    
+
     .dropdown-toggle {
         font-size: 0.875rem;
         max-width: 120px;
@@ -2003,19 +2003,19 @@ canvas {
     body {
         font-size: 0.9rem;
     }
-    
+
     h1 {
         font-size: 1.8rem;
     }
-    
+
     h2 {
         font-size: 1.6rem;
     }
-    
+
     h3 {
         font-size: 1.4rem;
     }
-    
+
     .display-4 {
         font-size: 2rem;
     }
@@ -2024,21 +2024,21 @@ canvas {
     .navbar {
         padding: 0.75rem 1rem;
     }
-    
+
     .navbar-brand {
         font-size: 1.2rem;
     }
-    
+
     .brand-logo {
         height: 32px;
         margin-right: 8px;
     }
-    
+
     .nav-link {
         padding: 0.5rem 0.75rem;
         font-size: 0.9rem;
     }
-    
+
     .navbar-nav .nav-link i {
         margin-right: 0.3rem;
     }
@@ -2048,16 +2048,16 @@ canvas {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
     }
-    
+
     .card {
         margin-bottom: 1rem;
         border-radius: 8px;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .card-header {
         padding: 0.75rem 1rem;
         font-size: 1rem;
@@ -2067,15 +2067,15 @@ canvas {
     .stat-card {
         margin-bottom: 1rem;
     }
-    
+
     .stat-card .stat-value {
         font-size: 1.8rem;
     }
-    
+
     .stat-card .card-body {
         padding: 1.25rem;
     }
-    
+
     .stat-card .stat-icon {
         width: 48px;
         height: 48px;
@@ -2089,18 +2089,18 @@ canvas {
         max-height: 60vh;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .table th, .table td {
         padding: 0.5rem 0.25rem;
         font-size: 0.85rem;
         max-width: 120px;
     }
-    
+
     .table th {
         font-size: 0.8rem;
         padding: 0.75rem 0.25rem;
     }
-    
+
     /* Hide less important columns on mobile */
     .table .d-none-mobile {
         display: none !important;
@@ -2112,12 +2112,12 @@ canvas {
         padding: 0.5rem 0.75rem;
         border-radius: 8px;
     }
-    
+
     .btn-sm {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .btn-group-sm .btn {
         font-size: 0.75rem;
         padding: 0.25rem 0.4rem;
@@ -2128,12 +2128,12 @@ canvas {
         font-size: 0.9rem;
         padding: 0.6rem 0.75rem;
     }
-    
+
     .form-label {
         font-size: 0.85rem;
         margin-bottom: 0.4rem;
     }
-    
+
     .input-group-text {
         font-size: 0.85rem;
         padding: 0.6rem 0.75rem;
@@ -2144,23 +2144,23 @@ canvas {
         margin: 0.5rem;
         max-width: calc(100vw - 1rem);
     }
-    
+
     .modal-content {
         border-radius: 12px;
     }
-    
+
     .modal-header {
         padding: 1.25rem;
     }
-    
+
     .modal-body {
         padding: 1.25rem;
     }
-    
+
     .modal-footer {
         padding: 1rem 1.25rem;
     }
-    
+
     .modal-title {
         font-size: 1.2rem;
     }
@@ -2170,7 +2170,7 @@ canvas {
         height: 250px;
         padding: 1rem;
     }
-    
+
     .compact-chart canvas {
         max-height: 150px;
     }
@@ -2180,7 +2180,7 @@ canvas {
         padding: 1.25rem;
         margin-bottom: 1rem;
     }
-    
+
     .financial-summary .amount {
         font-size: 1.6rem;
     }
@@ -2191,7 +2191,7 @@ canvas {
     .row.align-items-end > .col-md-5 {
         margin-bottom: 0.75rem;
     }
-    
+
     .btn-group {
         flex-wrap: wrap;
         gap: 0.25rem;
@@ -2211,11 +2211,11 @@ canvas {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 0.75rem;
     }
-    
+
     .theme-card {
         padding: 0.75rem;
     }
-    
+
     .theme-preview {
         height: 80px;
         margin-bottom: 0.5rem;
@@ -2226,17 +2226,17 @@ canvas {
         margin: 1rem auto;
         max-width: calc(100vw - 2rem);
     }
-    
+
     .auth-card .card-body {
         padding: 2rem 1.5rem;
     }
-    
+
     .auth-logo {
         width: 100px;
         height: 100px;
         margin-bottom: 2rem;
     }
-    
+
     .auth-heading {
         font-size: 2rem;
     }
@@ -2246,7 +2246,7 @@ canvas {
         font-size: 0.7rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .margin-label {
         font-size: 0.7rem;
         padding: 0.25rem 0.5rem;
@@ -2277,12 +2277,12 @@ canvas {
     .stat-card .stat-value {
         font-size: 1.8rem;
     }
-    
+
     /* Hide medium priority columns on tablets */
     .table .d-none-tablet {
         display: none !important;
     }
-    
+
     .theme-selection-container {
         grid-template-columns: 1fr;
         gap: 1.5rem;
@@ -2296,31 +2296,31 @@ canvas {
         min-height: 44px;
         min-width: 44px;
     }
-    
+
     .nav-link {
         min-height: 44px;
         display: flex;
         align-items: center;
     }
-    
+
     .form-control, .form-select {
         min-height: 44px;
     }
-    
+
     .table tbody tr {
         cursor: pointer;
     }
-    
+
     /* Remove hover effects on touch devices */
     .card:hover {
         transform: none;
         box-shadow: 0 8px 20px var(--card-shadow);
     }
-    
+
     .btn:hover {
         transform: none;
     }
-    
+
     .stat-card:hover {
         transform: none;
         box-shadow: 0 12px 28px rgba(76, 80, 197, 0.08);
@@ -2777,4 +2777,73 @@ canvas {
 
 .theme-card[data-theme="dark"] .theme-preview {
     background: linear-gradient(135deg, #212121, #424242);
+}
+
+/* Compact Income Cards */
+.compact-income-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: none;
+    overflow: hidden;
+    position: relative;
+    min-height: 85px;
+    max-height: 100px;
+}
+
+.compact-income-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+}
+
+.compact-income-card .card-body {
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+
+.income-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: white;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.income-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.income-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.income-amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.income-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
 }
