@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const saveGeneralSettingsBtn = document.getElementById('saveGeneralSettings');
@@ -11,123 +12,133 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
 
     // Event Listeners
-    saveGeneralSettingsBtn.addEventListener('click', function() {
-        const form = document.getElementById('generalSettingsForm');
-        const settings = {
-            company_name: form.company_name.value,
-            currency_code: form.currency_code.value,
-            timezone: form.timezone.value,
-            default_language: form.default_language.value
-        };
+    if (saveGeneralSettingsBtn) {
+        saveGeneralSettingsBtn.addEventListener('click', function() {
+            const form = document.getElementById('generalSettingsForm');
+            const settings = {
+                company_name: form.company_name.value,
+                currency_code: form.currency_code.value,
+                timezone: form.timezone.value,
+                default_language: form.default_language.value
+            };
 
-        // Save each setting individually
-        Promise.all(Object.entries(settings).map(([key, value]) => {
-            return fetch('/api/settings', {
+            // Save each setting individually
+            Promise.all(Object.entries(settings).map(([key, value]) => {
+                return fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key: key,
+                        value: value,
+                        category: 'general'
+                    })
+                }).then(response => response.json());
+            }))
+            .then(() => {
+                // Show success message
+                const alertHtml = `
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> General settings saved successfully.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                form.insertAdjacentHTML('beforebegin', alertHtml);
+
+                // Reload page after short delay to reflect changes
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Error saving general settings:', error);
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                form.insertAdjacentHTML('beforebegin', alertHtml);
+            });
+        });
+    }
+
+    if (saveAppearanceSettingsBtn) {
+        saveAppearanceSettingsBtn.addEventListener('click', function() {
+            // Save appearance settings using the dedicated API endpoint
+            const form = document.getElementById('appearanceSettingsForm');
+            const formData = new FormData(form);
+
+            const theme = formData.get('theme');
+            const itemsPerPage = formData.get('items_per_page');
+            const dateFormat = formData.get('date_format');
+
+            // Call the appearance settings API
+            fetch('/api/settings/appearance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    key: key,
-                    value: value,
-                    category: 'general'
+                    theme: theme,
+                    itemsPerPage: itemsPerPage,
+                    dateFormat: dateFormat
                 })
-            }).then(response => response.json());
-        }))
-        .then(() => {
-            // Show success message
-            const alertHtml = `
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i> General settings saved successfully.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
-
-            // Reload page after short delay to reflect changes
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        })
-        .catch(error => {
-            console.error('Error saving general settings:', error);
-            const alertHtml = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save settings: ${error.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
-        });
-    });
-
-    saveAppearanceSettingsBtn.addEventListener('click', function() {
-        // Save appearance settings using the dedicated API endpoint
-        const form = document.getElementById('appearanceSettingsForm');
-        const formData = new FormData(form);
-
-        const theme = formData.get('theme');
-        const itemsPerPage = formData.get('items_per_page');
-        const dateFormat = formData.get('date_format');
-
-        // Call the appearance settings API
-        fetch('/api/settings/appearance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                theme: theme,
-                itemsPerPage: itemsPerPage,
-                dateFormat: dateFormat
             })
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                // Apply the theme immediately
-                if (theme) {
-                    // Use the global setTheme function from theme-switcher.js
-                    setTheme(theme);
-                }
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Apply the theme immediately
+                    if (theme) {
+                        // Use the global setTheme function from theme-switcher.js
+                        setTheme(theme);
+                    }
 
-                // Show success message
+                    // Show success message
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> Appearance settings saved successfully.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    form.insertAdjacentHTML('beforebegin', alertHtml);
+                } else {
+                    throw new Error(result.error || 'Failed to save appearance settings');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving appearance settings:', error);
+
+                // Show error message
                 const alertHtml = `
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i> Appearance settings saved successfully.
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i> Failed to save appearance settings: ${error.message}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 `;
                 form.insertAdjacentHTML('beforebegin', alertHtml);
-            } else {
-                throw new Error(result.error || 'Failed to save appearance settings');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving appearance settings:', error);
-
-            // Show error message
-            const alertHtml = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> Failed to save appearance settings: ${error.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `;
-            form.insertAdjacentHTML('beforebegin', alertHtml);
+            });
         });
-    });
+    }
 
-    saveInventorySettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('inventorySettingsForm', 'inventory');
-    });
+    if (saveInventorySettingsBtn) {
+        saveInventorySettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('inventorySettingsForm', 'inventory');
+        });
+    }
 
-    saveNotificationSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('notificationSettingsForm', 'notification');
-    });
+    if (saveNotificationSettingsBtn) {
+        saveNotificationSettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('notificationSettingsForm', 'notification');
+        });
+    }
 
-    saveAdvancedSettingsBtn.addEventListener('click', function() {
-        saveSettingsGroup('advancedSettingsForm', 'advanced');
-    });
+    if (saveAdvancedSettingsBtn) {
+        saveAdvancedSettingsBtn.addEventListener('click', function() {
+            saveSettingsGroup('advancedSettingsForm', 'advanced');
+        });
+    }
 
     // Test notifications button
     if (testNotificationsBtn) {
@@ -174,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function saveSettingsGroup(formId, category) {
         const form = document.getElementById(formId);
+        if (!form) return Promise.reject(new Error('Form not found'));
+        
         const formData = new FormData(form);
         const settingsToSave = [];
 
@@ -218,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return Promise.all(savePromises)
             .then(() => {
                 // Show success message (unless this is being called from the test function)
-                const callerFunction = arguments.callee.caller.name;
+                const callerFunction = arguments.callee.caller?.name;
                 if (callerFunction !== 'testNotifications') {
                     const alertHtml = `
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -243,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error saving settings:', error);
 
                 // Show error message (unless this is being called from the test function)
-                const callerFunction = arguments.callee.caller.name;
+                const callerFunction = arguments.callee.caller?.name;
                 if (callerFunction !== 'testNotifications') {
                     const alertHtml = `
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -277,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function testNotifications() {
         // Get the form with notification settings
         const form = document.getElementById('notificationSettingsForm');
+        if (!form) return;
 
         // First save the current settings to ensure we're testing with the latest configuration
         saveSettingsGroup('notificationSettingsForm', 'notification')
@@ -372,6 +386,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Insert the alert before the form
                     form.insertAdjacentHTML('beforebegin', alertHtml);
                 });
+            })
+            .catch(error => {
+                console.error('Error saving settings before test:', error);
+                showAlert('Failed to save settings before testing', 'danger');
             });
     }
 
@@ -566,18 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmDeleteBtn) {
         confirmDeleteBtn.addEventListener('click', handleDeleteSubuser);
     }
-
-    // Theme switching functionality
-    initializeThemes();
-
-    // Initialize general settings
-    loadGeneralSettings();
-
-    // Initialize notification settings
-    loadNotificationSettings();
-
-    // Initialize advanced settings
-    loadAdvancedSettings();
 });
 
 // Global variables for subuser management
@@ -596,11 +602,16 @@ function loadSubusers() {
     if (subusersContainer) subusersContainer.innerHTML = '';
 
     fetch('/api/subusers')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (loadingElement) loadingElement.classList.add('d-none');
 
-            if (data.length === 0) {
+            if (!data || data.length === 0) {
                 if (noSubusersElement) noSubusersElement.classList.remove('d-none');
             } else {
                 renderSubusers(data);
@@ -609,27 +620,66 @@ function loadSubusers() {
         .catch(error => {
             console.error('Error loading subusers:', error);
             if (loadingElement) loadingElement.classList.add('d-none');
-            if (noSubusersElement) noSubusersElement.classList.remove('d-none');
+            
+            // Show error message instead of just hiding
+            const errorHtml = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>Failed to load users: ${error.message}
+                </div>
+            `;
+            if (subusersContainer) {
+                subusersContainer.innerHTML = errorHtml;
+            }
         });
 }
 
 // Function to load permissions
 function loadPermissions() {
+    const permissionsContainer = document.getElementById('permissions-container');
+    
+    // Show loading state
+    if (permissionsContainer) {
+        permissionsContainer.innerHTML = `
+            <div class="col-12 text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading permissions...</span>
+                </div>
+                <p class="mt-2 text-muted small">Loading permissions...</p>
+            </div>
+        `;
+    }
+
     fetch('/api/subusers/permissions')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Failed to load permissions`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Permissions loaded successfully:', data);
             if (data.success && data.permissions) {
                 availablePermissions = data.permissions;
                 renderPermissionsForm(data.permissions, data.descriptions || {});
             } else {
-                console.error('Failed to load permissions:', data);
-                showAlert('Failed to load permissions', 'danger');
+                throw new Error(data.error || 'Invalid permissions data received');
             }
         })
         .catch(error => {
             console.error('Error loading permissions:', error);
-            showAlert('Failed to load permissions', 'danger');
+            showAlert('Failed to load permissions: ' + error.message, 'danger');
+            
+            // Show fallback permissions form
+            if (permissionsContainer) {
+                permissionsContainer.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Failed to load permissions. Please refresh the page and try again.
+                        </div>
+                    </div>
+                `;
+            }
         });
 }
 
@@ -639,6 +689,17 @@ function renderPermissionsForm(permissions, descriptions) {
     if (!permissionsContainer) return;
 
     permissionsContainer.innerHTML = '';
+
+    if (!permissions || permissions.length === 0) {
+        permissionsContainer.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No permissions available to assign.
+                </div>
+            </div>
+        `;
+        return;
+    }
 
     permissions.forEach(permission => {
         const col = document.createElement('div');
@@ -666,6 +727,17 @@ function renderSubusers(subusers) {
 
     container.innerHTML = '';
 
+    if (!subusers || subusers.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h6 class="text-muted">No team members yet</h6>
+                <p class="text-muted">Add team members to collaborate on your inventory management.</p>
+            </div>
+        `;
+        return;
+    }
+
     subusers.forEach(subuser => {
         const subuserCard = document.createElement('div');
         subuserCard.className = 'card mb-3';
@@ -673,18 +745,18 @@ function renderSubusers(subusers) {
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h6 class="card-title mb-1">${subuser.name}</h6>
-                        <p class="card-text text-muted mb-1">${subuser.email}</p>
+                        <h6 class="card-title mb-1">${subuser.name || 'Unknown User'}</h6>
+                        <p class="card-text text-muted mb-1">${subuser.email || 'No email'}</p>
                         <span class="badge bg-${subuser.is_active ? 'success' : 'secondary'} me-2">
                             ${subuser.is_active ? 'Active' : 'Inactive'}
                         </span>
-                        <small class="text-muted">${subuser.permissions.length} permissions</small>
+                        <small class="text-muted">${(subuser.permissions || []).length} permissions</small>
                     </div>
                     <div class="col-md-4 text-end">
                         <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="editSubuser(${subuser.id})">
                             <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteSubuser(${subuser.id}, '${subuser.name}')">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteSubuser(${subuser.id}, '${(subuser.name || 'Unknown User').replace(/'/g, "\\'")}')">
                             <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
@@ -692,7 +764,7 @@ function renderSubusers(subusers) {
                 <div class="mt-2">
                     <small class="text-muted">
                         <strong>Permissions:</strong> 
-                        ${subuser.permissions.length > 0 ? subuser.permissions.join(', ') : 'No permissions assigned'}
+                        ${(subuser.permissions || []).length > 0 ? (subuser.permissions || []).join(', ') : 'No permissions assigned'}
                     </small>
                 </div>
             </div>
@@ -705,34 +777,64 @@ function renderSubusers(subusers) {
 function handleSubuserSubmit(event) {
     event.preventDefault();
 
-    const formData = new FormData(event.target);
+    // Get form elements with proper null checks
+    const nameInput = document.getElementById('subuserName');
+    const emailInput = document.getElementById('subuserEmail');
+    const passwordInput = document.getElementById('subuserPassword');
+    const statusInput = document.getElementById('subuserStatus');
+
+    if (!nameInput || !emailInput || !passwordInput || !statusInput) {
+        showAlert('Form elements not found. Please refresh the page.', 'danger');
+        return;
+    }
+
     const permissions = Array.from(document.querySelectorAll('input[name="permissions"]:checked')).map(cb => cb.value);
 
     const subuserData = {
-        name: formData.get('subuserName') || document.getElementById('subuserName').value,
-        email: formData.get('subuserEmail') || document.getElementById('subuserEmail').value,
-        password: formData.get('subuserPassword') || document.getElementById('subuserPassword').value,
-        is_active: formData.get('subuserStatus') === 'true' || document.getElementById('subuserStatus').value === 'true',
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        password: passwordInput.value,
+        is_active: statusInput.value === 'true',
         permissions: permissions
     };
 
     console.log('Submitting subuser data:', subuserData);
 
     // Validate required fields
-    if (!subuserData.name || !subuserData.email || !subuserData.password) {
+    if (!subuserData.name || !subuserData.email || (!currentEditingSubuserId && !subuserData.password)) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(subuserData.email)) {
+        showAlert('Please enter a valid email address', 'danger');
+        return;
+    }
+
+    // Password validation for new users
+    if (!currentEditingSubuserId && subuserData.password.length < 6) {
+        showAlert('Password must be at least 6 characters long', 'danger');
+        return;
+    }
+
     // Show loading state
-    const submitBtn = document.querySelector('#submit-btn-text');
+    const submitBtn = document.querySelector('#subuserForm button[type="submit"]');
+    const submitBtnText = document.getElementById('submit-btn-text');
     const submitSpinner = document.getElementById('submit-spinner');
 
-    if (submitBtn) submitBtn.textContent = currentEditingSubuserId ? 'Updating...' : 'Creating...';
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitBtnText) submitBtnText.textContent = currentEditingSubuserId ? 'Updating...' : 'Creating...';
     if (submitSpinner) submitSpinner.classList.remove('d-none');
 
     const url = currentEditingSubuserId ? `/api/subusers/${currentEditingSubuserId}` : '/api/subusers';
     const method = currentEditingSubuserId ? 'PUT' : 'POST';
+
+    // Remove password from data if editing and password is empty
+    if (currentEditingSubuserId && !subuserData.password) {
+        delete subuserData.password;
+    }
 
     fetch(url, {
         method: method,
@@ -741,7 +843,14 @@ function handleSubuserSubmit(event) {
         },
         body: JSON.stringify(subuserData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         console.log('Subuser operation response:', data);
 
@@ -759,16 +868,17 @@ function handleSubuserSubmit(event) {
             // Reset form
             resetSubuserForm();
         } else {
-            showAlert(data.error || 'Failed to save user', 'danger');
+            throw new Error(data.error || 'Failed to save user');
         }
     })
     .catch(error => {
         console.error('Error saving subuser:', error);
-        showAlert('Failed to save user', 'danger');
+        showAlert('Failed to save user: ' + error.message, 'danger');
     })
     .finally(() => {
         // Reset button state
-        if (submitBtn) submitBtn.textContent = currentEditingSubuserId ? 'Update User' : 'Add User';
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitBtnText) submitBtnText.textContent = currentEditingSubuserId ? 'Update User' : 'Add User';
         if (submitSpinner) submitSpinner.classList.add('d-none');
     });
 }
@@ -779,25 +889,41 @@ function editSubuser(subuserId) {
 
     // Find subuser data
     fetch(`/api/subusers/${subuserId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Failed to load user data`);
+            }
+            return response.json();
+        })
         .then(subuser => {
             // Fill form with subuser data
-            document.getElementById('subuserName').value = subuser.name;
-            document.getElementById('subuserEmail').value = subuser.email;
-            document.getElementById('subuserStatus').value = subuser.is_active.toString();
+            const nameInput = document.getElementById('subuserName');
+            const emailInput = document.getElementById('subuserEmail');
+            const passwordInput = document.getElementById('subuserPassword');
+            const statusInput = document.getElementById('subuserStatus');
 
-            // Clear password field for editing
-            document.getElementById('subuserPassword').value = '';
-            document.getElementById('subuserPassword').required = false;
+            if (nameInput) nameInput.value = subuser.name || '';
+            if (emailInput) emailInput.value = subuser.email || '';
+            if (statusInput) statusInput.value = subuser.is_active ? 'true' : 'false';
+
+            // Clear password field for editing and make it optional
+            if (passwordInput) {
+                passwordInput.value = '';
+                passwordInput.required = false;
+                passwordInput.placeholder = 'Leave blank to keep current password';
+            }
 
             // Check permissions
             document.querySelectorAll('input[name="permissions"]').forEach(cb => {
-                cb.checked = subuser.permissions.includes(cb.value);
+                cb.checked = (subuser.permissions || []).includes(cb.value);
             });
 
             // Update modal title and button
-            document.getElementById('addSubuserModalLabel').textContent = 'Edit User';
-            document.getElementById('submit-btn-text').textContent = 'Update User';
+            const modalLabel = document.getElementById('addSubuserModalLabel');
+            const submitBtnText = document.getElementById('submit-btn-text');
+            
+            if (modalLabel) modalLabel.textContent = 'Edit User';
+            if (submitBtnText) submitBtnText.textContent = 'Update User';
 
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('addSubuserModal'));
@@ -805,7 +931,7 @@ function editSubuser(subuserId) {
         })
         .catch(error => {
             console.error('Error loading subuser for editing:', error);
-            showAlert('Failed to load user data', 'danger');
+            showAlert('Failed to load user data: ' + error.message, 'danger');
         });
 }
 
@@ -814,7 +940,10 @@ function deleteSubuser(subuserId, subuserName) {
     currentDeletingSubuserId = subuserId;
 
     // Update delete modal
-    document.getElementById('deleteSubuserName').textContent = subuserName;
+    const deleteNameElement = document.getElementById('deleteSubuserName');
+    if (deleteNameElement) {
+        deleteNameElement.textContent = subuserName || 'Unknown User';
+    }
 
     // Show delete modal
     const modal = new bootstrap.Modal(document.getElementById('deleteSubuserModal'));
@@ -825,10 +954,23 @@ function deleteSubuser(subuserId, subuserName) {
 function handleDeleteSubuser() {
     if (!currentDeletingSubuserId) return;
 
+    const confirmBtn = document.getElementById('confirmDeleteSubuser');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Deleting...';
+    }
+
     fetch(`/api/subusers/${currentDeletingSubuserId}`, {
         method: 'DELETE'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Close modal
@@ -841,15 +983,19 @@ function handleDeleteSubuser() {
             // Reload subusers
             loadSubusers();
         } else {
-            showAlert(data.error || 'Failed to delete user', 'danger');
+            throw new Error(data.error || 'Failed to delete user');
         }
     })
     .catch(error => {
         console.error('Error deleting subuser:', error);
-        showAlert('Failed to delete user', 'danger');
+        showAlert('Failed to delete user: ' + error.message, 'danger');
     })
     .finally(() => {
         currentDeletingSubuserId = null;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Delete User';
+        }
     });
 }
 
@@ -858,8 +1004,14 @@ function resetSubuserForm() {
     currentEditingSubuserId = null;
 
     // Reset form fields
-    document.getElementById('subuserForm').reset();
-    document.getElementById('subuserPassword').required = true;
+    const form = document.getElementById('subuserForm');
+    if (form) form.reset();
+
+    const passwordInput = document.getElementById('subuserPassword');
+    if (passwordInput) {
+        passwordInput.required = true;
+        passwordInput.placeholder = 'Minimum 6 characters';
+    }
 
     // Uncheck all permissions
     document.querySelectorAll('input[name="permissions"]').forEach(cb => {
@@ -867,214 +1019,11 @@ function resetSubuserForm() {
     });
 
     // Reset modal title and button
-    document.getElementById('addSubuserModalLabel').textContent = 'Add Team Member';
-    document.getElementById('submit-btn-text').textContent = 'Add User';
-}
-
-// Initialize theme functionality
-function initializeThemes() {
-    // Theme selection handling
-    const themeCards = document.querySelectorAll('.theme-card');
-    const livePreview = document.getElementById('livePreview');
-
-    themeCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const theme = this.dataset.theme;
-            const radio = this.querySelector('input[type="radio"]');
-
-            // Update radio selection
-            radio.checked = true;
-
-            // Update visual selection
-            themeCards.forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-
-            // Update live preview
-            if (livePreview) {
-                livePreview.className = `live-preview-container theme-${theme}`;
-            }
-        });
-    });
-
-    // Appearance settings form submission
-    const saveAppearanceBtn = document.getElementById('saveAppearanceSettings');
-    if (saveAppearanceBtn) {
-        saveAppearanceBtn.addEventListener('click', function() {
-            const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
-            const itemsPerPage = document.getElementById('items_per_page').value;
-            const dateFormat = document.getElementById('date_format').value;
-
-            const appearanceData = {
-                theme: selectedTheme,
-                itemsPerPage: itemsPerPage,
-                dateFormat: dateFormat
-            };
-
-            fetch('/api/settings/appearance', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(appearanceData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('Appearance settings saved successfully', 'success');
-                    // Apply theme immediately
-                    document.body.setAttribute('data-theme-value', selectedTheme);
-                } else {
-                    showAlert('Failed to save appearance settings', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error saving appearance settings:', error);
-                showAlert('Failed to save appearance settings', 'danger');
-            });
-        });
-    }
-}
-
-// Load general settings
-function loadGeneralSettings() {
-    const saveGeneralBtn = document.getElementById('saveGeneralSettings');
-    if (saveGeneralBtn) {
-        saveGeneralBtn.addEventListener('click', function() {
-            const formData = {
-                company_name: document.getElementById('company_name').value,
-                currency_code: document.getElementById('currency_code').value,
-                timezone: document.getElementById('timezone').value,
-                default_language: document.getElementById('default_language').value
-            };
-
-            // Save each setting
-            const promises = Object.entries(formData).map(([key, value]) => {
-                return fetch('/api/settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        key: key,
-                        value: value,
-                        category: 'general'
-                    })
-                });
-            });
-
-            Promise.all(promises)
-                .then(() => {
-                    showAlert('General settings saved successfully', 'success');
-                })
-                .catch(error => {
-                    console.error('Error saving general settings:', error);
-                    showAlert('Failed to save general settings', 'danger');
-                });
-        });
-    }
-}
-
-// Load notification settings
-function loadNotificationSettings() {
-    const saveNotificationBtn = document.getElementById('saveNotificationSettings');
-    const testNotificationBtn = document.getElementById('testNotifications');
-
-    if (saveNotificationBtn) {
-        saveNotificationBtn.addEventListener('click', function() {
-            const formData = {
-                email_notifications_enabled: document.getElementById('email_notifications_enabled').checked,
-                sms_notifications_enabled: document.getElementById('sms_notifications_enabled').checked,
-                enable_price_change_alerts: document.getElementById('enable_price_change_alerts').checked,
-                notification_email: document.getElementById('notification_email').value,
-                sender_email: document.getElementById('sender_email').value,
-                notification_phone: document.getElementById('notification_phone').value,
-                notification_low_stock_threshold: document.getElementById('notification_low_stock_threshold').value,
-                notification_frequency: document.getElementById('notification_frequency').value
-            };
-
-            // Save each setting
-            const promises = Object.entries(formData).map(([key, value]) => {
-                return fetch('/api/settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        key: key,
-                        value: typeof value === 'boolean' ? value.toString() : value,
-                        category: 'notifications'
-                    })
-                });
-            });
-
-            Promise.all(promises)
-                .then(() => {
-                    showAlert('Notification settings saved successfully', 'success');
-                })
-                .catch(error => {
-                    console.error('Error saving notification settings:', error);
-                    showAlert('Failed to save notification settings', 'danger');
-                });
-        });
-    }
-
-    if (testNotificationBtn) {
-        testNotificationBtn.addEventListener('click', function() {
-            fetch('/api/notifications/test', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert('Test notifications sent successfully', 'success');
-                } else {
-                    showAlert('Failed to send test notifications', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error sending test notifications:', error);
-                showAlert('Failed to send test notifications', 'danger');
-            });
-        });
-    }
-}
-
-// Load advanced settings
-function loadAdvancedSettings() {
-    const saveAdvancedBtn = document.getElementById('saveAdvancedSettings');
-    if (saveAdvancedBtn) {
-        saveAdvancedBtn.addEventListener('click', function() {
-            const formData = {
-                enable_debug_mode: document.getElementById('enable_debug_mode').checked,
-                data_backup_schedule: document.getElementById('data_backup_schedule').value,
-                enable_api_access: document.getElementById('enable_api_access').checked
-            };
-
-            // Save each setting
-            const promises = Object.entries(formData).map(([key, value]) => {
-                return fetch('/api/settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        key: key,
-                        value: typeof value === 'boolean' ? value.toString() : value,
-                        category: 'advanced'
-                    })
-                });
-            });
-
-            Promise.all(promises)
-                .then(() => {
-                    showAlert('Advanced settings saved successfully', 'success');
-                })
-                .catch(error => {
-                    console.error('Error saving advanced settings:', error);
-                    showAlert('Failed to save advanced settings', 'danger');
-                });
-        });
-    }
+    const modalLabel = document.getElementById('addSubuserModalLabel');
+    const submitBtnText = document.getElementById('submit-btn-text');
+    
+    if (modalLabel) modalLabel.textContent = 'Add Team Member';
+    if (submitBtnText) submitBtnText.textContent = 'Add User';
 }
 
 // Helper function to show alerts
