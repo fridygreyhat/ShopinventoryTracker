@@ -91,7 +91,8 @@ def inject_current_user():
 # Initialize database tables
 with app.app_context():
     # Import models to ensure they are registered with SQLAlchemy
-    from models import User, Item, Sale, SaleItem, Category, Subcategory, Subuser, SubuserPermission
+    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory
+    import json
 
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production
@@ -474,8 +475,7 @@ def update_item(item_id):
 
                 email_enabled = email_setting and email_setting.value.lower(
                 ) == 'true'
-                sms_enabled = sms_setting and sms_setting.value.lower(
-                ) == 'true'
+                sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
 
                 notifications_enabled = email_enabled or sms_enabled
             except Exception as e:
@@ -951,7 +951,7 @@ def get_user_theme():
             session['user_theme'] = setting.value
             return jsonify({'success': True, 'value': setting.value})
 
-    # Return default theme if not found
+    # Return defaulttheme if not found
     return jsonify({
         'success': True,
         'value': 'tanzanite'  # Default theme
@@ -1460,61 +1460,11 @@ def get_slow_moving_items():
         logger.error(f"Error getting slow moving items: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/sales', methods=['GET'])
-def get_sales():
-    """API endpoint to get sales data with optional filtering"""
-    try:
-        # Get query parameters for filtering
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        customer = request.args.get('customer')
-        payment_method = request.args.get('payment_method')
-
-        # Build query
-        query = Sale.query
-
-        # Apply filters if provided
-        if start_date:
-            try:
-                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
-                query = query.filter(Sale.created_at >= start_datetime)
-            except ValueError:
-                pass
-
-        if end_date:
-            try:
-                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
-                # Add one day to include the entire end date
-                end_datetime = end_datetime.replace(hour=23,
-                                                    minute=59,
-                                                    second=59)
-                query = query.filter(Sale.created_at <= end_datetime)
-            except ValueError:
-                pass
-
-        if customer:
-            query = query.filter(Sale.customer_name.ilike(f'%{customer}%'))
-
-        if payment_method:
-            query = query.filter(Sale.payment_method == payment_method)
-
-        # Order by created_at descending (most recent first)
-        sales = query.order_by(Sale.created_at.desc()).all()
-
-        # Convert to dictionary for JSON response
-        return jsonify([sale.to_dict() for sale in sales])
-
-    except Exception as e:
-        logger.error(f"Error getting sales data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/sales', methods=['POST'])
 def create_sale():
-    """API endpoint to create a new sale transaction"""
+    """API endpoint to create a new sale"""
     try:
-        data = request.json
+        data = request.get_json()
 
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -1583,6 +1533,55 @@ def create_sale():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating sale: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sales', methods=['GET'])
+def get_sales():
+    """API endpoint to get sales data with optional filtering"""
+    try:
+        # Get query parameters for filtering
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        customer = request.args.get('customer')
+        payment_method = request.args.get('payment_method')
+
+        # Build query
+        query = Sale.query
+
+        # Apply filters if provided
+        if start_date:
+            try:
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(Sale.created_at >= start_datetime)
+            except ValueError:
+                pass
+
+        if end_date:
+            try:
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+                # Add one day to include the entire end date
+                end_datetime = end_datetime.replace(hour=23,
+                                                    minute=59,
+                                                    second=59)
+                query = query.filter(Sale.created_at <= end_datetime)
+            except ValueError:
+                pass
+
+        if customer:
+            query = query.filter(Sale.customer_name.ilike(f'%{customer}%'))
+
+        if payment_method:
+            query = query.filter(Sale.payment_method == payment_method)
+
+        # Order by created_at descending (most recent first)
+        sales = query.order_by(Sale.created_at.desc()).all()
+
+        # Convert to dictionary for JSON response
+        return jsonify([sale.to_dict() for sale in sales])
+
+    except Exception as e:
+        logger.error(f"Error getting sales data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -2793,7 +2792,8 @@ def send_verification():
             <h2>Email Verification</h2>
             <p>Hello {user.first_name or user.username},</p>
             <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
-            <p><a href="{verification_url}" style="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
+            <p><a href="{verification_url}" style```python
+="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
             <p>This link will expire in 24 hours.</p>
             <p>If you did not create an account, please ignore this email.</p>
             """
