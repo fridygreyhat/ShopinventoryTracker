@@ -24,6 +24,8 @@ class Item(db.Model):
     selling_price_wholesale = db.Column(db.Float, default=0.0)
     price = db.Column(db.Float, default=0.0)  # For backward compatibility
     sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
+    # User ownership
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -125,6 +127,7 @@ class User(UserMixin, db.Model):
 
     # Relationships
     subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
+    items = db.relationship('Item', backref='owner', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'

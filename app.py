@@ -172,6 +172,21 @@ with app.app_context():
             add_column_safely('item', 'sell_by',
                               'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'category_id', 'INTEGER')
+            add_column_safely('item', 'user_id', 'INTEGER')
+            
+            # Set user_id for existing items (assign to first admin user if exists)
+            try:
+                first_admin = User.query.filter_by(is_admin=True).first()
+                if first_admin:
+                    db.session.execute(
+                        db.text("UPDATE item SET user_id = :user_id WHERE user_id IS NULL"),
+                        {"user_id": first_admin.id}
+                    )
+                    db.session.commit()
+                    logger.info(f"Assigned existing items to admin user: {first_admin.username}")
+            except Exception as e:
+                logger.error(f"Error assigning existing items to admin: {str(e)}")
+                db.session.rollback()
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -247,15 +262,21 @@ def categories():
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
+@login_required
 def get_inventory():
-    """API endpoint to get all inventory items"""
+    """API endpoint to get all inventory items for the current user"""
     from models import Item
 
     try:
         logger.info("Getting inventory items...")
         
-        # Start query
-        query = Item.query
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Start query filtered by user
+        query = Item.query.filter(Item.user_id == user_id)
 
         # Optional filtering
         category = request.args.get('category')
@@ -291,7 +312,7 @@ def get_inventory():
 
         # Execute query and convert to dictionary
         items = query.all()
-        logger.info(f"Found {len(items)} items in database")
+        logger.info(f"Found {len(items)} items for user {user_id}")
         
         items_dict = [item.to_dict() for item in items]
         logger.info(f"Returning {len(items_dict)} items as JSON")
@@ -334,6 +355,11 @@ def add_item():
         # Use retail price as default price for backward compatibility
         price = selling_price_retail
 
+        # Get current user ID
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         # Create new item
         new_item = Item(name=item_data["name"],
                         description=item_data.get("description", ""),
@@ -346,7 +372,8 @@ def add_item():
                         category=item_data.get("category", "Uncategorized"),
                         sku=item_data.get(
                             "sku",
-                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
+                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"),
+                        user_id=user_id)
 
         # Add to database
         db.session.add(new_item)
@@ -415,11 +442,16 @@ def add_item():
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['GET'])
+@login_required
 def get_item(item_id):
     """API endpoint to get a specific inventory item"""
     from models import Item
 
-    item = Item.query.get(item_id)
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
     if not item:
         return jsonify({"error": "Item not found"}), 404
@@ -428,13 +460,18 @@ def get_item(item_id):
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['PUT'])
+@login_required
 def update_item(item_id):
     """API endpoint to update an inventory item"""
     from models import Item
 
     try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         item_data = request.json
-        item = Item.query.get(item_id)
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
         if item is None:
             return jsonify({"error": "Item not found"}), 404
@@ -525,12 +562,17 @@ def update_item(item_id):
 
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
+@login_required
 def delete_item(item_id):
     """API endpoint to delete an inventory item"""
     from models import Item
 
     try:
-        item = Item.query.get(item_id)
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
 
         if item is None:
             return jsonify({"error": "Item not found"}), 404
@@ -669,22 +711,27 @@ def get_products():
 
 
 @app.route('/api/reports/stock-status', methods=['GET'])
+@login_required
 def stock_status_report():
     """API endpoint to get stock status report"""
     from models import Item
     from sqlalchemy import func
 
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
     low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
 
-    # Get counts and sums
-    item_count = db.session.query(func.count(Item.id)).scalar() or 0
-    total_stock = db.session.query(func.sum(Item.quantity)).scalar() or 0
+    # Get counts and sums for current user only
+    item_count = db.session.query(func.count(Item.id)).filter(Item.user_id == user_id).scalar() or 0
+    total_stock = db.session.query(func.sum(Item.quantity)).filter(Item.user_id == user_id).scalar() or 0
 
-    # Get all items, low stock items, and out of stock items
-    all_items = Item.query.all()
+    # Get all items, low stock items, and out of stock items for current user
+    all_items = Item.query.filter(Item.user_id == user_id).all()
     low_stock_items = Item.query.filter(
-        Item.quantity <= low_stock_threshold).all()
-    out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
+        Item.quantity <= low_stock_threshold, Item.user_id == user_id).all()
+    out_of_stock_items = Item.query.filter(Item.quantity == 0, Item.user_id == user_id).all()
 
     # Calculate inventory value using selling price retail with fallback to price
     total_value_query = db.session.query(
@@ -709,38 +756,43 @@ def stock_status_report():
 
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])
+@login_required
 def category_breakdown_report():
     """API endpoint to get category breakdown report"""
     from models import Item
     from sqlalchemy import func
 
-    # Group items by category
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Group items by category for current user
     categories = {}
 
-    # First get all distinct categories
+    # First get all distinct categories for current user
     category_list = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(Item.user_id == user_id).distinct().all()
 
     # For each category, get the stats
     for cat in category_list:
         category = cat.category
 
-        # Get items count in this category
+        # Get items count in this category for current user
         count = db.session.query(func.count(Item.id)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == user_id).scalar() or 0
 
-        # Get total quantity
+        # Get total quantity for current user
         total_quantity = db.session.query(func.sum(Item.quantity)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == user_id).scalar() or 0
 
-        # Get total value based on retail selling price
+        # Get total value based on retail selling price for current user
         total_value_query = db.session.query(
             func.sum(Item.quantity * Item.selling_price_retail)).filter(
-                func.coalesce(Item.category, 'Uncategorized') ==
-                category).scalar()
+                func.coalesce(Item.category, 'Uncategorized') == category,
+                Item.user_id == user_id).scalar()
         total_value = float(
             total_value_query) if total_value_query is not None else 0
 
