@@ -2847,3 +2847,31 @@ canvas {
     letter-spacing: 0.3px;
     flex-shrink: 0;
 }
+
+/* Financial Summary Section */
+.card.financial-card.compact-chart.mb-4 {
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--light-bg-alt);
+    background-color: var(--card-bg);
+}
+
+.financial-card .card-header {
+    background-color: rgba(76, 80, 197, 0.03);
+    border-bottom: 1px solid var(--light-bg-alt);
+}
+
+.financial-card .card-body .row {
+    margin: 0;
+}
+
+.financial-card .chart-container {
+    position: relative;
+    height: 200px;
+    padding: 0;
+    margin: 0;
+}
+
+.financial-card .chart-container canvas {
+    width: 100% !important;
+    height: 200px !important;
+}

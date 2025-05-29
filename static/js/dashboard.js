@@ -1106,4 +1106,157 @@ function loadDashboardData() {
 
     // Additional function for manual refresh
     window.refreshDashboard = refreshDashboardData;
+
+    // Create financial chart data
+    function createFinancialChart(data) {
+        const ctx = document.getElementById('financialSummaryChart');
+        if (!ctx) {
+            console.log('Financial chart canvas not found');
+            return;
+        }
+
+        // Prepare chart data from monthly summaries
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const incomeData = new Array(12).fill(0);
+        const expenseData = new Array(12).fill(0);
+        const profitData = new Array(12).fill(0);
+
+        // Fill data from API response
+        if (data && Array.isArray(data)) {
+            data.forEach(monthData => {
+                const monthIndex = monthData.month - 1; // Convert to 0-based index
+                if (monthIndex >= 0 && monthIndex < 12) {
+                    incomeData[monthIndex] = monthData.total_income || 0;
+                    expenseData[monthIndex] = monthData.total_expenses || 0;
+                    profitData[monthIndex] = monthData.net_profit || 0;
+                }
+            });
+        }
+
+        // Destroy existing chart
+        if (financialChart) {
+            financialChart.destroy();
+        }
+
+        const colors = getThemeColors();
+
+        financialChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: colors.success,
+                        backgroundColor: colors.success.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.success,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: colors.danger,
+                        backgroundColor: colors.danger.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.danger,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Net Profit',
+                        data: profitData,
+                        borderColor: colors.info,
+                        backgroundColor: colors.info.replace('0.8', '0.1'),
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.info,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: {
+                                size: 11,
+                                weight: '500'
+                            },
+                            color: colors.chartText
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBackground,
+                        titleColor: colors.tooltipText,
+                        bodyColor: colors.tooltipText,
+                        borderColor: colors.chartBorder,
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: TZS ${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: colors.chartGrid
+                        },
+                        ticks: {
+                            color: colors.chartSecondaryText,
+                            font: {
+                                size: 10
+                            },
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log('Financial chart created successfully');
+    }
 });
