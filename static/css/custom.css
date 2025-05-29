@@ -2781,71 +2781,115 @@ canvas {
 
 /* Compact Income Cards */
 .compact-income-card {
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
     border: none;
     overflow: hidden;
     position: relative;
-    min-height: 85px;
-    max-height: 100px;
+    min-height: 50px;
 }
 
 .compact-income-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .compact-income-card .card-body {
-    padding: 0.75rem 1rem;
+    padding: 0.4rem;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     height: 100%;
 }
 
 .income-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.7rem;
     color: white;
-    margin-right: 0.75rem;
     flex-shrink: 0;
 }
 
 .income-details {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 }
 
 .income-label {
-    font-size: 0.75rem;
+    font-size: 0.6rem;
     font-weight: 500;
     color: var(--text-muted);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .income-amount {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 0.8rem;
+    font-weight: 600;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .income-badge {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 20px;
+    font-size: 0.5rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 12px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     flex-shrink: 0;
+}
+
+/* Financial Summary Optimizations */
+.financial-card.compact-chart {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.financial-card.compact-chart .card-header {
+    padding: 0.4rem 0.6rem;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.financial-card.compact-chart .card-body {
+    padding: 0.4rem;
+}
+
+.financial-card.compact-chart .chart-container {
+    margin: 0;
+    padding: 0;
+}
+
+/* Responsive adjustments for compact cards */
+@media (max-width: 768px) {
+    .compact-income-card {
+        min-height: 45px;
+    }
+    
+    .income-label {
+        font-size: 0.55rem;
+    }
+    
+    .income-amount {
+        font-size: 0.75rem;
+    }
+    
+    .income-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 0.6rem;
+    }
 }
 
 /* Financial Summary Section */
