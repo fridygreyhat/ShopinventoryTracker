@@ -64,20 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
     saleTypeSelector.addEventListener('change', function() {
         saleType = this.value;
         
-    // Unit type selection
-    const unitTypeSelector = document.getElementById('unitTypeSelector');
-    unitTypeSelector.addEventListener('change', function() {
-        unitType = this.value;
-        // Update quantity input step and min values based on unit type
-        document.querySelectorAll('.item-qty').forEach(input => {
-            if (unitType === 'weight') {
-                input.setAttribute('step', '0.1');
-                input.setAttribute('min', '0.1');
-            } else {
-                input.setAttribute('step', '1');
-                input.setAttribute('min', '1');
-            }
-        });
         // If there are items in the cart, update their prices based on the new sale type
         if (cart.length > 0) {
             cart.forEach(item => {
@@ -95,6 +81,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchResults.length > 0) {
             displaySearchResults(searchResults);
         }
+    });
+    
+    // Unit type selection
+    const unitTypeSelector = document.getElementById('unitTypeSelector');
+    unitTypeSelector.addEventListener('change', function() {
+        unitType = this.value;
+        // Update quantity input step and min values based on unit type
+        document.querySelectorAll('.item-qty').forEach(input => {
+            if (unitType === 'weight') {
+                input.setAttribute('step', '0.1');
+                input.setAttribute('min', '0.1');
+            } else {
+                input.setAttribute('step', '1');
+                input.setAttribute('min', '1');
+            }
+        });
     });
     
     // Cart management
@@ -377,7 +379,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.item-qty').forEach(input => {
             input.addEventListener('change', function() {
                 const index = this.getAttribute('data-index');
-                updateQuantity(index, parseInt(this.value));
+                const newQty = unitType === 'weight' ? parseFloat(this.value) : parseInt(this.value);
+                updateQuantity(index, newQty);
             });
         });
         

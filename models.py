@@ -56,18 +56,18 @@ class Item(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'sku': self.sku,
-            'unit_type': self.unit_type,
-            'description': self.description,
-            'category': self.category,
-            'subcategory': self.subcategory,
-            'sell_by': self.sell_by,
-            'quantity': self.quantity,
-            'buying_price': self.buying_price,
-            'selling_price_retail': self.selling_price_retail,
-            'selling_price_wholesale': self.selling_price_wholesale,
-            'price': self.price,  # For backward compatibility
-            'sales_type': self.sales_type,
+            'sku': self.sku or '',
+            'unit_type': self.unit_type or 'quantity',
+            'description': self.description or '',
+            'category': self.category or 'Uncategorized',
+            'subcategory': self.subcategory or '',
+            'sell_by': self.sell_by or 'quantity',
+            'quantity': self.quantity or 0,
+            'buying_price': float(self.buying_price or 0),
+            'selling_price_retail': float(self.selling_price_retail or 0),
+            'selling_price_wholesale': float(self.selling_price_wholesale or 0),
+            'price': float(self.price or self.selling_price_retail or 0),  # For backward compatibility
+            'sales_type': self.sales_type or 'both',
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
