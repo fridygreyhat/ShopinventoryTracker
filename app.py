@@ -1522,75 +1522,135 @@ def create_sale():
     """API endpoint to create a new sale"""
     try:
         data = request.get_json()
+        logger.info(f"Received sales data: {data}")
 
         if not data:
+            logger.error("No data provided in sales request")
             return jsonify({'error': 'No data provided'}), 400
+
+        # Validate required fields
+        if not data.get('items') or len(data.get('items', [])) == 0:
+            logger.error("No items provided in sales request")
+            return jsonify({'error': 'No items provided'}), 400
 
         # Generate a unique invoice number
         invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        logger.info(f"Generated invoice number: {invoice_number}")
+
+        # Extract customer data
+        customer_data = data.get('customer', {})
+        payment_data = data.get('payment', {})
+        discount_data = data.get('discount', {})
 
         # Create new sale record
-        new_sale = Sale(invoice_number=invoice_number,
-                        customer_name=data.get('customer',
-                                               {}).get('name',
-                                                       'Walk-in Customer'),
-                        customer_phone=data.get('customer',
-                                                {}).get('phone', ''),
-                        sale_type=data.get('sale_type', 'retail'),
-                        subtotal=data.get('subtotal', 0),
-                        discount_type=data.get('discount',
-                                               {}).get('type', 'none'),
-                        discount_value=data.get('discount',
-                                                {}).get('value', 0),
-                        discount_amount=data.get('discount',
-                                                 {}).get('amount', 0),
-                        total=data.get('total', 0),
-                        payment_method=data.get('payment',
-                                                {}).get('method', 'cash'),
-                        payment_details=json.dumps(
-                            data.get('payment', {}).get('mobile_info', {})),
-                        payment_amount=data.get('payment',
-                                                {}).get('amount', 0),
-                        change_amount=data.get('payment', {}).get('change', 0),
-                        notes=data.get('notes', ''))
+        new_sale = Sale(
+            invoice_number=invoice_number,
+            customer_name=customer_data.get('name', 'Walk-in Customer'),
+            customer_phone=customer_data.get('phone', ''),
+            sale_type=data.get('sale_type', 'retail'),
+            subtotal=float(data.get('subtotal', 0)),
+            discount_type=discount_data.get('type', 'none'),
+            discount_value=float(discount_data.get('value', 0)),
+            discount_amount=float(discount_data.get('amount', 0)),
+            total=float(data.get('total', 0)),
+            payment_method=payment_data.get('method', 'cash'),
+            payment_details=json.dumps(payment_data.get('mobile_info', {})),
+            payment_amount=float(payment_data.get('amount', 0)),
+            change_amount=float(payment_data.get('change', 0)),
+            notes=data.get('notes', ''))
 
         db.session.add(new_sale)
         db.session.flush()  # Flush to get the sale ID
+        logger.info(f"Created sale record with ID: {new_sale.id}")
 
-        # Add sale items
+        # Add sale items and update inventory
+        items_processed = 0
         for item_data in data.get('items', []):
-            # Get item from database if it exists
-            item = Item.query.filter_by(id=item_data.get('id')).first()
+            try:
+                # Get item from database if it exists
+                item_id = item_data.get('id')
+                item = Item.query.filter_by(id=item_id).first() if item_id else None
+                
+                if not item:
+                    logger.warning(f"Item with ID {item_id} not found in database")
+                    continue
 
-            # Create sale item record
-            sale_item = SaleItem(sale_id=new_sale.id,
-                                 item_id=item.id if item else None,
-                                 product_name=item_data.get(
-                                     'name', 'Unknown Product'),
-                                 product_sku=item_data.get('sku', ''),
-                                 price=item_data.get('price', 0),
-                                 quantity=item_data.get('quantity', 1),
-                                 total=item_data.get('total', 0))
+                # Validate quantity
+                quantity_sold = float(item_data.get('quantity', 1))
+                if quantity_sold <= 0:
+                    logger.warning(f"Invalid quantity {quantity_sold} for item {item.name}")
+                    continue
 
-            db.session.add(sale_item)
+                # Check if enough stock is available
+                if item.quantity < quantity_sold:
+                    logger.warning(f"Insufficient stock for item {item.name}. Available: {item.quantity}, Requested: {quantity_sold}")
+                    # Continue anyway but log the issue
+                
+                # Create sale item record
+                sale_item = SaleItem(
+                    sale_id=new_sale.id,
+                    item_id=item.id,
+                    product_name=item_data.get('name', item.name),
+                    product_sku=item_data.get('sku', item.sku),
+                    price=float(item_data.get('price', 0)),
+                    quantity=quantity_sold,
+                    total=float(item_data.get('total', 0)))
 
-            # Update inventory quantity if item exists
-            if item:
-                item.quantity = max(
-                    0, item.quantity - item_data.get('quantity', 1))
+                db.session.add(sale_item)
 
+                # Update inventory quantity
+                item.quantity = max(0, item.quantity - quantity_sold)
+                logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
+                
+                items_processed += 1
+
+            except Exception as item_error:
+                logger.error(f"Error processing item {item_data}: {str(item_error)}")
+                continue
+
+        if items_processed == 0:
+            db.session.rollback()
+            logger.error("No items were successfully processed")
+            return jsonify({'error': 'No valid items could be processed'}), 400
+
+        # Commit the transaction
         db.session.commit()
+        logger.info(f"Sale completed successfully. Processed {items_processed} items.")
 
-        return jsonify({
+        # Create financial transaction record for income
+        try:
+            from models import FinancialTransaction
+            financial_transaction = FinancialTransaction(
+                description=f"Sale - Invoice {invoice_number}",
+                amount=float(data.get('total', 0)),
+                transaction_type='Income',
+                category='Sales',
+                payment_method=payment_data.get('method', 'cash'),
+                reference_id=invoice_number,
+                date=datetime.utcnow().date()
+            )
+            db.session.add(financial_transaction)
+            db.session.commit()
+            logger.info("Financial transaction record created")
+        except Exception as finance_error:
+            logger.error(f"Error creating financial transaction: {str(finance_error)}")
+            # Don't fail the sale if financial record creation fails
+
+        response_data = {
             'success': True,
             'message': 'Sale created successfully',
-            'sale': new_sale.to_dict()
-        })
+            'sale': new_sale.to_dict(),
+            'invoice_number': invoice_number,
+            'items_processed': items_processed
+        }
+        
+        logger.info(f"Returning success response: {response_data}")
+        return jsonify(response_data)
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating sale: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Failed to create sale: {str(e)}'}), 500
 
 
 @app.route('/api/sales', methods=['GET'])
