@@ -231,11 +231,19 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 function loadDashboardData() {
+        console.log('Loading dashboard data...');
         loadSalesPerformance();
+        
         // Load stock status report
         fetch('/api/reports/stock-status')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Stock status data loaded:', data);
                 updateDashboardSummary(data);
                 updateLowStockTable(data.low_stock_items);
             })
@@ -245,8 +253,14 @@ function loadDashboardData() {
 
         // Load category breakdown for charts
         fetch('/api/reports/category-breakdown')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Category breakdown data loaded:', data);
                 createStockChart(data);
                 createValueChart(data);
             })
@@ -256,11 +270,22 @@ function loadDashboardData() {
     }
 
     function updateDashboardSummary(data) {
-        // Update summary cards
-        totalItemsElement.textContent = data.total_items;
-        totalStockElement.textContent = data.total_stock;
-        lowStockCountElement.textContent = data.low_stock_items_count;
-        inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + data.total_inventory_value.toLocaleString();
+        console.log('Updating dashboard summary with data:', data);
+        
+        // Update summary cards with safe fallbacks
+        if (totalItemsElement) {
+            totalItemsElement.textContent = data.total_items || 0;
+        }
+        if (totalStockElement) {
+            totalStockElement.textContent = data.total_stock || 0;
+        }
+        if (lowStockCountElement) {
+            lowStockCountElement.textContent = data.low_stock_items_count || 0;
+        }
+        if (inventoryValueElement) {
+            const value = data.total_inventory_value || 0;
+            inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + value.toLocaleString();
+        }
 
         // Create inventory health overview if container exists
         if (inventoryHealthContainer) {
@@ -916,29 +941,24 @@ function loadDashboardData() {
             });
     }
 
-    function loadDashboardData() {
-        // Load stock status report
-        fetch('/api/reports/stock-status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update summary cards
-                document.getElementById('total-items').textContent = data.total_items || 0;
-                document.getElementById('total-stock').textContent = data.total_stock || 0;
-                document.getElementById('low-stock-count').textContent = data.low_stock_items_count || 0;
-
-                // Update inventory value if element exists
-                const inventoryValueElement = document.getElementById('inventory-value');
-                if (inventoryValueElement) {
-                    inventoryValueElement.textContent = `<span class="currency-symbol">TZS</span> ${(data.total_inventory_value || 0).toLocaleString()}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading stock status report:', error);
-            });
+    // Refresh dashboard data periodically and on focus
+    function refreshDashboardData() {
+        console.log('Refreshing dashboard data...');
+        loadDashboardData();
+        loadOnDemandProducts();
+        loadFinancialSummary();
     }
+
+    // Set up auto-refresh
+    setInterval(refreshDashboardData, 30000); // Refresh every 30 seconds
+
+    // Refresh when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshDashboardData();
+        }
+    });
+
+    // Additional function for manual refresh
+    window.refreshDashboard = refreshDashboardData;
 });
