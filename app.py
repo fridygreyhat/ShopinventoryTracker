@@ -733,9 +733,9 @@ def stock_status_report():
         Item.quantity <= low_stock_threshold, Item.user_id == user_id).all()
     out_of_stock_items = Item.query.filter(Item.quantity == 0, Item.user_id == user_id).all()
 
-    # Calculate inventory value using selling price retail with fallback to price
+    # Calculate inventory value using selling price retail with fallback to price (for current user only)
     total_value_query = db.session.query(
-        func.sum(Item.quantity * func.coalesce(Item.selling_price_retail, Item.price, 0))).scalar()
+        func.sum(Item.quantity * func.coalesce(Item.selling_price_retail, Item.price, 0))).filter(Item.user_id == user_id).scalar()
     total_value = float(
         total_value_query) if total_value_query is not None else 0
 
