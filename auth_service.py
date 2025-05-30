@@ -4,7 +4,6 @@ import json
 from datetime import datetime
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
-from models import User, db
 
 # Import Firebase Admin SDK
 import firebase_admin
@@ -334,95 +333,17 @@ def get_effective_user_id():
         return None
 
 
-# This function was moved above to avoid dimport os
-import logging
-import requests
-from datetime import datetime
-from functools import wraps
-from flask import session, redirect, url_for, request, jsonify
 
-logger = logging.getLogger(__name__)
-
-
-def login_required(f):
-    """
-    Decorator for routes that require login (user or subuser)
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check if user or subuser is logged in
-        if "user_id" not in session and "subuser_id" not in session:
-            return redirect(url_for("login", next=request.url))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def subuser_required(f):
-    """
-    Decorator for routes that require subuser login
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "subuser_id" not in session:
-            return jsonify({"error": "Subuser authentication required"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def main_user_required(f):
-    """
-    Decorator for routes that require main user login (not subuser)
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user_id" not in session or session.get("is_subuser"):
-            return jsonify({"error": "Main user authentication required"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def verify_firebase_token(id_token):
-    """
-    Verify Firebase ID token and return user data
-    """
-    try:
-        # Use Firebase REST API to verify token
-        api_key = os.environ.get("FIREBASE_API_KEY")
-        if not api_key:
-            logger.error("Firebase API key not found")
-            return None
-
-        url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        data = {"idToken": id_token}
-
-        response = requests.post(url, json=data, headers=headers)
-
-        if response.status_code == 200:
-            result = response.json()
-            if "users" in result and len(result["users"]) > 0:
-                user_data = result["users"][0]
-                logger.info(f"Firebase token verified for user: {user_data.get('email')}")
-                return user_data
-            else:
-                logger.warning("No user data in Firebase response")
-                return None
-        else:
-            logger.error(f"Firebase token verification failed: {response.status_code} - {response.text}")
-            return None
-
-    except Exception as e:
-        logger.error(f"Error verifying Firebase token: {str(e)}")
-        return None
-
-
-def create_or_update_user(user_data, extra_data=None):
     """
     Create or update user in database based on Firebase user data
     """
     try:
         from models import User
-        from app import db
+        from flask_sqlalchemy import SQLAlchemy
+        from flask import current_app
+        
+        # Get db from current app context
+        db = current_app.extensions['sqlalchemy']
 
         email = user_data.get("email")
         firebase_uid = user_data.get("localId")
@@ -509,7 +430,10 @@ def update_user_profile(user, profile_data):
     Update user profile with new data
     """
     try:
-        from app import db
+        from flask import current_app
+        
+        # Get db from current app context
+        db = current_app.extensions['sqlalchemy']
 
         # Update allowed fields
         allowed_fields = [
