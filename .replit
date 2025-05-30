@@ -10,7 +10,6 @@ deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Run"
 
 [[workflows.workflow]]
 name = "Project"
