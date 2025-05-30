@@ -686,9 +686,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show split payment modal
-        const modal = new bootstrap.Modal(splitPaymentModal);
-        modal.show();
+        const splitPaymentModal = document.getElementById('splitPaymentModal');
+        if (splitPaymentModal) {
+            const modal = new bootstrap.Modal(splitPaymentModal);
+            modal.show();
+        }
     }
+    
+    // Add event listener for split payment button
+    document.addEventListener('DOMContentLoaded', function() {
+        const splitPaymentBtn = document.getElementById('splitPaymentBtn');
+        if (splitPaymentBtn) {
+            splitPaymentBtn.addEventListener('click', function() {
+                if (cart.length === 0) {
+                    showError('Please add items to cart before setting up split payment.');
+                    return;
+                }
+                initializeSplitPayment();
+            });
+        }
+    });
     
     function addSplitPayment() {
         const method = document.getElementById('splitPaymentMethod').value;
@@ -732,27 +749,40 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update payments list
         splitPaymentsList.innerHTML = '';
-        splitPayments.forEach((payment, index) => {
-            const paymentRow = document.createElement('div');
-            paymentRow.className = 'row mb-2';
-            paymentRow.innerHTML = `
-                <div class="col-4">${payment.method}</div>
-                <div class="col-4">TZS ${payment.amount.toLocaleString()}</div>
-                <div class="col-4">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeSplitPayment(${index})">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            splitPaymentsList.appendChild(paymentRow);
-        });
+        if (splitPayments.length === 0) {
+            splitPaymentsList.innerHTML = '<p class="text-muted">No payments added yet</p>';
+        } else {
+            splitPayments.forEach((payment, index) => {
+                const paymentRow = document.createElement('div');
+                paymentRow.className = 'row mb-2 align-items-center';
+                paymentRow.innerHTML = `
+                    <div class="col-4"><strong>${payment.method}</strong></div>
+                    <div class="col-4">TZS ${payment.amount.toLocaleString()}</div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeSplitPayment(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                splitPaymentsList.appendChild(paymentRow);
+            });
+        }
         
         // Update remaining amount
         remainingAmountDisplay.textContent = `TZS ${remainingAmount.toLocaleString()}`;
         
         // Enable/disable complete button
         const completeSplitBtn = document.getElementById('completeSplitPayment');
-        completeSplitBtn.disabled = remainingAmount > 0;
+        if (completeSplitBtn) {
+            completeSplitBtn.disabled = remainingAmount > 0;
+            
+            // Update button text based on status
+            if (remainingAmount > 0) {
+                completeSplitBtn.textContent = `Remaining: TZS ${remainingAmount.toLocaleString()}`;
+            } else {
+                completeSplitBtn.textContent = 'Complete Split Payment';
+            }
+        }
     }
     
     function removeSplitPayment(index) {
@@ -765,7 +795,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
         
         if (paidAmount < totalAmount) {
-            alert('Payment amount is less than total. Please add more payments.');
+            showError('Payment amount is less than total. Please add more payments.');
+            return;
+        }
+        
+        if (splitPayments.length === 0) {
+            showError('Please add at least one payment method.');
             return;
         }
         
@@ -773,8 +808,10 @@ document.addEventListener('DOMContentLoaded', function() {
         processSplitPaymentTransaction();
         
         // Close modal
-        const modal = bootstrap.Modal.getInstance(splitPaymentModal);
-        modal.hide();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('splitPaymentModal'));
+        if (modal) {
+            modal.hide();
+        }
     }
     
     function processSplitPaymentTransaction() {
@@ -782,9 +819,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const customerPhone = document.getElementById('customerPhone').value || '';
         const notes = document.getElementById('saleNotes').value || '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const saleType = document.getElementById('saleType').value || 'retail';
         
         const transaction = {
-            customer: {
+                customer: {
                 name: customerName,
                 phone: customerPhone
             },
@@ -824,15 +862,19 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            alert('Split payment transaction completed successfully!');
-            clearCart();
-            document.getElementById('checkoutForm').reset();
-            splitPayments = [];
-            loadAllProducts();
+            if (data.success) {
+                showSuccess('Split payment transaction completed successfully!');
+                clearCart();
+                document.getElementById('checkoutForm').reset();
+                splitPayments = [];
+                loadAllProducts();
+            } else {
+                throw new Error(data.error || 'Transaction failed');
+            }
         })
         .catch(error => {
             console.error('Error processing split payment:', error);
-            alert('Failed to process split payment transaction');
+            showError('Failed to process split payment transaction: ' + error.message);
         });
     }
 

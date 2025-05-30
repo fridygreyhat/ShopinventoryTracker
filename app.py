@@ -188,6 +188,18 @@ with app.app_context():
                 logger.error(f"Error assigning existing items to admin: {str(e)}")
                 db.session.rollback()
 
+        # Check if financial_transaction table exists and add missing columns
+        result = db.session.execute(
+            db.text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';"
+            ))
+        if result.fetchone():
+            # Add missing financial transaction columns
+            add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
@@ -1600,6 +1612,20 @@ def create_sale():
         customer_data = data.get('customer', {})
         payment_data = data.get('payment', {})
         discount_data = data.get('discount', {})
+        
+        # Handle split payments
+        split_payments = payment_data.get('split_payments', [])
+        payment_method = payment_data.get('method', 'cash')
+        
+        # If split payments exist, use 'split' as payment method and store details
+        if split_payments and len(split_payments) > 0:
+            payment_method = 'split'
+            payment_details = {
+                'split_payments': split_payments,
+                'total_methods': len(split_payments)
+            }
+        else:
+            payment_details = payment_data.get('mobile_info', {})
 
         # Create new sale record
         new_sale = Sale(
@@ -1612,8 +1638,8 @@ def create_sale():
             discount_value=float(discount_data.get('value', 0)),
             discount_amount=float(discount_data.get('amount', 0)),
             total=float(data.get('total', 0)),
-            payment_method=payment_data.get('method', 'cash'),
-            payment_details=json.dumps(payment_data.get('mobile_info', {})),
+            payment_method=payment_method,
+            payment_details=json.dumps(payment_details),
             payment_amount=float(payment_data.get('amount', 0)),
             change_amount=float(payment_data.get('change', 0)),
             notes=data.get('notes', ''))
