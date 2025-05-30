@@ -115,8 +115,14 @@ document.addEventListener('DOMContentLoaded', function() {
     paymentMethod.addEventListener('change', function() {
         if (this.value === 'mobile_money') {
             mobileMoneyFields.classList.remove('d-none');
+            document.getElementById('installmentFields').classList.add('d-none');
+        } else if (this.value === 'installment') {
+            document.getElementById('installmentFields').classList.remove('d-none');
+            mobileMoneyFields.classList.add('d-none');
+            updateInstallmentSummary();
         } else {
             mobileMoneyFields.classList.add('d-none');
+            document.getElementById('installmentFields').classList.add('d-none');
         }
     });
 
@@ -551,6 +557,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Current cart:', cart);
 
         let mobileInfo = {};
+        let installmentInfo = {};
+
         if (payment === 'mobile_money') {
             const providerElement = document.getElementById('mobileProvider');
             const referenceElement = document.getElementById('transactionReference');
@@ -560,6 +568,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     provider: providerElement.value,
                     reference: referenceElement.value
                 };
+            }
+        } else if (payment === 'installment') {
+            const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+            const installmentAmount = parseFloat(document.getElementById('installmentAmount').value) || 0;
+            const frequency = document.getElementById('installmentFrequency').value;
+            const nextPaymentDate = document.getElementById('installmentNextPayment').value;
+
+            if (installmentAmount <= 0) {
+                alert('Please enter a valid installment amount');
+                return;
+            }
+
+            installmentInfo = {
+                down_payment: downPayment,
+                installment_amount: installmentAmount,
+                frequency: frequency,
+                next_payment_date: nextPaymentDate
+            };
+
+            // For installment plans, the initial payment amount should be the down payment
+            if (downPayment > 0 && amount === 0) {
+                document.getElementById('paymentAmount').value = downPayment;
             }
         }
 
@@ -597,7 +627,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: payment,
                 amount: amount,
                 change: Math.max(0, amount - totalAmount),
-                mobile_info: payment === 'mobile_money' ? mobileInfo : null
+                mobile_info: payment === 'mobile_money' ? mobileInfo : null,
+                installment_info: payment === 'installment' ? installmentInfo : null
             },
             sale_type: saleType,
             subtotal: parseFloat(cartSubtotal.textContent.replace(/,/g, '')),
@@ -1252,5 +1283,30 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('layawayDownPayment')) {
         document.getElementById('layawayDownPayment').addEventListener('input', updateLayawaySummary);
         document.getElementById('layawayInstallmentAmount').addEventListener('input', updateLayawaySummary);
+    }
+
+    // Add event listeners for installment calculations
+    if (document.getElementById('installmentDownPayment')) {
+        document.getElementById('installmentDownPayment').addEventListener('input', updateInstallmentSummary);
+        document.getElementById('installmentAmount').addEventListener('input', updateInstallmentSummary);
+    }
+
+    // Update installment summary when values change
+    function updateInstallmentSummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const installmentAmount = parseFloat(document.getElementById('installmentAmount').value) || 0;
+        const remainingBalance = totalAmount - downPayment;
+
+        document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+        document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('installmentRemainingBalance').textContent = `TZS ${remainingBalance.toLocaleString()}`;
+
+        if (installmentAmount > 0) {
+            const estimatedPayments = Math.ceil(remainingBalance / installmentAmount);
+            document.getElementById('installmentEstimatedPayments').textContent = estimatedPayments;
+        } else {
+            document.getElementById('installmentEstimatedPayments').textContent = '0';
+        }
     }
 });
