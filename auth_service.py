@@ -118,12 +118,12 @@ def verify_firebase_token(id_token):
         logger.error(f"Error verifying Firebase token: {str(e)}")
         logger.error(f"Token verification failed. Token starts with: {id_token[:10] if id_token and len(id_token) >= 10 else 'INVALID_TOKEN'}...")
         logger.error(f"Token length: {len(id_token) if id_token else 0}")
-        
+
         # Log more details about the error
         if hasattr(e, 'response'):
             logger.error(f"Response status: {getattr(e.response, 'status_code', 'unknown')}")
             logger.error(f"Response text: {getattr(e.response, 'text', 'no response text')}")
-        
+
         return None
 
 def update_user_profile(user_id, profile_data):
@@ -201,12 +201,12 @@ def create_or_update_user(user_data, extra_data=None):
 def get_current_user_context():
     """
     Get current user context (main user or subuser)
-    
+
     Returns:
         dict: User context with type, id, and permissions
     """
     from models import User, Subuser
-    
+
     context = {
         'user_type': None,
         'user_id': None,
@@ -215,7 +215,7 @@ def get_current_user_context():
         'permissions': [],
         'user_obj': None
     }
-    
+
     if session.get('subuser_id'):
         # Subuser is logged in
         subuser = Subuser.query.get(session['subuser_id'])
@@ -240,29 +240,29 @@ def get_current_user_context():
                 'permissions': ['all'],  # Main user has all permissions
                 'user_obj': user
             })
-    
+
     return context
 
 def has_permission(permission: str) -> bool:
     """
     Check if current user has a specific permission
-    
+
     Args:
         permission (str): Permission to check
-        
+
     Returns:
         bool: True if user has permission
     """
     context = get_current_user_context()
-    
+
     # Main users have all permissions
     if context['user_type'] == 'main_user':
         return True
-    
+
     # Check subuser permissions
     if context['user_type'] == 'subuser':
         return permission in context['permissions']
-    
+
     return False
 
 def get_effective_user_id():
@@ -270,7 +270,7 @@ def get_effective_user_id():
     Get the effective user ID for data filtering
     For main users: returns their own ID
     For subusers: returns their parent user ID
-    
+
     Returns:
         int: User ID to use for data filtering
     """
@@ -332,6 +332,7 @@ def get_effective_user_id():
         db.session.rollback()
         logger.error(f"Error creating/updating user: {str(e)}")
         return None
+
 
 # This function was moved above to avoid dimport os
 import logging
@@ -396,7 +397,7 @@ def verify_firebase_token(id_token):
         data = {"idToken": id_token}
 
         response = requests.post(url, json=data, headers=headers)
-        
+
         if response.status_code == 200:
             result = response.json()
             if "users" in result and len(result["users"]) > 0:
@@ -440,7 +441,7 @@ def create_or_update_user(user_data, extra_data=None):
             logger.info(f"Updating existing user: {email}")
             user.firebase_uid = firebase_uid
             user.email_verified = user_data.get("emailVerified", False)
-            
+
             # Update display name if provided
             if user_data.get("displayName"):
                 name_parts = user_data.get("displayName", "").split(" ", 1)
@@ -452,10 +453,10 @@ def create_or_update_user(user_data, extra_data=None):
         else:
             # Create new user
             logger.info(f"Creating new user: {email}")
-            
+
             # Generate username from email if not provided
             username = email.split("@")[0]
-            
+
             # Ensure username is unique
             counter = 1
             original_username = username
@@ -489,7 +490,7 @@ def create_or_update_user(user_data, extra_data=None):
         # Save to database
         if not user.id:  # New user
             db.session.add(user)
-        
+
         user.updated_at = datetime.utcnow()
         db.session.commit()
 
@@ -530,7 +531,7 @@ def update_user_profile(user, profile_data):
         logger.error(f"Error updating user profile: {str(e)}")
         if 'db' in locals():
             db.session.rollback()
-        return Falseted_function
+        return False
 
 def role_required(allowed_roles):
     """
