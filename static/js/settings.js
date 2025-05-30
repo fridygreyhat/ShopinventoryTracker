@@ -817,6 +817,10 @@ function handleSubuserSubmit(event) {
     const emailInput = document.getElementById('subuserEmail');
     const passwordInput = document.getElementById('subuserPassword');
     const statusInput = document.getElementById('subuserStatus');
+    const departmentInput = document.getElementById('subuserDepartment');
+    const positionInput = document.getElementById('subuserPosition');
+    const phoneInput = document.getElementById('subuserPhone');
+    const hireDateInput = document.getElementById('subuserHireDate');
 
     if (!nameInput || !emailInput || !passwordInput || !statusInput) {
         showAlert('Form elements not found. Please refresh the page.', 'danger');
@@ -830,13 +834,17 @@ function handleSubuserSubmit(event) {
         email: emailInput.value.trim(),
         password: passwordInput.value,
         is_active: statusInput.value === 'true',
+        department: departmentInput ? departmentInput.value.trim() : '',
+        position: positionInput ? positionInput.value.trim() : '',
+        phone: phoneInput ? phoneInput.value.trim() : '',
+        hire_date: hireDateInput ? hireDateInput.value : '',
         permissions: permissions
     };
 
     console.log('Submitting subuser data:', subuserData);
 
     // Validate required fields
-    if (!subuserData.name || !subuserData.email || (!currentEditingSubuserId && !subuserData.password)) {
+    if (!subuserData.name || !subuserData.email || (!window.currentEditingSubuserId && !subuserData.password)) {
         showAlert('Please fill in all required fields', 'danger');
         return;
     }
@@ -847,6 +855,67 @@ function handleSubuserSubmit(event) {
         showAlert('Please enter a valid email address', 'danger');
         return;
     }
+
+    // Password validation for new users
+    if (!window.currentEditingSubuserId && subuserData.password && subuserData.password.length < 6) {
+        showAlert('Password must be at least 6 characters long', 'danger');
+        return;
+    }
+
+    // Submit the data
+    submitSubuserData(subuserData);
+}
+
+function submitSubuserData(subuserData) {
+    const isEdit = window.currentEditingSubuserId;
+    const url = isEdit ? `/api/subusers/${window.currentEditingSubuserId}` : '/api/subusers';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    // Don't send empty password for updates
+    if (isEdit && !subuserData.password) {
+        delete subuserData.password;
+    }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(subuserData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(isEdit ? 'Subuser updated successfully!' : 'Subuser created successfully!', 'success');
+            $('#subuserModal').modal('hide');
+            loadSubusers(); // Reload the subusers list
+        } else {
+            showAlert(data.error || 'An error occurred', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('An error occurred while saving subuser', 'danger');
+    });
+}
+
+function showAlert(message, type) {
+    const alertsContainer = document.getElementById('alerts') || document.body;
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertsContainer.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 
     // Password validation for new users
     if (!currentEditingSubuserId && subuserData.password.length < 6) {
