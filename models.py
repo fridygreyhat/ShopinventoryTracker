@@ -162,11 +162,25 @@ class User(UserMixin, db.Model):
 class Subuser(db.Model):
     """Subuser model for managing team members"""
     id = db.Column(db.Integer, primary_key=True)
+    staff_id = db.Column(db.String(20), unique=True, nullable=False)  # Unique staff identifier
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Additional staff information
+    department = db.Column(db.String(50))
+    position = db.Column(db.String(100))
+    hire_date = db.Column(db.Date)
+    phone = db.Column(db.String(20))
+    
+    # Status and access
     is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    login_attempts = db.Column(db.Integer, default=0)
+    account_locked = db.Column(db.Boolean, default=False)
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -181,6 +195,28 @@ class Subuser(db.Model):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
 
+    @staticmethod
+    def generate_staff_id(parent_user_id: int) -> str:
+        """
+        Generate a unique staff ID for a subuser
+        
+        Args:
+            parent_user_id (int): Parent user ID
+            
+        Returns:
+            str: Unique staff ID in format STAFF-{parent_id}-{sequence}
+        """
+        # Get the count of existing subusers for this parent
+        existing_count = Subuser.query.filter_by(parent_user_id=parent_user_id).count()
+        sequence = existing_count + 1
+        
+        # Keep generating until we find a unique ID
+        while True:
+            staff_id = f"STAFF-{parent_user_id:04d}-{sequence:03d}"
+            if not Subuser.query.filter_by(staff_id=staff_id).first():
+                return staff_id
+            sequence += 1
+
     def to_dict(self):
         """Convert subuser to dictionary for API responses"""
         try:
@@ -193,9 +229,16 @@ class Subuser(db.Model):
 
             return {
                 'id': self.id,
+                'staff_id': getattr(self, 'staff_id', ''),
                 'name': self.name or '',
                 'email': self.email or '',
+                'department': getattr(self, 'department', ''),
+                'position': getattr(self, 'position', ''),
+                'phone': getattr(self, 'phone', ''),
+                'hire_date': self.hire_date.isoformat() if getattr(self, 'hire_date', None) else None,
                 'is_active': getattr(self, 'is_active', True),
+                'account_locked': getattr(self, 'account_locked', False),
+                'last_login': self.last_login.isoformat() if getattr(self, 'last_login', None) else None,
                 'created_at': self.created_at.isoformat() if self.created_at else None,
                 'updated_at': self.updated_at.isoformat() if self.updated_at else None,
                 'permissions': permissions_list
@@ -204,9 +247,16 @@ class Subuser(db.Model):
             # Fallback for any attribute errors
             return {
                 'id': getattr(self, 'id', 0),
+                'staff_id': getattr(self, 'staff_id', ''),
                 'name': getattr(self, 'name', ''),
                 'email': getattr(self, 'email', ''),
+                'department': '',
+                'position': '',
+                'phone': '',
+                'hire_date': None,
                 'is_active': getattr(self, 'is_active', True),
+                'account_locked': False,
+                'last_login': None,
                 'created_at': None,
                 'updated_at': None,
                 'permissions': []

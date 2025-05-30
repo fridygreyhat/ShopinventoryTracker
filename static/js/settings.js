@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const saveGeneralSettingsBtn = document.getElementById('saveGeneralSettings');
@@ -186,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function saveSettingsGroup(formId, category) {
         const form = document.getElementById(formId);
         if (!form) return Promise.reject(new Error('Form not found'));
-        
+
         const formData = new FormData(form);
         const settingsToSave = [];
 
@@ -644,7 +643,7 @@ function loadSubusers() {
         .catch(error => {
             console.error('Error loading subusers:', error);
             if (loadingElement) loadingElement.classList.add('d-none');
-            
+
             // Show specific error message
             let errorMessage = 'Failed to load users';
             if (error.message.includes('Failed to fetch')) {
@@ -652,7 +651,7 @@ function loadSubusers() {
             } else {
                 errorMessage = error.message;
             }
-            
+
             const errorHtml = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-circle me-2"></i>${errorMessage}
@@ -672,7 +671,7 @@ function loadSubusers() {
 // Function to load permissions
 function loadPermissions() {
     const permissionsContainer = document.getElementById('permissions-container');
-    
+
     // Show loading state
     if (permissionsContainer) {
         permissionsContainer.innerHTML = `
@@ -704,7 +703,7 @@ function loadPermissions() {
         .catch(error => {
             console.error('Error loading permissions:', error);
             showAlert('Failed to load permissions: ' + error.message, 'danger');
-            
+
             // Show fallback permissions form
             if (permissionsContainer) {
                 permissionsContainer.innerHTML = `
@@ -957,7 +956,7 @@ function editSubuser(subuserId) {
             // Update modal title and button
             const modalLabel = document.getElementById('addSubuserModalLabel');
             const submitBtnText = document.getElementById('submit-btn-text');
-            
+
             if (modalLabel) modalLabel.textContent = 'Edit User';
             if (submitBtnText) submitBtnText.textContent = 'Update User';
 
@@ -1057,7 +1056,7 @@ function resetSubuserForm() {
     // Reset modal title and button
     const modalLabel = document.getElementById('addSubuserModalLabel');
     const submitBtnText = document.getElementById('submit-btn-text');
-    
+
     if (modalLabel) modalLabel.textContent = 'Add Team Member';
     if (submitBtnText) submitBtnText.textContent = 'Add User';
 }

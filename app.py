@@ -200,6 +200,38 @@ with app.app_context():
             add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
             add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
 
+        # Check if subuser table exists and add missing columns
+        result = db.session.execute(
+            db.text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='subuser';"
+            ))
+        if result.fetchone():
+            # Add missing subuser columns
+            add_column_safely('subuser', 'staff_id', 'VARCHAR(20)')
+            add_column_safely('subuser', 'department', 'VARCHAR(50)')
+            add_column_safely('subuser', 'position', 'VARCHAR(100)')
+            add_column_safely('subuser', 'hire_date', 'DATE')
+            add_column_safely('subuser', 'phone', 'VARCHAR(20)')
+            add_column_safely('subuser', 'last_login', 'DATETIME')
+            add_column_safely('subuser', 'login_attempts', 'INTEGER DEFAULT 0', '0')
+            add_column_safely('subuser', 'account_locked', 'BOOLEAN DEFAULT 0', '0')
+            
+            # Generate staff_ids for existing subusers
+            try:
+                subusers_without_staff_id = Subuser.query.filter(
+                    (Subuser.staff_id == None) | (Subuser.staff_id == '')
+                ).all()
+                
+                for subuser in subusers_without_staff_id:
+                    if not subuser.staff_id:
+                        subuser.staff_id = Subuser.generate_staff_id(subuser.parent_user_id)
+                
+                db.session.commit()
+                logger.info(f"Generated staff IDs for {len(subusers_without_staff_id)} existing subusers")
+            except Exception as e:
+                logger.error(f"Error generating staff IDs for existing subusers: {str(e)}")
+                db.session.rollback()
+
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
@@ -1851,17 +1883,27 @@ def create_subuser():
         if existing_user or existing_subuser:
             return jsonify({'error': 'Email already exists'}), 400
 
+        # Generate unique staff ID
+        staff_id = Subuser.generate_staff_id(session['user_id'])
+        
         # Create new subuser
-        subuser = Subuser(name=data['name'],
-                          email=data['email'],
-                          parent_user_id=session['user_id'],
-                          is_active=data.get('is_active', True))
+        subuser = Subuser(
+            name=data['name'],
+            email=data['email'],
+            staff_id=staff_id,
+            parent_user_id=session['user_id'],
+            department=data.get('department', ''),
+            position=data.get('position', ''),
+            phone=data.get('phone', ''),
+            hire_date=datetime.strptime(data['hire_date'], '%Y-%m-%d').date() if data.get('hire_date') else None,
+            is_active=data.get('is_active', True)
+        )
         subuser.set_password(data['password'])
 
         db.session.add(subuser)
         db.session.flush()  # Get the subuser ID
 
-        logger.info(f"Created subuser with ID: {subuser.id}")
+        logger.info(f"Created subuser with ID: {subuser.id} and Staff ID: {staff_id}")
 
         # Add permissions
         permissions = data.get('permissions', [])
@@ -1915,6 +1957,19 @@ def update_subuser(subuser_id):
             subuser.set_password(data['password'])
         if 'is_active' in data:
             subuser.is_active = data['is_active']
+        if 'department' in data:
+            subuser.department = data['department']
+        if 'position' in data:
+            subuser.position = data['position']
+        if 'phone' in data:
+            subuser.phone = data['phone']
+        if 'hire_date' in data and data['hire_date']:
+            try:
+                subuser.hire_date = datetime.strptime(data['hire_date'], '%Y-%m-%d').date()
+            except ValueError:
+                pass  # Skip invalid date formats
+        if 'account_locked' in data:
+            subuser.account_locked = data['account_locked']
 
         # Update permissions
         if 'permissions' in data:
@@ -2142,6 +2197,188 @@ def get_subcategories(category_id):
         category = Category.query.get_or_404(category_id)
         subcategories = Subcategory.query.filter_by(
             category_id=category_id,
+
+# Subuser Authentication Routes
+@app.route('/api/auth/subuser/login', methods=['POST'])
+def subuser_login():
+    """API endpoint for subuser login"""
+    try:
+        data = request.json
+        
+        if not data or not data.get('email') or not data.get('password'):
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        # Find subuser by email
+        subuser = Subuser.query.filter_by(email=data['email']).first()
+        
+        if not subuser:
+            return jsonify({'error': 'Invalid credentials'}), 401
+        
+        # Check if account is locked
+        if subuser.account_locked:
+            return jsonify({'error': 'Account is locked. Contact administrator.'}), 403
+        
+        # Check if account is active
+        if not subuser.is_active:
+            return jsonify({'error': 'Account is deactivated. Contact administrator.'}), 403
+        
+        # Verify password
+        if not subuser.check_password(data['password']):
+            # Increment login attempts
+            subuser.login_attempts = (subuser.login_attempts or 0) + 1
+            
+            # Lock account after 5 failed attempts
+            if subuser.login_attempts >= 5:
+                subuser.account_locked = True
+                logger.warning(f"Account locked for subuser {subuser.email} after {subuser.login_attempts} failed attempts")
+            
+            db.session.commit()
+            return jsonify({'error': 'Invalid credentials'}), 401
+        
+        # Reset login attempts on successful login
+        subuser.login_attempts = 0
+        subuser.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        # Set session data for subuser
+        session['subuser_id'] = subuser.id
+        session['staff_id'] = subuser.staff_id
+        session['parent_user_id'] = subuser.parent_user_id
+        session['email'] = subuser.email
+        session['is_subuser'] = True
+        session['user_type'] = 'subuser'
+        session.permanent = data.get('remember', False)
+        
+        logger.info(f"Subuser {subuser.email} (Staff ID: {subuser.staff_id}) logged in successfully")
+        
+        return jsonify({
+            'success': True,
+            'subuser': subuser.to_dict(),
+            'message': f'Welcome back, {subuser.name}!'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error during subuser login: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
+
+@app.route('/api/auth/subuser/logout', methods=['POST'])
+def subuser_logout():
+    """API endpoint for subuser logout"""
+    try:
+        # Clear subuser session data
+        subuser_keys = ['subuser_id', 'staff_id', 'parent_user_id', 'is_subuser', 'user_type']
+        for key in subuser_keys:
+            session.pop(key, None)
+        
+        return jsonify({'success': True, 'message': 'Logged out successfully'})
+        
+    except Exception as e:
+        logger.error(f"Error during subuser logout: {str(e)}")
+        return jsonify({'error': 'Logout failed'}), 500
+
+@app.route('/api/auth/subuser/profile', methods=['GET'])
+def get_subuser_profile():
+    """API endpoint to get current subuser profile"""
+    try:
+        subuser_id = session.get('subuser_id')
+        
+        if not subuser_id:
+            return jsonify({'error': 'Not authenticated as subuser'}), 401
+        
+        subuser = Subuser.query.get(subuser_id)
+        if not subuser:
+            return jsonify({'error': 'Subuser not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'subuser': subuser.to_dict(),
+            'permissions': [perm.permission for perm in subuser.permissions if perm.granted]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting subuser profile: {str(e)}")
+        return jsonify({'error': 'Failed to get profile'}), 500
+
+@app.route('/api/auth/subuser/update-profile', methods=['PUT'])
+def update_subuser_profile():
+    """API endpoint for subuser to update their own profile"""
+    try:
+        subuser_id = session.get('subuser_id')
+        
+        if not subuser_id:
+            return jsonify({'error': 'Not authenticated as subuser'}), 401
+        
+        subuser = Subuser.query.get(subuser_id)
+        if not subuser:
+            return jsonify({'error': 'Subuser not found'}), 404
+        
+        data = request.json
+        
+        # Allow subuser to update limited fields
+        if 'name' in data:
+            subuser.name = data['name']
+        if 'phone' in data:
+            subuser.phone = data['phone']
+        # Note: Email and other sensitive fields should only be updated by admin
+        
+        subuser.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'subuser': subuser.to_dict(),
+            'message': 'Profile updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating subuser profile: {str(e)}")
+        return jsonify({'error': 'Failed to update profile'}), 500
+
+@app.route('/api/auth/subuser/change-password', methods=['POST'])
+def subuser_change_password():
+    """API endpoint for subuser to change their password"""
+    try:
+        subuser_id = session.get('subuser_id')
+        
+        if not subuser_id:
+            return jsonify({'error': 'Not authenticated as subuser'}), 401
+        
+        data = request.json
+        
+        if not data.get('current_password') or not data.get('new_password'):
+            return jsonify({'error': 'Current password and new password are required'}), 400
+        
+        subuser = Subuser.query.get(subuser_id)
+        if not subuser:
+            return jsonify({'error': 'Subuser not found'}), 404
+        
+        # Verify current password
+        if not subuser.check_password(data['current_password']):
+            return jsonify({'error': 'Current password is incorrect'}), 400
+        
+        # Validate new password
+        if len(data['new_password']) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+        
+        # Update password
+        subuser.set_password(data['new_password'])
+        subuser.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"Subuser {subuser.email} (Staff ID: {subuser.staff_id}) changed password")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error changing subuser password: {str(e)}")
+        return jsonify({'error': 'Failed to change password'}), 500
+
+
             is_active=True).order_by(Subcategory.name).all()
         return jsonify(
             [subcategory.to_dict() for subcategory in subcategories])

@@ -197,6 +197,87 @@ def create_or_update_user(user_data, extra_data=None):
             return None
 
         # Check if user exists
+
+def get_current_user_context():
+    """
+    Get current user context (main user or subuser)
+    
+    Returns:
+        dict: User context with type, id, and permissions
+    """
+    from models import User, Subuser
+    
+    context = {
+        'user_type': None,
+        'user_id': None,
+        'parent_user_id': None,
+        'staff_id': None,
+        'permissions': [],
+        'user_obj': None
+    }
+    
+    if session.get('subuser_id'):
+        # Subuser is logged in
+        subuser = Subuser.query.get(session['subuser_id'])
+        if subuser and subuser.is_active and not subuser.account_locked:
+            context.update({
+                'user_type': 'subuser',
+                'user_id': subuser.id,
+                'parent_user_id': subuser.parent_user_id,
+                'staff_id': subuser.staff_id,
+                'permissions': [perm.permission for perm in subuser.permissions if perm.granted],
+                'user_obj': subuser
+            })
+    elif session.get('user_id'):
+        # Main user is logged in
+        user = User.query.get(session['user_id'])
+        if user and user.active:
+            context.update({
+                'user_type': 'main_user',
+                'user_id': user.id,
+                'parent_user_id': user.id,  # Main user is their own parent
+                'staff_id': None,
+                'permissions': ['all'],  # Main user has all permissions
+                'user_obj': user
+            })
+    
+    return context
+
+def has_permission(permission: str) -> bool:
+    """
+    Check if current user has a specific permission
+    
+    Args:
+        permission (str): Permission to check
+        
+    Returns:
+        bool: True if user has permission
+    """
+    context = get_current_user_context()
+    
+    # Main users have all permissions
+    if context['user_type'] == 'main_user':
+        return True
+    
+    # Check subuser permissions
+    if context['user_type'] == 'subuser':
+        return permission in context['permissions']
+    
+    return False
+
+def get_effective_user_id():
+    """
+    Get the effective user ID for data filtering
+    For main users: returns their own ID
+    For subusers: returns their parent user ID
+    
+    Returns:
+        int: User ID to use for data filtering
+    """
+    context = get_current_user_context()
+    return context.get('parent_user_id')
+
+
         user = User.query.filter_by(email=email).first()
 
         if user:
@@ -256,13 +337,35 @@ def create_or_update_user(user_data, extra_data=None):
 
 def login_required(f):
     """
-    Decorator for routes that require login
+    Decorator for routes that require login (user or subuser)
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if user is logged in
-        if "user_id" not in session:
+        # Check if user or subuser is logged in
+        if "user_id" not in session and "subuser_id" not in session:
             return redirect(url_for("login", next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def subuser_required(f):
+    """
+    Decorator for routes that require subuser login
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "subuser_id" not in session:
+            return jsonify({"error": "Subuser authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def main_user_required(f):
+    """
+    Decorator for routes that require main user login (not subuser)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session or session.get("is_subuser"):
+            return jsonify({"error": "Main user authentication required"}), 401
         return f(*args, **kwargs)
     return decorated_function
 
