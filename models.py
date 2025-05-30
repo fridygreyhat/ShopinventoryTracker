@@ -3,9 +3,22 @@ import json
 from enum import Enum
 import random
 import string
-from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+
+# Import db after app initialization to avoid circular imports
+def get_db():
+    from flask import current_app
+    return current_app.extensions['sqlalchemy']
+
+# We'll use this pattern: from models import db, then use db normally
+# The actual db import happens in app.py and models.py references it
+try:
+    from app import db
+except ImportError:
+    # Fallback for when app isn't initialized yet
+    from flask_sqlalchemy import SQLAlchemy
+    db = SQLAlchemy()
 
 class Item(db.Model):
     """Item model for inventory items"""
