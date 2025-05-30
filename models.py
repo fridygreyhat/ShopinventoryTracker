@@ -13,12 +13,13 @@ def get_db():
 
 # We'll use this pattern: from models import db, then use db normally
 # The actual db import happens in app.py and models.py references it
-try:
-    from app import db
-except ImportError:
-    # Fallback for when app isn't initialized yet
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 
 class Item(db.Model):
     """Item model for inventory items"""

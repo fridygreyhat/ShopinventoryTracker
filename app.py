@@ -1814,8 +1814,7 @@ def get_sales():
         # Convert to dictionary for JSON response
         return jsonify([sale.to_dict() for sale in sales])
 
-    except```python
- Exception as e:
+    except Exception as e:
         logger.error(f"Error getting sales data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
@@ -2696,8 +2695,7 @@ def get_profit_margin_analysis():
 
 
 @app.route('/api/reports/inventory-turnover', methods=['GET'])
-@login_required
-def get_inventory_turnover():
+@login_requireddef get_inventory_turnover():
     """API endpoint to calculate inventory turnover ratios"""
     try:
         from models import Item, Sale, SaleItem
@@ -2976,7 +2974,7 @@ def debug_database():
 
         # Calculate inventory value
         total_value = db.session.query(
-            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
+            db.func.sum(db.func.coalesce(Item.quantity * Item.selling_price_retail, Item.price, 0))
         ).scalar() or 0
 
         return jsonify({
@@ -3177,4 +3175,4 @@ def subuser_change_password():
         logger.error(f"Error changing subuser password: {str(e)}")
         return jsonify({'error': 'Failed to change password'}), 500
 
-This change removes a duplicate route definition for getting subcategories for a category.
+# This change removes a duplicate route definition for getting subcategories for a category.
