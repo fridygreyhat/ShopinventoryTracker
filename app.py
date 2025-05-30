@@ -3176,7 +3176,14 @@ def subuser_change_password():
         logger.error(f"Error changing subuser password: {str(e)}")
         return jsonify({'error': 'Failed to change password'}), 500
 
-
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
+@login_required
+def get_subcategories(category_id):
+    """API endpoint to get subcategories for a category"""
+    try:
+        category = Category.query.get_or_404(category_id)
+        subcategories = Subcategory.query.filter_by(
+            category_id=category_id,
             is_active=True).order_by(Subcategory.name).all()
         return jsonify(
             [subcategory.to_dict() for subcategory in subcategories])
