@@ -2199,6 +2199,7 @@ def get_subcategories(category_id):
             category_id=category_id,
 
 # Subuser Authentication Routes
+# Subuser Authentication Routes
 @app.route('/api/auth/subuser/login', methods=['POST'])
 def subuser_login():
     """API endpoint for subuser login"""
