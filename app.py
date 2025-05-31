@@ -2695,7 +2695,8 @@ def get_profit_margin_analysis():
 
 
 @app.route('/api/reports/inventory-turnover', methods=['GET'])
-@login_requireddef get_inventory_turnover():
+@login_required
+def get_inventory_turnover():
     """API endpoint to calculate inventory turnover ratios"""
     try:
         from models import Item, Sale, SaleItem
