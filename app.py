@@ -279,6 +279,20 @@ def analytics():
     return render_template('analytics.html')
 
 
+@app.route('/layaway')
+@login_required
+def layaway_page():
+    """Render the layaway management page"""
+    return render_template('layaway.html')
+
+
+@app.route('/installments')
+@login_required
+def installments_page():
+    """Render the installments management page"""
+    return render_template('installments.html')
+
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 @login_required
