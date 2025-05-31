@@ -4,10 +4,43 @@ import json
 from datetime import datetime
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
-from models import User, db
 
 # Import Firebase Admin SDK
 import firebase_admin
+
+def login_required(f):
+    """
+    Decorator for routes that require login (user or subuser)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if user or subuser is logged in
+        if "user_id" not in session and "subuser_id" not in session:
+            return redirect(url_for("login", next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def subuser_required(f):
+    """
+    Decorator for routes that require subuser login
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "subuser_id" not in session:
+            return jsonify({"error": "Subuser authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def main_user_required(f):
+    """
+    Decorator for routes that require main user login (not subuser)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session or session.get("is_subuser"):
+            return jsonify({"error": "Main user authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 from firebase_admin import credentials, auth
 
 # Configure logging
@@ -198,6 +231,83 @@ def create_or_update_user(user_data, extra_data=None):
 
         # Check if user exists
 
+if not email:
+            logger.error("No email in Firebase user data")
+            return None
+
+        # Try to find existing user by email or Firebase UID
+        from models import User
+        user = User.query.filter(
+            (User.email == email) | (User.firebase_uid == firebase_uid)
+        ).first()
+
+        if user:
+            # Update existing user
+            logger.info(f"Updating existing user: {email}")
+            user.firebase_uid = firebase_uid
+            user.email_verified = user_data.get("emailVerified", False)
+
+            # Update display name if provided
+            if user_data.get("displayName"):
+                name_parts = user_data.get("displayName", "").split(" ", 1)
+                if len(name_parts) > 0 and not user.first_name:
+                    user.first_name = name_parts[0]
+                if len(name_parts) > 1 and not user.last_name:
+                    user.last_name = name_parts[1]
+
+        else:
+            # Create new user
+            logger.info(f"Creating new user: {email}")
+
+            # Generate username from email if not provided
+            username = email.split("@")[0]
+
+            # Ensure username is unique
+            counter = 1
+            original_username = username
+            while User.query.filter_by(username=username).first():
+                username = f"{original_username}{counter}"
+                counter += 1
+
+            user = User(
+                username=username,
+                email=email,
+                firebase_uid=firebase_uid,
+                email_verified=user_data.get("emailVerified", False),
+                active=True,
+                is_admin=False
+            )
+
+            # Set display name if provided
+            if user_data.get("displayName"):
+                name_parts = user_data.get("displayName", "").split(" ", 1)
+                if len(name_parts) > 0:
+                    user.first_name = name_parts[0]
+                if len(name_parts) > 1:
+                    user.last_name = name_parts[1]
+
+        # Apply extra data if provided (from registration form)
+        if extra_data:
+            for key, value in extra_data.items():
+                if hasattr(user, key) and value:
+                    setattr(user, key, value)
+
+        # Save to database
+        if not user.id:  # New user
+            db.session.add(user)
+
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        logger.info(f"User saved successfully: {user.username} (ID: {user.id})")
+        return user
+
+    except Exception as e:
+        logger.error(f"Error creating/updating user: {str(e)}")
+        if 'db' in locals():
+            db.session.rollback()
+        return None
+
 def get_current_user_context():
     """
     Get current user context (main user or subuser)
@@ -277,144 +387,48 @@ def get_effective_user_id():
     context = get_current_user_context()
     return context.get('parent_user_id')
 
-
-        user = User.query.filter_by(email=email).first()
-
-        if user:
-            # Update existing user
-            user.firebase_uid = firebase_uid
-            user.email_verified = user_data.get("emailVerified", False)
-
-            # Update additional fields if provided
-            if extra_data:
-                if 'firstName' in extra_data:
-                    user.first_name = extra_data.get('firstName')
-                if 'lastName' in extra_data:
-                    user.last_name = extra_data.get('lastName')
-                if 'phone' in extra_data:
-                    user.phone = extra_data.get('phone')
-                if 'shopName' in extra_data:
-                    user.shop_name = extra_data.get('shopName')
-                if 'productCategories' in extra_data:
-                    user.product_categories = extra_data.get('productCategories')
-
-            db.session.commit()
-            return user
-
-        # Create new user with username from email (default behavior)
-        username = email.split("@")[0] if email else "user"
-
-        # Create new user
-        new_user = User(
-            email=email,
-            username=username,
-            firebase_uid=firebase_uid,
-            email_verified=user_data.get("emailVerified", False)
-        )
-
-        # Set a placeholder password hash for Firebase users
-        from werkzeug.security import generate_password_hash
-        new_user.password_hash = generate_password_hash('firebase-auth-user')
-
-        # Add additional fields if provided
-        if extra_data:
-            new_user.first_name = extra_data.get('firstName')
-            new_user.last_name = extra_data.get('lastName')
-            new_user.phone = extra_data.get('phone')
-            new_user.shop_name = extra_data.get('shopName')
-            new_user.product_categories = extra_data.get('productCategories')
-
-        db.session.add(new_user)
-        db.session.commit()
-        return new_user
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating/updating user: {str(e)}")
-        return None
-
-
-# This function was moved above to avoid dimport os
-import logging
-import requests
-from datetime import datetime
-from functools import wraps
-from flask import session, redirect, url_for, request, jsonify
-
-logger = logging.getLogger(__name__)
-
-
-def login_required(f):
+def role_required(allowed_roles):
     """
-    Decorator for routes that require login (user or subuser)
+    Decorator for routes that require specific roles
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user_id" not in session:
+                return redirect(url_for("login", next=request.url))
+
+            from models import User
+            user = User.query.get(session["user_id"])
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            # For now, just check if user is admin
+            if not user.is_admin:
+                return jsonify({"error": "Unauthorized access"}), 403
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def admin_required(f):
+    """
+    Decorator for routes that require admin privileges
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if user or subuser is logged in
-        if "user_id" not in session and "subuser_id" not in session:
+        if "user_id" not in session:
             return redirect(url_for("login", next=request.url))
+
+        from models import User
+        user = User.query.get(session["user_id"])
+        if not user:
+            return redirect(url_for("login"))
+
+        if not user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+
         return f(*args, **kwargs)
     return decorated_function
-
-
-def subuser_required(f):
-    """
-    Decorator for routes that require subuser login
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "subuser_id" not in session:
-            return jsonify({"error": "Subuser authentication required"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def main_user_required(f):
-    """
-    Decorator for routes that require main user login (not subuser)
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user_id" not in session or session.get("is_subuser"):
-            return jsonify({"error": "Main user authentication required"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def verify_firebase_token(id_token):
-    """
-    Verify Firebase ID token and return user data
-    """
-    try:
-        # Use Firebase REST API to verify token
-        api_key = os.environ.get("FIREBASE_API_KEY")
-        if not api_key:
-            logger.error("Firebase API key not found")
-            return None
-
-        url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        data = {"idToken": id_token}
-
-        response = requests.post(url, json=data, headers=headers)
-
-        if response.status_code == 200:
-            result = response.json()
-            if "users" in result and len(result["users"]) > 0:
-                user_data = result["users"][0]
-                logger.info(f"Firebase token verified for user: {user_data.get('email')}")
-                return user_data
-            else:
-                logger.warning("No user data in Firebase response")
-                return None
-        else:
-            logger.error(f"Firebase token verification failed: {response.status_code} - {response.text}")
-            return None
-
-    except Exception as e:
-        logger.error(f"Error verifying Firebase token: {str(e)}")
-        return None
-
 
 def create_or_update_user(user_data, extra_data=None):
     """
@@ -422,7 +436,10 @@ def create_or_update_user(user_data, extra_data=None):
     """
     try:
         from models import User
-        from app import db
+        from flask import current_app
+        
+        # Get db from current app context
+        db = current_app.extensions['sqlalchemy']
 
         email = user_data.get("email")
         firebase_uid = user_data.get("localId")
@@ -509,7 +526,10 @@ def update_user_profile(user, profile_data):
     Update user profile with new data
     """
     try:
-        from app import db
+        from flask import current_app
+        
+        # Get db from current app context
+        db = current_app.extensions['sqlalchemy']
 
         # Update allowed fields
         allowed_fields = [

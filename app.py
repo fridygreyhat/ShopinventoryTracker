@@ -889,7 +889,7 @@ def export_csv():
         mimetype='text/csv',
         as_attachment=True,
         download_name=
-        f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
+        f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv").csv')
 
 
 # On-Demand Products API endpoints
@@ -2207,7 +2207,7 @@ def get_subcategories(category_id):
 
 @app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
 @login_required
-def create_subcategory(category_id):
+def create_subcategory():
     """API endpoint to create a new subcategory"""
     try:
         category = Category.query.get_or_404(category_id)
@@ -2695,8 +2695,7 @@ def get_profit_margin_analysis():
 
 
 @app.route('/api/reports/inventory-turnover', methods=['GET'])
-@login_required
-def get_inventory_turnover():
+@login_requireddef get_inventory_turnover():
     """API endpoint to calculate inventory turnover ratios"""
     try:
         from models import Item, Sale, SaleItem
@@ -2975,7 +2974,7 @@ def debug_database():
 
         # Calculate inventory value
         total_value = db.session.query(
-            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
+            db.func.sum(db.func.coalesce(Item.quantity * Item.selling_price_retail, Item.price, 0))
         ).scalar() or 0
 
         return jsonify({
@@ -3176,17 +3175,4 @@ def subuser_change_password():
         logger.error(f"Error changing subuser password: {str(e)}")
         return jsonify({'error': 'Failed to change password'}), 500
 
-@app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
-@login_required
-def get_subcategories(category_id):
-    """API endpoint to get subcategories for a category"""
-    try:
-        category = Category.query.get_or_404(category_id)
-        subcategories = Subcategory.query.filter_by(
-            category_id=category_id,
-            is_active=True).order_by(Subcategory.name).all()
-        return jsonify(
-            [subcategory.to_dict() for subcategory in subcategories])
-    except Exception as e:
-        logger.error(f"Error getting subcategories: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+# This change removes a duplicate route definition for getting subcategories for a category.
