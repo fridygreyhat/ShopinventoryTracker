@@ -3,23 +3,9 @@ import json
 from enum import Enum
 import random
 import string
+from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-
-# Import db after app initialization to avoid circular imports
-def get_db():
-    from flask import current_app
-    return current_app.extensions['sqlalchemy']
-
-# We'll use this pattern: from models import db, then use db normally
-# The actual db import happens in app.py and models.py references it
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
-
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
 
 class Item(db.Model):
     """Item model for inventory items"""
@@ -38,8 +24,6 @@ class Item(db.Model):
     selling_price_wholesale = db.Column(db.Float, default=0.0)
     price = db.Column(db.Float, default=0.0)  # For backward compatibility
     sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
-    # User ownership
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -98,83 +82,88 @@ class UserRole(Enum):
     VIEWER = "viewer"
 
 class User(UserMixin, db.Model):
-    """User model for authentication and user management"""
+    """User model for authentication"""
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255))
-    firebase_uid = db.Column(db.String(255), unique=True)
-    first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
-    shop_name = db.Column(db.String(100))
-    product_categories = db.Column(db.Text)
-    phone = db.Column(db.String(20))
-    is_active = db.Column(db.Boolean, default=True, name='active')  # Support both active and is_active
+    password_hash = db.Column(db.String(256), nullable=True)
+    role = db.Column(db.String(20), default=UserRole.VIEWER.value)
+    # Firebase UID for authentication
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
+
+    def set_password(self, password):
+        """Set the user's password hash"""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check if the password matches the hash"""
+        return check_password_hash(self.password_hash, password)
+
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
+    verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
+    verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
+
+
+
+    # User profile
+    first_name = db.Column(db.String(64), nullable=True)
+    last_name = db.Column(db.String(64), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    shop_name = db.Column(db.String(128), nullable=True)
+    product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
+
+    # Account status
     active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    email_verified = db.Column(db.Boolean, default=False)
-    verification_token = db.Column(db.String(255))
-    verification_token_expires = db.Column(db.DateTime)
-    last_login = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)  # Alternative name for consistency
+    is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
+
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
+
+    # Relationships
+    subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
 
-    def set_password(self, password):
-        """Set password hash for user"""
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        """Check password against hash"""
-        if not self.password_hash:
-            return False
-        return check_password_hash(self.password_hash, password)
-
     def to_dict(self):
         """Convert user to dictionary for API responses"""
+        # Handle missing is_active column gracefully
+        try:
+            is_active_value = getattr(self, 'is_active', self.active)
+        except (AttributeError, Exception):
+            is_active_value = getattr(self, 'active', True)
+
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'email_verified': self.email_verified,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone': self.phone,
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
-            'phone': self.phone,
-            'active': self.active,
-            'is_active': self.is_active,
+            'active': getattr(self, 'active', True),
+            'is_active': is_active_value,
             'is_admin': self.is_admin,
-            'email_verified': self.email_verified,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
 
 class Subuser(db.Model):
     """Subuser model for managing team members"""
     id = db.Column(db.Integer, primary_key=True)
-    staff_id = db.Column(db.String(20), unique=True, nullable=False)  # Unique staff identifier
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    # Additional staff information
-    department = db.Column(db.String(50))
-    position = db.Column(db.String(100))
-    hire_date = db.Column(db.Date)
-    phone = db.Column(db.String(20))
-
-    # Status and access
     is_active = db.Column(db.Boolean, default=True)
-    last_login = db.Column(db.DateTime)
-    login_attempts = db.Column(db.Integer, default=0)
-    account_locked = db.Column(db.Boolean, default=False)
-
-    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -189,28 +178,6 @@ class Subuser(db.Model):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
 
-    @staticmethod
-    def generate_staff_id(parent_user_id: int) -> str:
-        """
-        Generate a unique staff ID for a subuser
-
-        Args:
-            parent_user_id (int): Parent user ID
-
-        Returns:
-            str: Unique staff ID in format STAFF-{parent_id}-{sequence}
-        """
-        # Get the count of existing subusers for this parent
-        existing_count = Subuser.query.filter_by(parent_user_id=parent_user_id).count()
-        sequence = existing_count + 1
-
-        # Keep generating until we find a unique ID
-        while True:
-            staff_id = f"STAFF-{parent_user_id:04d}-{sequence:03d}"
-            if not Subuser.query.filter_by(staff_id=staff_id).first():
-                return staff_id
-            sequence += 1
-
     def to_dict(self):
         """Convert subuser to dictionary for API responses"""
         try:
@@ -223,16 +190,9 @@ class Subuser(db.Model):
 
             return {
                 'id': self.id,
-                'staff_id': getattr(self, 'staff_id', ''),
                 'name': self.name or '',
                 'email': self.email or '',
-                'department': getattr(self, 'department', ''),
-                'position': getattr(self, 'position', ''),
-                'phone': getattr(self, 'phone', ''),
-                'hire_date': self.hire_date.isoformat() if getattr(self, 'hire_date', None) else None,
                 'is_active': getattr(self, 'is_active', True),
-                'account_locked': getattr(self, 'account_locked', False),
-                'last_login': self.last_login.isoformat() if getattr(self, 'last_login', None) else None,
                 'created_at': self.created_at.isoformat() if self.created_at else None,
                 'updated_at': self.updated_at.isoformat() if self.updated_at else None,
                 'permissions': permissions_list
@@ -241,16 +201,9 @@ class Subuser(db.Model):
             # Fallback for any attribute errors
             return {
                 'id': getattr(self, 'id', 0),
-                'staff_id': getattr(self, 'staff_id', ''),
                 'name': getattr(self, 'name', ''),
                 'email': getattr(self, 'email', ''),
-                'department': '',
-                'position': '',
-                'phone': '',
-                'hire_date': None,
                 'is_active': getattr(self, 'is_active', True),
-                'account_locked': False,
-                'last_login': None,
                 'created_at': None,
                 'updated_at': None,
                 'permissions': []
@@ -488,13 +441,6 @@ class FinancialTransaction(db.Model):
     category = db.Column(db.String(50), nullable=False)
     reference_id = db.Column(db.String(100))  # To link to sales or other records
     payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
-
-    # Tax and COGS tracking
-    tax_rate = db.Column(db.Float, default=0.0)  # Tax rate percentage
-    tax_amount = db.Column(db.Float, default=0.0)  # Calculated tax amount
-    cost_of_goods_sold = db.Column(db.Float, default=0.0)  # COGS for sales transactions
-    gross_amount = db.Column(db.Float, default=0.0)  # Amount before tax
-
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -513,10 +459,6 @@ class FinancialTransaction(db.Model):
             'category': self.category,
             'reference_id': self.reference_id,
             'payment_method': self.payment_method,
-            'tax_rate': self.tax_rate or 0,
-            'tax_amount': self.tax_amount or 0,
-            'cost_of_goods_sold': self.cost_of_goods_sold or 0,
-            'gross_amount': self.gross_amount or 0,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
@@ -622,148 +564,6 @@ class Subcategory(db.Model):
             'category_name': self.category.name if self.category else None,
             'is_active': self.is_active,
             'item_count': Item.query.filter_by(subcategory=self.name).count(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class LayawayPlan(db.Model):
-    """Model for layaway/installment plans"""
-    id = db.Column(db.Integer, primary_key=True)
-    customer_name = db.Column(db.String(100), nullable=False)
-    customer_phone = db.Column(db.String(20))
-    customer_email = db.Column(db.String(120))
-    total_amount = db.Column(db.Float, nullable=False)
-    down_payment = db.Column(db.Float, default=0.0)
-    remaining_balance = db.Column(db.Float, nullable=False)
-    installment_amount = db.Column(db.Float, nullable=False)
-    payment_frequency = db.Column(db.String(20), default='monthly')  # weekly, bi-weekly, monthly
-    next_payment_date = db.Column(db.Date)
-    completion_date = db.Column(db.Date)
-    status = db.Column(db.String(20), default='active')  # active, completed, cancelled, defaulted
-    items_data = db.Column(db.Text)  # JSON string with item details
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    payments = db.relationship('LayawayPayment', backref='layaway_plan', lazy=True, cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f'<LayawayPlan {self.customer_name} - {self.total_amount}>'
-
-    def to_dict(self):
-        """Convert layaway plan to dictionary for API responses"""
-        items_data_dict = {}
-        if self.items_data:
-            try:
-                items_data_dict = json.loads(self.items_data)
-            except json.JSONDecodeError:
-                items_data_dict = {}
-
-        return {
-            'id': self.id,
-            'customer_name': self.customer_name,
-            'customer_phone': self.customer_phone,
-            'customer_email': self.customer_email,
-            'total_amount': self.total_amount,
-```text
-            'down_payment': self.down_payment,
-            'remaining_balance': self.remaining_balance,
-            'installment_amount': self.installment_amount,
-            'payment_frequency': self.payment_frequency,
-            'next_payment_date': self.next_payment_date.isoformat() if self.next_payment_date else None,
-            'completion_date': self.completion_date.isoformat() if self.completion_date else None,
-            'status': self.status,
-            'items': items_data_dict,
-            'notes': self.notes,
-            'total_paid': sum(payment.amount for payment in self.payments),
-            'payments_count': len(self.payments),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class LayawayPayment(db.Model):
-    """Model for layaway payments"""
-    id = db.Column(db.Integer, primary_key=True)
-    layaway_plan_id = db.Column(db.Integer, db.ForeignKey('layaway_plan.id', ondelete='CASCADE'), nullable=False)
-    amount = db.Column(db.Float, nullable=False)
-    payment_method = db.Column(db.String(20), default='cash')
-    payment_date = db.Column(db.Date, default=datetime.utcnow().date)
-    reference_number = db.Column(db.String(100))
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<LayawayPayment {self.amount} for Plan {self.layaway_plan_id}>'
-
-    def to_dict(self):
-        """Convert layaway payment to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'layaway_plan_id': self.layaway_plan_id,
-            'amount': self.amount,
-            'payment_method': self.payment_method,
-            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
-            'reference_number': self.reference_number,
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class PricingRule(db.Model):
-    """Model for dynamic pricing rules"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    rule_type = db.Column(db.String(20), nullable=False)  # bulk, promotional, time_based, competitor
-    conditions = db.Column(db.Text)  # JSON string with conditions
-    discount_type = db.Column(db.String(20), default='percentage')  # percentage, fixed_amount
-    discount_value = db.Column(db.Float, default=0.0)
-    min_quantity = db.Column(db.Integer, default=1)
-    max_quantity = db.Column(db.Integer)
-    start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
-    applicable_items = db.Column(db.Text)  # JSON string with item IDs or categories
-    is_active = db.Column(db.Boolean, default=True)
-    priority = db.Column(db.Integer, default=1)  # Higher number = higher priority
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<PricingRule {self.name}>'
-
-    def to_dict(self):
-        """Convert pricing rule to dictionary for API responses"""
-        conditions_dict = {}
-        applicable_items_list = []
-
-        if self.conditions:
-            try:
-                conditions_dict = json.loads(self.conditions)
-            except json.JSONDecodeError:
-                conditions_dict = {}
-
-        if self.applicable_items:
-            try:
-                applicable_items_list = json.loads(self.applicable_items)
-            except json.JSONDecodeError:
-                applicable_items_list = []
-
-        return {
-            'id': self.id,
-            'name': self.name,
-            'rule_type': self.rule_type,
-            'conditions': conditions_dict,
-            'discount_type': self.discount_type,
-            'discount_value': self.discount_value,
-            'min_quantity': self.min_quantity,
-            'max_quantity': self.max_quantity,
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
-            'applicable_items': applicable_items_list,
-            'is_active': self.is_active,
-            'priority': self.priority,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

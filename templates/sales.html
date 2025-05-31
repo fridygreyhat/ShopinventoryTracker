@@ -185,7 +185,6 @@
                             <option value="mobile_money">Mobile Money</option>
                             <option value="card">Debit/Credit Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
-                            <option value="installment">Installment Plan</option>
                         </select>
                     </div>
                     <div id="mobileMoneyFields" class="d-none">
@@ -203,59 +202,11 @@
                             <input type="text" class="form-control" id="transactionReference">
                         </div>
                     </div>
-                    <div id="installmentFields" class="d-none">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="installmentDownPayment" class="form-label">Down Payment</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">TZS</span>
-                                    <input type="number" class="form-control" id="installmentDownPayment" step="0.01" min="0">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="installmentFrequency" class="form-label">Payment Frequency</label>
-                                <select class="form-select" id="installmentFrequency">
-                                    <option value="weekly">Weekly</option>
-                                    <option value="bi-weekly">Bi-weekly</option>
-                                    <option value="monthly" selected>Monthly</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="installmentAmount" class="form-label">Installment Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">TZS</span>
-                                    <input type="number" class="form-control" id="installmentAmount" step="0.01" min="0">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="installmentNextPayment" class="form-label">Next Payment Date</label>
-                                <input type="date" class="form-control" id="installmentNextPayment">
-                            </div>
-                        </div>
-                        <div class="alert alert-info">
-                            <h6>Installment Summary</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <small><strong>Total Amount:</strong> <span id="installmentTotalAmount">TZS 0</span></small><br>
-                                    <small><strong>Down Payment:</strong> <span id="installmentDownPaymentDisplay">TZS 0</span></small>
-                                </div>
-                                <div class="col-md-6">
-                                    <small><strong>Remaining Balance:</strong> <span id="installmentRemainingBalance">TZS 0</span></small><br>
-                                    <small><strong>Estimated Payments:</strong> <span id="installmentEstimatedPayments">0</span></small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <div class="mb-3">
                         <label for="paymentAmount" class="form-label">Payment Amount</label>
                         <div class="input-group">
-                            <span class="input-group-text currency-symbol">TZS</span>
-                            <input type="number" class="form-control" id="paymentAmount" step="0.01" min="0" placeholder="0.00">
-                            <button type="button" class="btn btn-outline-secondary" id="splitPaymentBtn">
-                                <i class="fas fa-divide me-1"></i> Split Payment
-                            </button>
+                            <span class="input-group-text">TZS</span>
+                            <input type="number" class="form-control" id="paymentAmount" min="0">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -266,18 +217,9 @@
                         <button type="button" id="completeTransactionBtn" class="btn btn-success">
                             <i class="fas fa-check-circle me-1"></i> Complete Transaction
                         </button>
-                        <div class="row">
-                            <div class="col-6">
-                                <button type="button" id="createInvoiceBtn" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-file-invoice me-1"></i> Invoice
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button type="button" id="createLayawayBtn" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#layawayModal">
-                                    <i class="fas fa-calendar-alt me-1"></i> Layaway
-                                </button>
-                            </div>
-                        </div>
+                        <button type="button" id="createInvoiceBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-file-invoice me-1"></i> Create Invoice
+                        </button>
                     </div>
                 </form>
             </div>
@@ -309,141 +251,6 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" id="applyDiscountModalBtn" class="btn btn-primary" data-bs-dismiss="modal">Apply Discount</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Split Payment Modal -->
-<div class="modal fade" id="splitPaymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Split Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="splitPaymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="splitPaymentMethod">
-                            <option value="cash">Cash</option>
-                            <option value="mobile_money">Mobile Money</option>
-                            <option value="card">Debit/Credit Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="splitPaymentAmount" class="form-label">Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="splitPaymentAmount" step="0.01" min="0">
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <label for="splitPaymentReference" class="form-label">Reference (Optional)</label>
-                        <input type="text" class="form-control" id="splitPaymentReference" placeholder="Transaction reference">
-                    </div>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <button type="button" class="btn btn-primary" onclick="addSplitPayment()">Add Payment</button>
-                    <div>
-                        <strong>Remaining: <span id="remainingAmount">TZS 0</span></strong>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">Payment Breakdown</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="splitPaymentsList">
-                            <p class="text-muted">No payments added yet</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="completeSplitPayment" class="btn btn-success" onclick="completeSplitPayment()" disabled>Complete Split Payment</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Layaway Modal -->
-<div class="modal fade" id="layawayModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create Layaway Plan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayCustomerName" class="form-label">Customer Name *</label>
-                        <input type="text" class="form-control" id="layawayCustomerName" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="layawayCustomerPhone" class="form-label">Customer Phone *</label>
-                        <input type="tel" class="form-control" id="layawayCustomerPhone" required>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayDownPayment" class="form-label">Down Payment</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="layawayDownPayment" step="0.01" min="0">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="layawayFrequency" class="form-label">Payment Frequency</label>
-                        <select class="form-select" id="layawayFrequency">
-                            <option value="weekly">Weekly</option>
-                            <option value="bi-weekly">Bi-weekly</option>
-                            <option value="monthly" selected>Monthly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayInstallmentAmount" class="form-label">Installment Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="layawayInstallmentAmount" step="0.01" min="0">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="layawayNextPayment" class="form-label">Next Payment Date</label>
-                        <input type="date" class="form-control" id="layawayNextPayment">
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="layawayNotes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="layawayNotes" rows="3"></textarea>
-                </div>
-                
-                <div class="alert alert-info">
-                    <h6>Layaway Summary</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <small><strong>Total Amount:</strong> <span id="layawayTotalAmount">TZS 0</span></small><br>
-                            <small><strong>Down Payment:</strong> <span id="layawayDownPaymentDisplay">TZS 0</span></small>
-                        </div>
-                        <div class="col-md-6">
-                            <small><strong>Remaining Balance:</strong> <span id="layawayRemainingBalance">TZS 0</span></small><br>
-                            <small><strong>Estimated Payments:</strong> <span id="layawayEstimatedPayments">0</span></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="createLayawayBtn" class="btn btn-success" onclick="createLayaway()">Create Layaway Plan</button>
             </div>
         </div>
     </div>

@@ -927,14 +927,14 @@ footer {
 .summary-card {
     border-radius: 16px;
     border: none;
-    background: #0066FF !important; /* Pure blue background */
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     transition: all 0.3s ease;
-    color: white !important;
-    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+    color: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .summary-card .card-title {
-    color: white !important;
+    color: rgba(255, 255, 255, 0.8);
     font-size: 0.9rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -944,7 +944,6 @@ footer {
 .summary-card .display-4 {
     font-size: 2.2rem;
     font-weight: 600;
-    color: white !important;
 }
 
 .card {
@@ -963,30 +962,20 @@ footer {
     padding: 1rem;
 }
 
-/* Ensure all summary card content is white */
-.summary-card .card-body,
-.summary-card .card-body *,
-.summary-card h5,
-.summary-card p,
-.summary-card .display-4 {
-    color: white !important;
-}
-
 .summary-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 102, 255, 0.4);
-    background: #0052CC !important; /* Slightly darker blue on hover */
+    box-shadow: 0 10px 25px rgba(76, 80, 197, 0.12);
 }
 
 .summary-card .card-title {
-    color: white !important;
+    color: var(--text-secondary);
     font-size: 1rem;
     font-weight: 600;
     margin-bottom: 0.75rem;
 }
 
 .summary-card .display-4 {
-    color: white !important;
+    color: var(--primary-color);
     font-weight: 700;
     font-family: var(--heading-font);
     letter-spacing: -0.02em;
