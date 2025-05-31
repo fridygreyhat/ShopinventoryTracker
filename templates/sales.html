@@ -227,6 +227,11 @@
                                 </button>
                             </div>
                             <div class="col-4">
+                                <button type="button" id="createInstallmentBtn" class="btn btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#installmentModal">
+                                    <i class="fas fa-credit-card me-1"></i> Installment
+                                </button>
+                            </div>
+                            <div class="col-4">
                                 <button type="button" id="createLayawayBtn" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#layawayModal">
                                     <i class="fas fa-calendar-alt me-1"></i> Layaway
                                 </button>
@@ -307,7 +312,7 @@
                         <strong>Remaining: <span id="remainingAmount">TZS 0</span></strong>
                     </div>
                 </div>
-
+                
                 <div class="card">
                     <div class="card-header">
                         <h6 class="mb-0">Payment Breakdown</h6>
@@ -327,416 +332,136 @@
     </div>
 </div>
 
-<!-- Layaway Modal -->
-<div class="modal fade" id="layawayModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<!-- Installment Payment Modal -->
+<div class="modal fade" id="installmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Layaway Plan</h5>
+                <h5 class="modal-title">Create Installment Payment Plan</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayCustomerName" class="form-label">Customer Name *</label>
-                        <input type="text" class="form-control" id="layawayCustomerName" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="layawayCustomerPhone" class="form-label">Customer Phone *</label>
-                        <input type="tel" class="form-control" id="layawayCustomerPhone" required>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayDownPayment" class="form-label">Down Payment</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="layawayDownPayment" step="0.01" min="0">
+                <form id="installmentForm">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Customer Information</h6>
+                            <hr>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerName" class="form-label">Customer Name *</label>
+                            <input type="text" class="form-control" id="installmentCustomerName" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerPhone" class="form-label">Customer Phone *</label>
+                            <input type="tel" class="form-control" id="installmentCustomerPhone" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerEmail" class="form-label">Customer Email</label>
+                            <input type="email" class="form-control" id="installmentCustomerEmail">
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <label for="layawayFrequency" class="form-label">Payment Frequency</label>
-                        <select class="form-select" id="layawayFrequency">
-                            <option value="weekly">Weekly</option>
-                            <option value="bi-weekly">Bi-weekly</option>
-                            <option value="monthly" selected>Monthly</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="layawayInstallmentAmount" class="form-label">Installment Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="layawayInstallmentAmount" step="0.01" min="0">
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Payment Plan Details</h6>
+                            <hr>
                         </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="layawayNextPayment" class="form-label">Next Payment Date</label>
-                        <input type="date" class="form-control" id="layawayNextPayment">
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="layawayNotes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="layawayNotes" rows="3"></textarea>
-                </div>
-
-                <div class="alert alert-info">
-                    <h6>Layaway Summary</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <small><strong>Total Amount:</strong> <span id="layawayTotalAmount">TZS 0</span></small><br>
-                            <small><strong>Down Payment:</strong> <span id="layawayDownPaymentDisplay">TZS 0</span></small>
-                        </div>
-                        <div class="col-md-6">
-                            <small><strong>Remaining Balance:</strong> <span id="layawayRemainingBalance">TZS 0</span></small><br>
-                            <small><strong>Estimated Payments:</strong> <span id="layawayEstimatedPayments">0</span></small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="createLayawayBtn" class="btn btn-success" onclick="createLayaway()">Create Layaway Plan</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Barcode Scanner JS Library -->
-<script src="https://unpkg.com/@zxing/library@0.19.1"></script>
-{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/sales.js') }}"></script>
-{% endblock %}
-```
-
-```html
-{% extends 'layout.html' %}
-
-{% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="display-5">
-            <i class="fas fa-cash-register me-2"></i> Sales Management
-        </h1>
-        <p class="lead">Process sales, scan barcodes, and manage transactions</p>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Left side - Cart and Product Selection -->
-    <div class="col-lg-7">
-        <!-- Product Search & Barcode Scan -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Add Products</h5>
-                <button id="startScanBtn" class="btn btn-sm btn-outline-info">
-                    <i class="fas fa-barcode me-1"></i> Scan Barcode
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-9">
-                        <div class="input-group">
-                            <input type="text" id="productSearchInput" class="form-control" placeholder="Search by name or SKU">
-                            <button id="searchProductsBtn" class="btn btn-primary">
-                                <i class="fas fa-search"></i>
-                            </button>
-                            <button id="refreshProductsBtn" class="btn btn-outline-secondary">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="saleTypeSelector" class="form-label">Sale Type</label>
-                        <select id="saleTypeSelector" class="form-select">
-                            <option value="retail" selected>Retail</option>
-                            <option value="wholesale">Wholesale</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="unitTypeSelector" class="form-label">Unit Type</label>
-                        <select id="unitTypeSelector" class="form-select">
-                            <option value="quantity" selected>By Quantity (pcs)</option>
-                            <option value="weight">By Weight (kg)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Barcode Scanner -->
-                <div id="scannerContainer" class="d-none mb-3">
-                    <div id="scanner-container" class="mb-2" style="width: 100%; height: 300px; background-color: #111; position: relative;">
-                        <video id="video" width="100%" height="100%" style="object-fit: cover;"></video>
-                        <div id="scannerOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px solid rgba(0,123,255,0.5); box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3);"></div>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <button id="cancelScanBtn" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-times me-1"></i> Cancel
-                        </button>
-                        <div id="scanFeedback" class="text-muted fst-italic">Position barcode in the center</div>
-                    </div>
-                </div>
-
-                <!-- Product Results for Selection -->
-                <div id="productSearchResults" class="mt-3">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>SKU</th>
-                                    <th>Category</th>
-                                    <th>Price</th>
-                                    <th>In Stock</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="productResultsTable">
-                                <tr>
-                                    <td colspan="6" class="text-center">
-                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-                                        Loading products...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shopping Cart -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Shopping Cart</h5>
-                <span class="badge bg-primary" id="cartCount">0 items</span>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Product</th>
-                                <th>Price</th>
-                                <th width="160">Amount</th>
-                                <th>Total</th>
-                                <th width="40"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="cartTableBody">
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No items in cart</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card-footer">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <div class="d-flex gap-2">
-                            <button id="clearCartBtn" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash-alt me-1"></i> Clear
-                            </button>
-                            <button id="applyDiscountBtn" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#discountModal">
-                                <i class="fas fa-percent me-1"></i> Discount
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="text-md-end">
-                            <div class="d-flex justify-content-end align-items-center">
-                                <div class="me-3">
-                                    <div class="text-muted small">Subtotal:</div>
-                                    <div class="text-muted small">Discount:</div>
-                                    <div class="fw-bold">Total:</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="text-muted small">
-                                        <span class="currency-symbol">TZS</span>
-                                        <span id="cartSubtotal">0</span>
-                                    </div>
-                                    <div class="text-muted small">
-                                        <span id="cartDiscountType">-</span>
-                                        <span id="cartDiscount">0</span>
-                                    </div>
-                                    <div class="fw-bold fs-5">
-                                        <span class="currency-symbol">TZS</span>
-                                        <span id="cartTotal">0</span>
-                                    </div>
-                                </div>
+                        <div class="col-md-3">
+                            <label for="installmentDownPayment" class="form-label">Down Payment</label>
+                            <div class="input-group">
+                                <span class="input-group-text">TZS</span>
+                                <input type="number" class="form-control" id="installmentDownPayment" step="0.01" min="0" value="0">
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Right side - Transaction Details and Checkout -->
-    <div class="col-lg-5">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Checkout</h5>
-            </div>
-            <div class="card-body">
-                <form id="checkoutForm">
-                    <div class="mb-3">
-                        <label for="customerName" class="form-label">Customer Name</label>
-                        <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer">
-                    </div>
-                    <div class="mb-3">
-                        <label for="customerPhone" class="form-label">Customer Phone</label>
-                        <input type="text" class="form-control" id="customerPhone" placeholder="Optional">
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="paymentMethod">
-                            <option value="cash" selected>Cash</option>
-                            <option value="mobile_money">Mobile Money</option>
-                            <option value="card">Debit/Credit Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
-                    </div>
-                    <div id="mobileMoneyFields" class="d-none">
-                        <div class="mb-3">
-                            <label for="mobileProvider" class="form-label">Mobile Provider</label>
-                            <select class="form-select" id="mobileProvider">
-                                <option value="mpesa">M-Pesa</option>
-                                <option value="tigopesa">Tigo Pesa</option>
-                                <option value="airtelmoney">Airtel Money</option>
-                                <option value="halopesa">Halo Pesa</option>
+                        <div class="col-md-3">
+                            <label for="installmentCount" class="form-label">Number of Installments</label>
+                            <input type="number" class="form-control" id="installmentCount" min="1" max="24" value="3">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="installmentFrequency" class="form-label">Payment Frequency</label>
+                            <select class="form-select" id="installmentFrequency">
+                                <option value="weekly">Weekly</option>
+                                <option value="bi-weekly">Bi-weekly</option>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="quarterly">Quarterly</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="transactionReference" class="form-label">Transaction Reference</label>
-                            <input type="text" class="form-control" id="transactionReference">
+                        <div class="col-md-3">
+                            <label for="interestRate" class="form-label">Interest Rate (%)</label>
+                            <input type="number" class="form-control" id="interestRate" step="0.1" min="0" max="50" value="0">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="paymentAmount" class="form-label">Payment Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text currency-symbol">TZS</span>
-                            <input type="number" class="form-control" id="paymentAmount" step="0.01" min="0" placeholder="0.00">
-                            <button type="button" class="btn btn-outline-secondary" id="splitPaymentBtn">
-                                <i class="fas fa-divide me-1"></i> Split Payment
-                            </button>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Agreement Terms</h6>
+                            <hr>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="saleNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="saleNotes" rows="2"></textarea>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="button" id="completeTransactionBtn" class="btn btn-success">
-                            <i class="fas fa-check-circle me-1"></i> Complete Transaction
-                        </button>
-                        <div class="row">
-                            <div class="col-6">
-                                <button type="button" id="createInvoiceBtn" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-file-invoice me-1"></i> Invoice
-                                </button>
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="agreeToTerms" required>
+                                        <label class="form-check-label" for="agreeToTerms">
+                                            <strong>I agree to the following terms and conditions:</strong>
+                                        </label>
+                                    </div>
+                                    <div class="mt-3">
+                                        <ul class="list-unstyled small">
+                                            <li>• Payment must be made on or before the due date</li>
+                                            <li>• Late payments may incur additional charges</li>
+                                            <li>• Goods remain property of the seller until full payment</li>
+                                            <li>• Default on payments may result in repossession</li>
+                                            <li>• Early payment is allowed without penalty</li>
+                                            <li>• Payment schedule can be modified with mutual agreement</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <button type="button" id="createLayawayBtn" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#layawayModal">
-                                    <i class="fas fa-calendar-alt me-1"></i> Layaway
-                                </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="installmentNotes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="installmentNotes" rows="3" placeholder="Special instructions, payment reminders, etc."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6>Installment Plan Summary</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <small><strong>Total Purchase Amount:</strong> <span id="installmentTotalAmount" class="text-success">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Down Payment:</strong> <span id="installmentDownPaymentDisplay" class="text-info">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Remaining Balance:</strong> <span id="installmentRemainingBalance" class="text-warning">TZS 0</span></small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <small><strong>Total with Interest:</strong> <span id="totalWithInterest" class="text-danger">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Installment Amount:</strong> <span id="installmentAmountDisplay" class="fw-bold text-primary">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Payment Frequency:</strong> <span id="frequencyDisplay" class="text-muted">Monthly</span></small>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Discount Modal -->
-<div class="modal fade" id="discountModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Apply Discount</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="discountType" class="form-label">Discount Type</label>
-                    <select class="form-select" id="discountType">
-                        <option value="percentage">Percentage (%)</option>
-                        <option value="fixed">Fixed Amount (TZS)</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="discountValue" class="form-label">Discount Value</label>
-                    <input type="number" class="form-control" id="discountValue" min="0" step="0.01">
-                </div>
-            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="applyDiscountModalBtn" class="btn btn-primary" data-bs-dismiss="modal">Apply Discount</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Split Payment Modal -->
-<div class="modal fade" id="splitPaymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Split Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="splitPaymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="splitPaymentMethod">
-                            <option value="cash">Cash</option>
-                            <option value="mobile_money">Mobile Money</option>
-                            <option value="card">Debit/Credit Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="splitPaymentAmount" class="form-label">Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="splitPaymentAmount" step="0.01" min="0">
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <label for="splitPaymentReference" class="form-label">Reference (Optional)</label>
-                        <input type="text" class="form-control" id="splitPaymentReference" placeholder="Transaction reference">
-                    </div>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <button type="button" class="btn btn-primary" onclick="addSplitPayment()">Add Payment</button>
-                    <div>
-                        <strong>Remaining: <span id="remainingAmount">TZS 0</span></strong>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">Payment Breakdown</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="splitPaymentsList">
-                            <p class="text-muted">No payments added yet</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="completeSplitPayment" class="btn btn-success" onclick="completeSplitPayment()" disabled>Complete Split Payment</button>
+                <button type="button" class="btn btn-success" onclick="createInstallmentPlan()">
+                    <i class="fas fa-check-circle me-1"></i> Create Installment Plan
+                </button>
             </div>
         </div>
     </div>
@@ -795,7 +520,7 @@
                     <label for="layawayNotes" class="form-label">Notes</label>
                     <textarea class="form-control" id="layawayNotes" rows="3"></textarea>
                 </div>
-
+                
                 <div class="alert alert-info">
                     <h6>Layaway Summary</h6>
                     <div class="row">
