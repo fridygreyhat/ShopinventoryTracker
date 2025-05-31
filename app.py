@@ -173,7 +173,7 @@ with app.app_context():
                               'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'category_id', 'INTEGER')
             add_column_safely('item', 'user_id', 'INTEGER')
-
+            
             # Set user_id for existing items (assign to first admin user if exists)
             try:
                 first_admin = User.query.filter_by(is_admin=True).first()
@@ -199,38 +199,6 @@ with app.app_context():
             add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
             add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
             add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
-
-        # Check if subuser table exists and add missing columns
-        result = db.session.execute(
-            db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='subuser';"
-            ))
-        if result.fetchone():
-            # Add missing subuser columns
-            add_column_safely('subuser', 'staff_id', 'VARCHAR(20)')
-            add_column_safely('subuser', 'department', 'VARCHAR(50)')
-            add_column_safely('subuser', 'position', 'VARCHAR(100)')
-            add_column_safely('subuser', 'hire_date', 'DATE')
-            add_column_safely('subuser', 'phone', 'VARCHAR(20)')
-            add_column_safely('subuser', 'last_login', 'DATETIME')
-            add_column_safely('subuser', 'login_attempts', 'INTEGER DEFAULT 0', '0')
-            add_column_safely('subuser', 'account_locked', 'BOOLEAN DEFAULT 0', '0')
-
-            # Generate staff_ids for existing subusers
-            try:
-                subusers_without_staff_id = Subuser.query.filter(
-                    (Subuser.staff_id == None) | (Subuser.staff_id == '')
-                ).all()
-
-                for subuser in subusers_without_staff_id:
-                    if not subuser.staff_id:
-                        subuser.staff_id = Subuser.generate_staff_id(subuser.parent_user_id)
-
-                db.session.commit()
-                logger.info(f"Generated staff IDs for {len(subusers_without_staff_id)} existing subusers")
-            except Exception as e:
-                logger.error(f"Error generating staff IDs for existing subusers: {str(e)}")
-                db.session.rollback()
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -320,12 +288,12 @@ def get_inventory():
 
     try:
         logger.info("Getting inventory items...")
-
+        
         # Get current user ID from session
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Start query filtered by user
         query = Item.query.filter(Item.user_id == user_id)
 
@@ -364,12 +332,12 @@ def get_inventory():
         # Execute query and convert to dictionary
         items = query.all()
         logger.info(f"Found {len(items)} items for user {user_id}")
-
+        
         items_dict = [item.to_dict() for item in items]
         logger.info(f"Returning {len(items_dict)} items as JSON")
-
+        
         return jsonify(items_dict)
-
+        
     except Exception as e:
         logger.error(f"Error getting inventory items: {str(e)}")
         return jsonify({"error": "Failed to get inventory items"}), 500
@@ -889,7 +857,7 @@ def export_csv():
         mimetype='text/csv',
         as_attachment=True,
         download_name=
-        f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv").csv')
+        f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
 
 
 # On-Demand Products API endpoints
@@ -1644,11 +1612,11 @@ def create_sale():
         customer_data = data.get('customer', {})
         payment_data = data.get('payment', {})
         discount_data = data.get('discount', {})
-
+        
         # Handle split payments
         split_payments = payment_data.get('split_payments', [])
         payment_method = payment_data.get('method', 'cash')
-
+        
         # If split payments exist, use 'split' as payment method and store details
         if split_payments and len(split_payments) > 0:
             payment_method = 'split'
@@ -1687,7 +1655,7 @@ def create_sale():
                 # Get item from database if it exists
                 item_id = item_data.get('id')
                 item = Item.query.filter_by(id=item_id).first() if item_id else None
-
+                
                 if not item:
                     logger.warning(f"Item with ID {item_id} not found in database")
                     continue
@@ -1702,7 +1670,7 @@ def create_sale():
                 if item.quantity < quantity_sold:
                     logger.warning(f"Insufficient stock for item {item.name}. Available: {item.quantity}, Requested: {quantity_sold}")
                     # Continue anyway but log the issue
-
+                
                 # Create sale item record
                 sale_item = SaleItem(
                     sale_id=new_sale.id,
@@ -1718,7 +1686,7 @@ def create_sale():
                 # Update inventory quantity
                 item.quantity = max(0, item.quantity - quantity_sold)
                 logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
-
+                
                 items_processed += 1
 
             except Exception as item_error:
@@ -1760,7 +1728,7 @@ def create_sale():
             'invoice_number': invoice_number,
             'items_processed': items_processed
         }
-
+        
         logger.info(f"Returning success response: {response_data}")
         return jsonify(response_data)
 
@@ -1849,13 +1817,13 @@ def get_subusers():
         if not user_id:
             logger.error("No user_id in session")
             return jsonify({'error': 'Authentication required'}), 401
-
+        
         logger.info(f"Loading subusers for user_id: {user_id}")
         subusers = Subuser.query.filter_by(parent_user_id=user_id).all()
-
+        
         result = [subuser.to_dict() for subuser in subusers]
         logger.info(f"Found {len(result)} subusers for user {user_id}")
-
+        
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error getting subusers: {str(e)}")
@@ -1883,27 +1851,17 @@ def create_subuser():
         if existing_user or existing_subuser:
             return jsonify({'error': 'Email already exists'}), 400
 
-        # Generate unique staff ID
-        staff_id = Subuser.generate_staff_id(session['user_id'])
-
         # Create new subuser
-        subuser = Subuser(
-            name=data['name'],
-            email=data['email'],
-            staff_id=staff_id,
-            parent_user_id=session['user_id'],
-            department=data.get('department', ''),
-            position=data.get('position', ''),
-            phone=data.get('phone', ''),
-            hire_date=datetime.strptime(data['hire_date'], '%Y-%m-%d').date() if data.get('hire_date') else None,
-            is_active=data.get('is_active', True)
-        )
+        subuser = Subuser(name=data['name'],
+                          email=data['email'],
+                          parent_user_id=session['user_id'],
+                          is_active=data.get('is_active', True))
         subuser.set_password(data['password'])
 
         db.session.add(subuser)
         db.session.flush()  # Get the subuser ID
 
-        logger.info(f"Created subuser with ID: {subuser.id} and Staff ID: {staff_id}")
+        logger.info(f"Created subuser with ID: {subuser.id}")
 
         # Add permissions
         permissions = data.get('permissions', [])
@@ -1957,19 +1915,6 @@ def update_subuser(subuser_id):
             subuser.set_password(data['password'])
         if 'is_active' in data:
             subuser.is_active = data['is_active']
-        if 'department' in data:
-            subuser.department = data['department']
-        if 'position' in data:
-            subuser.position = data['position']
-        if 'phone' in data:
-            subuser.phone = data['phone']
-        if 'hire_date' in data and data['hire_date']:
-            try:
-                subuser.hire_date = datetime.strptime(data['hire_date'], '%Y-%m-%d').date()
-            except ValueError:
-                pass  # Skip invalid date formats
-        if 'account_locked' in data:
-            subuser.account_locked = data['account_locked']
 
         # Update permissions
         if 'permissions' in data:
@@ -2207,7 +2152,7 @@ def get_subcategories(category_id):
 
 @app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
 @login_required
-def create_subcategory():
+def create_subcategory(category_id):
     """API endpoint to create a new subcategory"""
     try:
         category = Category.query.get_or_404(category_id)
@@ -2492,31 +2437,30 @@ def forecast_item_demand(item_id):
     try:
         from predictive_analytics import PredictiveStockManager
         from models import Item, Sale, SaleItem
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Verify item belongs to user
         item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
         if not item:
             return jsonify({"error": "Item not found"}), 404
-
+        
         # Get forecast parameters
         forecast_days = request.args.get('days', 30, type=int)
-
+        
         # Initialize predictive manager
         predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
-
+        
         # Get demand forecast
         forecast = predictor.forecast_demand(item_id, forecast_days)
-
+        
         return jsonify(forecast)
-
+        
     except Exception as e:
         logger.error(f"Error forecasting demand for item {item_id}: {str(e)}")
         return jsonify({"error": "Failed to forecast demand"}), 500
-
 
 @app.route('/api/analytics/reorder-points/<int:item_id>', methods=['GET'])
 @login_required
@@ -2525,32 +2469,31 @@ def get_reorder_point(item_id):
     try:
         from predictive_analytics import PredictiveStockManager
         from models import Item, Sale, SaleItem
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Verify item belongs to user
         item = Item.query.filter(Item.id == item_id, Item.user_id == user_id).first()
         if not item:
             return jsonify({"error": "Item not found"}), 404
-
+        
         # Get parameters
         lead_time_days = request.args.get('lead_time', 7, type=int)
         service_level = request.args.get('service_level', 0.95, type=float)
-
+        
         # Initialize predictive manager
         predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
-
+        
         # Calculate reorder point
         reorder_data = predictor.calculate_reorder_point(item_id, lead_time_days, service_level)
-
+        
         return jsonify(reorder_data)
-
+        
     except Exception as e:
         logger.error(f"Error calculating reorder point for item {item_id}: {str(e)}")
         return jsonify({"error": "Failed to calculate reorder point"}), 500
-
 
 @app.route('/api/analytics/purchase-recommendations', methods=['GET'])
 @login_required
@@ -2559,27 +2502,26 @@ def get_purchase_recommendations():
     try:
         from predictive_analytics import PredictiveStockManager
         from models import Item, Sale, SaleItem
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Initialize predictive manager
         predictor = PredictiveStockManager(db, Item, Sale, SaleItem)
-
+        
         # Get purchase recommendations
         recommendations = predictor.get_purchase_recommendations(user_id)
-
+        
         return jsonify({
             'success': True,
             'recommendations': recommendations,
             'total_recommendations': len(recommendations)
         })
-
+        
     except Exception as e:
         logger.error(f"Error getting purchase recommendations: {str(e)}")
         return jsonify({"error": "Failed to get purchase recommendations"}), 500
-
 
 @app.route('/api/analytics/abc-analysis', methods=['GET'])
 @login_required
@@ -2588,20 +2530,19 @@ def get_abc_analysis():
     try:
         from predictive_analytics import analyze_abc_classification
         from models import Item, Sale, SaleItem
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Perform ABC analysis
         abc_data = analyze_abc_classification(db, Item, Sale, SaleItem, user_id)
-
+        
         return jsonify(abc_data)
-
+        
     except Exception as e:
         logger.error(f"Error performing ABC analysis: {str(e)}")
         return jsonify({"error": "Failed to perform ABC analysis"}), 500
-
 
 @app.route('/api/reports/profit-margin', methods=['GET'])
 @login_required
@@ -2610,11 +2551,11 @@ def get_profit_margin_analysis():
     try:
         from models import Item, Sale, SaleItem
         from sqlalchemy import func
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Get profit margin data
         margin_data = db.session.query(
             Item.id,
@@ -2630,18 +2571,18 @@ def get_profit_margin_analysis():
         ).filter(
             Item.user_id == user_id
         ).group_by(Item.id).all()
-
+        
         # Calculate margins
         margin_analysis = []
         for item in margin_data:
             if item.selling_price_retail and item.buying_price:
                 margin_amount = item.selling_price_retail - item.buying_price
                 margin_percentage = (margin_amount / item.selling_price_retail) * 100
-
+                
                 total_revenue = item.total_revenue or 0
                 total_cost = item.total_cost or 0
                 total_profit = total_revenue - total_cost
-
+                
                 margin_analysis.append({
                     'item_id': item.id,
                     'item_name': item.name,
@@ -2655,10 +2596,10 @@ def get_profit_margin_analysis():
                     'total_cost': round(total_cost, 2),
                     'total_profit': round(total_profit, 2)
                 })
-
+        
         # Sort by margin percentage
         margin_analysis.sort(key=lambda x: x['margin_percentage'], reverse=True)
-
+        
         # Category summary
         category_margins = {}
         for item in margin_analysis:
@@ -2670,45 +2611,45 @@ def get_profit_margin_analysis():
                     'total_profit': 0,
                     'item_count': 0
                 }
-
+            
             category_margins[category]['total_revenue'] += item['total_revenue']
             category_margins[category]['total_cost'] += item['total_cost']
             category_margins[category]['total_profit'] += item['total_profit']
             category_margins[category]['item_count'] += 1
-
+        
         # Calculate category margin percentages
         for category, data in category_margins.items():
             if data['total_revenue'] > 0:
                 data['margin_percentage'] = round((data['total_profit'] / data['total_revenue']) * 100, 2)
             else:
                 data['margin_percentage'] = 0
-
+        
         return jsonify({
             'success': True,
             'item_margins': margin_analysis,
             'category_margins': category_margins
         })
-
+        
     except Exception as e:
         logger.error(f"Error getting profit margin analysis: {str(e)}")
         return jsonify({"error": "Failed to get profit margin analysis"}), 500
 
-
 @app.route('/api/reports/inventory-turnover', methods=['GET'])
-@login_requireddef get_inventory_turnover():
+@login_required
+def get_inventory_turnover():
     """API endpoint to calculate inventory turnover ratios"""
     try:
         from models import Item, Sale, SaleItem
         from sqlalchemy import func
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         # Get period from query params (default to 365 days)
         days = request.args.get('days', 365, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-
+        
         # Calculate turnover for each item
         turnover_data = db.session.query(
             Item.id,
@@ -2726,19 +2667,19 @@ def get_profit_margin_analysis():
             Item.user_id == user_id,
             Sale.created_at >= cutoff_date
         ).group_by(Item.id).all()
-
+        
         turnover_analysis = []
         for item in turnover_data:
             units_sold = item.units_sold or 0
             current_inventory = item.quantity or 0
             avg_inventory = max(current_inventory, 1)  # Avoid division by zero
-
+            
             # Calculate turnover ratio
             turnover_ratio = units_sold / avg_inventory if avg_inventory > 0 else 0
-
+            
             # Calculate days of inventory
             days_of_inventory = days / turnover_ratio if turnover_ratio > 0 else float('inf')
-
+            
             # Classify turnover speed
             if turnover_ratio >= 12:
                 turnover_speed = 'Fast'
@@ -2748,7 +2689,7 @@ def get_profit_margin_analysis():
                 turnover_speed = 'Slow'
             else:
                 turnover_speed = 'Very Slow'
-
+            
             turnover_analysis.append({
                 'item_id': item.id,
                 'item_name': item.name,
@@ -2760,20 +2701,19 @@ def get_profit_margin_analysis():
                 'turnover_speed': turnover_speed,
                 'inventory_value': current_inventory * (item.buying_price or 0)
             })
-
+        
         # Sort by turnover ratio
         turnover_analysis.sort(key=lambda x: x['turnover_ratio'], reverse=True)
-
+        
         return jsonify({
             'success': True,
             'period_days': days,
             'turnover_analysis': turnover_analysis
         })
-
+        
     except Exception as e:
         logger.error(f"Error calculating inventory turnover: {str(e)}")
         return jsonify({"error": "Failed to calculate inventory turnover"}), 500
-
 
 # Automation Management API Routes
 @app.route('/api/automation/purchase-orders', methods=['POST'])
@@ -2782,20 +2722,19 @@ def generate_purchase_orders():
     """Generate automatic purchase orders"""
     try:
         from automation_manager import AutomationManager
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         automation = AutomationManager()
         result = automation.generate_auto_purchase_orders(user_id)
-
+        
         return jsonify(result)
-
+        
     except Exception as e:
         logger.error(f"Error generating purchase orders: {str(e)}")
         return jsonify({"error": "Failed to generate purchase orders"}), 500
-
 
 @app.route('/api/automation/price-updates', methods=['POST'])
 @login_required
@@ -2803,20 +2742,19 @@ def update_supplier_prices():
     """Update prices from suppliers"""
     try:
         from automation_manager import AutomationManager
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         automation = AutomationManager()
         result = automation.update_prices_from_suppliers(user_id)
-
+        
         return jsonify(result)
-
+        
     except Exception as e:
         logger.error(f"Error updating supplier prices: {str(e)}")
         return jsonify({"error": "Failed to update prices"}), 500
-
 
 @app.route('/api/automation/scheduled-reports', methods=['POST'])
 @login_required
@@ -2824,23 +2762,22 @@ def generate_scheduled_report():
     """Generate and send scheduled report"""
     try:
         from automation_manager import AutomationManager
-
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
-
+        
         data = request.json
         report_type = data.get('report_type', 'daily')
-
+        
         automation = AutomationManager()
         result = automation.generate_scheduled_reports(user_id, report_type)
-
+        
         return jsonify(result)
-
+        
     except Exception as e:
         logger.error(f"Error generating scheduled report: {str(e)}")
         return jsonify({"error": "Failed to generate report"}), 500
-
 
 @app.route('/api/notifications/whatsapp', methods=['POST'])
 @login_required
@@ -2848,26 +2785,25 @@ def send_whatsapp_notification():
     """Send WhatsApp notification"""
     try:
         from notifications.sms_service import send_whatsapp_message
-
+        
         data = request.json
         phone_number = data.get('phone_number')
         message = data.get('message')
         template_name = data.get('template_name')
-
+        
         if not phone_number or not message:
             return jsonify({"error": "Phone number and message are required"}), 400
-
+        
         success = send_whatsapp_message(phone_number, message, template_name)
-
+        
         return jsonify({
             "success": success,
             "message": "WhatsApp message sent successfully" if success else "Failed to send WhatsApp message"
         })
-
+        
     except Exception as e:
         logger.error(f"Error sending WhatsApp notification: {str(e)}")
         return jsonify({"error": "Failed to send WhatsApp notification"}), 500
-
 
 # Customer Management API Routes
 @app.route('/api/customers', methods=['GET'])
@@ -2878,7 +2814,7 @@ def get_customers():
         # For now, extract customers from sales data since we don't have separate customer table yet
         from models import Sale
         from sqlalchemy import func, distinct
-
+        
         # Get unique customers from sales
         customers = db.session.query(
             Sale.customer_name,
@@ -2894,23 +2830,23 @@ def get_customers():
         ).order_by(
             func.sum(Sale.total).desc()
         ).all()
-
+        
         customer_list = []
         for customer in customers:
             # Calculate customer metrics
             total_spent = customer.total_spent or 0
             total_purchases = customer.total_purchases or 0
             avg_order_value = total_spent / total_purchases if total_purchases > 0 else 0
-
+            
             # Calculate customer lifetime (days)
             if customer.first_purchase_date and customer.last_purchase_date:
                 lifetime_days = (customer.last_purchase_date - customer.first_purchase_date).days + 1
             else:
                 lifetime_days = 1
-
+            
             # Purchase frequency (purchases per month)
             purchase_frequency = (total_purchases * 30) / lifetime_days if lifetime_days > 0 else 0
-
+            
             customer_list.append({
                 'name': customer.customer_name,
                 'phone': customer.customer_phone,
@@ -2922,17 +2858,16 @@ def get_customers():
                 'first_purchase_date': customer.first_purchase_date.isoformat() if customer.first_purchase_date else None,
                 'lifetime_days': lifetime_days
             })
-
+        
         return jsonify({
             'success': True,
             'customers': customer_list,
             'total_customers': len(customer_list)
         })
-
+        
     except Exception as e:
         logger.error(f"Error getting customers: {str(e)}")
         return jsonify({"error": "Failed to get customers"}), 500
-
 
 @app.route('/api/customers/<customer_name>/analytics', methods=['GET'])
 @login_required
@@ -2940,20 +2875,19 @@ def get_customer_analytics(customer_name):
     """API endpoint to get detailed analytics for a specific customer"""
     try:
         from customer_management import calculate_customer_metrics
-
+        
         # Get customer analytics
         analytics = calculate_customer_metrics(db, customer_name)
-
+        
         return jsonify({
             'success': True,
             'customer_name': customer_name,
             'analytics': analytics
         })
-
+        
     except Exception as e:
         logger.error(f"Error getting customer analytics for {customer_name}: {str(e)}")
         return jsonify({"error": "Failed to get customer analytics"}), 500
-
 
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])
@@ -2962,21 +2896,21 @@ def debug_database():
     """Debug endpoint to check database status"""
     try:
         from models import Item
-
+        
         # Count total items
         total_items = Item.query.count()
-
+        
         # Get sample items
         sample_items = Item.query.limit(5).all()
-
+        
         # Calculate total stock
         total_stock = db.session.query(db.func.sum(Item.quantity)).scalar() or 0
-
+        
         # Calculate inventory value
         total_value = db.session.query(
-            db.func.sum(db.func.coalesce(Item.quantity * Item.selling_price_retail, Item.price, 0))
+            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
         ).scalar() or 0
-
+        
         return jsonify({
             'success': True,
             'database_status': 'connected',
@@ -2985,7 +2919,7 @@ def debug_database():
             'total_value': float(total_value),
             'sample_items': [item.to_dict() for item in sample_items]
         })
-
+    
     except Exception as e:
         logger.error(f"Database debug error: {str(e)}")
         return jsonify({
@@ -2994,185 +2928,740 @@ def debug_database():
         }), 500
 
 
-# Subuser Authentication Routes
-# Subuser Authentication Routes
-@app.route('/api/auth/subuser/login', methods=['POST'])
-def subuser_login():
-    """API endpoint for subuser login"""
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Handle login form"""
+    # If user is already logged in, redirect to dashboard
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+
+    # Render login template
+    firebase_config = {
+        'apiKey': app.config['FIREBASE_API_KEY'],
+        'projectId': app.config['FIREBASE_PROJECT_ID'],
+        'appId': app.config['FIREBASE_APP_ID'],
+        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
+    }
+
+    return render_template('login.html', firebase_config=firebase_config)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Handle the registration page"""
+    # If user is already logged in, redirect to dashboard
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+
+    # Render registration template with Firebase config
+    firebase_config = {
+        'apiKey': app.config['FIREBASE_API_KEY'],
+        'projectId': app.config['FIREBASE_PROJECT_ID'],
+        'appId': app.config['FIREBASE_APP_ID'],
+        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
+    }
+
+    return render_template('register.html', firebase_config=firebase_config)
+
+
+@app.route('/api/auth/session', methods=['POST'])
+def create_session():
+    """Create a session for authenticated user using Firebase token"""
     try:
         data = request.json
 
-        if not data or not data.get('email') or not data.get('password'):
-            return jsonify({'error': 'Email and password are required'}), 400
+        logger.info("Session creation request received")
 
-        # Find subuser by email
-        subuser = Subuser.query.filter_by(email=data['email']).first()
+        if not data or 'idToken' not in data:
+            logger.warning("Missing idToken in session creation request")
+            return jsonify({"error": "Firebase ID token is required"}), 400
 
-        if not subuser:
-            return jsonify({'error': 'Invalid credentials'}), 401
+        # Verify the Firebase token
+        logger.info("Verifying Firebase token...")
+        user_data = verify_firebase_token(data['idToken'])
 
-        # Check if account is locked
-        if subuser.account_locked:
-            return jsonify({'error': 'Account is locked. Contact administrator.'}), 403
+        if not user_data:
+            logger.warning("Firebase token verification failed")
+            return jsonify({"error": "Invalid or expired token"}), 401
 
-        # Check if account is active
-        if not subuser.is_active:
-            return jsonify({'error': 'Account is deactivated. Contact administrator.'}), 403
+        logger.info(
+            f"Firebase token verified successfully for email: {user_data.get('email')}"
+        )
 
-        # Verify password
-        if not subuser.check_password(data['password']):
-            # Increment login attempts
-            subuser.login_attempts = (subuser.login_attempts or 0) + 1
+        # Create or update user in database
+        logger.info("Creating or updating user in database...")
+        user = create_or_update_user(user_data)
 
-            # Lock account after 5 failed attempts
-            if subuser.login_attempts >= 5:
-                subuser.account_locked = True
-                logger.warning(f"Account locked for subuser {subuser.email} after {subuser.login_attempts} failed attempts")
+        if not user:
+            logger.error("Failed to create or update user record")
+            return jsonify({"error": "Failed to create user record"}), 500
 
-            db.session.commit()
-            return jsonify({'error': 'Invalid credentials'}), 401
+        logger.info(
+            f"User record updated/created successfully for ID: {user.id}")
 
-        # Reset login attempts on successful login
-        subuser.login_attempts = 0
-        subuser.last_login = datetime.utcnow()
+        # Update last login time
+        user.last_login = datetime.utcnow()
         db.session.commit()
 
-        # Set session data for subuser
-        session['subuser_id'] = subuser.id
-        session['staff_id'] = subuser.staff_id
-        session['parent_user_id'] = subuser.parent_user_id
-        session['email'] = subuser.email
-        session['is_subuser'] = True
-        session['user_type'] = 'subuser'
+        # Set session data
+        logger.info("Setting session data...")
+        session['user_id'] = user.id
+        session['email'] = user.email
+        session['is_admin'] = user.is_admin
         session.permanent = data.get('remember', False)
 
-        logger.info(f"Subuser {subuser.email} (Staff ID: {subuser.staff_id}) logged in successfully")
+        # Load user theme preference
+        from models import Setting
+        theme_key = f"user_{user.id}_theme"
+        theme_setting = Setting.query.filter_by(key=theme_key).first()
+        if theme_setting:
+            session['user_theme'] = theme_setting.value
+            logger.info(f"Loaded user theme: {theme_setting.value}")
+        else:
+            session['user_theme'] = 'tanzanite'  # Default theme
+            logger.info("Using default theme: tanzanite")
 
-        return jsonify({
-            'success': True,
-            'subuser': subuser.to_dict(),
-            'message': f'Welcome back, {subuser.name}!'
-        })
-
-    except Exception as e:
-        logger.error(f"Error during subuser login: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
-
-@app.route('/api/auth/subuser/logout', methods=['POST'])
-def subuser_logout():
-    """API endpoint for subuser logout"""
-    try:
-        # Clear subuser session data
-        subuser_keys = ['subuser_id', 'staff_id', 'parent_user_id', 'is_subuser', 'user_type']
-        for key in subuser_keys:
-            session.pop(key, None)
-
-        return jsonify({'success': True, 'message': 'Logged out successfully'})
+        logger.info("Session created successfully")
+        return jsonify({"success": True, "user": user.to_dict()})
 
     except Exception as e:
-        logger.error(f"Error during subuser logout: {str(e)}")
-        return jsonify({'error': 'Logout failed'}), 500
+        logger.error(f"Error creating session with Firebase: {str(e)}")
+        return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
-@app.route('/api/auth/subuser/profile', methods=['GET'])
-def get_subuser_profile():
-    """API endpoint to get current subuser profile"""
+
+@app.route('/api/auth/register', methods=['POST'])
+def register_user():
+    """Register a new user via Firebase API"""
     try:
-        subuser_id = session.get('subuser_id')
-
-        if not subuser_id:
-            return jsonify({'error': 'Not authenticated as subuser'}), 401
-
-        subuser = Subuser.query.get(subuser_id)
-        if not subuser:
-            return jsonify({'error': 'Subuser not found'}), 404
-
-        return jsonify({
-            'success': True,
-            'subuser': subuser.to_dict(),
-            'permissions': [perm.permission for perm in subuser.permissions if perm.granted]
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting subuser profile: {str(e)}")
-        return jsonify({'error': 'Failed to get profile'}), 500
-
-@app.route('/api/auth/subuser/update-profile', methods=['PUT'])
-def update_subuser_profile():
-    """API endpoint for subuser to update their own profile"""
-    try:
-        subuser_id = session.get('subuser_id')
-
-        if not subuser_id:
-            return jsonify({'error': 'Not authenticated as subuser'}), 401
-
-        subuser = Subuser.query.get(subuser_id)
-        if not subuser:
-            return jsonify({'error': 'Subuser not found'}), 404
-
         data = request.json
 
-        # Allow subuser to update limited fields
-        if 'name' in data:
-            subuser.name = data['name']
-        if 'phone' in data:
-            subuser.phone = data['phone']
-        # Note: Email and other sensitive fields should only be updated by admin
+        if not data or 'idToken' not in data:
+            return jsonify({"error": "Firebase ID token is required"}), 400
 
-        subuser.updated_at = datetime.utcnow()
+        # Additional user data from registration form
+        extra_data = {}
+        if 'username' in data:
+            extra_data['username'] = data['username']
+        if 'firstName' in data:
+            extra_data['first_name'] = data['firstName']
+        if 'lastName' in data:
+            extra_data['last_name'] = data['lastName']
+        if 'shopName' in data:
+            extra_data['shop_name'] = data['shopName']
+        if 'productCategories' in data:
+            extra_data['product_categories'] = data['productCategories']
+
+        # Verify the Firebase token
+        user_data = verify_firebase_token(data['idToken'])
+        if not user_data:
+            return jsonify({"error": "Invalid or expired token"}), 401
+
+        # Create or update user in database with extra profile data
+        user = create_or_update_user(user_data, extra_data)
+
+        if not user:
+            return jsonify({"error": "Failed to create user record"}), 500
+
+        # Set session data
+        session['user_id'] = user.id
+        session['email'] = user.email
+        session['is_admin'] = user.is_admin
+        session.permanent = data.get('remember', False)
+
+        # Update last login time
+        user.last_login = datetime.utcnow()
         db.session.commit()
 
-        return jsonify({
-            'success': True,
-            'subuser': subuser.to_dict(),
-            'message': 'Profile updated successfully'
-        })
+        return jsonify({"success": True, "user": user.to_dict()})
+
+    except Exception as e:
+        logger.error(f"Error registering user: {str(e)}")
+        return jsonify({"error": "Failed to register user"}), 500
+
+
+# This logout route is now unified with the existing one at line 770
+
+
+@app.route('/account')
+def account():
+    """Render the user account page"""
+    from auth_service import login_required
+
+    @login_required
+    def protected_account():
+        from models import User
+        user = User.query.get(session['user_id'])
+        if not user:
+            session.clear()
+            return redirect(url_for('login'))
+
+        return render_template('account.html', user=user)
+
+    return protected_account()
+
+
+@app.route('/admin')
+@login_required
+def admin_portal():
+    """Render the main admin portal page (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
+        return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """Render the user management page (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
+        return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/api/auth/users', methods=['GET'])
+@login_required
+def get_users():
+    """API endpoint to get all users (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    users = User.query.all()
+    return jsonify([user.to_dict() for user in users])
+
+
+@app.route('/api/auth/users/<int:user_id>', methods=['PUT'])
+@login_required
+def update_user(user_id):
+    """API endpoint to update user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        data = request.json
+        user = User.query.get_or_404(user_id)
+
+        # Handle status toggle
+        if 'toggle_status' in data:
+            user.active = not user.active
+            user.updated_at = datetime.utcnow()
+            db.session.commit()
+            logger.info(f"Admin {current_user.username} toggled status for user {user.username} to {'active' if user.active else 'inactive'}")
+            return jsonify(user.to_dict())
+
+        # Only allow updating specific fields
+        if 'is_active' in data:
+            user.active = data['is_active']
+
+        if 'is_admin' in data:
+            # Prevent removing admin status from self
+            if user_id == current_user.id and not data['is_admin']:
+                return jsonify({"error": "Cannot remove admin status from your own account"}), 400
+            user.is_admin = data['is_admin']
+
+        if 'username' in data:
+            # Check for username uniqueness
+            existing_user = User.query.filter_by(
+                username=data['username']).first()
+            if existing_user and existing_user.id != user.id:
+                return jsonify({"error": "Username already taken"}), 400
+            user.username = data['username']
+
+        if 'firstName' in data:
+            user.first_name = data['firstName']
+
+        if 'lastName' in data:
+            user.last_name = data['lastName']
+
+        if 'shopName' in data:
+            user.shop_name = data['shopName']
+
+        if 'productCategories' in data:
+            user.product_categories = data['productCategories']
+
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} updated user: {user.username}")
+        return jsonify(user.to_dict())
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error updating subuser profile: {str(e)}")
-        return jsonify({'error': 'Failed to update profile'}), 500
+        logger.error(f"Error updating user: {str(e)}")
+        return jsonify({"error": "Failed to update user"}), 500
 
-@app.route('/api/auth/subuser/change-password', methods=['POST'])
-def subuser_change_password():
-    """API endpoint for subuser to change their password"""
+
+@app.route('/api/auth/users', methods=['POST'])
+@login_required
+def create_user_admin():
+    """API endpoint to create a new user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
     try:
-        subuser_id = session.get('subuser_id')
-
-        if not subuser_id:
-            return jsonify({'error': 'Not authenticated as subuser'}), 401
-
         data = request.json
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
-        if not data.get('current_password') or not data.get('new_password'):
-            return jsonify({'error': 'Current password and new password are required'}), 400
+        # Validate required fields
+        required_fields = ['username', 'email', 'password']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
 
-        subuser = Subuser.query.get(subuser_id)
-        if not subuser:
-            return jsonify({'error': 'Subuser not found'}), 404
+        # Check if username already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({"error": "Username already exists"}), 400
 
-        # Verify current password
-        if not subuser.check_password(data['current_password']):
-            return jsonify({'error': 'Current password is incorrect'}), 400
+        # Check if email already exists
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({"error": "Email already exists"}), 400
 
-        # Validate new password
-        if len(data['new_password']) < 6:
-            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
-
-        # Update password
-        subuser.set_password(data['new_password'])
-        subuser.updated_at = datetime.utcnow()
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            first_name=data.get('firstName', ''),
+            last_name=data.get('lastName', ''),
+            active=data.get('is_active', True),
+            is_admin=data.get('is_admin', False),
+            email_verified=True  # Admin-created users are pre-verified
+        )
+        
+        # Set password
+        new_user.set_password(data['password'])
+        
+        db.session.add(new_user)
         db.session.commit()
-
-        logger.info(f"Subuser {subuser.email} (Staff ID: {subuser.staff_id}) changed password")
-
+        
+        logger.info(f"Admin {current_user.username} created new user: {new_user.username}")
+        
         return jsonify({
-            'success': True,
-            'message': 'Password changed successfully'
-        })
+            "message": f"User {new_user.username} created successfully",
+            "user": new_user.to_dict()
+        }), 201
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error changing subuser password: {str(e)}")
-        return jsonify({'error': 'Failed to change password'}), 500
+        logger.error(f"Error creating user: {str(e)}")
+        return jsonify({"error": "Failed to create user"}), 500
 
-# This change removes a duplicate route definition for getting subcategories for a category.
+
+@app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    """API endpoint to delete user (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    # Prevent admin from deleting themselves
+    if user_id == current_user.id:
+        return jsonify({"error": "Cannot delete your own account"}), 400
+
+    try:
+        user = User.query.get_or_404(user_id)
+        username = user.username
+
+        db.session.delete(user)
+        db.session.commit()
+        
+        logger.info(f"Admin {current_user.username} deleted user: {username}")
+
+        return jsonify({"message": f"User {username} deleted successfully"})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting user: {str(e)}")
+        return jsonify({"error": "Failed to delete user"}), 500
+
+
+@app.route('/api/shop/details', methods=['GET'])
+@login_required
+def get_shop_details():
+    """API endpoint to get shop details for the current user"""
+    try:
+        user_id = session.get('user_id')
+
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        user = User.query.get_or_404(user_id)
+
+        # Get shop name from user profile, fallback to username
+        shop_name = user.shop_name or f"{user.username}'s Shop"
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'shop_name': shop_name,
+                'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'product_categories': user.product_categories or ""
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({"success": False, "error": "Failed to get shop details"}), 500
+
+
+@app.route('/api/auth/users/stats', methods=['GET'])
+@login_required
+def get_user_stats():
+    """API endpoint to get user statistics (admin only)"""
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        total_users = User.query.count()
+        active_users = User.query.filter_by(active=True).count()
+        admin_users = User.query.filter_by(is_admin=True).count()
+        unverified_users = User.query.filter_by(email_verified=False).count()
+
+        # Get recent registrations (last 30 days)
+        from datetime import timedelta
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_registrations = User.query.filter(
+            User.created_at >= thirty_days_ago).count()
+
+        return jsonify({
+            'total_users': total_users,
+            'active_users': active_users,
+            'admin_users': admin_users,
+            'unverified_users': unverified_users,
+            'recent_registrations': recent_registrations
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting user stats: {str(e)}")
+        return jsonify({"error": "Failed to get user statistics"}), 500
+
+
+@app.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    """API endpoint to update the current user's profile"""
+    from auth_service import login_required
+
+    @login_required
+    def protected_update_profile():
+        from models import User
+        try:
+            data = request.json
+            user_id = session.get('user_id')
+
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+
+            user = User.query.get_or_404(user_id)
+
+            # Only allow updating specific fields (non-admin fields)
+            if 'username' in data:
+                user.username = data['username']
+
+            if 'firstName' in data:
+                user.first_name = data['firstName']
+
+            if 'lastName' in data:
+                user.last_name = data['lastName']
+
+            if 'shopName' in data:
+                user.shop_name = data['shopName']
+
+            if 'productCategories' in data:
+                user.product_categories = data['productCategories']
+
+            # Update timestamps
+            user.updated_at = datetime.utcnow()
+
+            db.session.commit()
+            return jsonify({"success": True, "user": user.to_dict()})
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error updating profile: {str(e)}")
+            return jsonify({"error":
+                            f"Failed to update profile: {str(e)}"}), 500
+
+    return protected_update_profile()
+
+
+@app.route('/api/auth/profile', methods=['GET'])
+def get_profile():
+    """API endpoint to get the current user's profile"""
+    from auth_service import login_required
+
+    @login_required
+    def protected_get_profile():
+        from models import User
+        try:
+            user_id = session.get('user_id')
+
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+
+            user = User.query.get_or_404(user_id)
+            return jsonify({"success": True, "user": user.to_dict()})
+
+        except Exception as e:
+            logger.error(f"Error getting profile: {str(e)}")
+            return jsonify({"error": f"Failed to get profile: {str(e)}"}), 500
+
+    return protected_get_profile()
+
+
+@app.route('/api/auth/sync-profile', methods=['POST'])
+def sync_profile():
+    """API endpoint to sync user profile with Firebase"""
+    from auth_service import login_required, verify_firebase_token, update_user_profile
+
+    @login_required
+    def protected_sync_profile():
+        from models import User
+        try:
+            # Get current user
+            user_id = session.get('user_id')
+
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+
+            user = User.query.get_or_404(user_id)
+
+            # Get Firebase ID token from request
+            auth_header = request.headers.get('Authorization', '')
+            if not auth_header.startswith('Bearer '):
+                return jsonify({"error": "Invalid authorization header"}), 401
+
+            token = auth_header.split(' ')[1]
+
+            # Verify token and get user info
+            firebase_user = verify_firebase_token(token)
+
+            if not firebase_user:
+                return jsonify({"error": "Invalid Firebase token"}), 401
+
+            # Update user profile with Firebase data
+            if firebase_user.get('displayName'):
+                # Split display name into first and last name if available
+                name_parts = firebase_user.get('displayName', '').split(' ', 1)
+                if len(name_parts) > 0:
+                    user.first_name = name_parts[0]
+                if len(name_parts) > 1:
+                    user.last_name = name_parts[1]
+
+            # Update email and email verification status
+            if firebase_user.get('email'):
+                user.email = firebase_user.get('email')
+
+            if 'emailVerified' in firebase_user:
+                user.email_verified = firebase_user.get('emailVerified', False)
+
+            # Update Firebase UID if needed
+            if firebase_user.get('localId') and not user.firebase_uid:
+                user.firebase_uid = firebase_user.get('localId')
+
+            # Set last login time
+            user.last_login = datetime.utcnow()
+
+            # Update timestamps
+            user.updated_at = datetime.utcnow()
+
+            # Save changes
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Profile synchronized with Firebase",
+                "user": user.to_dict()
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error syncing profile: {str(e)}")
+            return jsonify({"error": f"Failed to sync profile: {str(e)}"}), 500
+
+    return protected_sync_profile()
+
+
+@app.route('/api/auth/change-password', methods=['POST'])
+def change_password():
+    """API endpoint to change user password"""
+    from auth_service import login_required
+
+    @login_required
+    def protected_change_password():
+        from models import User
+        try:
+            data = request.json
+            user_id = session.get('user_id')
+
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+
+            if 'current_password' not in data or 'new_password' not in data:
+                return jsonify({
+                    "error":
+                    "Current password and new password are required"
+                }), 400
+
+            user = User.query.get_or_404(user_id)
+
+            # Verify current password
+            if not user.check_password(data['current_password']):
+                return jsonify({"error": "Current password is incorrect"}), 400
+
+            # Validate new password
+            if len(data['new_password']) < 6:
+                return jsonify(
+                    {"error":
+                     "Password must be at least 6 characters long"}), 400
+
+            # Update password
+            user.set_password(data['new_password'])
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Password changed successfully"
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error changing password: {str(e)}")
+            return jsonify({"error": "Failed to change password"}), 500
+
+    return protected_change_password()
+
+
+@app.route('/api/auth/send-verification', methods=['POST'])
+def send_verification():
+    """API endpoint to send email verification"""
+    from auth_service import login_required
+    from notifications.email_service import send_email
+
+    @login_required
+    def protected_send_verification():
+        from models import User
+        import secrets
+        import datetime
+
+        try:
+            user_id = session.get('user_id')
+
+            if not user_id:
+                return jsonify({"error": "User not authenticated"}), 401
+
+            user = User.query.get_or_404(user_id)
+
+            # Generate verification token
+            verification_token = secrets.token_urlsafe(32)
+            user.verification_token = verification_token
+            user.verification_token_expires = datetime.datetime.utcnow(
+            ) + datetime.timedelta(hours=24)
+            db.session.commit()
+
+            # Build verification URL
+            verification_url = url_for('verify_email',
+                                       token=verification_token,
+                                       _external=True)
+
+            # Create email content
+            shop_name = user.shop_name or "Your Shop"
+            html_content = f"""
+            <h2>Email Verification</h2>
+            <p>Hello {user.first_name or user.username},</p>
+            <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
+            <p><a href="{verification_url}" style```python
+="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you did not create an account, please ignore this email.</p>
+            """
+
+            # Get sender email from settings
+            from_email = get_setting_value('email_sender',
+                                           "noreply@example.com")
+
+            # Send email
+            success = send_email(to_email=user.email,
+                                 from_email=from_email,
+                                 subject=f"Verify your email for {shop_name}",
+                                 html_content=html_content)
+
+            if not success:
+                return jsonify({"error":
+                                "Failed to send verification email"}), 500
+
+            return jsonify({
+                "success": True,
+                "message": "Verification email sent"
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error sending verification email: {str(e)}")
+            return jsonify({"error": "Failed to send verification email"}), 500
+
+    return protected_send_verification()
+
+
+@app.route('/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Route to verify email from token"""
+    from models import User
+    import datetime
+
+    try:
+        if not token:
+            flash('Invalid verification link.', 'danger')
+            return redirect(url_for('index'))
+
+        user = User.query.filter_by(verification_token=token).first()
+
+        if not user:
+            flash('Invalid verification link.', 'danger')
+            return redirect(url_for('index'))
+
+        # Check if token is expired
+        if user.verification_token_expires and user.verification_token_expires < datetime.datetime.utcnow(
+        ):
+            flash('Verification link has expired. Please request a new one.',
+                  'danger')
+            return redirect(url_for('account'))
+
+        # Mark email as verified
+        user.email_verified = True
+        user.verification_token = None
+        user.verification_token_expires = None
+        db.session.commit()
+
+        flash('Your email has been successfully verified!', 'success')
+        return redirect(url_for('account'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error verifying email: {str(e)}")
+        flash('An error occurred while verifying your email.', 'danger')
+        return redirect(url_for('index'))
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

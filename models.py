@@ -3,23 +3,9 @@ import json
 from enum import Enum
 import random
 import string
+from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-
-# Import db after app initialization to avoid circular imports
-def get_db():
-    from flask import current_app
-    return current_app.extensions['sqlalchemy']
-
-# We'll use this pattern: from models import db, then use db normally
-# The actual db import happens in app.py and models.py references it
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
-
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
 
 class Item(db.Model):
     """Item model for inventory items"""
@@ -98,83 +84,89 @@ class UserRole(Enum):
     VIEWER = "viewer"
 
 class User(UserMixin, db.Model):
-    """User model for authentication and user management"""
+    """User model for authentication"""
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255))
-    firebase_uid = db.Column(db.String(255), unique=True)
-    first_name = db.Column(db.String(50))
-    last_name = db.Column(db.String(50))
-    shop_name = db.Column(db.String(100))
-    product_categories = db.Column(db.Text)
-    phone = db.Column(db.String(20))
-    is_active = db.Column(db.Boolean, default=True, name='active')  # Support both active and is_active
+    password_hash = db.Column(db.String(256), nullable=True)
+    role = db.Column(db.String(20), default=UserRole.VIEWER.value)
+    # Firebase UID for authentication
+    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
+
+    def set_password(self, password):
+        """Set the user's password hash"""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Check if the password matches the hash"""
+        return check_password_hash(self.password_hash, password)
+
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
+    verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
+    verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
+
+
+
+    # User profile
+    first_name = db.Column(db.String(64), nullable=True)
+    last_name = db.Column(db.String(64), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    shop_name = db.Column(db.String(128), nullable=True)
+    product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
+
+    # Account status
     active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
-    email_verified = db.Column(db.Boolean, default=False)
-    verification_token = db.Column(db.String(255))
-    verification_token_expires = db.Column(db.DateTime)
-    last_login = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)  # Alternative name for consistency
+    is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
+
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
+
+    # Relationships
+    subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
+    items = db.relationship('Item', backref='owner', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
 
-    def set_password(self, password):
-        """Set password hash for user"""
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        """Check password against hash"""
-        if not self.password_hash:
-            return False
-        return check_password_hash(self.password_hash, password)
-
     def to_dict(self):
         """Convert user to dictionary for API responses"""
+        # Handle missing is_active column gracefully
+        try:
+            is_active_value = getattr(self, 'is_active', self.active)
+        except (AttributeError, Exception):
+            is_active_value = getattr(self, 'active', True)
+
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'email_verified': self.email_verified,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone': self.phone,
             'shop_name': self.shop_name,
             'product_categories': self.product_categories,
-            'phone': self.phone,
-            'active': self.active,
-            'is_active': self.is_active,
+            'active': getattr(self, 'active', True),
+            'is_active': is_active_value,
             'is_admin': self.is_admin,
-            'email_verified': self.email_verified,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
 
 class Subuser(db.Model):
     """Subuser model for managing team members"""
     id = db.Column(db.Integer, primary_key=True)
-    staff_id = db.Column(db.String(20), unique=True, nullable=False)  # Unique staff identifier
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    # Additional staff information
-    department = db.Column(db.String(50))
-    position = db.Column(db.String(100))
-    hire_date = db.Column(db.Date)
-    phone = db.Column(db.String(20))
-
-    # Status and access
     is_active = db.Column(db.Boolean, default=True)
-    last_login = db.Column(db.DateTime)
-    login_attempts = db.Column(db.Integer, default=0)
-    account_locked = db.Column(db.Boolean, default=False)
-
-    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -189,28 +181,6 @@ class Subuser(db.Model):
         """Check if the password matches the hash"""
         return check_password_hash(self.password_hash, password)
 
-    @staticmethod
-    def generate_staff_id(parent_user_id: int) -> str:
-        """
-        Generate a unique staff ID for a subuser
-
-        Args:
-            parent_user_id (int): Parent user ID
-
-        Returns:
-            str: Unique staff ID in format STAFF-{parent_id}-{sequence}
-        """
-        # Get the count of existing subusers for this parent
-        existing_count = Subuser.query.filter_by(parent_user_id=parent_user_id).count()
-        sequence = existing_count + 1
-
-        # Keep generating until we find a unique ID
-        while True:
-            staff_id = f"STAFF-{parent_user_id:04d}-{sequence:03d}"
-            if not Subuser.query.filter_by(staff_id=staff_id).first():
-                return staff_id
-            sequence += 1
-
     def to_dict(self):
         """Convert subuser to dictionary for API responses"""
         try:
@@ -223,16 +193,9 @@ class Subuser(db.Model):
 
             return {
                 'id': self.id,
-                'staff_id': getattr(self, 'staff_id', ''),
                 'name': self.name or '',
                 'email': self.email or '',
-                'department': getattr(self, 'department', ''),
-                'position': getattr(self, 'position', ''),
-                'phone': getattr(self, 'phone', ''),
-                'hire_date': self.hire_date.isoformat() if getattr(self, 'hire_date', None) else None,
                 'is_active': getattr(self, 'is_active', True),
-                'account_locked': getattr(self, 'account_locked', False),
-                'last_login': self.last_login.isoformat() if getattr(self, 'last_login', None) else None,
                 'created_at': self.created_at.isoformat() if self.created_at else None,
                 'updated_at': self.updated_at.isoformat() if self.updated_at else None,
                 'permissions': permissions_list
@@ -241,16 +204,9 @@ class Subuser(db.Model):
             # Fallback for any attribute errors
             return {
                 'id': getattr(self, 'id', 0),
-                'staff_id': getattr(self, 'staff_id', ''),
                 'name': getattr(self, 'name', ''),
                 'email': getattr(self, 'email', ''),
-                'department': '',
-                'position': '',
-                'phone': '',
-                'hire_date': None,
                 'is_active': getattr(self, 'is_active', True),
-                'account_locked': False,
-                'last_login': None,
                 'created_at': None,
                 'updated_at': None,
                 'permissions': []
@@ -488,13 +444,13 @@ class FinancialTransaction(db.Model):
     category = db.Column(db.String(50), nullable=False)
     reference_id = db.Column(db.String(100))  # To link to sales or other records
     payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
-
+    
     # Tax and COGS tracking
     tax_rate = db.Column(db.Float, default=0.0)  # Tax rate percentage
     tax_amount = db.Column(db.Float, default=0.0)  # Calculated tax amount
     cost_of_goods_sold = db.Column(db.Float, default=0.0)  # COGS for sales transactions
     gross_amount = db.Column(db.Float, default=0.0)  # Amount before tax
-
+    
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -667,7 +623,6 @@ class LayawayPlan(db.Model):
             'customer_phone': self.customer_phone,
             'customer_email': self.customer_email,
             'total_amount': self.total_amount,
-```text
             'down_payment': self.down_payment,
             'remaining_balance': self.remaining_balance,
             'installment_amount': self.installment_amount,
@@ -737,13 +692,13 @@ class PricingRule(db.Model):
         """Convert pricing rule to dictionary for API responses"""
         conditions_dict = {}
         applicable_items_list = []
-
+        
         if self.conditions:
             try:
                 conditions_dict = json.loads(self.conditions)
             except json.JSONDecodeError:
                 conditions_dict = {}
-
+        
         if self.applicable_items:
             try:
                 applicable_items_list = json.loads(self.applicable_items)

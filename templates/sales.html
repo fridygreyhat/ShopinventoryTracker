@@ -185,7 +185,6 @@
                             <option value="mobile_money">Mobile Money</option>
                             <option value="card">Debit/Credit Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
-                            <option value="installment">Installment Plan</option>
                         </select>
                     </div>
                     <div id="mobileMoneyFields" class="d-none">
@@ -201,51 +200,6 @@
                         <div class="mb-3">
                             <label for="transactionReference" class="form-label">Transaction Reference</label>
                             <input type="text" class="form-control" id="transactionReference">
-                        </div>
-                    </div>
-                    <div id="installmentFields" class="d-none">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="installmentDownPayment" class="form-label">Down Payment</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">TZS</span>
-                                    <input type="number" class="form-control" id="installmentDownPayment" step="0.01" min="0">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="installmentFrequency" class="form-label">Payment Frequency</label>
-                                <select class="form-select" id="installmentFrequency">
-                                    <option value="weekly">Weekly</option>
-                                    <option value="bi-weekly">Bi-weekly</option>
-                                    <option value="monthly" selected>Monthly</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="installmentAmount" class="form-label">Installment Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">TZS</span>
-                                    <input type="number" class="form-control" id="installmentAmount" step="0.01" min="0">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="installmentNextPayment" class="form-label">Next Payment Date</label>
-                                <input type="date" class="form-control" id="installmentNextPayment">
-                            </div>
-                        </div>
-                        <div class="alert alert-info">
-                            <h6>Installment Summary</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <small><strong>Total Amount:</strong> <span id="installmentTotalAmount">TZS 0</span></small><br>
-                                    <small><strong>Down Payment:</strong> <span id="installmentDownPaymentDisplay">TZS 0</span></small>
-                                </div>
-                                <div class="col-md-6">
-                                    <small><strong>Remaining Balance:</strong> <span id="installmentRemainingBalance">TZS 0</span></small><br>
-                                    <small><strong>Estimated Payments:</strong> <span id="installmentEstimatedPayments">0</span></small>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="mb-3">
