@@ -1,195 +1,126 @@
-
 {% extends 'layout.html' %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
         <h1 class="display-5">
-            <i class="fas fa-calendar-alt me-2"></i> Layaway Management
+            <i class="fas fa-calendar-alt me-2"></i> Layaway & Installment Plans
         </h1>
-        <p class="lead">Manage customer layaway plans and installment payments</p>
+        <p class="lead">Manage customer layaway and installment payment plans</p>
     </div>
 </div>
 
-<!-- Summary Cards -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-white bg-primary">
             <div class="card-body">
-                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                <h5 class="card-title">Active Plans</h5>
-                <h3 class="text-warning" id="activePlansCount">0</h3>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Active Plans</h5>
+                        <h3 id="activePlansCount">0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-white bg-success">
             <div class="card-body">
-                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                <h5 class="card-title">Completed</h5>
-                <h3 class="text-success" id="completedPlansCount">0</h3>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Total Amount</h5>
+                        <h3 id="totalAmount">TZS 0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-money-bill fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-white bg-warning">
             <div class="card-body">
-                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
-                <h5 class="card-title">Overdue</h5>
-                <h3 class="text-danger" id="overduePlansCount">0</h3>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Overdue</h5>
+                        <h3 id="overduePlansCount">0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-white bg-info">
             <div class="card-body">
-                <i class="fas fa-dollar-sign fa-2x text-info mb-2"></i>
-                <h5 class="card-title">Total Value</h5>
-                <h3 class="text-info"><span class="currency-symbol">TZS</span> <span id="totalLayawayValue">0</span></h3>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">This Month</h5>
+                        <h3 id="thisMonthCount">0</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-alt fa-2x"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Filters and Controls -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row align-items-end">
-            <div class="col-md-3">
-                <label for="statusFilter" class="form-label">Status</label>
-                <select class="form-select" id="statusFilter">
-                    <option value="">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="defaulted">Defaulted</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="customerFilter" class="form-label">Customer</label>
-                <input type="text" class="form-control" id="customerFilter" placeholder="Search by customer name">
-            </div>
-            <div class="col-md-3">
-                <label for="dateFilter" class="form-label">Date Range</label>
-                <select class="form-select" id="dateFilter">
-                    <option value="">All Dates</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="overdue">Overdue</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-primary" id="filterLayawayPlans">
-                    <i class="fas fa-filter me-1"></i> Filter
-                </button>
-                <button class="btn btn-outline-secondary" id="resetLayawayFilters">
-                    <i class="fas fa-undo me-1"></i> Reset
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Layaway Plans Table -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Layaway Plans</h5>
-        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createLayawayModal">
-            <i class="fas fa-plus me-1"></i> New Layaway Plan
-        </button>
+        <h5 class="mb-0">Payment Plans</h5>
+        <div class="d-flex gap-2">
+            <div class="input-group" style="width: 300px;">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search customers...">
+                <button class="btn btn-outline-secondary" type="button" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-filter me-1"></i> Filter
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" data-filter="all">All Plans</a></li>
+                    <li><a class="dropdown-item" href="#" data-filter="active">Active</a></li>
+                    <li><a class="dropdown-item" href="#" data-filter="completed">Completed</a></li>
+                    <li><a class="dropdown-item" href="#" data-filter="overdue">Overdue</a></li>
+                </ul>
+            </div>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
                     <tr>
-                        <th>Plan ID</th>
                         <th>Customer</th>
+                        <th>Contact</th>
                         <th>Total Amount</th>
-                        <th>Paid</th>
+                        <th>Down Payment</th>
                         <th>Remaining</th>
                         <th>Next Payment</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="layawayPlansTable">
+                <tbody id="plansTable">
                     <tr>
                         <td colspan="8" class="text-center">
-                            <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-                            Loading layaway plans...
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
-        </div>
-    </div>
-</div>
-
-<!-- Create Layaway Plan Modal -->
-<div class="modal fade" id="createLayawayModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Layaway Plan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="createLayawayForm">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="newLayawayCustomerName" class="form-label">Customer Name *</label>
-                            <input type="text" class="form-control" id="newLayawayCustomerName" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="newLayawayCustomerPhone" class="form-label">Customer Phone *</label>
-                            <input type="tel" class="form-control" id="newLayawayCustomerPhone" required>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="newLayawayTotalAmount" class="form-label">Total Amount *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">TZS</span>
-                                <input type="number" class="form-control" id="newLayawayTotalAmount" step="0.01" min="0" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="newLayawayDownPayment" class="form-label">Down Payment</label>
-                            <div class="input-group">
-                                <span class="input-group-text">TZS</span>
-                                <input type="number" class="form-control" id="newLayawayDownPayment" step="0.01" min="0">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="newLayawayInstallmentAmount" class="form-label">Installment Amount *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">TZS</span>
-                                <input type="number" class="form-control" id="newLayawayInstallmentAmount" step="0.01" min="0" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="newLayawayFrequency" class="form-label">Payment Frequency</label>
-                            <select class="form-select" id="newLayawayFrequency">
-                                <option value="weekly">Weekly</option>
-                                <option value="bi-weekly">Bi-weekly</option>
-                                <option value="monthly" selected>Monthly</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="newLayawayNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="newLayawayNotes" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="createLayawayPlanBtn">Create Plan</button>
-            </div>
         </div>
     </div>
 </div>
@@ -199,11 +130,11 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Payment</h5>
+                <h5 class="modal-title">Record Payment</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="addPaymentForm">
+                <form id="paymentForm">
                     <input type="hidden" id="paymentPlanId">
                     <div class="mb-3">
                         <label for="paymentAmount" class="form-label">Payment Amount *</label>
@@ -213,13 +144,17 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="paymentMethod">
+                        <label for="paymentMethodModal" class="form-label">Payment Method</label>
+                        <select class="form-select" id="paymentMethodModal">
                             <option value="cash">Cash</option>
                             <option value="mobile_money">Mobile Money</option>
-                            <option value="card">Debit/Credit Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
+                            <option value="card">Card</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentDate" class="form-label">Payment Date</label>
+                        <input type="date" class="form-control" id="paymentDate" required>
                     </div>
                     <div class="mb-3">
                         <label for="paymentReference" class="form-label">Reference Number</label>
@@ -233,7 +168,25 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="addPaymentBtn">Add Payment</button>
+                <button type="button" class="btn btn-success" onclick="recordPayment()">Record Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Plan Details Modal -->
+<div class="modal fade" id="planDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Plan Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="planDetailsContent">
+                <!-- Plan details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
