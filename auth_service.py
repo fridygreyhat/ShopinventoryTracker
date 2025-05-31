@@ -118,12 +118,12 @@ def verify_firebase_token(id_token):
         logger.error(f"Error verifying Firebase token: {str(e)}")
         logger.error(f"Token verification failed. Token starts with: {id_token[:10] if id_token and len(id_token) >= 10 else 'INVALID_TOKEN'}...")
         logger.error(f"Token length: {len(id_token) if id_token else 0}")
-        
+
         # Log more details about the error
         if hasattr(e, 'response'):
             logger.error(f"Response status: {getattr(e.response, 'status_code', 'unknown')}")
             logger.error(f"Response text: {getattr(e.response, 'text', 'no response text')}")
-        
+
         return None
 
 def update_user_profile(user_id, profile_data):

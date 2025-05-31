@@ -327,6 +327,141 @@
     </div>
 </div>
 
+<!-- Installment Payment Modal -->
+<div class="modal fade" id="installmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Installment Payment Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="installmentForm">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Customer Information</h6>
+                            <hr>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerName" class="form-label">Customer Name *</label>
+                            <input type="text" class="form-control" id="installmentCustomerName" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerPhone" class="form-label">Customer Phone *</label>
+                            <input type="tel" class="form-control" id="installmentCustomerPhone" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="installmentCustomerEmail" class="form-label">Customer Email</label>
+                            <input type="email" class="form-control" id="installmentCustomerEmail">
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Payment Plan Details</h6>
+                            <hr>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="installmentDownPayment" class="form-label">Down Payment</label>
+                            <div class="input-group">
+                                <span class="input-group-text">TZS</span>
+                                <input type="number" class="form-control" id="installmentDownPayment" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="installmentCount" class="form-label">Number of Installments</label>
+                            <input type="number" class="form-control" id="installmentCount" min="1" max="24" value="3">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="installmentFrequency" class="form-label">Payment Frequency</label>
+                            <select class="form-select" id="installmentFrequency">
+                                <option value="weekly">Weekly</option>
+                                <option value="bi-weekly">Bi-weekly</option>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="interestRate" class="form-label">Interest Rate (%)</label>
+                            <input type="number" class="form-control" id="interestRate" step="0.1" min="0" max="50" value="0">
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary">Agreement Terms</h6>
+                            <hr>
+                        </div>
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="agreeToTerms" required>
+                                        <label class="form-check-label" for="agreeToTerms">
+                                            <strong>I agree to the following terms and conditions:</strong>
+                                        </label>
+                                    </div>
+                                    <div class="mt-3">
+                                        <ul class="list-unstyled small">
+                                            <li>• Payment must be made on or before the due date</li>
+                                            <li>• Late payments may incur additional charges</li>
+                                            <li>• Goods remain property of the seller until full payment</li>
+                                            <li>• Default on payments may result in repossession</li>
+                                            <li>• Early payment is allowed without penalty</li>
+                                            <li>• Payment schedule can be modified with mutual agreement</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="installmentNotes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="installmentNotes" rows="3" placeholder="Special instructions, payment reminders, etc."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6>Installment Plan Summary</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <small><strong>Total Purchase Amount:</strong> <span id="installmentTotalAmount" class="text-success">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Down Payment:</strong> <span id="installmentDownPaymentDisplay" class="text-info">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Remaining Balance:</strong> <span id="installmentRemainingBalance" class="text-warning">TZS 0</span></small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <small><strong>Total with Interest:</strong> <span id="totalWithInterest" class="text-danger">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Installment Amount:</strong> <span id="installmentAmountDisplay" class="fw-bold text-primary">TZS 0</span></small>
+                                </div>
+                                <div class="mb-2">
+                                    <small><strong>Payment Frequency:</strong> <span id="frequencyDisplay" class="text-muted">Monthly</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createInstallmentPlan()">
+                    <i class="fas fa-check-circle me-1"></i> Create Installment Plan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Layaway Modal -->
 <div class="modal fade" id="layawayModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">

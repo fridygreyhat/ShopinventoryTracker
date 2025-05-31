@@ -55,14 +55,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Product search
     const refreshProductsBtn = document.getElementById('refreshProductsBtn');
-    
+
     searchProductsBtn.addEventListener('click', searchProducts);
     refreshProductsBtn.addEventListener('click', function() {
         console.log('Refreshing products...');
         productSearchInput.value = '';
         loadAllProducts();
     });
-    
+
     productSearchInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter') {
             searchProducts();
@@ -128,11 +128,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Checkout
     completeTransactionBtn.addEventListener('click', completeTransaction);
     createInvoiceBtn.addEventListener('click', createInvoice);
-    
+
     // Split Payment Features
     const splitPaymentBtn = document.getElementById('splitPaymentBtn');
     const splitPaymentModal = document.getElementById('splitPaymentModal');
-    
+
     if (splitPaymentBtn) {
         splitPaymentBtn.addEventListener('click', initializeSplitPayment);
     }
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If no query, load all products
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
-        
+
         console.log('Searching products with URL:', searchUrl);
 
         // Make API request to search inventory
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displaySearchResults(items) {
         console.log('Displaying search results:', items);
-        
+
         if (items.length === 0) {
             productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found</td></tr>';
             return;
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function addToCart(itemId) {
         console.log('Adding to cart, item ID:', itemId);
         console.log('Current search results:', searchResults);
-        
+
         const item = searchResults.find(item => item.id == itemId);
 
         if (!item) {
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Cannot add more items. Insufficient stock.');
                 return;
             }
-            
+
             // Increment quantity if already in cart
             cart[existingItemIndex].quantity += 1;
             cart[existingItemIndex].total = cart[existingItemIndex].price * cart[existingItemIndex].quantity;
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('Cart after adding item:', cart);
         updateCartDisplay();
-        
+
         // Show success feedback
         const button = document.querySelector(`[data-id="${itemId}"]`);
         if (button) {
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
             button.innerHTML = '<i class="fas fa-check"></i>';
             button.classList.remove('btn-primary');
             button.classList.add('btn-success');
-            
+
             setTimeout(() => {
                 button.innerHTML = originalText;
                 button.classList.remove('btn-success');
@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Transaction Functions
     function completeTransaction() {
         console.log('Complete transaction button clicked');
-        
+
         if (cart.length === 0) {
             alert('Please add items to the cart before completing transaction');
             return;
@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (payment === 'mobile_money') {
             const providerElement = document.getElementById('mobileProvider');
             const referenceElement = document.getElementById('transactionReference');
-            
+
             if (providerElement && referenceElement) {
                 mobileInfo = {
                     provider: providerElement.value,
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Transaction completed successfully:', data);
-            
+
             // Show success message with transaction details
             const changeAmount = Math.max(0, amount - totalAmount);
             let successMessage = 'Transaction completed successfully!';
@@ -648,14 +648,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear the cart and reset form
             clearCart();
             document.getElementById('checkoutForm').reset();
-            
+
             // Reset payment amount to 0
             document.getElementById('paymentAmount').value = '';
 
             // Reset button
             completeTransactionBtn.disabled = false;
             completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
-            
+
             // Refresh products to update stock quantities
             if (typeof loadAllProducts === 'function') {
                 loadAllProducts();
@@ -673,18 +673,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Split Payment Management
     let splitPayments = [];
-    
+
     function initializeSplitPayment() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         splitPayments = [];
         updateSplitPaymentDisplay();
-        
+
         // Set remaining amount to total
         const remainingAmountDisplay = document.getElementById('remainingAmount');
         if (remainingAmountDisplay) {
             remainingAmountDisplay.textContent = `TZS ${totalAmount.toLocaleString()}`;
         }
-        
+
         // Show split payment modal
         const splitPaymentModal = document.getElementById('splitPaymentModal');
         if (splitPaymentModal) {
@@ -692,7 +692,7 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.show();
         }
     }
-    
+
     // Add event listener for split payment button
     document.addEventListener('DOMContentLoaded', function() {
         const splitPaymentBtn = document.getElementById('splitPaymentBtn');
@@ -706,47 +706,47 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     function addSplitPayment() {
         const method = document.getElementById('splitPaymentMethod').value;
         const amount = parseFloat(document.getElementById('splitPaymentAmount').value);
         const reference = document.getElementById('splitPaymentReference').value;
-        
+
         if (!amount || amount <= 0) {
             alert('Please enter a valid payment amount');
             return;
         }
-        
+
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const currentTotal = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        
+
         if (currentTotal + amount > totalAmount) {
             alert('Payment amount exceeds remaining balance');
             return;
         }
-        
+
         splitPayments.push({
             method: method,
             amount: amount,
             reference: reference || '',
             timestamp: new Date().toISOString()
         });
-        
+
         updateSplitPaymentDisplay();
-        
+
         // Clear form
         document.getElementById('splitPaymentAmount').value = '';
         document.getElementById('splitPaymentReference').value = '';
     }
-    
+
     function updateSplitPaymentDisplay() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
         const remainingAmount = totalAmount - paidAmount;
-        
+
         const splitPaymentsList = document.getElementById('splitPaymentsList');
         const remainingAmountDisplay = document.getElementById('remainingAmount');
-        
+
         // Update payments list
         splitPaymentsList.innerHTML = '';
         if (splitPayments.length === 0) {
@@ -767,15 +767,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 splitPaymentsList.appendChild(paymentRow);
             });
         }
-        
+
         // Update remaining amount
         remainingAmountDisplay.textContent = `TZS ${remainingAmount.toLocaleString()}`;
-        
+
         // Enable/disable complete button
         const completeSplitBtn = document.getElementById('completeSplitPayment');
         if (completeSplitBtn) {
             completeSplitBtn.disabled = remainingAmount > 0;
-            
+
             // Update button text based on status
             if (remainingAmount > 0) {
                 completeSplitBtn.textContent = `Remaining: TZS ${remainingAmount.toLocaleString()}`;
@@ -784,43 +784,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     function removeSplitPayment(index) {
         splitPayments.splice(index, 1);
         updateSplitPaymentDisplay();
     }
-    
+
     function completeSplitPayment() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        
+
         if (paidAmount < totalAmount) {
             showError('Payment amount is less than total. Please add more payments.');
             return;
         }
-        
+
         if (splitPayments.length === 0) {
             showError('Please add at least one payment method.');
             return;
         }
-        
+
         // Process the transaction with split payments
         processSplitPaymentTransaction();
-        
+
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('splitPaymentModal'));
         if (modal) {
             modal.hide();
         }
     }
-    
+
     function processSplitPaymentTransaction() {
         const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone').value || '';
         const notes = document.getElementById('saleNotes').value || '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const saleType = document.getElementById('saleType').value || 'retail';
-        
+
         const transaction = {
                 customer: {
                 name: customerName,
@@ -851,7 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
             notes: notes,
             date: new Date().toISOString()
         };
-        
+
         // Send to server
         fetch('/api/sales', {
             method: 'POST',
@@ -966,7 +966,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         font-weight: bold;
                     }
                     .text-right {
-                        text-align: right;
+                        text-align:right;
                     }
                     .text-center {
                         text-align: center;
@@ -1121,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p>For support or inquiries, please contact us.</p>
                         <p><em>This is a computer-generated invoice.</em></p>
                     </div>
-                    
+
                     <div class="no-print action-buttons">
                         <button class="print-btn" onclick="window.print()">
                             🖨️ Print Receipt
@@ -1207,12 +1207,12 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.id) {
                 alert('Layaway plan created successfully!');
-                
+
                 // Clear cart and close modal
                 clearCart();
                 const modal = bootstrap.Modal.getInstance(document.getElementById('layawayModal'));
                 modal.hide();
-                
+
                 // Reset form
                 document.getElementById('layawayCustomerName').value = '';
                 document.getElementById('layawayCustomerPhone').value = '';
