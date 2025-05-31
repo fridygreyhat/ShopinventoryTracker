@@ -1150,6 +1150,124 @@ document.addEventListener('DOMContentLoaded', function() {
         invoiceWindow.document.close();
     }
 
+    // Installment Payment Functions
+    function createInstallmentPlan() {
+        if (cart.length === 0) {
+            alert('Please add items to the cart before creating an installment plan');
+            return;
+        }
+
+        const customerName = document.getElementById('installmentCustomerName').value;
+        const customerPhone = document.getElementById('installmentCustomerPhone').value;
+        const customerEmail = document.getElementById('installmentCustomerEmail').value;
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
+        const frequency = document.getElementById('installmentFrequency').value;
+        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const notes = document.getElementById('installmentNotes').value;
+        const agreeToTerms = document.getElementById('agreeToTerms').checked;
+
+        if (!customerName || !customerPhone) {
+            alert('Customer name and phone are required');
+            return;
+        }
+
+        if (!agreeToTerms) {
+            alert('Please agree to the terms and conditions');
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const remainingBalance = totalAmount - downPayment;
+        
+        // Calculate total with interest
+        const totalWithInterest = remainingBalance * (1 + (interestRate / 100));
+        const installmentAmount = totalWithInterest / installmentCount;
+
+        // Calculate next payment date
+        const nextPaymentDate = new Date();
+        if (frequency === 'weekly') {
+            nextPaymentDate.setDate(nextPaymentDate.getDate() + 7);
+        } else if (frequency === 'bi-weekly') {
+            nextPaymentDate.setDate(nextPaymentDate.getDate() + 14);
+        } else if (frequency === 'monthly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+        } else if (frequency === 'quarterly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
+        }
+
+        const installmentData = {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            customer_email: customerEmail,
+            total_amount: totalAmount,
+            down_payment: downPayment,
+            installment_amount: installmentAmount,
+            payment_frequency: frequency,
+            next_payment_date: nextPaymentDate.toISOString().split('T')[0],
+            items: cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                sku: item.sku,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total
+            })),
+            notes: notes,
+            interest_rate: interestRate,
+            installment_count: installmentCount
+        };
+
+        fetch('/api/layaway', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(installmentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                alert('Installment plan created successfully!');
+
+                // Clear cart and close modal
+                clearCart();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('installmentModal'));
+                modal.hide();
+
+                // Reset form
+                document.getElementById('installmentForm').reset();
+            } else {
+                alert('Error creating installment plan: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating installment plan:', error);
+            alert('Failed to create installment plan');
+        });
+    }
+
+    // Update installment summary when values change
+    function updateInstallmentSummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
+        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const frequency = document.getElementById('installmentFrequency').value;
+
+        const remainingBalance = totalAmount - downPayment;
+        const totalWithInterest = remainingBalance * (1 + (interestRate / 100));
+        const installmentAmount = totalWithInterest / installmentCount;
+
+        // Update display
+        document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+        document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('installmentRemainingBalance').textContent = `TZS ${remainingBalance.toLocaleString()}`;
+        document.getElementById('totalWithInterest').textContent = `TZS ${totalWithInterest.toLocaleString()}`;
+        document.getElementById('installmentAmountDisplay').textContent = `TZS ${installmentAmount.toLocaleString()}`;
+        document.getElementById('frequencyDisplay').textContent = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+    }
+
     // Layaway Management Functions
     function createLayaway() {
         if (cart.length === 0) {
@@ -1246,6 +1364,14 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             document.getElementById('layawayEstimatedPayments').textContent = '0';
         }
+    }
+
+    // Add event listeners for installment calculations
+    if (document.getElementById('installmentDownPayment')) {
+        document.getElementById('installmentDownPayment').addEventListener('input', updateInstallmentSummary);
+        document.getElementById('installmentCount').addEventListener('input', updateInstallmentSummary);
+        document.getElementById('installmentFrequency').addEventListener('change', updateInstallmentSummary);
+        document.getElementById('interestRate').addEventListener('input', updateInstallmentSummary);
     }
 
     // Add event listeners for layaway calculations
