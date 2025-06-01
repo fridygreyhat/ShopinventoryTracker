@@ -1,31 +1,28 @@
+
 // Sidebar Management JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-    // Constants for the new sidebar design
-    const SIDEBAR_EXPANDED_WIDTH = 300;
-    const SIDEBAR_COLLAPSED_WIDTH = 70;
-
+    const mainContent = document.getElementById('mainContent');
+    
     // Check if elements exist
     if (!sidebar || !sidebarToggle) {
         console.warn('Sidebar elements not found');
         return;
     }
-
+    
     // Get sidebar state from localStorage
     const getSidebarState = () => {
         return localStorage.getItem('sidebarCollapsed') === 'true';
     };
-
+    
     // Save sidebar state to localStorage
     const setSidebarState = (collapsed) => {
         localStorage.setItem('sidebarCollapsed', collapsed.toString());
     };
-
+    
     // Apply sidebar state
     const applySidebarState = (collapsed) => {
         if (collapsed) {
@@ -35,12 +32,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         setSidebarState(collapsed);
     };
-
+    
     // Initialize sidebar state
     const initSidebarState = () => {
         const isCollapsed = getSidebarState();
         applySidebarState(isCollapsed);
-
+        
         // On mobile, always start collapsed
         if (window.innerWidth < 992) {
             sidebar.classList.remove('show');
@@ -49,13 +46,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     };
-
+    
     // Toggle sidebar (desktop)
     const toggleSidebar = () => {
         const isCollapsed = sidebar.classList.contains('collapsed');
         applySidebarState(!isCollapsed);
     };
-
+    
     // Show mobile sidebar
     const showMobileSidebar = () => {
         sidebar.classList.add('show');
@@ -64,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.body.style.overflow = 'hidden';
     };
-
+    
     // Hide mobile sidebar
     const hideMobileSidebar = () => {
         sidebar.classList.remove('show');
@@ -73,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.body.style.overflow = '';
     };
-
+    
     // Event listeners
     sidebarToggle.addEventListener('click', function(e) {
         e.preventDefault();
@@ -83,20 +80,20 @@ document.addEventListener('DOMContentLoaded', function() {
             hideMobileSidebar();
         }
     });
-
+    
     if (mobileSidebarToggle) {
         mobileSidebarToggle.addEventListener('click', function(e) {
             e.preventDefault();
             showMobileSidebar();
         });
     }
-
+    
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', function() {
             hideMobileSidebar();
         });
     }
-
+    
     // Handle window resize
     window.addEventListener('resize', function() {
         if (window.innerWidth >= 992) {
@@ -110,14 +107,14 @@ document.addEventListener('DOMContentLoaded', function() {
             hideMobileSidebar();
         }
     });
-
+    
     // Handle escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && window.innerWidth < 992) {
             hideMobileSidebar();
         }
     });
-
+    
     // Handle sidebar link clicks on mobile
     const sidebarLinks = sidebar.querySelectorAll('.sidebar-link');
     sidebarLinks.forEach(link => {
@@ -130,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    
     // Add active states and ripple effects
     sidebarLinks.forEach(link => {
         // Add ripple effect on click
@@ -138,13 +135,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.classList.contains('dropdown-toggle')) {
                 return; // Skip ripple for dropdown toggles
             }
-
+            
             const ripple = document.createElement('span');
             const rect = this.getBoundingClientRect();
             const size = Math.max(rect.width, rect.height);
             const x = e.clientX - rect.left - size / 2;
             const y = e.clientY - rect.top - size / 2;
-
+            
             ripple.style.cssText = `
                 position: absolute;
                 width: ${size}px;
@@ -158,19 +155,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 pointer-events: none;
                 z-index: 1;
             `;
-
+            
             this.style.position = 'relative';
             this.appendChild(ripple);
-
+            
             setTimeout(() => {
                 ripple.remove();
             }, 600);
         });
     });
-
+    
     // Initialize on page load
     initSidebarState();
-
+    
     // Update active link based on current path
     const updateActiveLink = () => {
         const currentPath = window.location.pathname;
@@ -183,12 +180,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     };
-
+    
     updateActiveLink();
-
+    
     // Handle navigation changes (for SPAs)
     window.addEventListener('popstate', updateActiveLink);
-
+    
     // Smooth scrolling for sidebar navigation
     const smoothScrollToTop = () => {
         if (mainContent) {
@@ -198,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     };
-
+    
     // Add smooth scroll on navigation
     sidebarLinks.forEach(link => {
         link.addEventListener('click', function() {
@@ -231,9 +228,9 @@ if (!document.querySelector('#sidebar-ripple-styles')) {
 // Sidebar tooltip functionality for collapsed state
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
-
+    
     if (!sidebar) return;
-
+    
     // Create tooltip element
     const tooltip = document.createElement('div');
     tooltip.className = 'sidebar-tooltip';
@@ -252,32 +249,32 @@ document.addEventListener('DOMContentLoaded', function() {
         white-space: nowrap;
     `;
     document.body.appendChild(tooltip);
-
+    
     // Show tooltip on hover when collapsed
     const sidebarLinks = sidebar.querySelectorAll('.sidebar-link');
     sidebarLinks.forEach(link => {
         const textElement = link.querySelector('.sidebar-text');
         if (!textElement) return;
-
+        
         link.addEventListener('mouseenter', function(e) {
             if (sidebar.classList.contains('collapsed')) {
                 const text = textElement.textContent.trim();
                 if (text) {
                     tooltip.textContent = text;
                     tooltip.style.opacity = '1';
-
+                    
                     const rect = this.getBoundingClientRect();
                     tooltip.style.left = (rect.right + 10) + 'px';
                     tooltip.style.top = (rect.top + rect.height / 2 - tooltip.offsetHeight / 2) + 'px';
                 }
             }
         });
-
+        
         link.addEventListener('mouseleave', function() {
             tooltip.style.opacity = '0';
         });
     });
-
+    
     // Hide tooltip when sidebar is expanded
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
@@ -288,6 +285,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    
     observer.observe(sidebar, { attributes: true });
 });
