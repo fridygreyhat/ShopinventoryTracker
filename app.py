@@ -272,6 +272,13 @@ def categories():
     return render_template('categories.html')
 
 
+@app.route('/locations')
+@login_required
+def locations():
+    """Render the locations management page"""
+    return render_template('locations.html')
+
+
 @app.route('/analytics')
 @login_required
 def analytics():
