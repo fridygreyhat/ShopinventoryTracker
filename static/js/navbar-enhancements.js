@@ -48,6 +48,28 @@ document.addEventListener('DOMContentLoaded', function() {
             ticking = true;
         }
     });
+
+    // Ripple effect CSS
+    const navbarRippleCSS = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        .nav-link {
+            position: relative;
+            overflow: hidden;
+        }
+    `;
+
+    // Only add CSS if it doesn't exist
+    if (!document.querySelector('#navbar-ripple-styles')) {
+        const navbarRippleStyleElement = document.createElement('style');
+        navbarRippleStyleElement.id = 'navbar-ripple-styles';
+        navbarRippleStyleElement.textContent = navbarRippleCSS;
+        document.head.appendChild(navbarRippleStyleElement);
+    }
     
     // Enhanced nav link interactions
     navLinks.forEach(link => {
@@ -133,6 +155,36 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
                 menu.classList.remove('show');
                 menu.previousElementSibling.setAttribute('aria-expanded', 'false');
+            });
+        }
+    });
+    
+    // Handle logout functionality
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('a[href="/logout"]') || e.target.closest('a[href*="logout"]')) {
+            e.preventDefault();
+            
+            // Show loading state
+            const logoutLink = e.target.closest('a');
+            const originalContent = logoutLink.innerHTML;
+            logoutLink.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Logging out...';
+            
+            // Perform logout
+            fetch('/logout', {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then(response => {
+                if (response.ok || response.redirected) {
+                    // Redirect to login page
+                    window.location.href = '/login';
+                } else {
+                    // If fetch fails, try direct navigation
+                    window.location.href = '/logout';
+                }
+            }).catch(error => {
+                console.error('Logout error:', error);
+                // Fallback to direct navigation
+                window.location.href = '/logout';
             });
         }
     });
