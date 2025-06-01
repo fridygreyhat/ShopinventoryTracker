@@ -458,6 +458,24 @@ footer {
     background: rgba(255, 255, 255, 0.05);
     min-height: 80px;
     backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+/* Adjust header layout when collapsed */
+.sidebar.collapsed .sidebar-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-brand {
+    order: 2;
+    margin-top: 0.5rem;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+    order: 1;
 }
 
 .sidebar-brand {
@@ -490,6 +508,18 @@ footer {
     transform: translateX(-20px);
 }
 
+/* Keep logo visible when collapsed */
+.sidebar.collapsed .sidebar-logo {
+    width: 32px;
+    height: 32px;
+    margin: 0;
+}
+
+.sidebar.collapsed .sidebar-brand {
+    justify-content: center;
+    gap: 0;
+}
+
 .sidebar-toggle {
     background: none;
     border: none;
@@ -499,12 +529,32 @@ footer {
     border-radius: 8px;
     transition: all 0.3s ease;
     cursor: pointer;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .sidebar-toggle:hover {
     background: rgba(255, 255, 255, 0.1);
     color: white;
     transform: scale(1.1);
+}
+
+/* Keep toggle visible when collapsed */
+.sidebar.collapsed .sidebar-toggle {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
 }
 
 /* Sidebar Navigation */
