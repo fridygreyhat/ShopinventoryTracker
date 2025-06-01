@@ -1,76 +1,75 @@
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Gradient definitions for modern look -->
-    <linearGradient id="boxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Enhanced gradient with more vibrant colors -->
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#4C50C5;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#41C1E0;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FF7950;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#5B67D1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#41C1E0;stop-opacity:1" />
     </linearGradient>
     
-    <linearGradient id="shadowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.2" />
-      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
-    </linearGradient>
+    <!-- Glow effect gradient -->
+    <radialGradient id="glowGradient" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.3" />
+      <stop offset="70%" style="stop-color:#4C50C5;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#4C50C5;stop-opacity:0" />
+    </radialGradient>
     
-    <!-- Glow effect -->
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+    <!-- Enhanced shadow with blur -->
+    <filter id="enhancedShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="3" dy="3" result="offset"/>
+      <feFlood flood-color="#4C50C5" flood-opacity="0.3"/>
+      <feComposite in2="offset" operator="in"/>
       <feMerge> 
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/> 
       </feMerge>
     </filter>
     
-    <!-- Drop shadow -->
-    <filter id="dropshadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(76, 80, 197, 0.3)"/>
+    <!-- Inner glow effect -->
+    <filter id="innerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.3 0"/>
     </filter>
   </defs>
+
+  <!-- Outer glow background -->
+  <circle cx="256" cy="256" r="220" fill="url(#glowGradient)" opacity="0.6"/>
   
-  <!-- Background circle with subtle gradient -->
-  <circle cx="60" cy="60" r="55" fill="url(#shadowGradient)" opacity="0.1"/>
+  <!-- Main logo circle with enhanced gradient -->
+  <circle cx="256" cy="256" r="200" fill="url(#brandGradient)" filter="url(#enhancedShadow)"/>
   
-  <!-- Main container/box shape -->
-  <g filter="url(#dropshadow)">
-    <!-- Back panel of the box -->
-    <rect x="25" y="30" width="35" height="35" rx="4" fill="url(#boxGradient)" opacity="0.7" transform="rotate(-5 42.5 47.5)"/>
+  <!-- Inner highlight for depth -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  
+  <!-- Enhanced box stack with better spacing and gradients -->
+  <g transform="translate(156, 156)">
+    <!-- Bottom box -->
+    <rect x="0" y="120" width="200" height="45" rx="12" fill="rgba(255,255,255,0.95)" filter="url(#innerGlow)"/>
+    <rect x="10" y="130" width="180" height="5" rx="2" fill="rgba(76,80,197,0.3)"/>
     
-    <!-- Front panel of the box -->
-    <rect x="35" y="40" width="35" height="35" rx="4" fill="url(#boxGradient)" filter="url(#glow)"/>
+    <!-- Middle box -->
+    <rect x="20" y="60" width="160" height="40" rx="10" fill="rgba(255,255,255,0.8)" filter="url(#innerGlow)"/>
+    <rect x="30" y="70" width="140" height="4" rx="2" fill="rgba(76,80,197,0.4)"/>
     
-    <!-- Box details - front lines -->
-    <line x1="40" y1="50" x2="65" y2="50" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
-    <line x1="40" y1="57" x2="60" y2="57" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
-    <line x1="40" y1="63" x2="55" y2="63" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-linecap="round"/>
-    
-    <!-- Side panel indication -->
-    <polygon points="70,40 75,35 75,70 70,75" fill="rgba(76, 80, 197, 0.5)"/>
-    
-    <!-- Top panel indication -->
-    <polygon points="35,40 40,35 75,35 70,40" fill="rgba(65, 193, 224, 0.6)"/>
+    <!-- Top box -->
+    <rect x="40" y="0" width="120" height="35" rx="8" fill="rgba(255,255,255,0.6)" filter="url(#innerGlow)"/>
+    <rect x="50" y="10" width="100" height="3" rx="1" fill="rgba(76,80,197,0.5)"/>
+  </g>
+
+  <!-- Enhanced dynamic lines with gradients -->
+  <g stroke="url(#brandGradient)" stroke-width="5" stroke-linecap="round" opacity="0.9">
+    <line x1="196" y1="256" x2="316" y2="256" stroke="rgba(255,255,255,0.9)"/>
+    <line x1="216" y1="226" x2="296" y2="226" stroke="rgba(255,255,255,0.7)"/>
+    <line x1="236" y1="196" x2="276" y2="196" stroke="rgba(255,255,255,0.5)"/>
   </g>
   
-  <!-- Modern accent elements -->
-  <g opacity="0.8">
-    <!-- Corner accent -->
-    <circle cx="75" cy="45" r="3" fill="#FF7950"/>
-    <circle cx="75" cy="45" r="1.5" fill="#FFFFFF" opacity="0.8"/>
-    
-    <!-- Bottom accent line -->
-    <rect x="30" y="85" width="40" height="2" rx="1" fill="url(#boxGradient)" opacity="0.6"/>
-  </g>
-  
-  <!-- Floating particles for modern effect -->
-  <g opacity="0.4">
-    <circle cx="20" cy="25" r="1.5" fill="#4C50C5">
-      <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="95" cy="30" r="1" fill="#41C1E0">
-      <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite"/>
-    </circle>
-    <circle cx="85" cy="90" r="1.2" fill="#FF7950">
-      <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2.5s" repeatCount="indefinite"/>
-    </circle>
+  <!-- Subtle highlight accents -->
+  <g fill="rgba(255,255,255,0.4)" stroke="none">
+    <circle cx="200" cy="200" r="3"/>
+    <circle cx="312" cy="220" r="2"/>
+    <circle cx="280" cy="180" r="2"/>
   </g>
 </svg>
