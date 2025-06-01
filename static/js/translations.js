@@ -91,6 +91,7 @@ function updatePageLanguage(lang) {
 
 // Initialize language selector
 document.addEventListener('DOMContentLoaded', function() {
+    // Handle sidebar language selector (if exists)
     const languageSelector = document.getElementById('languageSelector');
     if (languageSelector) {
         // Set initial language
@@ -103,4 +104,37 @@ document.addEventListener('DOMContentLoaded', function() {
             updatePageLanguage(this.value);
         });
     }
+
+    // Handle top bar language selector
+    const topLanguageOptions = document.querySelectorAll('.language-option');
+    const currentLanguageSpan = document.getElementById('currentLanguage');
+    
+    if (topLanguageOptions.length > 0) {
+        // Set initial language display
+        const savedLanguage = localStorage.getItem('preferred_language') || 'en';
+        updateTopLanguageDisplay(savedLanguage);
+        updatePageLanguage(savedLanguage);
+
+        // Add click event listeners to language options
+        topLanguageOptions.forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const selectedLang = this.getAttribute('data-lang');
+                updatePageLanguage(selectedLang);
+                updateTopLanguageDisplay(selectedLang);
+            });
+        });
+    }
 });
+
+// Function to update top language display
+function updateTopLanguageDisplay(lang) {
+    const currentLanguageSpan = document.getElementById('currentLanguage');
+    if (currentLanguageSpan) {
+        if (lang === 'en') {
+            currentLanguageSpan.textContent = 'English';
+        } else if (lang === 'sw') {
+            currentLanguageSpan.textContent = 'Kiswahili';
+        }
+    }
+}
