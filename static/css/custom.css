@@ -305,31 +305,92 @@ footer {
     border: none;
 }
 
-/* Logo and navigation styles */
+/* Enhanced Logo and Branding */
 .navbar-brand {
     display: flex;
     align-items: center;
     font-family: var(--special-font);
-    font-weight: 600;
-    font-size: 1.5rem;
+    font-weight: 700;
+    font-size: 1.6rem;
     color: var(--primary-color) !important;
-    letter-spacing: -0.01em;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    position: relative;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.navbar-brand::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    opacity: 0;
+    border-radius: 12px;
+    filter: blur(10px);
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.navbar-brand:hover::before {
+    opacity: 0.3;
 }
 
 .brand-logo {
-    height: 42px;
-    margin-right: 14px;
-    transition: all 0.4s ease;
-    filter: drop-shadow(0 2px 5px rgba(76, 80, 197, 0.2));
+    height: 48px;
+    margin-right: 16px;
+    transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    filter: drop-shadow(0 4px 12px rgba(76, 80, 197, 0.3));
+    position: relative;
+}
+
+.brand-logo::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: radial-gradient(circle, rgba(76, 80, 197, 0.2), transparent 70%);
+    opacity: 0;
+    border-radius: 50%;
+    transition: opacity 0.3s ease;
+    z-index: -1;
 }
 
 .navbar-brand:hover .brand-logo {
-    transform: scale(1.1) rotate(5deg);
-    filter: drop-shadow(0 3px 8px rgba(76, 80, 197, 0.3));
+    transform: scale(1.15) rotate(8deg);
+    filter: drop-shadow(0 6px 20px rgba(76, 80, 197, 0.4)) drop-shadow(0 0 30px rgba(65, 193, 224, 0.3));
+}
+
+.navbar-brand:hover .brand-logo::before {
+    opacity: 1;
+}
+
+/* Enhanced brand text with better typography */
+.navbar-brand .brand-text {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 3s ease-in-out infinite alternate;
+    font-weight: 800;
+    text-shadow: 0 0 30px rgba(76, 80, 197, 0.3);
+}
+
+@keyframes gradient-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
 }
 
 /* Navigation - Enhanced Sticky Design */
@@ -448,15 +509,54 @@ footer {
     width: 70px;
 }
 
-/* Sidebar Header */
+/* Enhanced Sidebar Header */
 .sidebar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 1.5rem 1rem;
-    border-bottom: 1px solid var(--card-border);
-    background: rgba(76, 80, 197, 0.02);
+    border-bottom: 1px solid rgba(76, 80, 197, 0.1);
+    background: linear-gradient(135deg, 
+        rgba(76, 80, 197, 0.08) 0%, 
+        rgba(65, 193, 224, 0.05) 50%, 
+        rgba(255, 121, 80, 0.03) 100%);
     min-height: 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+    opacity: 0.7;
+}
+
+.sidebar-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    50% {
+        left: 100%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 .sidebar-brand {
@@ -464,32 +564,119 @@ footer {
     align-items: center;
     gap: 0.75rem;
     text-decoration: none;
-    transition: all 0.3s ease;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    padding: 0.5rem;
+    border-radius: 12px;
+}
+
+.sidebar-brand::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(76, 80, 197, 0.05), rgba(65, 193, 224, 0.05));
+    opacity: 0;
+    border-radius: 12px;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.sidebar-brand:hover::before {
+    opacity: 1;
 }
 
 .sidebar-logo {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    filter: drop-shadow(0 2px 8px rgba(76, 80, 197, 0.2));
-    transition: all 0.3s ease;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    filter: drop-shadow(0 4px 16px rgba(76, 80, 197, 0.3));
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+}
+
+.sidebar-logo::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    background: radial-gradient(circle, rgba(76, 80, 197, 0.15), transparent 70%);
+    opacity: 0;
+    border-radius: 50%;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.sidebar-brand:hover .sidebar-logo {
+    transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(0 6px 24px rgba(76, 80, 197, 0.4)) drop-shadow(0 0 40px rgba(65, 193, 224, 0.2));
+}
+
+.sidebar-brand:hover .sidebar-logo::after {
+    opacity: 1;
 }
 
 .sidebar-brand-text {
     font-family: var(--special-font);
-    font-weight: 600;
-    font-size: 1.25rem;
+    font-weight: 700;
+    font-size: 1.3rem;
     color: var(--primary-color);
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+    background-size: 200% 200%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     transition: all 0.3s ease;
+    animation: subtle-glow 4s ease-in-out infinite alternate;
+    letter-spacing: -0.01em;
 }
 
-.sidebar.collapsed .sidebar-brand-text {
+@keyframes subtle-glow {
+    0% {
+        background-position: 0% 50%;
+        filter: drop-shadow(0 0 8px rgba(76, 80, 197, 0.2));
+    }
+    100% {
+        background-position: 100% 50%;
+        filter: drop-shadow(0 0 12px rgba(65, 193, 224, 0.3));
+    }
+}
+
+.sidebar.collapsed .sidebar-brand-text,
+.sidebar.collapsed .sidebar-brand-subtitle {
     opacity: 0;
     transform: translateX(-20px);
+}
+
+.brand-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    transition: all 0.3s ease;
+}
+
+.sidebar-brand-subtitle {
+    font-family: var(--brand-font);
+    font-weight: 900;
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: all 0.3s ease;
+    opacity: 0.9;
+}
+
+.sidebar-brand:hover .sidebar-brand-subtitle {
+    opacity: 1;
+    transform: translateX(2px);
 }
 
 .sidebar-toggle {
@@ -846,6 +1033,40 @@ footer {
     .sidebar-brand-text {
         font-size: 1.1rem;
     }
+}
+
+/* Brand Enhancement Animations */
+@keyframes brand-pulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 4px 16px rgba(76, 80, 197, 0.3));
+    }
+    50% {
+        transform: scale(1.02);
+        filter: drop-shadow(0 6px 24px rgba(76, 80, 197, 0.4)) drop-shadow(0 0 40px rgba(65, 193, 224, 0.2));
+    }
+}
+
+.sidebar-logo {
+    animation: brand-pulse 4s ease-in-out infinite;
+}
+
+.sidebar-brand:hover .sidebar-logo {
+    animation: none;
+}
+
+/* Premium Brand Glow Effect */
+@keyframes premium-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(76, 80, 197, 0.1), inset 0 0 20px rgba(76, 80, 197, 0.05);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(76, 80, 197, 0.2), inset 0 0 20px rgba(65, 193, 224, 0.1);
+    }
+}
+
+.sidebar-header {
+    animation: premium-glow 6s ease-in-out infinite;
 }
 
 /* Enhanced Navigation Links with Icons */
