@@ -41,14 +41,20 @@
                         <a class="sidebar-link {% if request.path == url_for('index') %}active{% endif %}" 
                            href="{{ url_for('index') }}">
                             <i class="fas fa-chart-line"></i>
-                            <span class="sidebar-text">Dashboard</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Dashboard</div>
+                                <div class="sidebar-link-description">Overview and analytics</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('inventory') %}active{% endif %}" 
                            href="{{ url_for('inventory') }}">
                             <i class="fas fa-boxes"></i>
-                            <span class="sidebar-text">Inventory</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Inventory</div>
+                                <div class="sidebar-link-description">Manage stock and products</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
@@ -62,14 +68,20 @@
                         <a class="sidebar-link {% if request.path == url_for('categories') %}active{% endif %}" 
                            href="{{ url_for('categories') }}">
                             <i class="fas fa-folder-open"></i>
-                            <span class="sidebar-text">Categories</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Categories</div>
+                                <div class="sidebar-link-description">Organize product categories</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('sales') %}active{% endif %}" 
                            href="{{ url_for('sales') }}">
                             <i class="fas fa-cash-register"></i>
-                            <span class="sidebar-text">Sales</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Sales</div>
+                                <div class="sidebar-link-description">Record and track sales</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
@@ -90,7 +102,10 @@
                         <a class="sidebar-link {% if request.path == url_for('reports') %}active{% endif %}" 
                            href="{{ url_for('reports') }}">
                             <i class="fas fa-file-alt"></i>
-                            <span class="sidebar-text">Reports</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Reports</div>
+                                <div class="sidebar-link-description">Generate business reports</div>
+                            </div>
                         </a>
                     </li>
                 </ul>
