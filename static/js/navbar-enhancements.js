@@ -167,6 +167,10 @@ const rippleCSS = `
 }
 `;
 
-const style = document.createElement('style');
-style.textContent = rippleCSS;
-document.head.appendChild(style);
+// Only add CSS if it doesn't exist
+if (!document.querySelector('#navbar-ripple-styles')) {
+    const navbarStyle = document.createElement('style');
+    navbarStyle.id = 'navbar-ripple-styles';
+    navbarStyle.textContent = rippleCSS;
+    document.head.appendChild(navbarStyle);
+}
