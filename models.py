@@ -18,12 +18,14 @@ class Item(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)  # New FK to Category
     subcategory = db.Column(db.String(50))
     sell_by = db.Column(db.String(20), default='quantity')  # 'quantity' or 'kilogram'
-    quantity = db.Column(db.Integer, default=0)
+    quantity = db.Column(db.Integer, default=0)  # Global/total quantity for backward compatibility
     buying_price = db.Column(db.Float, default=0.0)
     selling_price_retail = db.Column(db.Float, default=0.0)
     selling_price_wholesale = db.Column(db.Float, default=0.0)
     price = db.Column(db.Float, default=0.0)  # For backward compatibility
     sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
+    # Multi-location settings
+    track_by_location = db.Column(db.Boolean, default=False)  # Whether to track this item by location
     # User ownership
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -53,9 +55,9 @@ class Item(db.Model):
         # Format: NAME-CAT-RANDOM
         return f"{name_code}-{category_code}-{suffix}" if category else f"{name_code}-{suffix}"
 
-    def to_dict(self):
+    def to_dict(self, include_locations=False):
         """Convert item to dictionary for API responses"""
-        return {
+        result = {
             'id': self.id,
             'name': self.name,
             'sku': self.sku or '',
@@ -70,9 +72,32 @@ class Item(db.Model):
             'selling_price_wholesale': float(self.selling_price_wholesale or 0),
             'price': float(self.price or self.selling_price_retail or 0),  # For backward compatibility
             'sales_type': self.sales_type or 'both',
+            'track_by_location': self.track_by_location or False,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+        
+        if include_locations and self.track_by_location:
+            result['locations'] = [stock.to_dict() for stock in self.location_stocks]
+            result['total_stock_across_locations'] = sum(stock.quantity for stock in self.location_stocks)
+        
+        return result
+
+    def get_stock_at_location(self, location_id):
+        """Get stock quantity at a specific location"""
+        if not self.track_by_location:
+            return self.quantity
+        
+        stock = next((s for s in self.location_stocks if s.location_id == location_id), None)
+        return stock.quantity if stock else 0
+
+    def get_available_stock_at_location(self, location_id):
+        """Get available stock quantity at a specific location (excluding reserved)"""
+        if not self.track_by_location:
+            return self.quantity
+        
+        stock = next((s for s in self.location_stocks if s.location_id == location_id), None)
+        return stock.available_quantity if stock else 0
 
 
 from enum import Enum
@@ -721,4 +746,189 @@ class PricingRule(db.Model):
             'priority': self.priority,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class Location(db.Model):
+    """Model for warehouse/store locations"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(20), unique=True, nullable=False)  # Short code like 'WH01', 'ST01'
+    type = db.Column(db.String(20), default='warehouse')  # 'warehouse', 'store', 'office'
+    address = db.Column(db.Text)
+    city = db.Column(db.String(50))
+    state = db.Column(db.String(50))
+    postal_code = db.Column(db.String(20))
+    country = db.Column(db.String(50))
+    phone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    manager_name = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True)
+    is_default = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    stock_levels = db.relationship('LocationStock', backref='location', lazy=True, cascade='all, delete-orphan')
+    transfers_from = db.relationship('StockTransfer', foreign_keys='StockTransfer.from_location_id', backref='from_location', lazy=True)
+    transfers_to = db.relationship('StockTransfer', foreign_keys='StockTransfer.to_location_id', backref='to_location', lazy=True)
+
+    def __repr__(self):
+        return f'<Location {self.name} ({self.code})>'
+
+    def to_dict(self):
+        """Convert location to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'type': self.type,
+            'address': self.address,
+            'city': self.city,
+            'state': self.state,
+            'postal_code': self.postal_code,
+            'country': self.country,
+            'phone': self.phone,
+            'email': self.email,
+            'manager_name': self.manager_name,
+            'is_active': self.is_active,
+            'is_default': self.is_default,
+            'total_items': len(self.stock_levels),
+            'total_stock': sum(stock.quantity for stock in self.stock_levels),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class LocationStock(db.Model):
+    """Model for item stock levels at specific locations"""
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id', ondelete='CASCADE'), nullable=False)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
+    quantity = db.Column(db.Integer, default=0)
+    reserved_quantity = db.Column(db.Integer, default=0)  # For pending orders/transfers
+    min_stock_level = db.Column(db.Integer, default=0)  # Location-specific minimum stock
+    max_stock_level = db.Column(db.Integer, default=0)  # Location-specific maximum stock
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    item = db.relationship('Item', backref=db.backref('location_stocks', lazy=True))
+
+    # Ensure unique combination of item and location
+    __table_args__ = (db.UniqueConstraint('item_id', 'location_id', name='_item_location_stock_uc'),)
+
+    def __repr__(self):
+        return f'<LocationStock {self.item.name} at {self.location.name}: {self.quantity}>'
+
+    @property
+    def available_quantity(self):
+        """Calculate available quantity (total - reserved)"""
+        return max(0, self.quantity - self.reserved_quantity)
+
+    def to_dict(self):
+        """Convert location stock to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else '',
+            'item_sku': self.item.sku if self.item else '',
+            'location_id': self.location_id,
+            'location_name': self.location.name if self.location else '',
+            'location_code': self.location.code if self.location else '',
+            'quantity': self.quantity,
+            'reserved_quantity': self.reserved_quantity,
+            'available_quantity': self.available_quantity,
+            'min_stock_level': self.min_stock_level,
+            'max_stock_level': self.max_stock_level,
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None
+        }
+
+
+class StockTransfer(db.Model):
+    """Model for stock transfers between locations"""
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_number = db.Column(db.String(50), unique=True, nullable=False)
+    from_location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    to_location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, in_transit, completed, cancelled
+    transfer_date = db.Column(db.Date, default=datetime.utcnow().date)
+    expected_arrival = db.Column(db.Date)
+    actual_arrival = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    requested_by = db.Column(db.String(100))
+    approved_by = db.Column(db.String(100))
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    items = db.relationship('StockTransferItem', backref='transfer', lazy=True, cascade='all, delete-orphan')
+    creator = db.relationship('User', backref=db.backref('stock_transfers', lazy=True))
+
+    def __repr__(self):
+        return f'<StockTransfer {self.transfer_number}>'
+
+    @staticmethod
+    def generate_transfer_number():
+        """Generate a unique transfer number"""
+        import time
+        timestamp = str(int(time.time()))[-6:]  # Last 6 digits of timestamp
+        random_suffix = ''.join(random.choices(string.digits, k=3))
+        return f"TRF-{timestamp}-{random_suffix}"
+
+    def to_dict(self):
+        """Convert stock transfer to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'transfer_number': self.transfer_number,
+            'from_location_id': self.from_location_id,
+            'from_location_name': self.from_location.name if self.from_location else '',
+            'from_location_code': self.from_location.code if self.from_location else '',
+            'to_location_id': self.to_location_id,
+            'to_location_name': self.to_location.name if self.to_location else '',
+            'to_location_code': self.to_location.code if self.to_location else '',
+            'status': self.status,
+            'transfer_date': self.transfer_date.isoformat() if self.transfer_date else None,
+            'expected_arrival': self.expected_arrival.isoformat() if self.expected_arrival else None,
+            'actual_arrival': self.actual_arrival.isoformat() if self.actual_arrival else None,
+            'notes': self.notes,
+            'requested_by': self.requested_by,
+            'approved_by': self.approved_by,
+            'created_by': self.created_by,
+            'items_count': len(self.items),
+            'total_quantity': sum(item.quantity for item in self.items),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class StockTransferItem(db.Model):
+    """Model for items in a stock transfer"""
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_id = db.Column(db.Integer, db.ForeignKey('stock_transfer.id', ondelete='CASCADE'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity_requested = db.Column(db.Integer, nullable=False)
+    quantity_shipped = db.Column(db.Integer, default=0)
+    quantity_received = db.Column(db.Integer, default=0)
+    notes = db.Column(db.Text)
+
+    # Relationships
+    item = db.relationship('Item', backref=db.backref('transfer_items', lazy=True))
+
+    def __repr__(self):
+        return f'<StockTransferItem {self.item.name if self.item else "Unknown"}: {self.quantity_requested}>'
+
+    def to_dict(self):
+        """Convert stock transfer item to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'transfer_id': self.transfer_id,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else '',
+            'item_sku': self.item.sku if self.item else '',
+            'quantity_requested': self.quantity_requested,
+            'quantity_shipped': self.quantity_shipped,
+            'quantity_received': self.quantity_received,
+            'notes': self.notes
         }
