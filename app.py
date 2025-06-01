@@ -1214,10 +1214,16 @@ def delete_setting(key):
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
-    # Clear session data
-    session.clear()
-    flash('You have been logged out', 'success')
-    return redirect(url_for('login'))
+    try:
+        # Clear session data
+        session.clear()
+        flash('You have been logged out successfully', 'success')
+        logger.info("User logged out successfully")
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        flash('Logout completed', 'info')
+    
+    return redirect('/login')
 
 
 # Financial Statement Routes

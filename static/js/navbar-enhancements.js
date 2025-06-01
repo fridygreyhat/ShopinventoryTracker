@@ -169,8 +169,8 @@ const rippleCSS = `
 
 // Only add CSS if it doesn't exist
 if (!document.querySelector('#navbar-ripple-styles')) {
-    const navbarRippleStyle = document.createElement('style');
-    navbarRippleStyle.id = 'navbar-ripple-styles';
-    navbarRippleStyle.textContent = rippleCSS;
-    document.head.appendChild(navbarRippleStyle);
+    const navbarRippleStyleElement = document.createElement('style');
+    navbarRippleStyleElement.id = 'navbar-ripple-styles';
+    navbarRippleStyleElement.textContent = rippleCSS;
+    document.head.appendChild(navbarRippleStyleElement);
 }

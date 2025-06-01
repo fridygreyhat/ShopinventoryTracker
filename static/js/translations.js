@@ -91,9 +91,12 @@ function updatePageLanguage(lang) {
 
 // Initialize language selector
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Language selector initializing...');
+    
     // Handle sidebar language selector (if exists)
     const languageSelector = document.getElementById('languageSelector');
     if (languageSelector) {
+        console.log('Sidebar language selector found');
         // Set initial language
         const savedLanguage = localStorage.getItem('preferred_language') || 'en';
         languageSelector.value = savedLanguage;
@@ -101,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add change event listener
         languageSelector.addEventListener('change', function() {
+            console.log('Language changed to:', this.value);
             updatePageLanguage(this.value);
         });
     }
@@ -108,6 +112,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle top bar language selector
     const topLanguageOptions = document.querySelectorAll('.language-option');
     const currentLanguageSpan = document.getElementById('currentLanguage');
+    
+    console.log('Top language options found:', topLanguageOptions.length);
     
     if (topLanguageOptions.length > 0) {
         // Set initial language display
@@ -120,8 +126,21 @@ document.addEventListener('DOMContentLoaded', function() {
             option.addEventListener('click', function(e) {
                 e.preventDefault();
                 const selectedLang = this.getAttribute('data-lang');
+                console.log('Top language option clicked:', selectedLang);
                 updatePageLanguage(selectedLang);
                 updateTopLanguageDisplay(selectedLang);
+                
+                // Close the dropdown after selection
+                const dropdown = this.closest('.dropdown');
+                if (dropdown) {
+                    const dropdownToggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+                    if (dropdownToggle) {
+                        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownToggle);
+                        if (dropdownInstance) {
+                            dropdownInstance.hide();
+                        }
+                    }
+                }
             });
         });
     }

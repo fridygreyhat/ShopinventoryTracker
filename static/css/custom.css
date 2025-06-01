@@ -769,6 +769,27 @@ footer {
     background: rgba(255, 255, 255, 0.95);
 }
 
+/* Top bar dropdown improvements */
+.top-language-selector .dropdown-menu,
+.top-user-menu .dropdown-menu {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    margin-top: 0.5rem;
+}
+
+.top-language-selector .dropdown-item:hover,
+.top-user-menu .dropdown-item:hover {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+.top-language-selector .dropdown-item i,
+.top-user-menu .dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
 /* ========== MAIN CONTENT STYLES ========== */
 
 /* Main Content Container */

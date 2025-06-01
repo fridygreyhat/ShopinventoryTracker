@@ -219,10 +219,10 @@ const sidebarRippleCSS = `
 
 // Only add CSS if it doesn't exist
 if (!document.querySelector('#sidebar-ripple-styles')) {
-    const sidebarStyle = document.createElement('style');
-    sidebarStyle.id = 'sidebar-ripple-styles';
-    sidebarStyle.textContent = sidebarRippleCSS;
-    document.head.appendChild(sidebarStyle);
+    const sidebarRippleStyleElement = document.createElement('style');
+    sidebarRippleStyleElement.id = 'sidebar-ripple-styles';
+    sidebarRippleStyleElement.textContent = sidebarRippleCSS;
+    document.head.appendChild(sidebarRippleStyleElement);
 }
 
 // Sidebar tooltip functionality for collapsed state
