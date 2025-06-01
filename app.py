@@ -173,6 +173,7 @@ with app.app_context():
                               'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'category_id', 'INTEGER')
             add_column_safely('item', 'user_id', 'INTEGER')
+            add_column_safely('item', 'track_by_location', 'BOOLEAN DEFAULT 0', '0')
             
             # Set user_id for existing items (assign to first admin user if exists)
             try:
