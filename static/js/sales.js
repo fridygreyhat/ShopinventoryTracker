@@ -55,14 +55,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Product search
     const refreshProductsBtn = document.getElementById('refreshProductsBtn');
-    
+
     searchProductsBtn.addEventListener('click', searchProducts);
     refreshProductsBtn.addEventListener('click', function() {
         console.log('Refreshing products...');
         productSearchInput.value = '';
         loadAllProducts();
     });
-    
+
     productSearchInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter') {
             searchProducts();
@@ -128,11 +128,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Checkout
     completeTransactionBtn.addEventListener('click', completeTransaction);
     createInvoiceBtn.addEventListener('click', createInvoice);
-    
+
     // Split Payment Features
     const splitPaymentBtn = document.getElementById('splitPaymentBtn');
     const splitPaymentModal = document.getElementById('splitPaymentModal');
-    
+
     if (splitPaymentBtn) {
         splitPaymentBtn.addEventListener('click', initializeSplitPayment);
     }
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If no query, load all products
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
-        
+
         console.log('Searching products with URL:', searchUrl);
 
         // Make API request to search inventory
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displaySearchResults(items) {
         console.log('Displaying search results:', items);
-        
+
         if (items.length === 0) {
             productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found</td></tr>';
             return;
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function addToCart(itemId) {
         console.log('Adding to cart, item ID:', itemId);
         console.log('Current search results:', searchResults);
-        
+
         const item = searchResults.find(item => item.id == itemId);
 
         if (!item) {
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Cannot add more items. Insufficient stock.');
                 return;
             }
-            
+
             // Increment quantity if already in cart
             cart[existingItemIndex].quantity += 1;
             cart[existingItemIndex].total = cart[existingItemIndex].price * cart[existingItemIndex].quantity;
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('Cart after adding item:', cart);
         updateCartDisplay();
-        
+
         // Show success feedback
         const button = document.querySelector(`[data-id="${itemId}"]`);
         if (button) {
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
             button.innerHTML = '<i class="fas fa-check"></i>';
             button.classList.remove('btn-primary');
             button.classList.add('btn-success');
-            
+
             setTimeout(() => {
                 button.innerHTML = originalText;
                 button.classList.remove('btn-success');
@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Transaction Functions
     function completeTransaction() {
         console.log('Complete transaction button clicked');
-        
+
         if (cart.length === 0) {
             alert('Please add items to the cart before completing transaction');
             return;
@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (payment === 'mobile_money') {
             const providerElement = document.getElementById('mobileProvider');
             const referenceElement = document.getElementById('transactionReference');
-            
+
             if (providerElement && referenceElement) {
                 mobileInfo = {
                     provider: providerElement.value,
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Transaction completed successfully:', data);
-            
+
             // Show success message with transaction details
             const changeAmount = Math.max(0, amount - totalAmount);
             let successMessage = 'Transaction completed successfully!';
@@ -648,14 +648,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear the cart and reset form
             clearCart();
             document.getElementById('checkoutForm').reset();
-            
+
             // Reset payment amount to 0
             document.getElementById('paymentAmount').value = '';
 
             // Reset button
             completeTransactionBtn.disabled = false;
             completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
-            
+
             // Refresh products to update stock quantities
             if (typeof loadAllProducts === 'function') {
                 loadAllProducts();
@@ -673,112 +673,156 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Split Payment Management
     let splitPayments = [];
-    
+
     function initializeSplitPayment() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         splitPayments = [];
         updateSplitPaymentDisplay();
-        
+
+        // Set remaining amount to total
+        const remainingAmountDisplay = document.getElementById('remainingAmount');
+        if (remainingAmountDisplay) {
+            remainingAmountDisplay.textContent = `TZS ${totalAmount.toLocaleString()}`;
+        }
+
         // Show split payment modal
-        const modal = new bootstrap.Modal(splitPaymentModal);
-        modal.show();
+        const splitPaymentModal = document.getElementById('splitPaymentModal');
+        if (splitPaymentModal) {
+            const modal = new bootstrap.Modal(splitPaymentModal);
+            modal.show();
+        }
     }
-    
+
+    // Add event listener for split payment button
+    document.addEventListener('DOMContentLoaded', function() {
+        const splitPaymentBtn = document.getElementById('splitPaymentBtn');
+        if (splitPaymentBtn) {
+            splitPaymentBtn.addEventListener('click', function() {
+                if (cart.length === 0) {
+                    showError('Please add items to cart before setting up split payment.');
+                    return;
+                }
+                initializeSplitPayment();
+            });
+        }
+    });
+
     function addSplitPayment() {
         const method = document.getElementById('splitPaymentMethod').value;
         const amount = parseFloat(document.getElementById('splitPaymentAmount').value);
         const reference = document.getElementById('splitPaymentReference').value;
-        
+
         if (!amount || amount <= 0) {
             alert('Please enter a valid payment amount');
             return;
         }
-        
+
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const currentTotal = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        
+
         if (currentTotal + amount > totalAmount) {
             alert('Payment amount exceeds remaining balance');
             return;
         }
-        
+
         splitPayments.push({
             method: method,
             amount: amount,
             reference: reference || '',
             timestamp: new Date().toISOString()
         });
-        
+
         updateSplitPaymentDisplay();
-        
+
         // Clear form
         document.getElementById('splitPaymentAmount').value = '';
         document.getElementById('splitPaymentReference').value = '';
     }
-    
+
     function updateSplitPaymentDisplay() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
         const remainingAmount = totalAmount - paidAmount;
-        
+
         const splitPaymentsList = document.getElementById('splitPaymentsList');
         const remainingAmountDisplay = document.getElementById('remainingAmount');
-        
+
         // Update payments list
         splitPaymentsList.innerHTML = '';
-        splitPayments.forEach((payment, index) => {
-            const paymentRow = document.createElement('div');
-            paymentRow.className = 'row mb-2';
-            paymentRow.innerHTML = `
-                <div class="col-4">${payment.method}</div>
-                <div class="col-4">TZS ${payment.amount.toLocaleString()}</div>
-                <div class="col-4">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeSplitPayment(${index})">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            splitPaymentsList.appendChild(paymentRow);
-        });
-        
+        if (splitPayments.length === 0) {
+            splitPaymentsList.innerHTML = '<p class="text-muted">No payments added yet</p>';
+        } else {
+            splitPayments.forEach((payment, index) => {
+                const paymentRow = document.createElement('div');
+                paymentRow.className = 'row mb-2 align-items-center';
+                paymentRow.innerHTML = `
+                    <div class="col-4"><strong>${payment.method}</strong></div>
+                    <div class="col-4">TZS ${payment.amount.toLocaleString()}</div>
+                    <div class="col-4">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeSplitPayment(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                splitPaymentsList.appendChild(paymentRow);
+            });
+        }
+
         // Update remaining amount
         remainingAmountDisplay.textContent = `TZS ${remainingAmount.toLocaleString()}`;
-        
+
         // Enable/disable complete button
         const completeSplitBtn = document.getElementById('completeSplitPayment');
-        completeSplitBtn.disabled = remainingAmount > 0;
+        if (completeSplitBtn) {
+            completeSplitBtn.disabled = remainingAmount > 0;
+
+            // Update button text based on status
+            if (remainingAmount > 0) {
+                completeSplitBtn.textContent = `Remaining: TZS ${remainingAmount.toLocaleString()}`;
+            } else {
+                completeSplitBtn.textContent = 'Complete Split Payment';
+            }
+        }
     }
-    
+
     function removeSplitPayment(index) {
         splitPayments.splice(index, 1);
         updateSplitPaymentDisplay();
     }
-    
+
     function completeSplitPayment() {
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const paidAmount = splitPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        
+
         if (paidAmount < totalAmount) {
-            alert('Payment amount is less than total. Please add more payments.');
+            showError('Payment amount is less than total. Please add more payments.');
             return;
         }
-        
+
+        if (splitPayments.length === 0) {
+            showError('Please add at least one payment method.');
+            return;
+        }
+
         // Process the transaction with split payments
         processSplitPaymentTransaction();
-        
+
         // Close modal
-        const modal = bootstrap.Modal.getInstance(splitPaymentModal);
-        modal.hide();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('splitPaymentModal'));
+        if (modal) {
+            modal.hide();
+        }
     }
-    
+
     function processSplitPaymentTransaction() {
         const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone').value || '';
         const notes = document.getElementById('saleNotes').value || '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        
+        const saleType = document.getElementById('saleType').value || 'retail';
+
         const transaction = {
-            customer: {
+                customer: {
                 name: customerName,
                 phone: customerPhone
             },
@@ -807,7 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
             notes: notes,
             date: new Date().toISOString()
         };
-        
+
         // Send to server
         fetch('/api/sales', {
             method: 'POST',
@@ -818,15 +862,19 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            alert('Split payment transaction completed successfully!');
-            clearCart();
-            document.getElementById('checkoutForm').reset();
-            splitPayments = [];
-            loadAllProducts();
+            if (data.success) {
+                showSuccess('Split payment transaction completed successfully!');
+                clearCart();
+                document.getElementById('checkoutForm').reset();
+                splitPayments = [];
+                loadAllProducts();
+            } else {
+                throw new Error(data.error || 'Transaction failed');
+            }
         })
         .catch(error => {
             console.error('Error processing split payment:', error);
-            alert('Failed to process split payment transaction');
+            showError('Failed to process split payment transaction: ' + error.message);
         });
     }
 
@@ -836,10 +884,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Prepare invoice data
+        // Get shop details
+        fetch('/api/shop/details')
+            .then(response => response.json())
+            .then(shopData => {
+                generatePrintableInvoice(shopData.user || {});
+            })
+            .catch(error => {
+                console.error('Error getting shop details:', error);
+                generatePrintableInvoice({});
+            });
+    }
+
+    function generatePrintableInvoice(shopInfo) {
         const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
         const customerPhone = document.getElementById('customerPhone').value || '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const invoiceNumber = `INV-${Date.now().toString().substring(6)}`;
 
         // Create a printable invoice in a new window
         const invoiceWindow = window.open('', '_blank');
@@ -847,132 +908,475 @@ document.addEventListener('DOMContentLoaded', function() {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Invoice</title>
+                <title>Invoice - ${invoiceNumber}</title>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {
-                        font-family: Arial, sans-serif;
-                        line-height: 1.6;
+                        font-family: 'Arial', sans-serif;
+                        line-height: 1.4;
                         color: #333;
                         max-width: 800px;
                         margin: 0 auto;
                         padding: 20px;
+                        font-size: 14px;
                     }
                     .invoice-header {
                         text-align: center;
                         margin-bottom: 30px;
-                        border-bottom: 1px solid #ddd;
+                        border-bottom: 2px solid #4B0082;
                         padding-bottom: 20px;
                     }
-                    .invoice-body {
+                    .shop-name {
+                        color: #4B0082;
+                        font-size: 28px;
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                    }
+                    .invoice-title {
+                        font-size: 24px;
+                        color: #666;
+                        margin: 10px 0;
+                    }
+                    .invoice-meta {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
                         margin-bottom: 30px;
+                    }
+                    .customer-info, .invoice-info {
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
                     }
                     table {
                         width: 100%;
                         border-collapse: collapse;
                         margin-bottom: 20px;
+                        border: 1px solid #ddd;
                     }
                     th, td {
-                        padding: 10px;
-                        border-bottom: 1px solid #ddd;
+                        padding: 12px 8px;
+                        border-bottom: 1px solid #eee;
                         text-align: left;
                     }
                     th {
-                        background-color: #f8f8f8;
+                        background-color: #4B0082;
+                        color: white;
+                        font-weight: bold;
                     }
                     .text-right {
-                        text-align: right;
+                        text-align:right;
+                    }
+                    .text-center {
+                        text-align: center;
+                    }
+                    .total-section {
+                        background: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-top: 20px;
                     }
                     .total-row {
                         font-weight: bold;
-                    }
-                    .customer-info {
-                        margin-bottom: 20px;
+                        font-size: 16px;
+                        background: #4B0082 !important;
+                        color: white !important;
                     }
                     .invoice-footer {
-                        margin-top: 30px;
+                        margin-top: 40px;
                         border-top: 1px solid #ddd;
                         padding-top: 20px;
-                        font-size: 0.9em;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #666;
+                    }
+                    .qr-code {
+                        width: 100px;
+                        height: 100px;
+                        border: 1px solid #ddd;
+                        display: inline-block;
+                        text-align: center;
+                        line-height: 100px;
+                        margin: 10px;
                     }
                     @media print {
                         body {
                             padding: 0;
+                            font-size: 12px;
                         }
                         .no-print {
                             display: none;
                         }
+                        .invoice-header {
+                            border-bottom: 2px solid #000;
+                        }
+                        th {
+                            background-color: #000 !important;
+                            -webkit-print-color-adjust: exact;
+                        }
+                        .total-row {
+                            background-color: #000 !important;
+                            -webkit-print-color-adjust: exact;
+                        }
+                    }
+                    .action-buttons {
+                        text-align: center;
+                        margin: 20px 0;
+                    }
+                    .action-buttons button {
+                        margin: 0 10px;
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 14px;
+                    }
+                    .print-btn {
+                        background: #4B0082;
+                        color: white;
+                    }
+                    .close-btn {
+                        background: #dc3545;
+                        color: white;
+                    }
+                    .email-btn {
+                        background: #28a745;
+                        color: white;
                     }
                 </style>
             </head>
             <body>
                 <div class="invoice-header">
-                    <h1>INVOICE</h1>
-                    <p>Shop Inventory Management System</p>
-                    <p>Date: ${new Date().toLocaleDateString()}</p>
-                    <p>Invoice #: INV-${Date.now().toString().substring(6)}</p>
+                    <div class="shop-name">${shopInfo.shop_name || 'Your Shop'}</div>
+                    <div>Inventory Management System</div>
+                    <div class="invoice-title">SALES INVOICE</div>
                 </div>
 
-                <div class="invoice-body">
+                <div class="invoice-meta">
                     <div class="customer-info">
-                        <h3>Customer Information</h3>
-                        <p><strong>Name:</strong> ${customerName}</p>
-                        <p><strong>Phone:</strong> ${customerPhone || 'N/A'}</p>
+                        <h4 style="margin-top: 0; color: #4B0082;">Bill To:</h4>
+                        <strong>${customerName}</strong><br>
+                        ${customerPhone ? `Phone: ${customerPhone}<br>` : ''}
+                        ${customerPhone ? `Email: ${document.getElementById('customerEmail')?.value || 'N/A'}` : ''}
                     </div>
+                    <div class="invoice-info">
+                        <h4 style="margin-top: 0; color: #4B0082;">Invoice Details:</h4>
+                        <strong>Invoice #:</strong> ${invoiceNumber}<br>
+                        <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
+                        <strong>Time:</strong> ${new Date().toLocaleTimeString()}<br>
+                        <strong>Cashier:</strong> ${shopInfo.owner_name || 'Cashier'}
+                    </div>
+                </div>
 
-                    <h3>Items</h3>
-                    <table>
-                        <thead>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-right">Unit Price</th>
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cart.map(item => `
                             <tr>
-                                <th>Item</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th class="text-right">Total</th>
+                                <td>
+                                    <strong>${item.name}</strong>
+                                    ${item.sku ? `<br><small style="color: #666;">SKU: ${item.sku}</small>` : ''}
+                                </td>
+                                <td class="text-center">${item.quantity}</td>
+                                <td class="text-right">TZS ${item.price.toLocaleString()}</td>
+                                <td class="text-right">TZS ${item.total.toLocaleString()}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${cart.map(item => `
-                                <tr>
-                                    <td>
-                                        ${item.name}
-                                        <div style="font-size: 0.8em; color: #777;">${item.sku || 'No SKU'}</div>
-                                    </td>
-                                    <td>TZS ${item.price.toLocaleString()}</td>
-                                    <td>${item.quantity}</td>
-                                    <td class="text-right">TZS ${item.total.toLocaleString()}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-right">Subtotal:</td>
-                                <td class="text-right">TZS ${parseFloat(cartSubtotal.textContent.replace(/,/g, '')).toLocaleString()}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" class="text-right">Discount:</td>
-                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString()}</td>
-                            </tr>
-                            <tr class="total-row">
-                                <td colspan="3" class="text-right">Total:</td>
-                                <td class="text-right">TZS ${totalAmount.toLocaleString()}</td>
-                            </tr>
-                        </tfoot>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="total-section">
+                    <table style="border: none; margin: 0;">
+                        <tr>
+                            <td style="border: none; width: 60%;"></td>
+                            <td style="border: none; text-align: right; padding: 5px 0;">Subtotal:</td>
+                            <td style="border: none; text-align: right; padding: 5px 0; font-weight: bold;">TZS ${parseFloat(cartSubtotal.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                        </tr>
+                        ${currentDiscount.type !== 'none' ? `
+                        <tr>
+                            <td style="border: none;"></td>
+                            <td style="border: none; text-align: right; padding: 5px 0;">Discount (${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'Fixed'}):</td>
+                            <td style="border: none; text-align: right; padding: 5px 0; color: #dc3545;">-TZS ${parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                        </tr>` : ''}
+                        <tr class="total-row">
+                            <td style="border: none;"></td>
+                            <td style="padding: 10px 0; text-align: right; background: #4B0082; color: white;">TOTAL:</td>
+                            <td style="padding: 10px 0; text-align: right; background: #4B0082; color: white; font-size: 18px;">TZS ${totalAmount.toLocaleString()}</td>
+                        </tr>
                     </table>
                 </div>
 
                 <div class="invoice-footer">
-                    <p>Thank you for your business!</p>
-                    <p>For any queries regarding this invoice, please contact us.</p>
-                    <div class="no-print">
-                        <hr>
-                        <button onclick="window.print()">Print Invoice</button>
-                        <button onclick="window.close()">Close</button>
+                    <div style="margin-bottom: 20px;">
+                        <div class="qr-code">QR Code</div>
+                        <p><strong>Thank you for your business!</strong></p>
+                        <p>For support or inquiries, please contact us.</p>
+                        <p><em>This is a computer-generated invoice.</em></p>
+                    </div>
+
+                    <div class="no-print action-buttons">
+                        <button class="print-btn" onclick="window.print()">
+                            🖨️ Print Receipt
+                        </button>
+                        <button class="email-btn" onclick="emailReceipt()">
+                            📧 Email Receipt
+                        </button>
+                        <button class="close-btn" onclick="window.close()">
+                            ❌ Close
+                        </button>
                     </div>
                 </div>
+
+                <script>
+                    function emailReceipt() {
+                        const email = prompt('Enter customer email address:');
+                        if (email) {
+                            // Here you would integrate with your email service
+                            alert('Email functionality would be integrated here');
+                        }
+                    }
+                </script>
             </body>
             </html>
         `);
         invoiceWindow.document.close();
+    }
+
+    // Installment Payment Functions
+    function createInstallmentPlan() {
+        if (cart.length === 0) {
+            alert('Please add items to the cart before creating an installment plan');
+            return;
+        }
+
+        const customerName = document.getElementById('installmentCustomerName').value;
+        const customerPhone = document.getElementById('installmentCustomerPhone').value;
+        const customerEmail = document.getElementById('installmentCustomerEmail').value;
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
+        const frequency = document.getElementById('installmentFrequency').value;
+        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const notes = document.getElementById('installmentNotes').value;
+        const agreeToTerms = document.getElementById('agreeToTerms').checked;
+
+        if (!customerName || !customerPhone) {
+            alert('Customer name and phone are required');
+            return;
+        }
+
+        if (!agreeToTerms) {
+            alert('Please agree to the terms and conditions');
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const remainingBalance = totalAmount - downPayment;
+        
+        // Calculate total with interest
+        const totalWithInterest = remainingBalance * (1 + (interestRate / 100));
+        const installmentAmount = totalWithInterest / installmentCount;
+
+        // Calculate next payment date
+        const nextPaymentDate = new Date();
+        if (frequency === 'weekly') {
+            nextPaymentDate.setDate(nextPaymentDate.getDate() + 7);
+        } else if (frequency === 'bi-weekly') {
+            nextPaymentDate.setDate(nextPaymentDate.getDate() + 14);
+        } else if (frequency === 'monthly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+        } else if (frequency === 'quarterly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3);
+        }
+
+        const installmentData = {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            customer_email: customerEmail,
+            total_amount: totalAmount,
+            down_payment: downPayment,
+            installment_amount: installmentAmount,
+            payment_frequency: frequency,
+            next_payment_date: nextPaymentDate.toISOString().split('T')[0],
+            items: cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                sku: item.sku,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total
+            })),
+            notes: notes,
+            interest_rate: interestRate,
+            installment_count: installmentCount
+        };
+
+        fetch('/api/layaway', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(installmentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                alert('Installment plan created successfully!');
+
+                // Clear cart and close modal
+                clearCart();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('installmentModal'));
+                modal.hide();
+
+                // Reset form
+                document.getElementById('installmentForm').reset();
+            } else {
+                alert('Error creating installment plan: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating installment plan:', error);
+            alert('Failed to create installment plan');
+        });
+    }
+
+    // Update installment summary when values change
+    function updateInstallmentSummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
+        const interestRate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const frequency = document.getElementById('installmentFrequency').value;
+
+        const remainingBalance = totalAmount - downPayment;
+        const totalWithInterest = remainingBalance * (1 + (interestRate / 100));
+        const installmentAmount = totalWithInterest / installmentCount;
+
+        // Update display
+        document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+        document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('installmentRemainingBalance').textContent = `TZS ${remainingBalance.toLocaleString()}`;
+        document.getElementById('totalWithInterest').textContent = `TZS ${totalWithInterest.toLocaleString()}`;
+        document.getElementById('installmentAmountDisplay').textContent = `TZS ${installmentAmount.toLocaleString()}`;
+        document.getElementById('frequencyDisplay').textContent = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+    }
+
+    // Layaway Management Functions
+    function createLayaway() {
+        if (cart.length === 0) {
+            alert('Please add items to the cart before creating a layaway plan');
+            return;
+        }
+
+        const customerName = document.getElementById('layawayCustomerName').value;
+        const customerPhone = document.getElementById('layawayCustomerPhone').value;
+        const downPayment = parseFloat(document.getElementById('layawayDownPayment').value) || 0;
+        const installmentAmount = parseFloat(document.getElementById('layawayInstallmentAmount').value) || 0;
+        const frequency = document.getElementById('layawayFrequency').value;
+        const nextPaymentDate = document.getElementById('layawayNextPayment').value;
+        const notes = document.getElementById('layawayNotes').value;
+
+        if (!customerName || !customerPhone) {
+            alert('Customer name and phone are required');
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+
+        if (installmentAmount <= 0) {
+            alert('Please enter a valid installment amount');
+            return;
+        }
+
+        const layawayData = {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            total_amount: totalAmount,
+            down_payment: downPayment,
+            installment_amount: installmentAmount,
+            payment_frequency: frequency,
+            next_payment_date: nextPaymentDate,
+            items: cart.map(item => ({
+                id: item.id,
+                name: item.name,
+                sku: item.sku,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total
+            })),
+            notes: notes
+        };
+
+        fetch('/api/layaway', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(layawayData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                alert('Layaway plan created successfully!');
+
+                // Clear cart and close modal
+                clearCart();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('layawayModal'));
+                modal.hide();
+
+                // Reset form
+                document.getElementById('layawayCustomerName').value = '';
+                document.getElementById('layawayCustomerPhone').value = '';
+                document.getElementById('layawayDownPayment').value = '';
+                document.getElementById('layawayInstallmentAmount').value = '';
+                document.getElementById('layawayNotes').value = '';
+            } else {
+                alert('Error creating layaway plan: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating layaway plan:', error);
+            alert('Failed to create layaway plan');
+        });
+    }
+
+    // Update layaway summary when values change
+    function updateLayawaySummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('layawayDownPayment').value) || 0;
+        const installmentAmount = parseFloat(document.getElementById('layawayInstallmentAmount').value) || 0;
+        const remainingBalance = totalAmount - downPayment;
+
+        document.getElementById('layawayTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+        document.getElementById('layawayDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('layawayRemainingBalance').textContent = `TZS ${remainingBalance.toLocaleString()}`;
+
+        if (installmentAmount > 0) {
+            const estimatedPayments = Math.ceil(remainingBalance / installmentAmount);
+            document.getElementById('layawayEstimatedPayments').textContent = estimatedPayments;
+        } else {
+            document.getElementById('layawayEstimatedPayments').textContent = '0';
+        }
+    }
+
+    // Add event listeners for installment calculations
+    if (document.getElementById('installmentDownPayment')) {
+        document.getElementById('installmentDownPayment').addEventListener('input', updateInstallmentSummary);
+        document.getElementById('installmentCount').addEventListener('input', updateInstallmentSummary);
+        document.getElementById('installmentFrequency').addEventListener('change', updateInstallmentSummary);
+        document.getElementById('interestRate').addEventListener('input', updateInstallmentSummary);
+    }
+
+    // Add event listeners for layaway calculations
+    if (document.getElementById('layawayDownPayment')) {
+        document.getElementById('layawayDownPayment').addEventListener('input', updateLayawaySummary);
+        document.getElementById('layawayInstallmentAmount').addEventListener('input', updateLayawaySummary);
     }
 });

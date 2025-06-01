@@ -188,6 +188,18 @@ with app.app_context():
                 logger.error(f"Error assigning existing items to admin: {str(e)}")
                 db.session.rollback()
 
+        # Check if financial_transaction table exists and add missing columns
+        result = db.session.execute(
+            db.text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';"
+            ))
+        if result.fetchone():
+            # Add missing financial transaction columns
+            add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
+            add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
@@ -260,11 +272,32 @@ def categories():
     return render_template('categories.html')
 
 
+@app.route('/locations')
+@login_required
+def locations():
+    """Render the locations management page"""
+    return render_template('locations.html')
+
+
 @app.route('/analytics')
 @login_required
 def analytics():
     """Render the predictive analytics page"""
     return render_template('analytics.html')
+
+
+@app.route('/layaway')
+@login_required
+def layaway_page():
+    """Render the layaway management page"""
+    return render_template('layaway.html')
+
+
+@app.route('/installments')
+@login_required
+def installments_page():
+    """Render the installments management page"""
+    return render_template('installments.html')
 
 
 # API Routes
@@ -1600,6 +1633,20 @@ def create_sale():
         customer_data = data.get('customer', {})
         payment_data = data.get('payment', {})
         discount_data = data.get('discount', {})
+        
+        # Handle split payments
+        split_payments = payment_data.get('split_payments', [])
+        payment_method = payment_data.get('method', 'cash')
+        
+        # If split payments exist, use 'split' as payment method and store details
+        if split_payments and len(split_payments) > 0:
+            payment_method = 'split'
+            payment_details = {
+                'split_payments': split_payments,
+                'total_methods': len(split_payments)
+            }
+        else:
+            payment_details = payment_data.get('mobile_info', {})
 
         # Create new sale record
         new_sale = Sale(
@@ -1612,8 +1659,8 @@ def create_sale():
             discount_value=float(discount_data.get('value', 0)),
             discount_amount=float(discount_data.get('amount', 0)),
             total=float(data.get('total', 0)),
-            payment_method=payment_data.get('method', 'cash'),
-            payment_details=json.dumps(payment_data.get('mobile_info', {})),
+            payment_method=payment_method,
+            payment_details=json.dumps(payment_details),
             payment_amount=float(payment_data.get('amount', 0)),
             change_amount=float(payment_data.get('change', 0)),
             notes=data.get('notes', ''))
@@ -2688,6 +2735,164 @@ def get_inventory_turnover():
     except Exception as e:
         logger.error(f"Error calculating inventory turnover: {str(e)}")
         return jsonify({"error": "Failed to calculate inventory turnover"}), 500
+
+# Layaway and Installment API Routes
+@app.route('/api/layaway', methods=['GET'])
+@login_required
+def get_layaway_plans():
+    """API endpoint to get all layaway plans for the current user"""
+    try:
+        from models import LayawayPlan
+        
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get query parameters for filtering
+        search = request.args.get('search', '')
+        status = request.args.get('status', 'all')
+        
+        # Start with base query (for now, we'll filter by customer names since we don't have user_id in LayawayPlan)
+        query = LayawayPlan.query
+        
+        # Apply filters
+        if search:
+            query = query.filter(LayawayPlan.customer_name.ilike(f'%{search}%'))
+        
+        if status != 'all':
+            query = query.filter(LayawayPlan.status == status)
+        
+        # Order by created_at descending
+        plans = query.order_by(LayawayPlan.created_at.desc()).all()
+        
+        return jsonify([plan.to_dict() for plan in plans])
+        
+    except Exception as e:
+        logger.error(f"Error getting layaway plans: {str(e)}")
+        return jsonify({"error": "Failed to get layaway plans"}), 500
+
+
+@app.route('/api/layaway', methods=['POST'])
+@login_required
+def create_layaway_plan():
+    """API endpoint to create a new layaway plan"""
+    try:
+        from models import LayawayPlan
+        import json
+        
+        data = request.json
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Validate required fields
+        required_fields = ['customer_name', 'customer_phone', 'total_amount']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Calculate remaining balance
+        total_amount = float(data['total_amount'])
+        down_payment = float(data.get('down_payment', 0))
+        remaining_balance = total_amount - down_payment
+        
+        # Create new layaway plan
+        new_plan = LayawayPlan(
+            customer_name=data['customer_name'],
+            customer_phone=data['customer_phone'],
+            customer_email=data.get('customer_email', ''),
+            total_amount=total_amount,
+            down_payment=down_payment,
+            remaining_balance=remaining_balance,
+            installment_amount=float(data.get('installment_amount', 0)),
+            payment_frequency=data.get('payment_frequency', 'monthly'),
+            next_payment_date=datetime.strptime(data['next_payment_date'], '%Y-%m-%d').date() if data.get('next_payment_date') else None,
+            items_data=json.dumps(data.get('items', [])),
+            notes=data.get('notes', ''),
+            status='active'
+        )
+        
+        db.session.add(new_plan)
+        db.session.commit()
+        
+        return jsonify(new_plan.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating layaway plan: {str(e)}")
+        return jsonify({"error": "Failed to create layaway plan"}), 500
+
+
+@app.route('/api/layaway/<int:plan_id>', methods=['GET'])
+@login_required
+def get_layaway_plan(plan_id):
+    """API endpoint to get a specific layaway plan"""
+    try:
+        from models import LayawayPlan
+        
+        plan = LayawayPlan.query.get_or_404(plan_id)
+        return jsonify(plan.to_dict())
+        
+    except Exception as e:
+        logger.error(f"Error getting layaway plan {plan_id}: {str(e)}")
+        return jsonify({"error": "Failed to get layaway plan"}), 500
+
+
+@app.route('/api/layaway/<int:plan_id>/payment', methods=['POST'])
+@login_required
+def record_layaway_payment(plan_id):
+    """API endpoint to record a payment for a layaway plan"""
+    try:
+        from models import LayawayPlan, LayawayPayment
+        
+        data = request.json
+        
+        if not data or 'amount' not in data:
+            return jsonify({"error": "Payment amount is required"}), 400
+        
+        plan = LayawayPlan.query.get_or_404(plan_id)
+        payment_amount = float(data['amount'])
+        
+        # Create payment record
+        payment = LayawayPayment(
+            layaway_plan_id=plan_id,
+            amount=payment_amount,
+            payment_method=data.get('payment_method', 'cash'),
+            payment_date=datetime.strptime(data['payment_date'], '%Y-%m-%d').date() if data.get('payment_date') else datetime.utcnow().date(),
+            reference_number=data.get('reference_number', ''),
+            notes=data.get('notes', '')
+        )
+        
+        db.session.add(payment)
+        
+        # Update plan balance
+        plan.remaining_balance -= payment_amount
+        
+        # Check if plan is completed
+        if plan.remaining_balance <= 0:
+            plan.status = 'completed'
+            plan.completion_date = datetime.utcnow().date()
+        
+        # Calculate next payment date if plan is still active
+        if plan.status == 'active' and plan.payment_frequency and plan.next_payment_date:
+            if plan.payment_frequency == 'weekly':
+                plan.next_payment_date = plan.next_payment_date + timedelta(weeks=1)
+            elif plan.payment_frequency == 'bi-weekly':
+                plan.next_payment_date = plan.next_payment_date + timedelta(weeks=2)
+            elif plan.payment_frequency == 'monthly':
+                # Add one month (approximate)
+                next_month = plan.next_payment_date.replace(day=28) + timedelta(days=4)
+                plan.next_payment_date = next_month - timedelta(days=next_month.day-1)
+        
+        db.session.commit()
+        
+        return jsonify(payment.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error recording payment for plan {plan_id}: {str(e)}")
+        return jsonify({"error": "Failed to record payment"}), 500
+
 
 # Automation Management API Routes
 @app.route('/api/automation/purchase-orders', methods=['POST'])
