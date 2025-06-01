@@ -1211,17 +1211,24 @@ def delete_setting(key):
         return jsonify({"error": "Failed to delete setting"}), 500
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
     """Logout route to clear session data"""
     try:
+        # Get user info before clearing session
+        user_email = session.get('email', 'Unknown user')
+        
         # Clear session data
         session.clear()
         flash('You have been logged out successfully', 'success')
-        logger.info("User logged out successfully")
+        logger.info(f"User {user_email} logged out successfully")
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
         flash('Logout completed', 'info')
+    
+    # Handle both regular requests and AJAX requests
+    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+        return jsonify({'success': True, 'redirect': '/login'})
     
     return redirect('/login')
 
