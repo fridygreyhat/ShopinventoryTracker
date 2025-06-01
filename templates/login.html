@@ -5,19 +5,11 @@
     <div class="col-md-6 col-lg-5">
         <div class="auth-card my-5">
             <div class="card-body">
-                <div class="text-center mb-4">
-                    <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Shop Inventory TZ Logo" class="auth-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div class="fallback-logo" style="display:none;">
-                        <div class="logo-placeholder">
-                            <i class="fas fa-boxes" style="font-size: 4rem; color: var(--primary-color);"></i>
-                            <div style="font-family: var(--special-font); font-weight: 700; color: var(--primary-color); margin-top: 0.5rem;">Shop Inventory TZ</div>
-                        </div>
-                    </div>
-                </div>
+                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="auth-logo">
                 <h1 class="auth-heading">Welcome Back</h1>
                 <p class="auth-subheading">Sign in to access your inventory management system</p>
 
-                <form id="login-form" novalidate>
+                <div id="login-form">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
@@ -53,7 +45,7 @@
                     <div class="text-center mt-3">
                         <a href="{{ url_for('register') }}" class="auth-link">Create an account</a>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
