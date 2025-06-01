@@ -74,10 +74,60 @@
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('categories') %}active{% endif %}" 
                            href="{{ url_for('categories') }}">
-                            <i class="fas fa-cogs"></i>
+                            <i class="fas fa-tags"></i>
                             <div class="sidebar-text">
                                 <div class="sidebar-link-title">Orders</div>
                                 <div class="sidebar-link-description">Manage purchase orders</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if 'margin' in request.path %}active{% endif %}" 
+                           href="{{ url_for('margin') }}">
+                            <i class="fas fa-percentage"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Margin Analysis</div>
+                                <div class="sidebar-link-description">Analyze profit margins and pricing</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if 'locations' in request.path %}active{% endif %}" 
+                           href="{{ url_for('locations') }}">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Locations</div>
+                                <div class="sidebar-link-description">Manage store locations and warehouses</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if 'on_demand' in request.path %}active{% endif %}" 
+                           href="{{ url_for('on_demand') }}">
+                            <i class="fas fa-clock"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">On Demand</div>
+                                <div class="sidebar-link-description">Manage on-demand orders and requests</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if 'installments' in request.path %}active{% endif %}" 
+                           href="{{ url_for('installments') }}">
+                            <i class="fas fa-calendar-check"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Installments</div>
+                                <div class="sidebar-link-description">Manage payment plans and installments</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if 'finance' in request.path %}active{% endif %}" 
+                           href="{{ url_for('finance') }}">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Finance</div>
+                                <div class="sidebar-link-description">Financial management and transactions</div>
                             </div>
                         </a>
                     </li>
