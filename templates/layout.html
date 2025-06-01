@@ -24,14 +24,15 @@
         <!-- Sidebar Header -->
         <div class="sidebar-header">
             <div class="sidebar-brand">
-                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Shop Inventory Logo" class="sidebar-logo">
-                <div class="brand-text-container">
+                <div class="brand-icon-text">
+                    <i class="fas fa-cube sidebar-logo"></i>
                     <span class="sidebar-brand-text">Shop Inventory</span>
-                    <span class="sidebar-brand-subtitle">TZ</span>
                 </div>
+                <span class="sidebar-brand-subtitle">TZ</span>
+                <div class="sidebar-brand-description">Smart Stock Management</div>
             </div>
             <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
+                <i class="fas fa-chevron-left"></i>
             </button>
         </div>
 
@@ -43,121 +44,79 @@
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('index') %}active{% endif %}" 
                            href="{{ url_for('index') }}">
-                            <i class="fas fa-chart-line"></i>
-                            <span class="sidebar-text">Dashboard</span>
+                            <i class="fas fa-chart-pie"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Dashboard</div>
+                                <div class="sidebar-link-description">Overview of business performance and key metrics</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('inventory') %}active{% endif %}" 
                            href="{{ url_for('inventory') }}">
-                            <i class="fas fa-boxes"></i>
-                            <span class="sidebar-text">Inventory</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('locations') %}active{% endif %}" 
-                           href="{{ url_for('locations') }}">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span class="sidebar-text">Locations</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('categories') %}active{% endif %}" 
-                           href="{{ url_for('categories') }}">
-                            <i class="fas fa-folder-open"></i>
-                            <span class="sidebar-text">Categories</span>
+                            <i class="fas fa-cube"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Inventory</div>
+                                <div class="sidebar-link-description">Manage products and stock levels</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('sales') %}active{% endif %}" 
                            href="{{ url_for('sales') }}">
-                            <i class="fas fa-cash-register"></i>
-                            <span class="sidebar-text">Sales</span>
+                            <i class="fas fa-shopping-cart"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Sales</div>
+                                <div class="sidebar-link-description">Process sales and view history</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('margin') %}active{% endif %}" 
-                           href="{{ url_for('margin') }}">
-                            <i class="fas fa-percentage"></i>
-                            <span class="sidebar-text">Margin Analysis</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('finance') %}active{% endif %}" 
-                           href="{{ url_for('finance') }}">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span class="sidebar-text">Finance</span>
+                        <a class="sidebar-link {% if request.path == url_for('categories') %}active{% endif %}" 
+                           href="{{ url_for('categories') }}">
+                            <i class="fas fa-cogs"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Orders</div>
+                                <div class="sidebar-link-description">Manage purchase orders</div>
+                            </div>
                         </a>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('reports') %}active{% endif %}" 
                            href="{{ url_for('reports') }}">
-                            <i class="fas fa-file-alt"></i>
-                            <span class="sidebar-text">Reports</span>
+                            <i class="fas fa-chart-bar"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Reports</div>
+                                <div class="sidebar-link-description">View financial and business reports</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link {% if request.path == url_for('settings') %}active{% endif %}" 
+                           href="{{ url_for('settings') }}">
+                            <i class="fas fa-cog"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Settings</div>
+                                <div class="sidebar-link-description">System and user preferences</div>
+                            </div>
                         </a>
                     </li>
                 </ul>
 
-                <!-- Secondary Navigation -->
-                <div class="sidebar-section">
-                    <h6 class="sidebar-section-title">
-                        <span class="sidebar-text">Advanced</span>
-                    </h6>
-                    <ul class="sidebar-menu">
-                        <li class="sidebar-item">
-                            <a class="sidebar-link {% if request.path == url_for('on_demand') %}active{% endif %}" 
-                               href="{{ url_for('on_demand') }}">
-                                <i class="fas fa-magic"></i>
-                                <span class="sidebar-text">On-Demand</span>
-                            </a>
-                        </li>
-                        <li class="sidebar-item">
-                            <a class="sidebar-link" href="{{ url_for('layaway_page') }}">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span class="sidebar-text">Layaway</span>
-                            </a>
-                        </li>
-                        <li class="sidebar-item">
-                            <a class="sidebar-link" href="{{ url_for('installments_page') }}">
-                                <i class="fas fa-credit-card"></i>
-                                <span class="sidebar-text">Installments</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Admin Section -->
+                <!-- User Management Section -->
                 {% if get_current_user() and get_current_user().is_admin %}
-                <div class="sidebar-section">
-                    <h6 class="sidebar-section-title">
-                        <span class="sidebar-text">Administration</span>
-                    </h6>
-                    <ul class="sidebar-menu">
-                        <li class="sidebar-item">
-                            <a class="sidebar-link" href="{{ url_for('admin_portal') }}">
-                                <i class="fas fa-shield-alt"></i>
-                                <span class="sidebar-text">Admin Portal</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ url_for('admin_portal') }}">
+                            <i class="fas fa-users"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">User Management</div>
+                                <div class="sidebar-link-description">Manage system users and permissions</div>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
                 {% endif %}
-
-                <!-- Settings Section -->
-                <div class="sidebar-section">
-                    <h6 class="sidebar-section-title">
-                        <span class="sidebar-text">System</span>
-                    </h6>
-                    <ul class="sidebar-menu">
-                        <li class="sidebar-item">
-                            <a class="sidebar-link {% if request.path == url_for('settings') %}active{% endif %}" 
-                               href="{{ url_for('settings') }}">
-                                <i class="fas fa-cog"></i>
-                                <span class="sidebar-text">Settings</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             {% endif %}
         </nav>
 
@@ -181,7 +140,10 @@
                         <a class="sidebar-link dropdown-toggle" href="#" id="userDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle"></i>
-                            <span class="sidebar-text">{{ session.get('email', 'Account') }}</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">fridbert</div>
+                                <div class="sidebar-link-description">Admin</div>
+                            </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li>
@@ -205,6 +167,18 @@
                         </ul>
                     </div>
                 </div>
+
+                <!-- Logout Link -->
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Logout</div>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
             {% else %}
                 <!-- Auth Links -->
                 <ul class="sidebar-menu">
