@@ -42,10 +42,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Import db from models and initialize with app
-from models import db
-db.Model = declarative_base()
+db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
 
@@ -757,15 +754,14 @@ def get_products():
 @login_required
 def stock_status_report():
     """API endpoint to get stock status report"""
-    try:
-        from models import Item
-        from sqlalchemy import func
+    from models import Item
+    from sqlalchemy import func
 
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({"error": "Authentication required"}), 401
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
 
-        low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
+    low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
 
     # Get counts and sums for current user only
     item_count = db.session.query(func.count(Item.id)).filter(Item.user_id == user_id).scalar() or 0
@@ -784,23 +780,19 @@ def stock_status_report():
         total_value_query) if total_value_query is not None else 0
 
     report = {
-            "total_items": item_count,
-            "total_stock": total_stock,
-            "average_stock_per_item":
-            total_stock / item_count if item_count > 0 else 0,
-            "low_stock_items_count": len(low_stock_items),
-            "out_of_stock_items_count": len(out_of_stock_items),
-            "all_items": [item.to_dict() for item in all_items],
-            "low_stock_items": [item.to_dict() for item in low_stock_items],
-            "out_of_stock_items": [item.to_dict() for item in out_of_stock_items],
-            "total_inventory_value": total_value
-        }
+        "total_items": item_count,
+        "total_stock": total_stock,
+        "average_stock_per_item":
+        total_stock / item_count if item_count > 0 else 0,
+        "low_stock_items_count": len(low_stock_items),
+        "out_of_stock_items_count": len(out_of_stock_items),
+        "all_items": [item.to_dict() for item in all_items],
+        "low_stock_items": [item.to_dict() for item in low_stock_items],
+        "out_of_stock_items": [item.to_dict() for item in out_of_stock_items],
+        "total_inventory_value": total_value
+    }
 
-        return jsonify(report)
-    
-    except Exception as e:
-        logger.error(f"Error generating stock status report: {str(e)}")
-        return jsonify({"error": "Failed to generate stock status report"}), 500
+    return jsonify(report)
 
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])

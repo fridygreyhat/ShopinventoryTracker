@@ -4,8 +4,7 @@ import json
 from datetime import datetime
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
-from models import User
-from models import db
+from models import User, db
 
 # Import Firebase Admin SDK
 import firebase_admin
