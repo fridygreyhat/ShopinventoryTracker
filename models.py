@@ -3,7 +3,10 @@ import json
 from enum import Enum
 import random
 import string
-from app import db
+from flask_sqlalchemy import SQLAlchemy
+
+# Create db instance that will be initialized later
+db = SQLAlchemy()
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
