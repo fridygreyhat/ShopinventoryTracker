@@ -3,13 +3,14 @@ run = "python.py"
 
 [nix]
 channel = "stable-24_05"
-packages = ["glibcLocales", "openssl", "postgresql"]
+packages = ["openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
+runButton = "Run Flask App"
 
 [[workflows.workflow]]
 name = "Project"
