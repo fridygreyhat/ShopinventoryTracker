@@ -275,6 +275,8 @@ class OnDemandProduct(db.Model):
     category = db.Column(db.String(50))
     materials = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
+    # User ownership
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -339,6 +341,8 @@ class Sale(db.Model):
     payment_amount = db.Column(db.Float, default=0.0)
     change_amount = db.Column(db.Float, default=0.0)
     notes = db.Column(db.Text)
+    # User ownership
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -475,6 +479,9 @@ class FinancialTransaction(db.Model):
     tax_amount = db.Column(db.Float, default=0.0)  # Calculated tax amount
     cost_of_goods_sold = db.Column(db.Float, default=0.0)  # COGS for sales transactions
     gross_amount = db.Column(db.Float, default=0.0)  # Amount before tax
+    
+    # User ownership
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
