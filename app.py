@@ -94,12 +94,13 @@ with app.app_context():
     from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory
     import json
 
-    # When we have schema changes, we need to reset the database
-    # Comment out the line below to avoid data loss in production
-    # db.drop_all()  # Commented out to prevent data loss
-
     # First, create all tables
-    db.create_all()
+    try:
+        db.create_all()
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {str(e)}")
+        # If there are issues, we'll handle them in migrations below
 
     # Then, handle migrations for existing databases
     # Helper function to check if column exists
@@ -121,16 +122,14 @@ with app.app_context():
             if not column_exists(table_name, column_name):
                 logger.info(
                     f"Adding {column_name} column to {table_name} table")
-                db.session.execute(
-                    db.text(
-                        f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
-                    ))
+                
+                # Use proper SQLAlchemy text() syntax
+                alter_query = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+                db.session.execute(db.text(alter_query))
 
                 if default_value:
-                    db.session.execute(
-                        db.text(
-                            f"UPDATE {table_name} SET {column_name} = {default_value}"
-                        ))
+                    update_query = f"UPDATE {table_name} SET {column_name} = :default_val WHERE {column_name} IS NULL"
+                    db.session.execute(db.text(update_query), {"default_val": default_value})
 
                 db.session.commit()
                 logger.info(
@@ -143,66 +142,86 @@ with app.app_context():
         except Exception as e:
             logger.error(
                 f"Error adding {column_name} column to {table_name}: {str(e)}")
-            db.session.rollback()
+            try:
+                db.session.rollback()
+            except:
+                pass
             return False
 
     # Check if tables exist and add missing columns
     try:
-        # Check if user table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='user';"
-            ))
-        if result.fetchone():
-            # Add is_active column if missing
-            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
-            # Add phone column if missing
-            add_column_safely('user', 'phone', 'VARCHAR(20)')
+        # Ensure User table has required columns
+        try:
+            result = db.session.execute(
+                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
+            ).fetchone()
+            if result:
+                add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
+                add_column_safely('user', 'phone', 'VARCHAR(20)')
+        except Exception as e:
+            logger.error(f"Error checking user table: {str(e)}")
 
-        # Check if item table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='item';"
-            ))
-        if result.fetchone():
-            # Add missing item columns
-            add_column_safely('item', 'subcategory', 'VARCHAR(100)')
-            add_column_safely('item', 'unit_type',
-                              'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
-            add_column_safely('item', 'sell_by',
-                              'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
-            add_column_safely('item', 'category_id', 'INTEGER')
-            add_column_safely('item', 'user_id', 'INTEGER')
-            
-            # Set user_id for existing items (assign to first admin user if exists)
-            try:
-                first_admin = User.query.filter_by(is_admin=True).first()
-                if first_admin:
-                    db.session.execute(
-                        db.text("UPDATE item SET user_id = :user_id WHERE user_id IS NULL"),
-                        {"user_id": first_admin.id}
-                    )
-                    db.session.commit()
-                    logger.info(f"Assigned existing items to admin user: {first_admin.username}")
-            except Exception as e:
-                logger.error(f"Error assigning existing items to admin: {str(e)}")
-                db.session.rollback()
+        # Ensure Item table has required columns and user_id
+        try:
+            result = db.session.execute(
+                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
+            ).fetchone()
+            if result:
+                add_column_safely('item', 'subcategory', 'VARCHAR(100)')
+                add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+                add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+                add_column_safely('item', 'category_id', 'INTEGER')
+                add_column_safely('item', 'user_id', 'INTEGER')
+                add_column_safely('item', 'track_by_location', 'BOOLEAN DEFAULT 0', '0')
+                
+                # Ensure all items have a user_id
+                try:
+                    # Check if there are items without user_id
+                    orphaned_items = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM item WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_items > 0:
+                        # Get the first admin user or any user
+                        first_user = User.query.filter_by(is_admin=True).first()
+                        if not first_user:
+                            first_user = User.query.first()
+                        
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE item SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_items} orphaned items to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned items: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
+        except Exception as e:
+            logger.error(f"Error checking item table: {str(e)}")
 
-        # Check if financial_transaction table exists and add missing columns
-        result = db.session.execute(
-            db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';"
-            ))
-        if result.fetchone():
-            # Add missing financial transaction columns
-            add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
-            add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
-            add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
-            add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+        # Ensure FinancialTransaction table has required columns
+        try:
+            result = db.session.execute(
+                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
+            ).fetchone()
+            if result:
+                add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
+                add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
+                add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
+                add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+        except Exception as e:
+            logger.error(f"Error checking financial_transaction table: {str(e)}")
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except:
+            pass
 
 
 @app.route('/')
@@ -365,6 +384,7 @@ def get_inventory():
 
 
 @app.route('/api/inventory', methods=['POST'])
+@login_required
 def add_item():
     """API endpoint to add a new inventory item"""
     from models import Item
@@ -373,47 +393,76 @@ def add_item():
 
     try:
         item_data = request.json
+        logger.info(f"Adding new item with data: {item_data}")
+
+        if not item_data:
+            return jsonify({"error": "No data provided"}), 400
 
         # Validate required fields
-        required_fields = ['name', 'quantity']
+        required_fields = ['name']
         for field in required_fields:
-            if field not in item_data:
-                return jsonify({"error":
-                                f"Missing required field: {field}"}), 400
-
-        # Generate SKU if not provided
-        if 'sku' not in item_data or not item_data['sku']:
-            item_data['sku'] = Item.generate_sku(item_data["name"],
-                                                 item_data.get("category", ""))
-
-        # Handle price fields
-        buying_price = float(item_data.get("buying_price", 0))
-        selling_price_retail = float(item_data.get("selling_price_retail", 0))
-        selling_price_wholesale = float(
-            item_data.get("selling_price_wholesale", 0))
-
-        # Use retail price as default price for backward compatibility
-        price = selling_price_retail
+            if field not in item_data or not item_data[field].strip():
+                return jsonify({"error": f"Missing required field: {field}"}), 400
 
         # Get current user ID
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "Authentication required"}), 401
 
+        # Generate SKU if not provided
+        sku = item_data.get('sku', '').strip()
+        if not sku:
+            sku = Item.generate_sku(item_data["name"], item_data.get("category", ""))
+
+        # Validate and convert numeric fields
+        try:
+            quantity = int(item_data.get("quantity", 0))
+            if quantity < 0:
+                return jsonify({"error": "Quantity cannot be negative"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid quantity value"}), 400
+
+        try:
+            buying_price = float(item_data.get("buying_price", 0))
+            if buying_price < 0:
+                return jsonify({"error": "Buying price cannot be negative"}), 400
+        except (ValueError, TypeError):
+            buying_price = 0
+
+        try:
+            selling_price_retail = float(item_data.get("selling_price_retail", 0))
+            if selling_price_retail < 0:
+                return jsonify({"error": "Retail price cannot be negative"}), 400
+        except (ValueError, TypeError):
+            selling_price_retail = 0
+
+        try:
+            selling_price_wholesale = float(item_data.get("selling_price_wholesale", 0))
+            if selling_price_wholesale < 0:
+                return jsonify({"error": "Wholesale price cannot be negative"}), 400
+        except (ValueError, TypeError):
+            selling_price_wholesale = 0
+
+        # Use retail price as default price for backward compatibility
+        price = selling_price_retail
+
         # Create new item
-        new_item = Item(name=item_data["name"],
-                        description=item_data.get("description", ""),
-                        quantity=int(item_data["quantity"]),
-                        buying_price=buying_price,
-                        selling_price_retail=selling_price_retail,
-                        selling_price_wholesale=selling_price_wholesale,
-                        price=price,
-                        sales_type=item_data.get("sales_type", "both"),
-                        category=item_data.get("category", "Uncategorized"),
-                        sku=item_data.get(
-                            "sku",
-                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"),
-                        user_id=user_id)
+        new_item = Item(
+            name=item_data["name"].strip(),
+            description=item_data.get("description", "").strip(),
+            quantity=quantity,
+            buying_price=buying_price,
+            selling_price_retail=selling_price_retail,
+            selling_price_wholesale=selling_price_wholesale,
+            price=price,
+            sales_type=item_data.get("sales_type", "both"),
+            category=item_data.get("category", "Uncategorized").strip(),
+            subcategory=item_data.get("subcategory", "").strip(),
+            unit_type=item_data.get("unit_type", "quantity"),
+            sell_by=item_data.get("sell_by", "quantity"),
+            sku=sku,
+            user_id=user_id
+        )
 
         # Add to database
         db.session.add(new_item)
@@ -2577,6 +2626,124 @@ def get_abc_analysis():
     except Exception as e:
         logger.error(f"Error performing ABC analysis: {str(e)}")
         return jsonify({"error": "Failed to perform ABC analysis"}), 500
+
+@app.route('/api/reports/profit-analysis', methods=['GET'])
+@login_required
+def get_profit_analysis():
+    """API endpoint for comprehensive profit analysis with simplified/realistic views"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get query parameters
+        view_mode = request.args.get('view_mode', 'simplified')  # 'simplified' or 'realistic'
+        category = request.args.get('category')
+        search = request.args.get('search')
+        expense_rate = float(request.args.get('expense_rate', 10))  # Default 10%
+        
+        # Build query for user's items
+        query = Item.query.filter_by(user_id=user_id)
+        
+        if category:
+            query = query.filter(Item.category == category)
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    Item.name.contains(search),
+                    Item.sku.contains(search)
+                )
+            )
+        
+        items = query.all()
+        
+        # Calculate profit analysis
+        profit_analysis = []
+        summary = {
+            'total_items': len(items),
+            'total_gross_profit': 0,
+            'total_net_profit': 0,
+            'total_revenue': 0,
+            'total_cost': 0,
+            'view_mode': view_mode,
+            'expense_rate': expense_rate
+        }
+        
+        for item in items:
+            buying_price = item.buying_price or 0
+            selling_price = item.selling_price_retail or 0
+            quantity = item.quantity or 0
+            
+            # Calculate profits
+            gross_profit_per_unit = selling_price - buying_price
+            
+            if view_mode == 'realistic':
+                expenses_per_unit = gross_profit_per_unit * (expense_rate / 100)
+                net_profit_per_unit = gross_profit_per_unit - expenses_per_unit
+            else:  # simplified
+                net_profit_per_unit = gross_profit_per_unit
+                expenses_per_unit = 0
+            
+            # Calculate totals
+            total_gross_profit = gross_profit_per_unit * quantity
+            total_net_profit = net_profit_per_unit * quantity
+            total_revenue = selling_price * quantity
+            total_cost = buying_price * quantity
+            
+            # Calculate margins
+            gross_margin = (gross_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            net_margin = (net_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            markup = (gross_profit_per_unit / buying_price * 100) if buying_price > 0 else 0
+            
+            item_analysis = {
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku or '',
+                'category': item.category or 'Uncategorized',
+                'quantity': quantity,
+                'buying_price': buying_price,
+                'selling_price': selling_price,
+                'gross_profit_per_unit': gross_profit_per_unit,
+                'net_profit_per_unit': net_profit_per_unit,
+                'expenses_per_unit': expenses_per_unit,
+                'total_gross_profit': total_gross_profit,
+                'total_net_profit': total_net_profit,
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
+                'gross_margin': gross_margin,
+                'net_margin': net_margin,
+                'markup': markup
+            }
+            
+            profit_analysis.append(item_analysis)
+            
+            # Add to summary
+            summary['total_gross_profit'] += total_gross_profit
+            summary['total_net_profit'] += total_net_profit
+            summary['total_revenue'] += total_revenue
+            summary['total_cost'] += total_cost
+        
+        # Calculate overall margins
+        if summary['total_revenue'] > 0:
+            summary['overall_gross_margin'] = (summary['total_gross_profit'] / summary['total_revenue']) * 100
+            summary['overall_net_margin'] = (summary['total_net_profit'] / summary['total_revenue']) * 100
+        else:
+            summary['overall_gross_margin'] = 0
+            summary['overall_net_margin'] = 0
+        
+        # Sort by net profit (descending)
+        profit_analysis.sort(key=lambda x: x['total_net_profit'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'profit_analysis': profit_analysis,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting profit analysis: {str(e)}")
+        return jsonify({"error": "Failed to get profit analysis"}), 500
 
 @app.route('/api/reports/profit-margin', methods=['GET'])
 @login_required
