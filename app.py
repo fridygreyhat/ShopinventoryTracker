@@ -11,6 +11,9 @@ import io
 import csv
 import requests
 from dotenv import load_dotenv
+from functools import wraps
+import time
+from collections import defaultdict
 
 load_dotenv()
 # Configure logging
@@ -22,6 +25,43 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET",
                                 "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Rate limiting storage
+rate_limit_storage = defaultdict(list)
+
+def rate_limit(max_requests=100, window=3600):
+    """Rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_id = session.get('user_id')
+            if not user_id:
+                return f(*args, **kwargs)
+            
+            now = time.time()
+            user_requests = rate_limit_storage[user_id]
+            
+            # Remove old requests
+            user_requests[:] = [req_time for req_time in user_requests if now - req_time < window]
+            
+            if len(user_requests) >= max_requests:
+                return jsonify({"error": "Rate limit exceeded"}), 429
+            
+            user_requests.append(now)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
+    return response
 
 # Firebase configuration
 app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
@@ -67,6 +107,35 @@ def get_setting_value(key, default=None):
     from models import Setting
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
+
+def validate_user_access(user_id, resource_user_id):
+    """
+    Validate that user has access to resource
+    
+    Args:
+        user_id: Current user ID
+        resource_user_id: User ID associated with resource
+        
+    Returns:
+        bool: True if access allowed
+    """
+    return user_id == resource_user_id
+
+def sanitize_input(data, allowed_fields):
+    """
+    Sanitize input data by only allowing specified fields
+    
+    Args:
+        data: Input data dictionary
+        allowed_fields: List of allowed field names
+        
+    Returns:
+        dict: Sanitized data
+    """
+    if not isinstance(data, dict):
+        return {}
+    
+    return {key: value for key, value in data.items() if key in allowed_fields}
 
 
 # Import auth service
@@ -1157,11 +1226,20 @@ def add_on_demand_product():
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['GET'])
+@login_required
 def get_on_demand_product(product_id):
     """API endpoint to get a specific on-demand product"""
     from models import OnDemandProduct
 
-    product = OnDemandProduct.query.get(product_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    product = OnDemandProduct.query.filter(
+        OnDemandProduct.id == product_id,
+        OnDemandProduct.user_id == user_id
+    ).first()
 
     if not product:
         return jsonify({"error": "Product not found"}), 404
@@ -1170,21 +1248,29 @@ def get_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['PUT'])
+@login_required
 def update_on_demand_product(product_id):
     """API endpoint to update an on-demand product"""
     from models import OnDemandProduct
 
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         product_data = request.json
-        product = OnDemandProduct.query.get(product_id)
+        product = OnDemandProduct.query.filter(
+            OnDemandProduct.id == product_id,
+            OnDemandProduct.user_id == user_id
+        ).first()
 
         if product is None:
             return jsonify({"error": "Product not found"}), 404
 
         # Update the product with new data
         for key, value in product_data.items():
-            if key not in ['id',
-                           'created_at']:  # Don't allow changing these fields
+            if key not in ['id', 'created_at', 'user_id']:  # Don't allow changing these fields
                 setattr(product, key, value)
 
         # Save to database
@@ -1199,12 +1285,21 @@ def update_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['DELETE'])
+@login_required
 def delete_on_demand_product(product_id):
     """API endpoint to delete an on-demand product"""
     from models import OnDemandProduct
 
     try:
-        product = OnDemandProduct.query.get(product_id)
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        product = OnDemandProduct.query.filter(
+            OnDemandProduct.id == product_id,
+            OnDemandProduct.user_id == user_id
+        ).first()
 
         if product is None:
             return jsonify({"error": "Product not found"}), 404
@@ -1229,15 +1324,22 @@ def delete_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/categories', methods=['GET'])
+@login_required
 def get_on_demand_product_categories():
-    """API endpoint to get all unique on-demand product categories"""
+    """API endpoint to get all unique on-demand product categories for current user"""
     from models import OnDemandProduct
     from sqlalchemy import func
 
-    # Query distinct categories
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Query distinct categories for current user only
     categories = db.session.query(
         func.coalesce(OnDemandProduct.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        OnDemandProduct.user_id == user_id).distinct().all()
 
     return jsonify([c.category for c in categories])
 
@@ -1790,23 +1892,31 @@ def get_finance_categories():
 
 # Sales API Routes
 @app.route('/api/sales/performance/top', methods=['GET'])
+@login_required
 def get_top_selling_items():
-    """API endpoint to get top selling items"""
+    """API endpoint to get top selling items for current user"""
     try:
         from sqlalchemy import func
         from models import Item, Sale, SaleItem
+
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
 
         # Get sales data from last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-        # Query to get top selling items
+        # Query to get top selling items for current user only
         top_items = db.session.query(
             Item,
             func.sum(SaleItem.quantity).label('total_quantity'),
             func.sum(SaleItem.total).label('total_revenue')).join(
                 SaleItem).join(Sale).filter(
-                    Sale.created_at >= cutoff_date).group_by(Item.id).order_by(
+                    Sale.created_at >= cutoff_date,
+                    Sale.user_id == user_id,
+                    Item.user_id == user_id).group_by(Item.id).order_by(
                         func.sum(SaleItem.quantity).desc()).limit(5).all()
 
         # Format response
@@ -1828,23 +1938,31 @@ def get_top_selling_items():
 
 
 @app.route('/api/sales/performance/slow', methods=['GET'])
+@login_required
 def get_slow_moving_items():
-    """API endpoint to get slow moving items"""
+    """API endpoint to get slow moving items for current user"""
     try:
         from models import Item, Sale, SaleItem
+
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
 
         # Get items with no sales in last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-        # Subquery to get items that have had sales
+        # Subquery to get items that have had sales for current user
         sold_items = db.session.query(SaleItem.item_id).join(Sale).filter(
-            Sale.created_at >= cutoff_date).distinct().subquery()
+            Sale.created_at >= cutoff_date,
+            Sale.user_id == user_id).distinct().subquery()
 
-        # Query to get items with no recent sales
+        # Query to get items with no recent sales for current user only
         slow_items = Item.query.filter(
-            ~Item.id.in_(sold_items), Item.quantity
-            > 0).order_by(Item.quantity.desc()).limit(5).all()
+            Item.user_id == user_id,
+            ~Item.id.in_(sold_items), 
+            Item.quantity > 0).order_by(Item.quantity.desc()).limit(5).all()
 
         # Format response
         result = []
@@ -1852,7 +1970,8 @@ def get_slow_moving_items():
             # Calculate days in stock based on last sale or creation date
             last_sale = db.session.query(
                 Sale.created_at).join(SaleItem).filter(
-                    SaleItem.item_id == item.id).order_by(
+                    SaleItem.item_id == item.id,
+                    Sale.user_id == user_id).order_by(
                         Sale.created_at.desc()).first()
 
             reference_date = last_sale[0] if last_sale else item.created_at
@@ -3460,6 +3579,32 @@ def get_customer_analytics(customer_name):
     except Exception as e:
         logger.error(f"Error getting customer analytics for {customer_name}: {str(e)}")
         return jsonify({"error": "Failed to get customer analytics"}), 500
+
+# Debug endpoint to list all users
+@app.route('/api/debug/users', methods=['GET'])
+@login_required
+def debug_list_users():
+    """Debug endpoint to list all users"""
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+        
+        users = User.query.all()
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(users),
+            'users': [user.to_dict() for user in users]
+        })
+    
+    except Exception as e:
+        logger.error(f"Debug users error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])
