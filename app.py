@@ -34,9 +34,15 @@ print(os.environ.get("FIREBASE_API_KEY"))
 class Base(DeclarativeBase):
     pass
 
+# Get DATABASE_URL and handle SQLite fallback
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    database_url = "sqlite:///inventory.db"
+elif database_url.startswith("postgres://"):
+    # Fix postgres:// to postgresql:// for SQLAlchemy compatibility
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -106,10 +112,19 @@ with app.app_context():
     # Helper function to check if column exists
     def column_exists(table_name, column_name):
         try:
-            result = db.session.execute(
-                db.text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result.fetchall()]
-            return column_name in columns
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT column_name FROM information_schema.columns WHERE table_name = :table_name AND column_name = :column_name"),
+                    {"table_name": table_name, "column_name": column_name}
+                )
+                return result.fetchone() is not None
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text(f"PRAGMA table_info({table_name})"))
+                columns = [row[1] for row in result.fetchall()]
+                return column_name in columns
         except Exception:
             return False
 
@@ -152,9 +167,16 @@ with app.app_context():
     try:
         # Ensure User table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='user';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
+                ).fetchone()
             if result:
                 add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
                 add_column_safely('user', 'phone', 'VARCHAR(20)')
@@ -163,9 +185,16 @@ with app.app_context():
 
         # Ensure Item table has required columns and user_id
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='item';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
+                ).fetchone()
             if result:
                 add_column_safely('item', 'subcategory', 'VARCHAR(100)')
                 add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
@@ -205,9 +234,16 @@ with app.app_context():
 
         # Ensure FinancialTransaction table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='financial_transaction';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
+                ).fetchone()
             if result:
                 add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
