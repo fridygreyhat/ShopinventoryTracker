@@ -11,6 +11,9 @@ import io
 import csv
 import requests
 from dotenv import load_dotenv
+from functools import wraps
+import time
+from collections import defaultdict
 
 load_dotenv()
 # Configure logging
@@ -22,6 +25,43 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET",
                                 "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Rate limiting storage
+rate_limit_storage = defaultdict(list)
+
+def rate_limit(max_requests=100, window=3600):
+    """Rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_id = session.get('user_id')
+            if not user_id:
+                return f(*args, **kwargs)
+            
+            now = time.time()
+            user_requests = rate_limit_storage[user_id]
+            
+            # Remove old requests
+            user_requests[:] = [req_time for req_time in user_requests if now - req_time < window]
+            
+            if len(user_requests) >= max_requests:
+                return jsonify({"error": "Rate limit exceeded"}), 429
+            
+            user_requests.append(now)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
+    return response
 
 # Firebase configuration
 app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
@@ -67,6 +107,35 @@ def get_setting_value(key, default=None):
     from models import Setting
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
+
+def validate_user_access(user_id, resource_user_id):
+    """
+    Validate that user has access to resource
+    
+    Args:
+        user_id: Current user ID
+        resource_user_id: User ID associated with resource
+        
+    Returns:
+        bool: True if access allowed
+    """
+    return user_id == resource_user_id
+
+def sanitize_input(data, allowed_fields):
+    """
+    Sanitize input data by only allowing specified fields
+    
+    Args:
+        data: Input data dictionary
+        allowed_fields: List of allowed field names
+        
+    Returns:
+        dict: Sanitized data
+    """
+    if not isinstance(data, dict):
+        return {}
+    
+    return {key: value for key, value in data.items() if key in allowed_fields}
 
 
 # Import auth service
