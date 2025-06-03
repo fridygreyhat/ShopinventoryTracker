@@ -34,9 +34,15 @@ print(os.environ.get("FIREBASE_API_KEY"))
 class Base(DeclarativeBase):
     pass
 
+# Get DATABASE_URL and handle SQLite fallback
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    database_url = "sqlite:///inventory.db"
+elif database_url.startswith("postgres://"):
+    # Fix postgres:// to postgresql:// for SQLAlchemy compatibility
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -106,10 +112,19 @@ with app.app_context():
     # Helper function to check if column exists
     def column_exists(table_name, column_name):
         try:
-            result = db.session.execute(
-                db.text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result.fetchall()]
-            return column_name in columns
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT column_name FROM information_schema.columns WHERE table_name = :table_name AND column_name = :column_name"),
+                    {"table_name": table_name, "column_name": column_name}
+                )
+                return result.fetchone() is not None
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text(f"PRAGMA table_info({table_name})"))
+                columns = [row[1] for row in result.fetchall()]
+                return column_name in columns
         except Exception:
             return False
 
@@ -152,9 +167,16 @@ with app.app_context():
     try:
         # Ensure User table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='user';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
+                ).fetchone()
             if result:
                 add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
                 add_column_safely('user', 'phone', 'VARCHAR(20)')
@@ -163,9 +185,16 @@ with app.app_context():
 
         # Ensure Item table has required columns and user_id
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='item';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
+                ).fetchone()
             if result:
                 add_column_safely('item', 'subcategory', 'VARCHAR(100)')
                 add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
@@ -205,16 +234,124 @@ with app.app_context():
 
         # Ensure FinancialTransaction table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='financial_transaction';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
+                ).fetchone()
             if result:
                 add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+                add_column_safely('financial_transaction', 'user_id', 'INTEGER')
+                
+                # Assign orphaned financial transactions to first user
+                try:
+                    orphaned_transactions = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM financial_transaction WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_transactions > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE financial_transaction SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_transactions} orphaned financial transactions to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned financial transactions: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
         except Exception as e:
             logger.error(f"Error checking financial_transaction table: {str(e)}")
+
+        # Ensure Sale table has user_id column
+        try:
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='sale';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='sale';")
+                ).fetchone()
+            if result:
+                add_column_safely('sale', 'user_id', 'INTEGER')
+                
+                # Assign orphaned sales to first user
+                try:
+                    orphaned_sales = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM sale WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_sales > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE sale SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_sales} orphaned sales to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned sales: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
+        except Exception as e:
+            logger.error(f"Error checking sale table: {str(e)}")
+
+        # Ensure OnDemandProduct table has user_id column
+        try:
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='on_demand_product';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='on_demand_product';")
+                ).fetchone()
+            if result:
+                add_column_safely('on_demand_product', 'user_id', 'INTEGER')
+                
+                # Assign orphaned on-demand products to first user
+                try:
+                    orphaned_products = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM on_demand_product WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_products > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE on_demand_product SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_products} orphaned on-demand products to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned on-demand products: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
+        except Exception as e:
+            logger.error(f"Error checking on_demand_product table: {str(e)}")
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -743,15 +880,22 @@ def bulk_import_inventory():
 
 
 @app.route('/api/inventory/categories', methods=['GET'])
+@login_required
 def get_inventory_categories():
     """API endpoint to get all unique inventory categories"""
     from models import Item
     from sqlalchemy import func
 
-    # Query distinct categories
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Query distinct categories for current user only
     categories = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        Item.user_id == user_id).distinct().all()
 
     return jsonify([c.category for c in categories])
 
@@ -932,12 +1076,18 @@ def export_csv():
 
 # On-Demand Products API endpoints
 @app.route('/api/on-demand', methods=['GET'])
+@login_required
 def get_on_demand_products():
     """API endpoint to get all on-demand products"""
     from models import OnDemandProduct
 
-    # Start query
-    query = OnDemandProduct.query
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Start query with user_id filter
+    query = OnDemandProduct.query.filter(OnDemandProduct.user_id == user_id)
 
     # Optional filtering
     category = request.args.get('category')
@@ -963,11 +1113,17 @@ def get_on_demand_products():
 
 
 @app.route('/api/on-demand', methods=['POST'])
+@login_required
 def add_on_demand_product():
     """API endpoint to add a new on-demand product"""
     from models import OnDemandProduct
 
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         product_data = request.json
 
         # Validate required fields
@@ -977,7 +1133,7 @@ def add_on_demand_product():
                 return jsonify({"error":
                                 f"Missing required field: {field}"}), 400
 
-        # Create new product
+        # Create new product with user_id
         new_product = OnDemandProduct(
             name=product_data["name"],
             description=product_data.get("description", ""),
@@ -985,7 +1141,8 @@ def add_on_demand_product():
             production_time=int(product_data.get("production_time", 0)),
             category=product_data.get("category", "Uncategorized"),
             materials=product_data.get("materials", ""),
-            is_active=product_data.get("is_active", True))
+            is_active=product_data.get("is_active", True),
+            user_id=user_id)
 
         # Add to database
         db.session.add(new_product)
@@ -1292,10 +1449,16 @@ def finance():
 
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
+@login_required
 def get_transactions():
     """API endpoint to get financial transactions with optional filtering"""
     from models import FinancialTransaction
     from datetime import datetime, timedelta
+
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
 
     # Get filter parameters
     transaction_type = request.args.get('type')
@@ -1331,10 +1494,11 @@ def get_transactions():
     elif not start_date and end_date:
         start_date = end_date - timedelta(days=30)
 
-    # Build query
+    # Build query with user_id filter
     query = FinancialTransaction.query.filter(
-        FinancialTransaction.date >= start_date, FinancialTransaction.date
-        <= end_date)
+        FinancialTransaction.date >= start_date, 
+        FinancialTransaction.date <= end_date,
+        FinancialTransaction.user_id == user_id)
 
     if transaction_type:
         query = query.filter(
@@ -1368,9 +1532,15 @@ def get_transactions():
 
 
 @app.route('/api/finance/transactions', methods=['POST'])
+@login_required
 def add_transaction():
     """API endpoint to add a new financial transaction"""
     from models import FinancialTransaction
+
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
 
     data = request.json
 
@@ -1396,7 +1566,7 @@ def add_transaction():
             return jsonify({"error":
                             "Invalid date format. Use YYYY-MM-DD"}), 400
 
-    # Create new transaction
+    # Create new transaction with user_id
     transaction = FinancialTransaction(
         date=date,
         description=data['description'],
@@ -1405,7 +1575,8 @@ def add_transaction():
         category=data['category'],
         reference_id=data.get('reference_id'),
         payment_method=data.get('payment_method'),
-        notes=data.get('notes'))
+        notes=data.get('notes'),
+        user_id=user_id)
 
     try:
         db.session.add(transaction)
@@ -1417,11 +1588,21 @@ def add_transaction():
 
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['GET'])
+@login_required
 def get_transaction(transaction_id):
     """API endpoint to get a specific financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1429,11 +1610,21 @@ def get_transaction(transaction_id):
 
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
+@login_required
 def update_transaction(transaction_id):
     """API endpoint to update a financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1486,11 +1677,21 @@ def update_transaction(transaction_id):
 
 @app.route('/api/finance/transactions/<int:transaction_id>',
            methods=['DELETE'])
+@login_required
 def delete_transaction(transaction_id):
     """API endpoint to delete a financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1710,7 +1911,12 @@ def create_sale():
         else:
             payment_details = payment_data.get('mobile_info', {})
 
-        # Create new sale record
+        # Get current user ID
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        # Create new sale record with user_id
         new_sale = Sale(
             invoice_number=invoice_number,
             customer_name=customer_data.get('name', 'Walk-in Customer'),
@@ -1725,7 +1931,8 @@ def create_sale():
             payment_details=json.dumps(payment_details),
             payment_amount=float(payment_data.get('amount', 0)),
             change_amount=float(payment_data.get('change', 0)),
-            notes=data.get('notes', ''))
+            notes=data.get('notes', ''),
+            user_id=user_id)
 
         db.session.add(new_sale)
         db.session.flush()  # Flush to get the sale ID
@@ -1822,17 +2029,23 @@ def create_sale():
 
 
 @app.route('/api/sales', methods=['GET'])
+@login_required
 def get_sales():
     """API endpoint to get sales data with optional filtering"""
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         # Get query parameters for filtering
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         customer = request.args.get('customer')
         payment_method = request.args.get('payment_method')
 
-        # Build query
-        query = Sale.query
+        # Build query with user_id filter
+        query = Sale.query.filter(Sale.user_id == user_id)
 
         # Apply filters if provided
         if start_date:
