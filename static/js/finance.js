@@ -35,10 +35,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Summary elements
     const incomeValue = document.getElementById('income-value');
     const expensesValue = document.getElementById('expenses-value');
+    const grossProfitValue = document.getElementById('gross-profit-value');
     const profitValue = document.getElementById('profit-value');
     
-    // Declare chart globally
+    // Profit analysis elements
+    const profitViewMode = document.getElementById('profit-view-mode');
+    const expenseRateContainer = document.getElementById('expense-rate-container');
+    const expenseRateInput = document.getElementById('expense-rate');
+    const netProfitFormula = document.getElementById('net-profit-formula');
+    
+    // Declare charts globally
     let monthlyChart = null;
+    let profitAnalysisChart = null;
     
     // Set default dates (current month)
     const today = new Date();
@@ -57,10 +65,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load initial data
     loadTransactions();
     loadMonthlySummary();
+    loadProfitAnalysis();
     
     // Event listeners
-    filterBtn.addEventListener('click', loadTransactions);
+    filterBtn.addEventListener('click', function() {
+        loadTransactions();
+        loadProfitAnalysis();
+    });
     yearSelect.addEventListener('change', loadMonthlySummary);
+    
+    // Profit analysis event listeners
+    profitViewMode.addEventListener('change', updateProfitViewMode);
+    expenseRateInput.addEventListener('change', loadProfitAnalysis);
     
     document.getElementById('add-transaction-btn').addEventListener('click', function() {
         resetTransactionForm();
@@ -252,9 +268,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateFinancialSummary(summary) {
         incomeValue.textContent = summary.total_income.toLocaleString();
         expensesValue.textContent = summary.total_expenses.toLocaleString();
+        
+        // Calculate gross profit (simplified as income - direct costs)
+        const grossProfit = summary.total_income - (summary.cost_of_goods_sold || 0);
+        grossProfitValue.textContent = grossProfit.toLocaleString();
+        
         profitValue.textContent = summary.net_profit.toLocaleString();
         
-        // Add color to profit based on value
+        // Add color coding
+        if (grossProfit > 0) {
+            grossProfitValue.classList.add('text-success');
+            grossProfitValue.classList.remove('text-danger');
+        } else if (grossProfit < 0) {
+            grossProfitValue.classList.add('text-danger');
+            grossProfitValue.classList.remove('text-success');
+        }
+        
         if (summary.net_profit > 0) {
             profitValue.classList.add('text-success');
             profitValue.classList.remove('text-danger');
@@ -500,6 +529,118 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-GB');
+    }
+    
+    // Load profit analysis data
+    function loadProfitAnalysis() {
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        const viewMode = profitViewMode.value;
+        const expenseRate = expenseRateInput.value;
+        
+        let url = '/api/reports/profit-analysis';
+        const params = [];
+        
+        params.push(`view_mode=${encodeURIComponent(viewMode)}`);
+        params.push(`expense_rate=${encodeURIComponent(expenseRate)}`);
+        
+        if (startDate) {
+            params.push(`start_date=${startDate}`);
+        }
+        
+        if (endDate) {
+            params.push(`end_date=${endDate}`);
+        }
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    createProfitAnalysisChart(data.summary);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading profit analysis:', error);
+            });
+    }
+    
+    // Update profit view mode
+    function updateProfitViewMode() {
+        const isRealistic = profitViewMode.value === 'realistic';
+        
+        if (isRealistic) {
+            expenseRateContainer.style.display = 'block';
+            netProfitFormula.innerHTML = '<strong>Net Profit = Gross Profit - Expenses</strong> <small class="text-muted">(Realistic)</small>';
+        } else {
+            expenseRateContainer.style.display = 'none';
+            netProfitFormula.innerHTML = '<strong>Net Profit = Gross Profit</strong> <small class="text-muted">(Simplified)</small>';
+        }
+        
+        loadProfitAnalysis();
+    }
+    
+    // Create profit analysis chart
+    function createProfitAnalysisChart(summary) {
+        const ctx = document.getElementById('profitAnalysisChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (profitAnalysisChart) {
+            profitAnalysisChart.destroy();
+        }
+        
+        const isRealistic = profitViewMode.value === 'realistic';
+        const netProfit = isRealistic ? summary.total_net_profit : summary.total_gross_profit;
+        
+        // Create new chart
+        profitAnalysisChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Revenue', 'Cost of Goods', 'Expenses', 'Net Profit'],
+                datasets: [{
+                    data: [
+                        summary.total_revenue,
+                        summary.total_cost,
+                        isRealistic ? (summary.total_gross_profit * 0.1) : 0, // 10% expenses in realistic mode
+                        netProfit
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(23, 162, 184, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(23, 162, 184, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                return `${label}: TZS ${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
     
     // Format date for input fields (Date -> YYYY-MM-DD)
