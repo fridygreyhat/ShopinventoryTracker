@@ -3580,6 +3580,32 @@ def get_customer_analytics(customer_name):
         logger.error(f"Error getting customer analytics for {customer_name}: {str(e)}")
         return jsonify({"error": "Failed to get customer analytics"}), 500
 
+# Debug endpoint to list all users
+@app.route('/api/debug/users', methods=['GET'])
+@login_required
+def debug_list_users():
+    """Debug endpoint to list all users"""
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+        
+        users = User.query.all()
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(users),
+            'users': [user.to_dict() for user in users]
+        })
+    
+    except Exception as e:
+        logger.error(f"Debug users error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])
 @login_required
