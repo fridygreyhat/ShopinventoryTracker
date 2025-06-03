@@ -2627,6 +2627,124 @@ def get_abc_analysis():
         logger.error(f"Error performing ABC analysis: {str(e)}")
         return jsonify({"error": "Failed to perform ABC analysis"}), 500
 
+@app.route('/api/reports/profit-analysis', methods=['GET'])
+@login_required
+def get_profit_analysis():
+    """API endpoint for comprehensive profit analysis with simplified/realistic views"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get query parameters
+        view_mode = request.args.get('view_mode', 'simplified')  # 'simplified' or 'realistic'
+        category = request.args.get('category')
+        search = request.args.get('search')
+        expense_rate = float(request.args.get('expense_rate', 10))  # Default 10%
+        
+        # Build query for user's items
+        query = Item.query.filter_by(user_id=user_id)
+        
+        if category:
+            query = query.filter(Item.category == category)
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    Item.name.contains(search),
+                    Item.sku.contains(search)
+                )
+            )
+        
+        items = query.all()
+        
+        # Calculate profit analysis
+        profit_analysis = []
+        summary = {
+            'total_items': len(items),
+            'total_gross_profit': 0,
+            'total_net_profit': 0,
+            'total_revenue': 0,
+            'total_cost': 0,
+            'view_mode': view_mode,
+            'expense_rate': expense_rate
+        }
+        
+        for item in items:
+            buying_price = item.buying_price or 0
+            selling_price = item.selling_price_retail or 0
+            quantity = item.quantity or 0
+            
+            # Calculate profits
+            gross_profit_per_unit = selling_price - buying_price
+            
+            if view_mode == 'realistic':
+                expenses_per_unit = gross_profit_per_unit * (expense_rate / 100)
+                net_profit_per_unit = gross_profit_per_unit - expenses_per_unit
+            else:  # simplified
+                net_profit_per_unit = gross_profit_per_unit
+                expenses_per_unit = 0
+            
+            # Calculate totals
+            total_gross_profit = gross_profit_per_unit * quantity
+            total_net_profit = net_profit_per_unit * quantity
+            total_revenue = selling_price * quantity
+            total_cost = buying_price * quantity
+            
+            # Calculate margins
+            gross_margin = (gross_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            net_margin = (net_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            markup = (gross_profit_per_unit / buying_price * 100) if buying_price > 0 else 0
+            
+            item_analysis = {
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku or '',
+                'category': item.category or 'Uncategorized',
+                'quantity': quantity,
+                'buying_price': buying_price,
+                'selling_price': selling_price,
+                'gross_profit_per_unit': gross_profit_per_unit,
+                'net_profit_per_unit': net_profit_per_unit,
+                'expenses_per_unit': expenses_per_unit,
+                'total_gross_profit': total_gross_profit,
+                'total_net_profit': total_net_profit,
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
+                'gross_margin': gross_margin,
+                'net_margin': net_margin,
+                'markup': markup
+            }
+            
+            profit_analysis.append(item_analysis)
+            
+            # Add to summary
+            summary['total_gross_profit'] += total_gross_profit
+            summary['total_net_profit'] += total_net_profit
+            summary['total_revenue'] += total_revenue
+            summary['total_cost'] += total_cost
+        
+        # Calculate overall margins
+        if summary['total_revenue'] > 0:
+            summary['overall_gross_margin'] = (summary['total_gross_profit'] / summary['total_revenue']) * 100
+            summary['overall_net_margin'] = (summary['total_net_profit'] / summary['total_revenue']) * 100
+        else:
+            summary['overall_gross_margin'] = 0
+            summary['overall_net_margin'] = 0
+        
+        # Sort by net profit (descending)
+        profit_analysis.sort(key=lambda x: x['total_net_profit'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'profit_analysis': profit_analysis,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting profit analysis: {str(e)}")
+        return jsonify({"error": "Failed to get profit analysis"}), 500
+
 @app.route('/api/reports/profit-margin', methods=['GET'])
 @login_required
 def get_profit_margin_analysis():

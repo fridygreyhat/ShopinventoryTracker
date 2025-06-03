@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">Profit Margin Analysis</h1>
-    
+
     <!-- Filter Controls -->
     <div class="card mb-4">
         <div class="card-body">
@@ -31,7 +31,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Margin Overview -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -59,8 +59,51 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Margin Table -->
+    <div class="row">
+        <div class="col-12">
+            <h2 class="page-title">Profit & Margin Analysis</h2>
+            <p class="text-muted">Analyze profit margins with simplified and realistic views</p>
+        </div>
+    </div>
+
+    <!-- Calculation Mode Selection -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">📊 Calculation Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="calculation-mode" class="form-label">Calculation Mode</label>
+                            <select class="form-select" id="calculation-mode">
+                                <option value="simplified">Simplified (Net Profit = Gross Profit)</option>
+                                <option value="realistic">Realistic (Net Profit = Gross Profit - Expenses)</option>
+                            </select>
+                            <div class="form-text">Choose how to calculate net profit</div>
+                        </div>
+                        <div class="col-md-6" id="expense-rate-container" style="display: none;">
+                            <label for="expense-rate" class="form-label">Expense Rate (%)</label>
+                            <input type="number" class="form-control" id="expense-rate" value="10" min="0" max="100" step="0.1">
+                            <div class="form-text">Percentage of gross profit used for expenses</div>
+                        </div>
+                    </div>
+
+                    <!-- Calculation Formulas Display -->
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6>Current Formulas:</h6>
+                        <div id="formula-display">
+                            <div><strong>Gross Profit = Selling Price - Buying Price</strong></div>
+                            <div id="net-profit-formula"><strong>Net Profit = Gross Profit</strong> (Simplified View)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="card">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
@@ -75,21 +118,22 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Name</th>
+                            <th>Product</th>
                             <th>SKU</th>
                             <th>Category</th>
+                            <th>Qty</th>
                             <th>Buying Price</th>
-                            <th>Selling Price (Retail)</th>
-                            <th>Selling Price (Wholesale)</th>
-                            <th>Retail Margin</th>
-                            <th>Wholesale Margin</th>
-                            <th>% Margin (Retail)</th>
-                            <th>% Margin (Wholesale)</th>
+                            <th>Selling Price</th>
+                            <th>Gross Profit</th>
+                            <th>Net Profit</th>
+                            <th>Gross Margin %</th>
+                            <th>Net Margin %</th>
+                            <th>Total Profit</th>
                         </tr>
                     </thead>
                     <tbody id="margin-table">
                         <tr>
-                            <td colspan="10" class="text-center">Loading margin data...</td>
+                            <td colspan="11" class="text-center">Loading margin data...</td>
                         </tr>
                     </tbody>
                 </table>

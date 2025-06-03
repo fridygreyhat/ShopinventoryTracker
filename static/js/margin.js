@@ -81,18 +81,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const marginTableElement = document.getElementById('margin-table');
     const exportCsvButton = document.getElementById('export-margin-csv');
     
+    // New profit calculation elements
+    const calculationModeElement = document.getElementById('calculation-mode');
+    const expenseRateElement = document.getElementById('expense-rate');
+    const expenseRateContainer = document.getElementById('expense-rate-container');
+    const formulaDisplay = document.getElementById('net-profit-formula');
+    
+    // Initialize profit calculator
+    const profitCalculator = new ProfitCalculator();
+    
     // Charts
     let marginDistributionChart = null;
     let topMarginProductsChart = null;
     
     // Load data on page load
     loadCategories();
-    loadMarginData();
+    loadProfitData();
     
     // Event listeners
-    applyFiltersButton.addEventListener('click', loadMarginData);
+    applyFiltersButton.addEventListener('click', loadProfitData);
     resetFiltersButton.addEventListener('click', resetFilters);
     exportCsvButton.addEventListener('click', exportMarginCsv);
+    
+    // Calculation mode listeners
+    calculationModeElement.addEventListener('change', updateCalculationMode);
+    expenseRateElement.addEventListener('input', loadProfitData);
+    
+    // Initialize calculation mode
+    updateCalculationMode();
     
     // Load inventory categories for filter dropdown
     function loadCategories() {
@@ -113,14 +129,41 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Load margin data with optional filters
-    function loadMarginData() {
+    // Update calculation mode display and settings
+    function updateCalculationMode() {
+        const mode = calculationModeElement.value;
+        const isRealistic = mode === 'realistic';
+        
+        // Show/hide expense rate input
+        expenseRateContainer.style.display = isRealistic ? 'block' : 'none';
+        
+        // Update formula display
+        if (isRealistic) {
+            formulaDisplay.innerHTML = '<strong>Net Profit = Gross Profit - Expenses</strong> (Realistic View)';
+        } else {
+            formulaDisplay.innerHTML = '<strong>Net Profit = Gross Profit</strong> (Simplified View)';
+        }
+        
+        // Update profit calculator settings
+        profitCalculator.setCalculationMode(isRealistic, parseFloat(expenseRateElement.value));
+        
+        // Reload data with new settings
+        loadProfitData();
+    }
+
+    // Load profit data with optional filters
+    function loadProfitData() {
         // Get filter values
         const category = categoryFilterElement.value;
         const searchTerm = searchFilterElement.value;
+        const viewMode = calculationModeElement.value;
+        const expenseRate = expenseRateElement.value;
         
         // Build query string
         let queryParams = [];
+        queryParams.push(`view_mode=${encodeURIComponent(viewMode)}`);
+        queryParams.push(`expense_rate=${encodeURIComponent(expenseRate)}`);
+        
         if (category) {
             queryParams.push(`category=${encodeURIComponent(category)}`);
         }
@@ -128,79 +171,77 @@ document.addEventListener('DOMContentLoaded', function() {
             queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
         }
         
-        const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+        const queryString = `?${queryParams.join('&')}`;
         
-        fetch(`/api/inventory${queryString}`)
+        fetch(`/api/reports/profit-analysis${queryString}`)
             .then(response => response.json())
             .then(data => {
-                if (data && Array.isArray(data)) {
-                    displayMarginData(data);
-                    createMarginDistributionChart(data);
-                    createTopMarginProductsChart(data);
+                if (data.success) {
+                    displayProfitData(data.profit_analysis, data.summary);
+                    createProfitDistributionChart(data.profit_analysis);
+                    createTopProfitProductsChart(data.profit_analysis);
                 } else {
-                    throw new Error('Invalid data format');
+                    throw new Error(data.error || 'Invalid data format');
                 }
             })
             .catch(error => {
-                console.error('Error loading margin data:', error);
-                marginTableElement.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading margin data</td></tr>';
+                console.error('Error loading profit data:', error);
+                marginTableElement.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading profit data</td></tr>';
             });
     }
     
-    // Display margin data in table
-    function displayMarginData(items) {
+    // Display profit data in table
+    function displayProfitData(items, summary) {
         if (items.length === 0) {
-            marginTableElement.innerHTML = '<tr><td colspan="10" class="text-center">No items found</td></tr>';
+            marginTableElement.innerHTML = '<tr><td colspan="11" class="text-center">No items found</td></tr>';
             return;
         }
-        
-        // Sort items by retail margin percentage (descending)
-        items.sort((a, b) => {
-            const aMarginPct = calculateMarginPercentage(a.buying_price, a.selling_price_retail);
-            const bMarginPct = calculateMarginPercentage(b.buying_price, b.selling_price_retail);
-            return bMarginPct - aMarginPct;
-        });
         
         let html = '';
         
         items.forEach(item => {
-            // Calculate margins
-            const retailMargin = item.selling_price_retail - item.buying_price;
-            const wholesaleMargin = item.selling_price_wholesale - item.buying_price;
-            
-            // Calculate margin percentages
-            const retailMarginPct = calculateMarginPercentage(item.buying_price, item.selling_price_retail);
-            const wholesaleMarginPct = calculateMarginPercentage(item.buying_price, item.selling_price_wholesale);
-            
-            // Determine row color based on retail margin percentage
+            // Determine row color based on net margin percentage
             let rowClass = '';
-            if (retailMarginPct >= 50) {
+            if (item.net_margin >= 50) {
                 rowClass = 'table-success';
-            } else if (retailMarginPct >= 30) {
+            } else if (item.net_margin >= 30) {
                 rowClass = 'table-info';
-            } else if (retailMarginPct >= 15) {
+            } else if (item.net_margin >= 15) {
                 rowClass = 'table-warning';
-            } else if (retailMarginPct <= 0) {
+            } else if (item.net_margin <= 0) {
                 rowClass = 'table-danger';
             }
             
             html += `
             <tr class="${rowClass}">
-                <td>${item.name}</td>
+                <td>
+                    <div class="fw-bold">${item.name}</div>
+                    ${item.category ? `<small class="text-muted">${item.category}</small>` : ''}
+                </td>
                 <td>${item.sku || '-'}</td>
                 <td>${item.category || 'Uncategorized'}</td>
+                <td>${item.quantity}</td>
                 <td><span class="currency-symbol">TZS</span> ${item.buying_price.toLocaleString()}</td>
-                <td><span class="currency-symbol">TZS</span> ${item.selling_price_retail.toLocaleString()}</td>
-                <td><span class="currency-symbol">TZS</span> ${item.selling_price_wholesale.toLocaleString()}</td>
-                <td><span class="currency-symbol">TZS</span> ${retailMargin.toLocaleString()}</td>
-                <td><span class="currency-symbol">TZS</span> ${wholesaleMargin.toLocaleString()}</td>
-                <td>${retailMarginPct.toFixed(2)}%</td>
-                <td>${wholesaleMarginPct.toFixed(2)}%</td>
+                <td><span class="currency-symbol">TZS</span> ${item.selling_price.toLocaleString()}</td>
+                <td class="text-info"><span class="currency-symbol">TZS</span> ${item.gross_profit_per_unit.toLocaleString()}</td>
+                <td class="text-success"><span class="currency-symbol">TZS</span> ${item.net_profit_per_unit.toLocaleString()}</td>
+                <td>${item.gross_margin.toFixed(2)}%</td>
+                <td class="fw-bold">${item.net_margin.toFixed(2)}%</td>
+                <td class="text-primary"><span class="currency-symbol">TZS</span> ${item.total_net_profit.toLocaleString()}</td>
             </tr>
             `;
         });
         
         marginTableElement.innerHTML = html;
+        
+        // Update summary display if elements exist
+        updateSummaryDisplay(summary);
+    }
+    
+    // Update summary display
+    function updateSummaryDisplay(summary) {
+        // You can add summary display elements to the template if needed
+        console.log('Profit Summary:', summary);
     }
     
     // Create margin distribution chart
