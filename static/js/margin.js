@@ -80,43 +80,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const resetFiltersButton = document.getElementById('reset-filters-btn');
     const marginTableElement = document.getElementById('margin-table');
     const exportCsvButton = document.getElementById('export-margin-csv');
-    
-    // New profit calculation elements
-    const calculationModeElement = document.getElementById('calculation-mode');
-    const expenseRateElement = document.getElementById('expense-rate');
-    const expenseRateContainer = document.getElementById('expense-rate-container');
-    const formulaDisplay = document.getElementById('net-profit-formula');
-    
-    // Initialize profit calculator
-    const profitCalculator = new ProfitCalculator();
-    
+
     // Charts
     let marginDistributionChart = null;
     let topMarginProductsChart = null;
-    
+
     // Load data on page load
     loadCategories();
-    loadProfitData();
-    
+    loadMarginData();
+
     // Event listeners
-    applyFiltersButton.addEventListener('click', loadProfitData);
+    applyFiltersButton.addEventListener('click', loadMarginData);
     resetFiltersButton.addEventListener('click', resetFilters);
     exportCsvButton.addEventListener('click', exportMarginCsv);
-    
-    // Calculation mode listeners
-    calculationModeElement.addEventListener('change', updateCalculationMode);
-    expenseRateElement.addEventListener('input', loadProfitData);
-    
-    // Initialize calculation mode
-    updateCalculationMode();
-    
-    // Load inventory categories for filter dropdown
+
+    // Load categories for filter
     function loadCategories() {
         fetch('/api/inventory/categories')
             .then(response => response.json())
             .then(categories => {
                 categoryFilterElement.innerHTML = '<option value="">All Categories</option>';
-                
                 categories.forEach(category => {
                     const option = document.createElement('option');
                     option.value = category;
@@ -128,163 +111,128 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading categories:', error);
             });
     }
-    
-    // Update calculation mode display and settings
-    function updateCalculationMode() {
-        const mode = calculationModeElement.value;
-        const isRealistic = mode === 'realistic';
-        
-        // Show/hide expense rate input
-        expenseRateContainer.style.display = isRealistic ? 'block' : 'none';
-        
-        // Update formula display
-        if (isRealistic) {
-            formulaDisplay.innerHTML = '<strong>Net Profit = Gross Profit - Expenses</strong> (Realistic View)';
-        } else {
-            formulaDisplay.innerHTML = '<strong>Net Profit = Gross Profit</strong> (Simplified View)';
-        }
-        
-        // Update profit calculator settings
-        profitCalculator.setCalculationMode(isRealistic, parseFloat(expenseRateElement.value));
-        
-        // Reload data with new settings
-        loadProfitData();
-    }
 
-    // Load profit data with optional filters
-    function loadProfitData() {
+    // Load margin data with optional filters
+    function loadMarginData() {
         // Get filter values
         const category = categoryFilterElement.value;
         const searchTerm = searchFilterElement.value;
-        const viewMode = calculationModeElement.value;
-        const expenseRate = expenseRateElement.value;
-        
+
         // Build query string
         let queryParams = [];
-        queryParams.push(`view_mode=${encodeURIComponent(viewMode)}`);
-        queryParams.push(`expense_rate=${encodeURIComponent(expenseRate)}`);
-        
+
         if (category) {
             queryParams.push(`category=${encodeURIComponent(category)}`);
         }
         if (searchTerm) {
             queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
         }
-        
-        const queryString = `?${queryParams.join('&')}`;
-        
-        fetch(`/api/reports/profit-analysis${queryString}`)
+
+        const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+
+        fetch(`/api/reports/profit-margin${queryString}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    displayProfitData(data.profit_analysis, data.summary);
-                    createProfitDistributionChart(data.profit_analysis);
-                    createTopProfitProductsChart(data.profit_analysis);
+                    displayMarginData(data.item_margins);
+                    createMarginDistributionChart(data.item_margins);
+                    createTopMarginProductsChart(data.item_margins);
                 } else {
                     throw new Error(data.error || 'Invalid data format');
                 }
             })
             .catch(error => {
-                console.error('Error loading profit data:', error);
-                marginTableElement.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading profit data</td></tr>';
+                console.error('Error loading margin data:', error);
+                marginTableElement.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error loading margin data</td></tr>';
             });
     }
-    
-    // Display profit data in table
-    function displayProfitData(items, summary) {
+
+    // Display margin data in table
+    function displayMarginData(items) {
         if (items.length === 0) {
-            marginTableElement.innerHTML = '<tr><td colspan="11" class="text-center">No items found</td></tr>';
+            marginTableElement.innerHTML = '<tr><td colspan="9" class="text-center">No items found</td></tr>';
             return;
         }
-        
+
         let html = '';
-        
+
         items.forEach(item => {
-            // Determine row color based on net margin percentage
+            // Determine row color based on margin percentage
             let rowClass = '';
-            if (item.net_margin >= 50) {
+            if (item.margin_percentage >= 50) {
                 rowClass = 'table-success';
-            } else if (item.net_margin >= 30) {
+            } else if (item.margin_percentage >= 30) {
                 rowClass = 'table-info';
-            } else if (item.net_margin >= 15) {
+            } else if (item.margin_percentage >= 15) {
                 rowClass = 'table-warning';
-            } else if (item.net_margin <= 0) {
+            } else if (item.margin_percentage <= 0) {
                 rowClass = 'table-danger';
             }
-            
+
+            // Calculate markup percentage
+            const markup = item.buying_price > 0 ? ((item.margin_amount / item.buying_price) * 100) : 0;
+
             html += `
             <tr class="${rowClass}">
                 <td>
-                    <div class="fw-bold">${item.name}</div>
+                    <div class="fw-bold">${item.item_name}</div>
                     ${item.category ? `<small class="text-muted">${item.category}</small>` : ''}
                 </td>
-                <td>${item.sku || '-'}</td>
+                <td>${item.item_id || '-'}</td>
                 <td>${item.category || 'Uncategorized'}</td>
-                <td>${item.quantity}</td>
+                <td>${item.units_sold || 0}</td>
                 <td><span class="currency-symbol">TZS</span> ${item.buying_price.toLocaleString()}</td>
                 <td><span class="currency-symbol">TZS</span> ${item.selling_price.toLocaleString()}</td>
-                <td class="text-info"><span class="currency-symbol">TZS</span> ${item.gross_profit_per_unit.toLocaleString()}</td>
-                <td class="text-success"><span class="currency-symbol">TZS</span> ${item.net_profit_per_unit.toLocaleString()}</td>
-                <td>${item.gross_margin.toFixed(2)}%</td>
-                <td class="fw-bold">${item.net_margin.toFixed(2)}%</td>
-                <td class="text-primary"><span class="currency-symbol">TZS</span> ${item.total_net_profit.toLocaleString()}</td>
+                <td class="text-info"><span class="currency-symbol">TZS</span> ${item.margin_amount.toLocaleString()}</td>
+                <td class="fw-bold">${item.margin_percentage.toFixed(2)}%</td>
+                <td>${markup.toFixed(2)}%</td>
             </tr>
             `;
         });
-        
+
         marginTableElement.innerHTML = html;
-        
-        // Update summary display if elements exist
-        updateSummaryDisplay(summary);
     }
-    
-    // Update summary display
-    function updateSummaryDisplay(summary) {
-        // You can add summary display elements to the template if needed
-        console.log('Profit Summary:', summary);
-    }
-    
+
     // Create margin distribution chart
     function createMarginDistributionChart(items) {
         const ctx = document.getElementById('margin-distribution-chart').getContext('2d');
         const colors = getThemeColors();
-        
+
         // Define margin ranges
         const ranges = [
             { label: 'Negative', min: -100, max: 0, color: colors.danger },
             { label: 'Low (0-15%)', min: 0, max: 15, color: colors.warning },
             { label: 'Medium (15-30%)', min: 15, max: 30, color: colors.info },
             { label: 'Good (30-50%)', min: 30, max: 50, color: colors.success },
-            { label: 'Excellent (>50%)', min: 50, max: 1000, color: colors.teal }
+            { label: 'Excellent (50%+)', min: 50, max: 1000, color: colors.teal }
         ];
-        
+
         // Count items in each range
-        const rangeCounts = ranges.map(range => {
+        const data = ranges.map(range => {
             return {
                 label: range.label,
-                count: items.filter(item => {
-                    const marginPct = calculateMarginPercentage(item.buying_price, item.selling_price_retail);
-                    return marginPct > range.min && marginPct <= range.max;
-                }).length,
+                count: items.filter(item => 
+                    item.margin_percentage >= range.min && item.margin_percentage < range.max
+                ).length,
                 color: range.color
             };
         });
-        
+
         // Destroy existing chart if it exists
         if (marginDistributionChart) {
             marginDistributionChart.destroy();
         }
-        
+
         // Create new chart
         marginDistributionChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: rangeCounts.map(range => range.label),
+                labels: ranges.map(r => r.label),
                 datasets: [{
-                    data: rangeCounts.map(range => range.count),
-                    backgroundColor: rangeCounts.map(range => range.color),
-                    borderColor: colors.chartBorder,
-                    borderWidth: 1
+                    data: data.map(d => d.count),
+                    backgroundColor: data.map(d => d.color),
+                    borderWidth: 2,
+                    borderColor: '#fff'
                 }]
             },
             options: {
@@ -292,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom',
                         labels: {
                             color: colors.chartText
                         }
@@ -315,96 +263,46 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Create top margin products chart
     function createTopMarginProductsChart(items) {
         const ctx = document.getElementById('top-margin-products-chart').getContext('2d');
         const colors = getThemeColors();
-        
-        // Sort items by retail margin and take top 10
-        const topItems = [...items].sort((a, b) => {
-            const aMargin = a.selling_price_retail - a.buying_price;
-            const bMargin = b.selling_price_retail - b.buying_price;
-            return bMargin - aMargin;
-        }).slice(0, 10);
-        
-        // Prepare data for chart
-        const labels = topItems.map(item => item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name);
-        const margins = topItems.map(item => item.selling_price_retail - item.buying_price);
-        const marginPercentages = topItems.map(item => calculateMarginPercentage(item.buying_price, item.selling_price_retail));
-        
+
+        // Sort by margin percentage and take top 10
+        const topItems = items
+            .sort((a, b) => b.margin_percentage - a.margin_percentage)
+            .slice(0, 10);
+
         // Destroy existing chart if it exists
         if (topMarginProductsChart) {
             topMarginProductsChart.destroy();
         }
-        
+
         // Create new chart
         topMarginProductsChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Margin Amount',
-                        data: margins,
-                        backgroundColor: colors.success,
-                        borderColor: colors.success.replace('0.8', '1'),
-                        borderWidth: 1,
-                        order: 2
-                    },
-                    {
-                        label: 'Margin %',
-                        data: marginPercentages,
-                        backgroundColor: colors.info,
-                        borderColor: colors.info.replace('0.8', '1'),
-                        borderWidth: 1,
-                        type: 'line',
-                        order: 1,
-                        yAxisID: 'y1'
-                    }
-                ]
+                labels: topItems.map(item => item.item_name),
+                datasets: [{
+                    label: 'Margin %',
+                    data: topItems.map(item => item.margin_percentage),
+                    backgroundColor: colors.success,
+                    borderColor: colors.success.replace('0.8', '1'),
+                    borderWidth: 1
+                }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                indexAxis: 'y',
                 scales: {
-                    y: {
+                    x: {
                         beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Margin Amount (TZS)',
-                            color: colors.chartText
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
-                            },
-                            color: colors.chartSecondaryText
-                        },
-                        grid: {
-                            color: colors.chartGrid
-                        }
-                    },
-                    y1: {
-                        beginAtZero: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Margin %',
-                            color: colors.chartText
-                        },
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
                             },
-                            color: colors.chartSecondaryText
-                        },
-                        grid: {
-                            drawOnChartArea: false
-                        }
-                    },
-                    x: {
-                        ticks: {
                             color: colors.chartSecondaryText
                         },
                         grid: {
@@ -413,22 +311,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 plugins: {
+                    legend: {
+                        display: false
+                    },
                     tooltip: {
                         backgroundColor: colors.tooltipBackground,
                         titleColor: colors.tooltipText,
                         bodyColor: colors.tooltipText,
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.datasetIndex === 0) {
-                                    label += 'TZS ' + context.raw.toLocaleString();
-                                } else {
-                                    label += context.raw.toFixed(2) + '%';
-                                }
-                                return label;
+                                return `Margin: ${context.raw.toFixed(2)}%`;
                             }
                         }
                     }
@@ -436,103 +328,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    // Reset all filters
+
+    // Reset filters
     function resetFilters() {
         categoryFilterElement.value = '';
         searchFilterElement.value = '';
         loadMarginData();
     }
-    
-    // Export margin data to CSV
+
+    // Export margin data as CSV
     function exportMarginCsv() {
-        // Get filter values
         const category = categoryFilterElement.value;
         const searchTerm = searchFilterElement.value;
-        
-        // Build query string
-        let queryParams = [];
+
+        let queryParams = ['format=csv'];
+
         if (category) {
             queryParams.push(`category=${encodeURIComponent(category)}`);
         }
         if (searchTerm) {
             queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
         }
-        
-        const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-        
-        fetch(`/api/inventory${queryString}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data && Array.isArray(data)) {
-                    // Prepare CSV data
-                    const csvRows = [];
-                    
-                    // Add header row
-                    csvRows.push([
-                        'Name',
-                        'SKU',
-                        'Category',
-                        'Buying Price (TZS)',
-                        'Selling Price Retail (TZS)',
-                        'Selling Price Wholesale (TZS)',
-                        'Retail Margin (TZS)',
-                        'Wholesale Margin (TZS)',
-                        'Retail Margin %',
-                        'Wholesale Margin %'
-                    ].join(','));
-                    
-                    // Add data rows
-                    data.forEach(item => {
-                        // Calculate margins
-                        const retailMargin = item.selling_price_retail - item.buying_price;
-                        const wholesaleMargin = item.selling_price_wholesale - item.buying_price;
-                        
-                        // Calculate margin percentages
-                        const retailMarginPct = calculateMarginPercentage(item.buying_price, item.selling_price_retail);
-                        const wholesaleMarginPct = calculateMarginPercentage(item.buying_price, item.selling_price_wholesale);
-                        
-                        // Format CSV row
-                        csvRows.push([
-                            `"${item.name.replace(/"/g, '""')}"`,
-                            `"${(item.sku || '').replace(/"/g, '""')}"`,
-                            `"${(item.category || 'Uncategorized').replace(/"/g, '""')}"`,
-                            item.buying_price,
-                            item.selling_price_retail,
-                            item.selling_price_wholesale,
-                            retailMargin,
-                            wholesaleMargin,
-                            retailMarginPct.toFixed(2),
-                            wholesaleMarginPct.toFixed(2)
-                        ].join(','));
-                    });
-                    
-                    // Create and download CSV file
-                    const csvString = csvRows.join('\n');
-                    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `margin-report-${new Date().toISOString().slice(0, 10)}.csv`);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } else {
-                    throw new Error('Invalid data format');
-                }
-            })
-            .catch(error => {
-                console.error('Error exporting margin data:', error);
-                alert('Error exporting margin data. Please try again.');
-            });
-    }
-    
-    // Calculate margin percentage safely
-    function calculateMarginPercentage(buyingPrice, sellingPrice) {
-        if (!buyingPrice || buyingPrice <= 0) {
-            return sellingPrice > 0 ? 100 : 0;
-        }
-        return ((sellingPrice - buyingPrice) / buyingPrice) * 100;
+
+        const queryString = `?${queryParams.join('&')}`;
+        window.open(`/api/reports/profit-margin${queryString}`, '_blank');
     }
 });
