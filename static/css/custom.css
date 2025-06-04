@@ -3828,6 +3828,155 @@ canvas {
     }
 }
 
+/* Compact Finance Cards */
+.compact-finance-card {
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    height: 70px;
+    min-height: 70px;
+    max-height: 70px;
+    overflow: hidden;
+    position: relative;
+}
+
+.compact-finance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.compact-finance-card .card-body {
+    padding: 0.75rem !important;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.icon-mini {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.finance-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.finance-amount {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.finance-amount .currency-symbol {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.trend-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    flex-shrink: 0;
+}
+
+.trend-badge.trend-up {
+    background: rgba(40, 167, 69, 0.15);
+    color: var(--success-color);
+}
+
+.trend-badge.trend-down {
+    background: rgba(220, 53, 69, 0.15);
+    color: var(--danger-color);
+}
+
+/* Compact finance card color themes */
+.compact-finance-card.income-card {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.03), rgba(40, 167, 69, 0.08));
+    border-left: 3px solid #28a745;
+}
+
+.compact-finance-card.expense-card {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.03), rgba(220, 53, 69, 0.08));
+    border-left: 3px solid #dc3545;
+}
+
+.compact-finance-card.profit-card {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.03), rgba(255, 193, 7, 0.08));
+    border-left: 3px solid #ffc107;
+}
+
+.compact-finance-card.net-profit-card {
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.03), rgba(0, 123, 255, 0.08));
+    border-left: 3px solid #007bff;
+}
+
+/* Responsive adjustments for compact cards */
+@media (max-width: 768px) {
+    .compact-finance-card {
+        height: 65px;
+        min-height: 65px;
+        max-height: 65px;
+    }
+    
+    .finance-label {
+        font-size: 0.6rem;
+    }
+    
+    .finance-amount {
+        font-size: 0.8rem;
+    }
+    
+    .icon-mini {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+    
+    .trend-badge {
+        width: 18px;
+        height: 18px;
+        font-size: 0.55rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .compact-finance-card {
+        height: 60px;
+        min-height: 60px;
+        max-height: 60px;
+    }
+    
+    .finance-label {
+        font-size: 0.55rem;
+    }
+    
+    .finance-amount {
+        font-size: 0.75rem;
+    }
+}
+
 /* Financial Summary Section */
 .card.financial-card.compact-chart.mb-4 {
     border-radius: var(--border-radius-md);
