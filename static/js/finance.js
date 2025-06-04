@@ -94,6 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteTransaction(transactionId.value);
     });
     
+    document.getElementById('sync-accounting-btn').addEventListener('click', syncWithAccounting);
+    
     // Load transaction data with optional date filters
     function loadTransactions() {
         const startDate = startDateInput.value;
@@ -646,5 +648,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Format date for input fields (Date -> YYYY-MM-DD)
     function formatDateForInput(date) {
         return date.toISOString().substring(0, 10);
+    }
+    
+    // Sync financial data with accounting
+    async function syncWithAccounting() {
+        const syncBtn = document.getElementById('sync-accounting-btn');
+        const originalText = syncBtn.innerHTML;
+        
+        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+        syncBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/finance/sync-accounting', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert(`Sync completed! ${result.message}`);
+                loadTransactions();
+                loadMonthlySummary();
+            } else {
+                alert('Sync failed: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            alert('Sync failed: Network error');
+        } finally {
+            syncBtn.innerHTML = originalText;
+            syncBtn.disabled = false;
+        }
     }
 });

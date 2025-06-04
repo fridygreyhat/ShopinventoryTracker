@@ -1612,12 +1612,40 @@ def get_transactions():
     # Execute query and order by date (most recent first)
     transactions = query.order_by(FinancialTransaction.date.desc()).all()
 
-    # Calculate totals
+    # Calculate totals including COGS and gross profit
     total_income = sum(t.amount for t in transactions
                        if t.transaction_type == 'Income')
     total_expenses = sum(t.amount for t in transactions
                          if t.transaction_type == 'Expense')
+    total_cogs = sum(t.cost_of_goods_sold or 0 for t in transactions
+                     if t.transaction_type == 'Income')
+    
+    gross_profit = total_income - total_cogs
     net_profit = total_income - total_expenses
+
+    # Update accounting records if financial service is available
+    try:
+        from financial_service import FinancialService
+        service = FinancialService(user_id)
+        
+        # Update cash flow for each transaction
+        for transaction in transactions:
+            if transaction.transaction_type == 'Income':
+                service.update_cash_flow(
+                    date=datetime.combine(transaction.date, datetime.min.time()),
+                    cash_in=transaction.amount,
+                    source=transaction.description,
+                    reference_id=transaction.reference_id
+                )
+            else:
+                service.update_cash_flow(
+                    date=datetime.combine(transaction.date, datetime.min.time()),
+                    cash_out=transaction.amount,
+                    source=transaction.description,
+                    reference_id=transaction.reference_id
+                )
+    except Exception as e:
+        logger.warning(f"Could not update accounting records: {str(e)}")
 
     return jsonify({
         "transactions": [t.to_dict() for t in transactions],
@@ -1628,6 +1656,8 @@ def get_transactions():
         "summary": {
             "total_income": total_income,
             "total_expenses": total_expenses,
+            "total_cogs": total_cogs,
+            "gross_profit": gross_profit,
             "net_profit": net_profit
         }
     })
@@ -2283,6 +2313,72 @@ def get_finance_categories():
     return jsonify(categories)
 
 
+@app.route('/api/finance/sync-accounting', methods=['POST'])
+@login_required
+def sync_financial_accounting():
+    """API endpoint to sync financial data with accounting records"""
+    from models import FinancialTransaction, Sale
+    from financial_service import FinancialService
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    try:
+        service = FinancialService(user_id)
+        
+        # Initialize chart of accounts if not exists
+        service.initialize_chart_of_accounts()
+        
+        # Get all sales without journal entries
+        sales = Sale.query.filter(Sale.user_id == user_id).all()
+        synced_sales = 0
+        
+        for sale in sales:
+            try:
+                service.record_sale_journal_entry(sale)
+                synced_sales += 1
+            except Exception as e:
+                logger.warning(f"Could not sync sale {sale.invoice_number}: {str(e)}")
+        
+        # Get all financial transactions and update cash flow
+        transactions = FinancialTransaction.query.filter(
+            FinancialTransaction.user_id == user_id
+        ).all()
+        synced_transactions = 0
+        
+        for transaction in transactions:
+            try:
+                if transaction.transaction_type == 'Income':
+                    service.update_cash_flow(
+                        date=datetime.combine(transaction.date, datetime.min.time()),
+                        cash_in=transaction.amount,
+                        source=transaction.description,
+                        reference_id=transaction.reference_id
+                    )
+                else:
+                    service.update_cash_flow(
+                        date=datetime.combine(transaction.date, datetime.min.time()),
+                        cash_out=transaction.amount,
+                        source=transaction.description,
+                        reference_id=transaction.reference_id
+                    )
+                synced_transactions += 1
+            except Exception as e:
+                logger.warning(f"Could not sync transaction {transaction.id}: {str(e)}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Synced {synced_sales} sales and {synced_transactions} transactions with accounting records",
+            "synced_sales": synced_sales,
+            "synced_transactions": synced_transactions
+        })
+        
+    except Exception as e:
+        logger.error(f"Error syncing financial data: {str(e)}")
+        return jsonify({"error": f"Failed to sync financial data: {str(e)}"}), 500
+
+
 # Sales API Routes
 @app.route('/api/sales/performance/top', methods=['GET'])
 @login_required
@@ -2504,9 +2600,20 @@ def create_sale():
         db.session.commit()
         logger.info(f"Sale completed successfully. Processed {items_processed} items.")
 
-        # Create financial transaction record for income
+        # Create financial transaction record for income with COGS
         try:
             from models import FinancialTransaction
+            
+            # Calculate total COGS for this sale
+            total_cogs = 0
+            for item_data in data.get('items', []):
+                item_id = item_data.get('id')
+                item = Item.query.filter_by(id=item_id).first() if item_id else None
+                if item:
+                    quantity_sold = float(item_data.get('quantity', 1))
+                    item_cogs = (item.buying_price or 0) * quantity_sold
+                    total_cogs += item_cogs
+            
             financial_transaction = FinancialTransaction(
                 description=f"Sale - Invoice {invoice_number}",
                 amount=float(data.get('total', 0)),
@@ -2514,11 +2621,23 @@ def create_sale():
                 category='Sales',
                 payment_method=payment_data.get('method', 'cash'),
                 reference_id=invoice_number,
-                date=datetime.utcnow().date()
+                date=datetime.utcnow().date(),
+                cost_of_goods_sold=total_cogs,
+                gross_amount=float(data.get('total', 0)) - total_cogs,
+                user_id=user_id
             )
             db.session.add(financial_transaction)
+            
+            # Also create journal entries if accounting is initialized
+            try:
+                from financial_service import FinancialService
+                service = FinancialService(user_id)
+                service.record_sale_journal_entry(new_sale)
+            except Exception as journal_error:
+                logger.warning(f"Could not create journal entries: {str(journal_error)}")
+            
             db.session.commit()
-            logger.info("Financial transaction record created")
+            logger.info("Financial transaction record created with COGS")
         except Exception as finance_error:
             logger.error(f"Error creating financial transaction: {str(finance_error)}")
             # Don't fail the sale if financial record creation fails
