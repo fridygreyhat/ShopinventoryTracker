@@ -1,8 +1,9 @@
+
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Financial Statements</h1>
+<div class="container-fluid">
+    <h1 class="mb-4">💰 Financial & Accounting Management</h1>
     
     <!-- Financial Summary Cards -->
     <div class="row mb-4">
@@ -51,51 +52,580 @@
             </div>
         </div>
     </div>
-    
-    <!-- Profit Analysis Section -->
+
+    <!-- Financial Modules Navigation -->
     <div class="card mb-4">
         <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">📊 Profit Analysis</h5>
-                <div class="form-group mb-0">
-                    <label for="profit-view-mode" class="form-label me-2">View:</label>
-                    <select id="profit-view-mode" class="form-select d-inline-block" style="width: auto;">
-                        <option value="simplified">Simplified (Net = Gross)</option>
-                        <option value="realistic">Realistic (Net = Gross - Expenses)</option>
-                    </select>
-                </div>
-            </div>
+            <ul class="nav nav-tabs card-header-tabs" id="finance-modules-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="cash-flow-tab" data-bs-toggle="tab" data-bs-target="#cash-flow-content" type="button" role="tab">
+                        <i class="fas fa-money-bill-wave"></i> Cash Flow
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="profit-loss-tab" data-bs-toggle="tab" data-bs-target="#profit-loss-content" type="button" role="tab">
+                        <i class="fas fa-chart-bar"></i> Profit / Loss
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="balance-sheet-tab" data-bs-toggle="tab" data-bs-target="#balance-sheet-content" type="button" role="tab">
+                        <i class="fas fa-balance-scale"></i> Balance Sheet
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="trial-balance-tab" data-bs-toggle="tab" data-bs-target="#trial-balance-content" type="button" role="tab">
+                        <i class="fas fa-calculator"></i> Trial Balance
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="general-ledger-tab" data-bs-toggle="tab" data-bs-target="#general-ledger-content" type="button" role="tab">
+                        <i class="fas fa-book"></i> General Ledger
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="chart-accounts-tab" data-bs-toggle="tab" data-bs-target="#chart-accounts-content" type="button" role="tab">
+                        <i class="fas fa-list"></i> Chart of Accounts
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-content" type="button" role="tab">
+                        <i class="fas fa-journal-whills"></i> Manual Journal
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="bank-transfers-tab" data-bs-toggle="tab" data-bs-target="#bank-transfers-content" type="button" role="tab">
+                        <i class="fas fa-exchange-alt"></i> Bank Transfers
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reconcile-tab" data-bs-toggle="tab" data-bs-target="#reconcile-content" type="button" role="tab">
+                        <i class="fas fa-check-double"></i> Reconcile
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="branch-equity-tab" data-bs-toggle="tab" data-bs-target="#branch-equity-content" type="button" role="tab">
+                        <i class="fas fa-building"></i> Branch Equity
+                    </button>
+                </li>
+            </ul>
         </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="chart-container" style="position: relative; height: 300px;">
-                        <canvas id="profitAnalysisChart"></canvas>
+            <div class="tab-content" id="finance-modules-content">
+                <!-- Cash Flow Tab -->
+                <div class="tab-pane fade show active" id="cash-flow-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-money-bill-wave text-success"></i> Cash Flow Analysis</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
+                                <i class="fas fa-plus"></i> Add Cash Flow Entry
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Cash Flow Charts -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Monthly Cash Flow</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="monthlyCashFlowChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Accumulated Cash Flow</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="accumulatedCashFlowChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cash Flow Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Cash In</th>
+                                    <th>Cash Out</th>
+                                    <th>Net Flow</th>
+                                    <th>Accumulated</th>
+                                    <th>Source</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cash-flow-table">
+                                <tr><td colspan="6" class="text-center">Loading cash flow data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="profit-formulas">
-                        <h6>Current Formulas:</h6>
-                        <div class="bg-light p-3 rounded">
-                            <div><strong>Gross Profit = Sales Revenue - Cost of Goods Sold</strong></div>
-                            <div id="net-profit-formula"><strong>Net Profit = Gross Profit</strong> <small class="text-muted">(Simplified)</small></div>
+
+                <!-- Profit/Loss Tab -->
+                <div class="tab-pane fade" id="profit-loss-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-chart-bar text-info"></i> Profit & Loss Statement</h5>
                         </div>
-                        <div class="mt-3" id="expense-rate-container" style="display: none;">
-                            <label for="expense-rate" class="form-label">Expense Rate (%)</label>
-                            <input type="number" class="form-control" id="expense-rate" value="10" min="0" max="100" step="0.1">
-                            <div class="form-text">Percentage of gross profit allocated to expenses</div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="date" class="form-control" id="pl-start-date" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="date" class="form-control" id="pl-end-date" placeholder="End Date">
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6>📈 REVENUE</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="revenue-breakdown"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Revenue:</span>
+                                        <span id="total-revenue-amount">TZS 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    <h6>📉 EXPENSES</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="expense-breakdown"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Expenses:</span>
+                                        <span id="total-expense-amount">TZS 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <div class="d-flex justify-content-between">
+                                    <strong>GROSS PROFIT:</strong>
+                                    <strong id="gross-profit-amount">TZS 0</strong>
+                                </div>
+                            </div>
+                            <div class="alert alert-primary">
+                                <div class="d-flex justify-content-between">
+                                    <strong>NET PROFIT:</strong>
+                                    <strong id="net-profit-amount">TZS 0</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Balance Sheet Tab -->
+                <div class="tab-pane fade" id="balance-sheet-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-balance-scale text-warning"></i> Balance Sheet</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="balance-sheet-date">As of Date:</label>
+                                <input type="date" class="form-control" id="balance-sheet-date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6>💰 ASSETS</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="assets-breakdown"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Assets:</span>
+                                        <span id="balance-total-assets">TZS 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header bg-warning text-white">
+                                    <h6>📋 LIABILITIES</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="liabilities-breakdown"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Liabilities:</span>
+                                        <span id="balance-total-liabilities">TZS 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6>🏛️ EQUITY</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="equity-breakdown"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total Equity:</span>
+                                        <span id="balance-total-equity">TZS 0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-success mt-3" id="balance-check">
+                        <div class="d-flex justify-content-between">
+                            <strong>BALANCE CHECK (Assets = Liabilities + Equity):</strong>
+                            <strong id="balance-check-result">✅ BALANCED</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trial Balance Tab -->
+                <div class="tab-pane fade" id="trial-balance-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-calculator text-secondary"></i> Trial Balance</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="trial-balance-date">As of Date:</label>
+                                <input type="date" class="form-control" id="trial-balance-date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Account Code</th>
+                                    <th>Account Name</th>
+                                    <th>Account Type</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trial-balance-table">
+                                <tr><td colspan="5" class="text-center">Loading trial balance...</td></tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary fw-bold">
+                                    <td colspan="3">TOTALS:</td>
+                                    <td class="text-end" id="trial-balance-total-debits">TZS 0</td>
+                                    <td class="text-end" id="trial-balance-total-credits">TZS 0</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- General Ledger Tab -->
+                <div class="tab-pane fade" id="general-ledger-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-book text-primary"></i> General Ledger Summary</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select" id="ledger-account-filter">
+                                <option value="">All Accounts</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Journal #</th>
+                                    <th>Account</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="general-ledger-table">
+                                <tr><td colspan="7" class="text-center">Loading general ledger...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Chart of Accounts Tab -->
+                <div class="tab-pane fade" id="chart-accounts-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-list text-success"></i> Chart of Accounts</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-primary btn-sm" id="initializeAccountingBtn">
+                                <i class="fas fa-cog"></i> Initialize Accounting
+                            </button>
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                                <i class="fas fa-plus"></i> Add Account
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Account Name</th>
+                                    <th>Type</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chart-accounts-table">
+                                <tr><td colspan="6" class="text-center">Loading chart of accounts...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Manual Journal Tab -->
+                <div class="tab-pane fade" id="journal-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-journal-whills text-info"></i> Manual Journal Entries</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#journalEntryModal">
+                                <i class="fas fa-plus"></i> New Journal Entry
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Journal #</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Total Debit</th>
+                                    <th class="text-end">Total Credit</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-entries-table">
+                                <tr><td colspan="6" class="text-center">Loading journal entries...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bank Transfers Tab -->
+                <div class="tab-pane fade" id="bank-transfers-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-exchange-alt text-warning"></i> Inter Bank Transfers</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#addBankAccountModal">
+                                <i class="fas fa-university"></i> Add Bank Account
+                            </button>
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#bankTransferModal">
+                                <i class="fas fa-exchange-alt"></i> New Transfer
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bank Accounts Summary -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Bank Accounts</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="bank-accounts-summary">
+                                        <div class="text-center">Loading bank accounts...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer History -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Transfer #</th>
+                                    <th>From Account</th>
+                                    <th>To Account</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bank-transfers-table">
+                                <tr><td colspan="6" class="text-center">Loading bank transfers...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reconcile Entries Tab -->
+                <div class="tab-pane fade" id="reconcile-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-check-double text-success"></i> Bank Reconciliation</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-primary btn-sm" id="startReconciliationBtn">
+                                <i class="fas fa-play"></i> Start Reconciliation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Book Balance</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="book-balance-section">
+                                        <div class="text-center">Select bank account to reconcile</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Bank Statement Balance</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label>Statement Balance:</label>
+                                        <input type="number" class="form-control" id="statement-balance" step="0.01">
+                                    </div>
+                                    <div class="form-group mt-2">
+                                        <label>Statement Date:</label>
+                                        <input type="date" class="form-control" id="statement-date">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="select-all-reconcile">
+                                        </th>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reconcile-transactions-table">
+                                    <tr><td colspan="5" class="text-center">No transactions to reconcile</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Branch Equity Tab -->
+                <div class="tab-pane fade" id="branch-equity-content" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-building text-primary"></i> Branch Equity</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select" id="branch-location-filter">
+                                <option value="">Select Branch/Location</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row" id="branch-equity-summary">
+                        <div class="col-12">
+                            <div class="alert alert-info text-center">
+                                Select a branch/location to view equity details
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Branch</th>
+                                    <th>Capital Invested</th>
+                                    <th>Retained Earnings</th>
+                                    <th>Total Equity</th>
+                                    <th>ROI %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="branch-equity-table">
+                                <tr><td colspan="6" class="text-center">Loading branch equity data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Date Range Filter and Tabs -->
+
+    <!-- Transaction Management Section -->
     <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">📝 Transaction Management</h5>
+                <div>
+                    <button id="add-transaction-btn" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                        <i class="fas fa-plus"></i> Add Transaction
+                    </button>
+                    <button id="sync-accounting-btn" class="btn btn-info">
+                        <i class="fas fa-sync"></i> Sync with Accounting
+                    </button>
+                </div>
+            </div>
+        </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-6 mb-3 mb-md-0">
+            <div class="row mb-3">
+                <div class="col-md-6">
                     <div class="d-flex">
                         <div class="form-group me-2">
                             <label for="start-date">Start Date</label>
@@ -108,56 +638,27 @@
                     </div>
                 </div>
                 <div class="col-md-6 d-flex align-items-end justify-content-md-end">
-                    <button id="filter-btn" class="btn btn-primary me-2">
+                    <button id="filter-btn" class="btn btn-primary">
                         <i class="fas fa-filter"></i> Apply Filter
                     </button>
-                    <button id="add-transaction-btn" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#transactionModal">
-                        <i class="fas fa-plus"></i> Add Transaction
-                    </button>
-                    <button id="sync-accounting-btn" class="btn btn-info">
-                        <i class="fas fa-sync"></i> Sync with Accounting
-                    </button>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Monthly Chart -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Monthly Financial Summary</h5>
-                <div class="form-group mb-0">
-                    <select id="year-select" class="form-select">
-                        <!-- Will be populated with years -->
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="card-body">
-            <canvas id="monthlyChart" height="300"></canvas>
-        </div>
-    </div>
-    
-    <!-- Tabbed Content -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" id="finance-tabs" role="tablist">
+
+            <!-- Transactions Tabs -->
+            <ul class="nav nav-tabs" id="transactions-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-transactions" type="button" role="tab" aria-controls="all-transactions" aria-selected="true">All Transactions</button>
+                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-transactions" type="button" role="tab">All Transactions</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="income-tab" data-bs-toggle="tab" data-bs-target="#income-transactions" type="button" role="tab" aria-controls="income-transactions" aria-selected="false">Income</button>
+                    <button class="nav-link" id="income-tab" data-bs-toggle="tab" data-bs-target="#income-transactions" type="button" role="tab">Income</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="expense-tab" data-bs-toggle="tab" data-bs-target="#expense-transactions" type="button" role="tab" aria-controls="expense-transactions" aria-selected="false">Expenses</button>
+                    <button class="nav-link" id="expense-tab" data-bs-toggle="tab" data-bs-target="#expense-transactions" type="button" role="tab">Expenses</button>
                 </li>
             </ul>
-        </div>
-        <div class="card-body">
-            <div class="tab-content" id="financeTabs">
-                <!-- All Transactions Tab -->
-                <div class="tab-pane fade show active" id="all-transactions" role="tabpanel" aria-labelledby="all-tab">
+
+            <div class="tab-content mt-3" id="transactionsTabs">
+                <div class="tab-pane fade show active" id="all-transactions" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
@@ -171,16 +672,12 @@
                                 </tr>
                             </thead>
                             <tbody id="all-transactions-table">
-                                <tr>
-                                    <td colspan="6" class="text-center">Loading transactions...</td>
-                                </tr>
+                                <tr><td colspan="6" class="text-center">Loading transactions...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
-                <!-- Income Tab -->
-                <div class="tab-pane fade" id="income-transactions" role="tabpanel" aria-labelledby="income-tab">
+                <div class="tab-pane fade" id="income-transactions" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
@@ -193,16 +690,12 @@
                                 </tr>
                             </thead>
                             <tbody id="income-transactions-table">
-                                <tr>
-                                    <td colspan="5" class="text-center">Loading income transactions...</td>
-                                </tr>
+                                <tr><td colspan="5" class="text-center">Loading income transactions...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
-                <!-- Expenses Tab -->
-                <div class="tab-pane fade" id="expense-transactions" role="tabpanel" aria-labelledby="expense-tab">
+                <div class="tab-pane fade" id="expense-transactions" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
@@ -215,9 +708,7 @@
                                 </tr>
                             </thead>
                             <tbody id="expense-transactions-table">
-                                <tr>
-                                    <td colspan="5" class="text-center">Loading expense transactions...</td>
-                                </tr>
+                                <tr><td colspan="5" class="text-center">Loading expense transactions...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -227,6 +718,7 @@
     </div>
 </div>
 
+<!-- Modals -->
 <!-- Transaction Modal -->
 <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -262,7 +754,6 @@
                         <label for="transaction-category">Category</label>
                         <select class="form-select" id="transaction-category" required>
                             <option value="">Select Category</option>
-                            <!-- Will be populated with categories -->
                         </select>
                     </div>
                     <div class="form-group mb-3">
@@ -273,15 +764,14 @@
                             <option value="Bank Transfer">Bank Transfer</option>
                             <option value="Mobile Money">Mobile Money</option>
                             <option value="Card">Card</option>
-                            <option value="Other">Other</option>
                         </select>
                     </div>
                     <div class="form-group mb-3">
-                        <label for="transaction-reference">Reference (Optional)</label>
-                        <input type="text" class="form-control" id="transaction-reference" placeholder="Invoice/Receipt Number">
+                        <label for="transaction-reference">Reference</label>
+                        <input type="text" class="form-control" id="transaction-reference">
                     </div>
                     <div class="form-group mb-3">
-                        <label for="transaction-notes">Notes (Optional)</label>
+                        <label for="transaction-notes">Notes</label>
                         <textarea class="form-control" id="transaction-notes" rows="3"></textarea>
                     </div>
                 </form>
@@ -295,13 +785,222 @@
     </div>
 </div>
 
+<!-- Chart of Accounts Modal -->
+<div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="account-form">
+                    <div class="form-group mb-3">
+                        <label for="account-code">Account Code</label>
+                        <input type="text" class="form-control" id="account-code" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="account-name">Account Name</label>
+                        <input type="text" class="form-control" id="account-name" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="account-type">Account Type</label>
+                        <select class="form-select" id="account-type" required>
+                            <option value="">Select Type</option>
+                            <option value="Asset">Asset</option>
+                            <option value="Liability">Liability</option>
+                            <option value="Equity">Equity</option>
+                            <option value="Revenue">Revenue</option>
+                            <option value="Expense">Expense</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="account-description">Description</label>
+                        <textarea class="form-control" id="account-description" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveAccountBtn">Save Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Journal Entry Modal -->
+<div class="modal fade" id="journalEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manual Journal Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="journal-entry-form">
+                    <div class="form-group mb-3">
+                        <label for="journal-description">Description</label>
+                        <input type="text" class="form-control" id="journal-description" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="journal-reference">Reference</label>
+                        <input type="text" class="form-control" id="journal-reference">
+                    </div>
+                    
+                    <h6>Journal Entries:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Description</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-entries-body">
+                                <tr>
+                                    <td>
+                                        <select class="form-select account-select" required>
+                                            <option value="">Select Account</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control entry-description">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control debit-amount" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control credit-amount" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-danger btn-sm remove-entry">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="2"><strong>Totals:</strong></td>
+                                    <td><strong id="total-debits">0.00</strong></td>
+                                    <td><strong id="total-credits">0.00</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <button type="button" class="btn btn-success btn-sm" id="addJournalEntryRowBtn">
+                        <i class="fas fa-plus"></i> Add Entry
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveJournalEntryBtn">Save Journal Entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bank Account Modal -->
+<div class="modal fade" id="addBankAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Bank Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bank-account-form">
+                    <div class="form-group mb-3">
+                        <label for="bank-account-name">Account Name</label>
+                        <input type="text" class="form-control" id="bank-account-name" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="bank-account-number">Account Number</label>
+                        <input type="text" class="form-control" id="bank-account-number" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="bank-name">Bank Name</label>
+                        <input type="text" class="form-control" id="bank-name" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="bank-account-type">Account Type</label>
+                        <select class="form-select" id="bank-account-type">
+                            <option value="checking">Checking</option>
+                            <option value="savings">Savings</option>
+                            <option value="business">Business</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="initial-balance">Initial Balance</label>
+                        <input type="number" class="form-control" id="initial-balance" step="0.01" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBankAccountBtn">Save Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bank Transfer Modal -->
+<div class="modal fade" id="bankTransferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bank Transfer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bank-transfer-form">
+                    <div class="form-group mb-3">
+                        <label for="from-account">From Account</label>
+                        <select class="form-select" id="from-account" required>
+                            <option value="">Select From Account</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="to-account">To Account</label>
+                        <select class="form-select" id="to-account" required>
+                            <option value="">Select To Account</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="transfer-amount">Transfer Amount</label>
+                        <input type="number" class="form-control" id="transfer-amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="transfer-fee">Transfer Fee</label>
+                        <input type="number" class="form-control" id="transfer-fee" step="0.01" min="0" value="0">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="transfer-description">Description</label>
+                        <textarea class="form-control" id="transfer-description" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBankTransferBtn">Execute Transfer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Confirm Delete Modal -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 Are you sure you want to delete this transaction? This action cannot be undone.
@@ -316,5 +1015,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/finance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/accounting.js') }}"></script>
 {% endblock %}
