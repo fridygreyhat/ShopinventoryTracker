@@ -3716,42 +3716,84 @@ canvas {
     background-color: var(--card-bg);
 }
 
-/* Vertical Finance Navigation Styles */
-.finance-sidebar {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    border: none;
+/* Enhanced Financial Summary Cards */
+.financial-summary-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 16px;
     overflow: hidden;
+    background: white;
+    position: relative;
+}
+
+.financial-summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.financial-summary-card .icon-container {
+    flex-shrink: 0;
+}
+
+.income-card {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.02), rgba(40, 167, 69, 0.05));
+    border-left: 4px solid #28a745;
+}
+
+.expense-card {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.02), rgba(220, 53, 69, 0.05));
+    border-left: 4px solid #dc3545;
+}
+
+.profit-card {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.02), rgba(255, 193, 7, 0.05));
+    border-left: 4px solid #ffc107;
+}
+
+.net-profit-card {
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.02), rgba(0, 123, 255, 0.05));
+    border-left: 4px solid #007bff;
+}
+
+/* Enhanced Vertical Finance Navigation Styles */
+.finance-sidebar {
     position: sticky;
     top: 100px;
     max-height: calc(100vh - 120px);
+    border-radius: 16px;
+    overflow: hidden;
 }
 
 .finance-sidebar .card-header {
-    background: linear-gradient(135deg, #4C50C5, #41C1E0);
-    color: white;
+    padding: 1.5rem;
     border-bottom: none;
-    padding: 1rem;
-    font-weight: 600;
 }
 
-.finance-nav .list-group-item {
-    background: transparent;
-    padding: 0.5rem 1rem;
-    border: none;
+.finance-nav {
+    padding: 0;
 }
 
 .finance-nav-btn {
-    border: none !important;
     background: transparent !important;
+    border: none !important;
     color: var(--text-primary) !important;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    margin-bottom: 0.25rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    border-radius: 0 !important;
+    text-decoration: none;
+}
+
+.finance-nav-btn:hover {
+    background: rgba(102, 126, 234, 0.08) !important;
+    color: var(--primary-color) !important;
+    transform: translateX(8px);
+}
+
+.finance-nav-btn.active {
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.15), rgba(102, 126, 234, 0.05)) !important;
+    color: var(--primary-color) !important;
+    border-left: 4px solid var(--primary-color) !important;
+    font-weight: 600;
 }
 
 .finance-nav-btn::before {
@@ -3759,72 +3801,102 @@ canvas {
     position: absolute;
     left: 0;
     top: 0;
-    width: 3px;
+    width: 0;
     height: 100%;
-    background: var(--primary-color);
-    transform: scaleY(0);
-    transition: transform 0.3s ease;
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.1), transparent);
+    transition: width 0.3s ease;
+    z-index: 0;
 }
 
-.finance-nav-btn:hover {
-    background: rgba(76, 80, 197, 0.08) !important;
-    color: var(--primary-color) !important;
-    transform: translateX(5px);
-    box-shadow: 0 2px 8px rgba(76, 80, 197, 0.15);
-}
-
-.finance-nav-btn:hover::before {
-    transform: scaleY(1);
-}
-
-.finance-nav-btn.active {
-    background: linear-gradient(90deg, rgba(76, 80, 197, 0.12), rgba(76, 80, 197, 0.08)) !important;
-    color: var(--primary-color) !important;
-    font-weight: 600;
-    box-shadow: 0 2px 12px rgba(76, 80, 197, 0.2);
-    border-left: 3px solid var(--primary-color) !important;
-}
-
+.finance-nav-btn:hover::before,
 .finance-nav-btn.active::before {
-    transform: scaleY(1);
+    width: 100%;
 }
 
-.finance-nav-btn i {
-    width: 20px;
+.finance-nav-btn .icon-wrapper {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(102, 126, 234, 0.1);
     transition: all 0.3s ease;
 }
 
-.finance-nav-btn:hover i,
-.finance-nav-btn.active i {
+.finance-nav-btn:hover .icon-wrapper,
+.finance-nav-btn.active .icon-wrapper {
+    background: rgba(102, 126, 234, 0.2);
     transform: scale(1.1);
 }
 
 .finance-content-card {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    border: none;
+    border-radius: 16px;
     min-height: 600px;
+    background: white;
 }
 
-.finance-content-card .card-body {
-    padding: 2rem;
+/* Custom color classes for icons */
+.text-purple { color: #6f42c1 !important; }
+.text-orange { color: #fd7e14 !important; }
+.text-teal { color: #20c997 !important; }
+.text-indigo { color: #6610f2 !important; }
+
+/* Icon wrapper for charts and content */
+.icon-wrapper {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-/* Responsive adjustments for finance navigation */
-@media (max-width: 768px) {
+/* Enhanced card headers */
+.card-header.bg-transparent {
+    background-color: transparent !important;
+    padding: 1.5rem 1.5rem 0.5rem;
+}
+
+/* Improved chart containers */
+.card-body canvas {
+    max-width: 100%;
+    height: auto !important;
+}
+
+/* Enhanced responsive design */
+@media (max-width: 992px) {
     .finance-sidebar {
         position: static;
         max-height: none;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
     
     .finance-nav-btn {
-        font-size: 0.9rem;
-        padding: 0.6rem 0.8rem;
+        padding: 1rem !important;
     }
     
     .finance-content-card .card-body {
-        padding: 1rem;
+        padding: 1.5rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .financial-summary-card .card-body {
+        padding: 1rem !important;
+    }
+    
+    .financial-summary-card h3 {
+        font-size: 1.5rem !important;
+    }
+    
+    .finance-nav-btn {
+        padding: 0.75rem !important;
+    }
+    
+    .finance-nav-btn .icon-wrapper {
+        width: 28px;
+        height: 28px;
     }
 }
 
