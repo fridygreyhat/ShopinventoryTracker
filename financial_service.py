@@ -563,10 +563,12 @@ class FinancialService:
         """Calculate account balance for a period"""
         query = GeneralLedger.query.filter(GeneralLedger.account_id == account_id)
         
-        if start_date:
-            query = query.join(Journal).filter(Journal.date >= start_date.date())
-        if end_date:
-            query = query.join(Journal).filter(Journal.date <= end_date.date())
+        if start_date or end_date:
+            query = query.join(Journal)
+            if start_date:
+                query = query.filter(Journal.date >= start_date.date())
+            if end_date:
+                query = query.filter(Journal.date <= end_date.date())
         
         entries = query.all()
         

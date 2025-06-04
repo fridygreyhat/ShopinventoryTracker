@@ -184,6 +184,64 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Global function to switch finance tabs
+    window.switchFinanceTab = function(targetId) {
+        // Hide all tab content
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Show target tab
+        const targetPane = document.getElementById(targetId);
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
+            
+            // Load data for the specific tab
+            switch(targetId) {
+                case 'cash-flow-content':
+                    loadCashFlow();
+                    break;
+                case 'profit-loss-content':
+                    loadProfitLoss();
+                    break;
+                case 'balance-sheet-content':
+                    loadBalanceSheet();
+                    break;
+                case 'trial-balance-content':
+                    loadTrialBalance();
+                    break;
+                case 'general-ledger-content':
+                    loadGeneralLedger();
+                    break;
+                case 'chart-accounts-content':
+                    loadChartOfAccounts();
+                    break;
+                case 'journal-content':
+                    loadJournalEntries();
+                    break;
+                case 'bank-transfers-content':
+                    loadBankAccounts();
+                    loadBankTransfers();
+                    break;
+                case 'reconcile-content':
+                    loadReconciliation();
+                    break;
+                case 'branch-equity-content':
+                    loadBranchEquity();
+                    break;
+            }
+        }
+    };
+
+    // Check for stored target on page load
+    const storedTarget = sessionStorage.getItem('financeTarget');
+    if (storedTarget) {
+        sessionStorage.removeItem('financeTarget');
+        setTimeout(() => {
+            window.switchFinanceTab(storedTarget);
+        }, 100);
+    }
+
     // Load transaction data with optional date filters
     function loadTransactions() {
         const startDate = startDateInput.value;
@@ -929,3 +987,218 @@ document.addEventListener('DOMContentLoaded', function() {
         expensesValue.textContent = summary.total_expenses.toLocaleString();
 
         // Calculate gross profit (simplified as income - direct costs)
+        const grossProfit = summary.total_income - (summary.total_expenses * 0.3); // Assume 30% COGS
+        const netProfit = summary.total_income - summary.total_expenses;
+        
+        grossProfitValue.textContent = grossProfit.toLocaleString();
+        profitValue.textContent = netProfit.toLocaleString();
+    }
+
+    // Helper functions for formatting
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString();
+    }
+
+    function formatCurrency(amount) {
+        if (amount === null || amount === undefined) return 'TZS 0';
+        return `TZS ${parseFloat(amount).toLocaleString()}`;
+    }
+
+    function formatDateForInput(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    function getAccountTypeClass(accountType) {
+        switch(accountType) {
+            case 'Asset':
+                return 'primary';
+            case 'Liability':
+                return 'warning';
+            case 'Equity':
+                return 'info';
+            case 'Revenue':
+                return 'success';
+            case 'Expense':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
+    }
+
+    function showErrorInTables() {
+        const tables = ['all-transactions-table', 'income-transactions-table', 'expense-transactions-table'];
+        tables.forEach(tableId => {
+            const table = document.getElementById(tableId);
+            if (table) {
+                table.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>';
+            }
+        });
+    }
+
+    function resetTransactionForm() {
+        if (transactionForm) {
+            transactionForm.reset();
+            transactionId.value = '';
+        }
+    }
+
+    function editTransaction(id) {
+        // Load transaction data and populate form
+        fetch(`/api/finance/transactions/${id}`)
+            .then(response => response.json())
+            .then(transaction => {
+                transactionId.value = transaction.id;
+                transactionDate.value = transaction.date;
+                transactionDescription.value = transaction.description;
+                transactionAmount.value = transaction.amount;
+                transactionType.value = transaction.transaction_type;
+                transactionCategory.value = transaction.category;
+                transactionPaymentMethod.value = transaction.payment_method || '';
+                transactionReference.value = transaction.reference_id || '';
+                transactionNotes.value = transaction.notes || '';
+                
+                transactionModalLabel.textContent = 'Edit Transaction';
+                deleteTransactionBtn.style.display = 'inline-block';
+                transactionModal.show();
+            })
+            .catch(error => {
+                console.error('Error loading transaction:', error);
+            });
+    }
+
+    function saveTransaction() {
+        const formData = {
+            date: transactionDate.value,
+            description: transactionDescription.value,
+            amount: parseFloat(transactionAmount.value),
+            transaction_type: transactionType.value,
+            category: transactionCategory.value,
+            payment_method: transactionPaymentMethod.value,
+            reference_id: transactionReference.value,
+            notes: transactionNotes.value
+        };
+
+        const isEdit = transactionId.value !== '';
+        const url = isEdit ? `/api/finance/transactions/${transactionId.value}` : '/api/finance/transactions';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                transactionModal.hide();
+                loadTransactions();
+                resetTransactionForm();
+            }
+        })
+        .catch(error => {
+            console.error('Error saving transaction:', error);
+            alert('Error saving transaction');
+        });
+    }
+
+    function deleteTransaction(id) {
+        fetch(`/api/finance/transactions/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            deleteConfirmModal.hide();
+            transactionModal.hide();
+            loadTransactions();
+            resetTransactionForm();
+        })
+        .catch(error => {
+            console.error('Error deleting transaction:', error);
+            alert('Error deleting transaction');
+        });
+    }
+
+    function syncWithAccounting() {
+        fetch('/api/finance/sync-accounting', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                loadTransactions();
+                loadCashFlow();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error syncing with accounting:', error);
+            alert('Error syncing with accounting');
+        });
+    }
+
+    // Additional placeholder functions for accounting features
+    function initializeAccounting() {
+        fetch('/api/accounting/initialize', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                loadChartOfAccounts();
+            }
+        })
+        .catch(error => {
+            console.error('Error initializing accounting:', error);
+        });
+    }
+
+    function saveAccount() {
+        // Placeholder for save account functionality
+        console.log('Save account functionality to be implemented');
+    }
+
+    function saveJournalEntry() {
+        // Placeholder for save journal entry functionality
+        console.log('Save journal entry functionality to be implemented');
+    }
+
+    function addJournalEntryRow() {
+        // Placeholder for add journal entry row functionality
+        console.log('Add journal entry row functionality to be implemented');
+    }
+
+    function saveBankAccount() {
+        // Placeholder for save bank account functionality
+        console.log('Save bank account functionality to be implemented');
+    }
+
+    function saveBankTransfer() {
+        // Placeholder for save bank transfer functionality
+        console.log('Save bank transfer functionality to be implemented');
+    }
+
+    function calculateJournalTotals() {
+        // Placeholder for calculate journal totals functionality
+        console.log('Calculate journal totals functionality to be implemented');
+    }
+
+    function populateAccountSelects(accounts) {
+        // Placeholder for populate account selects functionality
+        console.log('Populate account selects functionality to be implemented');
+    }
+
+    function populateBankAccountSelects(accounts) {
+        // Placeholder for populate bank account selects functionality
+        console.log('Populate bank account selects functionality to be implemented');
+    }

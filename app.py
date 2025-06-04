@@ -2078,17 +2078,31 @@ def get_cash_flow():
         CashFlow.date <= end_date.date()
     ).order_by(CashFlow.date).all()
     
-    # Get monthly summary
-    monthly_summary = db.session.query(
-        func.strftime('%Y-%m', CashFlow.date).label('month'),
-        func.sum(CashFlow.cash_in).label('total_cash_in'),
-        func.sum(CashFlow.cash_out).label('total_cash_out'),
-        func.sum(CashFlow.net_cash_flow).label('total_net_flow')
-    ).filter(
-        CashFlow.user_id == user_id,
-        CashFlow.date >= start_date.date(),
-        CashFlow.date <= end_date.date()
-    ).group_by(func.strftime('%Y-%m', CashFlow.date)).all()
+    # Get monthly summary - PostgreSQL compatible
+    if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+        # PostgreSQL syntax
+        monthly_summary = db.session.query(
+            func.to_char(CashFlow.date, 'YYYY-MM').label('month'),
+            func.sum(CashFlow.cash_in).label('total_cash_in'),
+            func.sum(CashFlow.cash_out).label('total_cash_out'),
+            func.sum(CashFlow.net_cash_flow).label('total_net_flow')
+        ).filter(
+            CashFlow.user_id == user_id,
+            CashFlow.date >= start_date.date(),
+            CashFlow.date <= end_date.date()
+        ).group_by(func.to_char(CashFlow.date, 'YYYY-MM')).all()
+    else:
+        # SQLite syntax
+        monthly_summary = db.session.query(
+            func.strftime('%Y-%m', CashFlow.date).label('month'),
+            func.sum(CashFlow.cash_in).label('total_cash_in'),
+            func.sum(CashFlow.cash_out).label('total_cash_out'),
+            func.sum(CashFlow.net_cash_flow).label('total_net_flow')
+        ).filter(
+            CashFlow.user_id == user_id,
+            CashFlow.date >= start_date.date(),
+            CashFlow.date <= end_date.date()
+        ).group_by(func.strftime('%Y-%m', CashFlow.date)).all()
     
     return jsonify({
         "cash_flows": [cf.to_dict() for cf in cash_flows],
@@ -2443,14 +2457,14 @@ def get_slow_moving_items():
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         # Subquery to get items that have had sales for current user
-        sold_items = db.session.query(SaleItem.item_id).join(Sale).filter(
+        sold_items_subquery = db.session.query(SaleItem.item_id).join(Sale).filter(
             Sale.created_at >= cutoff_date,
-            Sale.user_id == user_id).distinct().subquery()
+            Sale.user_id == user_id).distinct()
 
         # Query to get items with no recent sales for current user only
         slow_items = Item.query.filter(
             Item.user_id == user_id,
-            ~Item.id.in_(sold_items), 
+            ~Item.id.in_(sold_items_subquery.subquery()), 
             Item.quantity > 0).order_by(Item.quantity.desc()).limit(5).all()
 
         # Format response
