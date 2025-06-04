@@ -5,164 +5,180 @@
 <div class="container-fluid">
     <h1 class="mb-4">💰 Financial & Accounting Management</h1>
     
-    <!-- Compact Financial Summary Cards -->
-    <div class="row mb-3">
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card income-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-arrow-trend-up text-success"></i>
+    <!-- Financial Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-arrow-trend-up fa-2x text-white"></i>
                     </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Total Income</div>
-                        <div class="finance-amount text-success" id="total-income">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Total Income</h6>
+                        <h3 class="display-6 text-white mb-0" id="total-income">
                             <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
-                        </div>
+                        </h3>
                     </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card expense-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-arrow-trend-down text-danger"></i>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-arrow-trend-down fa-2x text-white"></i>
                     </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Total Expenses</div>
-                        <div class="finance-amount text-danger" id="total-expenses">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Total Expenses</h6>
+                        <h3 class="display-6 text-white mb-0" id="total-expenses">
                             <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
-                        </div>
+                        </h3>
                     </div>
-                    <div class="trend-badge trend-down">
-                        <i class="fas fa-arrow-down"></i>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-down text-white"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card profit-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-coins text-warning"></i>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-coins fa-2x text-white"></i>
                     </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Gross Profit</div>
-                        <div class="finance-amount text-warning" id="gross-profit">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Gross Profit</h6>
+                        <h3 class="display-6 text-white mb-0" id="gross-profit">
                             <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
-                        </div>
+                        </h3>
                     </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card net-profit-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-chart-line text-primary"></i>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-chart-line fa-2x text-white"></i>
                     </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Net Profit</div>
-                        <div class="finance-amount text-primary" id="net-profit">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Net Profit</h6>
+                        <h3 class="display-6 text-white mb-0" id="net-profit">
                             <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
-                        </div>
+                        </h3>
                     </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Enhanced Main Content Area - Full Width -->
+    <!-- Main Content Area -->
     <div class="row">
         <div class="col-12">
-            <div class="card finance-content-card border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="tab-content" id="finance-modules-content">
-                        <!-- Enhanced Cash Flow Tab --></div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="tab-content" id="finance-modules-content"></div>
                 </div>
             </div>
         </div>
     </div>
                 <div class="tab-pane fade show active" id="cash-flow-content" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h4 class="mb-1 fw-bold text-primary">
-                                <i class="fas fa-water me-2"></i>Cash Flow Analysis
-                            </h4>
-                            <p class="text-muted mb-0">Monitor your cash inflows and outflows</p>
+                    <div class="p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h4 class="mb-1 fw-bold text-primary">
+                                    <i class="fas fa-water me-2"></i>Cash Flow Analysis
+                                </h4>
+                                <p class="text-muted mb-0">Monitor your cash inflows and outflows</p>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
+                                    <i class="fas fa-plus me-1"></i>Add Entry
+                                </button>
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </button>
+                            </div>
                         </div>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
-                                <i class="fas fa-plus me-1"></i>Add Entry
-                            </button>
-                            <button class="btn btn-primary">
-                                <i class="fas fa-download me-1"></i>Export
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Enhanced Cash Flow Charts -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-transparent border-0 pb-0">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-wrapper me-2">
-                                            <i class="fas fa-chart-bar text-primary"></i>
+                        
+                        <!-- Enhanced Cash Flow Charts -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-header bg-transparent border-0 pb-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-wrapper me-2">
+                                                <i class="fas fa-chart-bar text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">Monthly Cash Flow</h6>
+                                                <small class="text-muted">Income vs expenses by month</small>
+                                            </div>
                                         </div>
-                                        <h6 class="mb-0 fw-semibold">Monthly Cash Flow</h6>
                                     </div>
-                                    <small class="text-muted">Income vs expenses by month</small>
+                                    <div class="card-body pt-2">
+                                        <div style="height: 250px;">
+                                            <canvas id="monthlyCashFlowChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-body pt-2">
-                                    <canvas id="monthlyCashFlowChart" height="200"></canvas>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-header bg-transparent border-0 pb-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-wrapper me-2">
+                                                <i class="fas fa-chart-line text-success"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">Accumulated Cash Flow</h6>
+                                                <small class="text-muted">Running total over time</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body pt-2">
+                                        <div style="height: 250px;">
+                                            <canvas id="accumulatedCashFlowChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card border-0 shadow-sm h-100">
-                                <div class="card-header bg-transparent border-0 pb-0">
-                                    <div class="d-flex align-items-center">
-                                        <div class="icon-wrapper me-2">
-                                            <i class="fas fa-chart-line text-success"></i>
-                                        </div>
-                                        <h6 class="mb-0 fw-semibold">Accumulated Cash Flow</h6>
-                                    </div>
-                                    <small class="text-muted">Running total over time</small>
-                                </div>
-                                <div class="card-body pt-2">
-                                    <canvas id="accumulatedCashFlowChart" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Cash Flow Table -->
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Cash In</th>
-                                    <th>Cash Out</th>
-                                    <th>Net Flow</th>
-                                    <th>Accumulated</th>
-                                    <th>Source</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cash-flow-table">
-                                <tr><td colspan="6" class="text-center">Loading cash flow data...</td></tr>
-                            </tbody>
-                        </table>
+                        <!-- Cash Flow Table -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-transparent">
+                                <h6 class="mb-0 fw-semibold">Cash Flow Transactions</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Cash In</th>
+                                                <th>Cash Out</th>
+                                                <th>Net Flow</th>
+                                                <th>Accumulated</th>
+                                                <th>Source</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cash-flow-table">
+                                            <tr><td colspan="6" class="text-center py-4">Loading cash flow data...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

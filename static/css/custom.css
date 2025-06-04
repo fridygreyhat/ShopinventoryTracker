@@ -1804,69 +1804,115 @@ footer {
 .summary-card {
     border-radius: 16px;
     border: none;
-    background: #0066FF !important; /* Pure blue background */
+    background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%) !important;
     transition: all 0.3s ease;
     color: white !important;
-    box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+    box-shadow: 0 8px 25px rgba(0, 102, 255, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.summary-card:hover::before {
+    left: 100%;
 }
 
 .summary-card .card-title {
     color: white !important;
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.875rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
 }
 
-.summary-card .display-4 {
-    font-size: 2.2rem;
-    font-weight: 600;
+.summary-card .display-6 {
+    font-size: 1.75rem;
+    font-weight: 700;
     color: white !important;
+    font-family: var(--heading-font);
+    letter-spacing: -0.01em;
 }
 
-.card {
-    border-radius: 16px;
-    border: none;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+.summary-card .icon-container {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    flex-shrink: 0;
 }
 
-.card-header {
-    background: transparent;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.chart-card {
-    background: white;
-    padding: 1rem;
+.summary-card .trend-indicator {
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Ensure all summary card content is white */
 .summary-card .card-body,
 .summary-card .card-body *,
-.summary-card h5,
-.summary-card p,
-.summary-card .display-4 {
+.summary-card h3,
+.summary-card h6,
+.summary-card .display-6 {
     color: white !important;
 }
 
 .summary-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 102, 255, 0.4);
-    background: #0052CC !important; /* Slightly darker blue on hover */
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(0, 102, 255, 0.35);
 }
 
-.summary-card .card-title {
-    color: white !important;
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
+/* Financial Content Cards */
+.finance-content-card {
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.summary-card .display-4 {
-    color: white !important;
-    font-weight: 700;
-    font-family: var(--heading-font);
-    letter-spacing: -0.02em;
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.icon-wrapper {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* Tab Content Styling */
+.tab-content {
+    background: white;
+    border-radius: 12px;
+}
+
+.tab-pane {
+    min-height: 500px;
 }
 
 .financial-card {
