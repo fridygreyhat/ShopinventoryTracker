@@ -91,12 +91,78 @@
                             <span class="sidebar-text">Margin Analysis</span>
                         </a>
                     </li>
-                    <li class="sidebar-item">
+                    <li class="sidebar-item has-submenu">
                         <a class="sidebar-link {% if request.path == url_for('finance') %}active{% endif %}" 
-                           href="{{ url_for('finance') }}">
+                           href="{{ url_for('finance') }}" data-submenu="finance-submenu">
                             <i class="fas fa-money-bill-wave"></i>
-                            <span class="sidebar-text">Finance</span>
+                            <div class="sidebar-text">
+                                <div class="sidebar-link-title">Finance</div>
+                                <div class="sidebar-link-description">Financial management</div>
+                            </div>
+                            <i class="fas fa-chevron-down submenu-arrow"></i>
                         </a>
+                        <ul class="sidebar-submenu" id="finance-submenu">
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#cash-flow" data-target="cash-flow-content">
+                                    <i class="fas fa-water"></i>
+                                    <span class="sidebar-text">Cash Flow</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#profit-loss" data-target="profit-loss-content">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span class="sidebar-text">Profit & Loss</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#balance-sheet" data-target="balance-sheet-content">
+                                    <i class="fas fa-balance-scale"></i>
+                                    <span class="sidebar-text">Balance Sheet</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#trial-balance" data-target="trial-balance-content">
+                                    <i class="fas fa-calculator"></i>
+                                    <span class="sidebar-text">Trial Balance</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#general-ledger" data-target="general-ledger-content">
+                                    <i class="fas fa-book"></i>
+                                    <span class="sidebar-text">General Ledger</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#chart-accounts" data-target="chart-accounts-content">
+                                    <i class="fas fa-list"></i>
+                                    <span class="sidebar-text">Chart of Accounts</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#journal" data-target="journal-content">
+                                    <i class="fas fa-journal-whills"></i>
+                                    <span class="sidebar-text">Manual Journal</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#bank-transfers" data-target="bank-transfers-content">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    <span class="sidebar-text">Bank Transfers</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#reconcile" data-target="reconcile-content">
+                                    <i class="fas fa-check-double"></i>
+                                    <span class="sidebar-text">Reconcile</span>
+                                </a>
+                            </li>
+                            <li class="sidebar-subitem">
+                                <a class="sidebar-sublink" href="{{ url_for('finance') }}#branch-equity" data-target="branch-equity-content">
+                                    <i class="fas fa-building"></i>
+                                    <span class="sidebar-text">Branch Equity</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     <li class="sidebar-item">
                         <a class="sidebar-link {% if request.path == url_for('reports') %}active{% endif %}" 
