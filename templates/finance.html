@@ -5,76 +5,72 @@
 <div class="container-fluid">
     <h1 class="mb-4">💰 Financial & Accounting Management</h1>
     
-    <!-- Compact Financial Summary Cards -->
-    <div class="row mb-3">
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card income-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-arrow-trend-up text-success"></i>
-                    </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Total Income</div>
-                        <div class="finance-amount text-success" id="total-income">
-                            <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
+    <!-- Ultra-Compact Financial Summary Grid -->
+    <div class="row g-1 mb-2">
+        <div class="col-6 col-md-3">
+            <div class="card mini-kpi-card income-card border-0">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="kpi-icon bg-success bg-opacity-10">
+                            <i class="fas fa-arrow-trend-up text-success"></i>
                         </div>
-                    </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                        <div class="text-end flex-grow-1">
+                            <div class="kpi-label">Income</div>
+                            <div class="kpi-value text-success" id="total-income">
+                                <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card expense-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-arrow-trend-down text-danger"></i>
-                    </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Total Expenses</div>
-                        <div class="finance-amount text-danger" id="total-expenses">
-                            <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
+        <div class="col-6 col-md-3">
+            <div class="card mini-kpi-card expense-card border-0">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="kpi-icon bg-danger bg-opacity-10">
+                            <i class="fas fa-arrow-trend-down text-danger"></i>
                         </div>
-                    </div>
-                    <div class="trend-badge trend-down">
-                        <i class="fas fa-arrow-down"></i>
+                        <div class="text-end flex-grow-1">
+                            <div class="kpi-label">Expenses</div>
+                            <div class="kpi-value text-danger" id="total-expenses">
+                                <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card profit-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-coins text-warning"></i>
-                    </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Gross Profit</div>
-                        <div class="finance-amount text-warning" id="gross-profit">
-                            <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
+        <div class="col-6 col-md-3">
+            <div class="card mini-kpi-card profit-card border-0">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="kpi-icon bg-warning bg-opacity-10">
+                            <i class="fas fa-coins text-warning"></i>
                         </div>
-                    </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                        <div class="text-end flex-grow-1">
+                            <div class="kpi-label">Gross</div>
+                            <div class="kpi-value text-warning" id="gross-profit">
+                                <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 mb-2">
-            <div class="card compact-finance-card net-profit-card border-0 shadow-sm">
-                <div class="card-body p-2 d-flex align-items-center">
-                    <div class="icon-mini me-2">
-                        <i class="fas fa-chart-line text-primary"></i>
-                    </div>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="finance-label">Net Profit</div>
-                        <div class="finance-amount text-primary" id="net-profit">
-                            <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
+        <div class="col-6 col-md-3">
+            <div class="card mini-kpi-card net-profit-card border-0">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="kpi-icon bg-primary bg-opacity-10">
+                            <i class="fas fa-chart-line text-primary"></i>
                         </div>
-                    </div>
-                    <div class="trend-badge trend-up">
-                        <i class="fas fa-arrow-up"></i>
+                        <div class="text-end flex-grow-1">
+                            <div class="kpi-label">Net</div>
+                            <div class="kpi-value text-primary" id="net-profit">
+                                <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -93,25 +89,25 @@
         </div>
     </div>
                 <div class="tab-pane fade show active" id="cash-flow-content" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <h4 class="mb-1 fw-bold text-primary">
+                            <h5 class="mb-0 fw-bold text-primary">
                                 <i class="fas fa-water me-2"></i>Cash Flow Analysis
-                            </h4>
-                            <p class="text-muted mb-0">Monitor your cash inflows and outflows</p>
+                            </h5>
+                            <small class="text-muted">Monitor your cash inflows and outflows</small>
                         </div>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
-                                <i class="fas fa-plus me-1"></i>Add Entry
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
+                                <i class="fas fa-plus me-1"></i>Add
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary btn-sm">
                                 <i class="fas fa-download me-1"></i>Export
                             </button>
                         </div>
                     </div>
                     
-                    <!-- Enhanced Cash Flow Charts -->
-                    <div class="row mb-4">
+                    <!-- Compact Cash Flow Charts -->
+                    <div class="row mb-2">
                         <div class="col-md-6">
                             <div class="card border-0 shadow-sm h-100">
                                 <div class="card-header bg-transparent border-0 pb-0">
