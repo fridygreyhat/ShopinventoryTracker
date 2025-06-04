@@ -1612,12 +1612,40 @@ def get_transactions():
     # Execute query and order by date (most recent first)
     transactions = query.order_by(FinancialTransaction.date.desc()).all()
 
-    # Calculate totals
+    # Calculate totals including COGS and gross profit
     total_income = sum(t.amount for t in transactions
                        if t.transaction_type == 'Income')
     total_expenses = sum(t.amount for t in transactions
                          if t.transaction_type == 'Expense')
+    total_cogs = sum(t.cost_of_goods_sold or 0 for t in transactions
+                     if t.transaction_type == 'Income')
+    
+    gross_profit = total_income - total_cogs
     net_profit = total_income - total_expenses
+
+    # Update accounting records if financial service is available
+    try:
+        from financial_service import FinancialService
+        service = FinancialService(user_id)
+        
+        # Update cash flow for each transaction
+        for transaction in transactions:
+            if transaction.transaction_type == 'Income':
+                service.update_cash_flow(
+                    date=datetime.combine(transaction.date, datetime.min.time()),
+                    cash_in=transaction.amount,
+                    source=transaction.description,
+                    reference_id=transaction.reference_id
+                )
+            else:
+                service.update_cash_flow(
+                    date=datetime.combine(transaction.date, datetime.min.time()),
+                    cash_out=transaction.amount,
+                    source=transaction.description,
+                    reference_id=transaction.reference_id
+                )
+    except Exception as e:
+        logger.warning(f"Could not update accounting records: {str(e)}")
 
     return jsonify({
         "transactions": [t.to_dict() for t in transactions],
@@ -1628,6 +1656,8 @@ def get_transactions():
         "summary": {
             "total_income": total_income,
             "total_expenses": total_expenses,
+            "total_cogs": total_cogs,
+            "gross_profit": gross_profit,
             "net_profit": net_profit
         }
     })
@@ -1807,6 +1837,399 @@ def delete_transaction(transaction_id):
                         f"Failed to delete transaction: {str(e)}"}), 500
 
 
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Render the accounting page"""
+    return render_template('accounting.html')
+
+
+@app.route('/api/accounting/initialize', methods=['POST'])
+@login_required
+def initialize_accounting():
+    """Initialize chart of accounts for user"""
+    from financial_service import FinancialService
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    service = FinancialService(user_id)
+    success = service.initialize_chart_of_accounts()
+    
+    if success:
+        return jsonify({"message": "Chart of accounts initialized successfully"}), 200
+    else:
+        return jsonify({"error": "Failed to initialize chart of accounts"}), 500
+
+
+@app.route('/api/accounting/chart-of-accounts', methods=['GET', 'POST'])
+@login_required
+def manage_chart_of_accounts():
+    """Manage chart of accounts"""
+    from models import ChartOfAccounts
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    if request.method == 'GET':
+        accounts = ChartOfAccounts.query.filter(
+            ChartOfAccounts.user_id == user_id,
+            ChartOfAccounts.is_active == True
+        ).order_by(ChartOfAccounts.account_code).all()
+        
+        return jsonify({
+            "accounts": [account.to_dict() for account in accounts]
+        }), 200
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['account_code', 'account_name', 'account_type']
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        try:
+            account = ChartOfAccounts(
+                account_code=data['account_code'],
+                account_name=data['account_name'],
+                account_type=data['account_type'],
+                parent_account_id=data.get('parent_account_id'),
+                description=data.get('description', ''),
+                user_id=user_id
+            )
+            
+            db.session.add(account)
+            db.session.commit()
+            
+            return jsonify({
+                "message": "Account created successfully",
+                "account": account.to_dict()
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Failed to create account: {str(e)}"}), 500
+
+
+@app.route('/api/accounting/journal-entries', methods=['GET', 'POST'])
+@login_required
+def manage_journal_entries():
+    """Manage journal entries"""
+    from models import Journal
+    from financial_service import FinancialService
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    if request.method == 'GET':
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        journals = Journal.query.filter(
+            Journal.user_id == user_id
+        ).order_by(Journal.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            "journals": [journal.to_dict() for journal in journals.items],
+            "pagination": {
+                "page": journals.page,
+                "pages": journals.pages,
+                "per_page": journals.per_page,
+                "total": journals.total
+            }
+        }), 200
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        required_fields = ['description', 'entries']
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        service = FinancialService(user_id)
+        journal = service.create_journal_entry(
+            description=data['description'],
+            entries=data['entries'],
+            reference_type=data.get('reference_type', 'manual'),
+            reference_id=data.get('reference_id')
+        )
+        
+        if journal:
+            return jsonify({
+                "message": "Journal entry created successfully",
+                "journal": journal.to_dict()
+            }), 201
+        else:
+            return jsonify({"error": "Failed to create journal entry"}), 500
+
+
+@app.route('/api/accounting/profit-loss', methods=['GET'])
+@login_required
+def get_profit_loss():
+    """Get profit and loss statement"""
+    from financial_service import FinancialService
+    from datetime import datetime, timedelta
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get date parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if not start_date or not end_date:
+        # Default to current month
+        today = datetime.now()
+        start_date = datetime(today.year, today.month, 1)
+        end_date = today
+    else:
+        start_date = datetime.fromisoformat(start_date)
+        end_date = datetime.fromisoformat(end_date)
+    
+    service = FinancialService(user_id)
+    profit_loss = service.calculate_profit_loss(start_date, end_date)
+    
+    return jsonify(profit_loss), 200
+
+
+@app.route('/api/accounting/balance-sheet', methods=['GET'])
+@login_required
+def get_balance_sheet():
+    """Get balance sheet"""
+    from financial_service import FinancialService
+    from datetime import datetime
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get date parameter
+    as_of_date = request.args.get('as_of_date')
+    if as_of_date:
+        as_of_date = datetime.fromisoformat(as_of_date)
+    else:
+        as_of_date = datetime.now()
+    
+    service = FinancialService(user_id)
+    balance_sheet = service.generate_balance_sheet(as_of_date)
+    
+    return jsonify(balance_sheet), 200
+
+
+@app.route('/api/accounting/trial-balance', methods=['GET'])
+@login_required
+def get_trial_balance():
+    """Get trial balance"""
+    from financial_service import FinancialService
+    from datetime import datetime
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get date parameter
+    as_of_date = request.args.get('as_of_date')
+    if as_of_date:
+        as_of_date = datetime.fromisoformat(as_of_date)
+    else:
+        as_of_date = datetime.now()
+    
+    service = FinancialService(user_id)
+    trial_balance = service.generate_trial_balance(as_of_date)
+    
+    return jsonify(trial_balance), 200
+
+
+@app.route('/api/accounting/cash-flow', methods=['GET'])
+@login_required
+def get_cash_flow():
+    """Get cash flow data"""
+    from models import CashFlow
+    from datetime import datetime, timedelta
+    from sqlalchemy import func
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get date parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if not start_date or not end_date:
+        # Default to last 12 months
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = datetime.fromisoformat(start_date)
+        end_date = datetime.fromisoformat(end_date)
+    
+    # Get cash flow data
+    cash_flows = CashFlow.query.filter(
+        CashFlow.user_id == user_id,
+        CashFlow.date >= start_date.date(),
+        CashFlow.date <= end_date.date()
+    ).order_by(CashFlow.date).all()
+    
+    # Get monthly summary
+    monthly_summary = db.session.query(
+        func.strftime('%Y-%m', CashFlow.date).label('month'),
+        func.sum(CashFlow.cash_in).label('total_cash_in'),
+        func.sum(CashFlow.cash_out).label('total_cash_out'),
+        func.sum(CashFlow.net_cash_flow).label('total_net_flow')
+    ).filter(
+        CashFlow.user_id == user_id,
+        CashFlow.date >= start_date.date(),
+        CashFlow.date <= end_date.date()
+    ).group_by(func.strftime('%Y-%m', CashFlow.date)).all()
+    
+    return jsonify({
+        "cash_flows": [cf.to_dict() for cf in cash_flows],
+        "monthly_summary": [
+            {
+                "month": row.month,
+                "cash_in": row.total_cash_in or 0,
+                "cash_out": row.total_cash_out or 0,
+                "net_flow": row.total_net_flow or 0
+            }
+            for row in monthly_summary
+        ]
+    }), 200
+
+
+@app.route('/api/accounting/bank-accounts', methods=['GET', 'POST'])
+@login_required
+def manage_bank_accounts():
+    """Manage bank accounts"""
+    from models import BankAccount
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    if request.method == 'GET':
+        accounts = BankAccount.query.filter(
+            BankAccount.user_id == user_id,
+            BankAccount.is_active == True
+        ).all()
+        
+        return jsonify({
+            "accounts": [account.to_dict() for account in accounts]
+        }), 200
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        required_fields = ['account_name', 'account_number', 'bank_name']
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        try:
+            account = BankAccount(
+                account_name=data['account_name'],
+                account_number=data['account_number'],
+                bank_name=data['bank_name'],
+                account_type=data.get('account_type', 'checking'),
+                current_balance=data.get('current_balance', 0),
+                currency=data.get('currency', 'TZS'),
+                user_id=user_id
+            )
+            
+            db.session.add(account)
+            db.session.commit()
+            
+            return jsonify({
+                "message": "Bank account created successfully",
+                "account": account.to_dict()
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Failed to create bank account: {str(e)}"}), 500
+
+
+@app.route('/api/accounting/bank-transfers', methods=['GET', 'POST'])
+@login_required
+def manage_bank_transfers():
+    """Manage bank transfers"""
+    from models import BankTransfer
+    from financial_service import FinancialService
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    if request.method == 'GET':
+        transfers = BankTransfer.query.filter(
+            BankTransfer.user_id == user_id
+        ).order_by(BankTransfer.created_at.desc()).all()
+        
+        return jsonify({
+            "transfers": [transfer.to_dict() for transfer in transfers]
+        }), 200
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        required_fields = ['from_account_id', 'to_account_id', 'amount']
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        service = FinancialService(user_id)
+        transfer = service.create_bank_transfer(
+            from_account_id=data['from_account_id'],
+            to_account_id=data['to_account_id'],
+            amount=data['amount'],
+            description=data.get('description', ''),
+            transfer_fee=data.get('transfer_fee', 0)
+        )
+        
+        if transfer:
+            return jsonify({
+                "message": "Bank transfer created successfully",
+                "transfer": transfer.to_dict()
+            }), 201
+        else:
+            return jsonify({"error": "Failed to create bank transfer"}), 500
+
+
+@app.route('/api/accounting/branch-equity/<int:location_id>', methods=['GET'])
+@login_required
+def get_branch_equity(location_id):
+    """Get branch equity for a specific location"""
+    from models import BranchEquity, Location
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Verify location belongs to user
+    location = Location.query.filter(
+        Location.id == location_id,
+        Location.user_id == user_id
+    ).first()
+    
+    if not location:
+        return jsonify({"error": "Location not found"}), 404
+    
+    equity_records = BranchEquity.query.filter(
+        BranchEquity.location_id == location_id,
+        BranchEquity.user_id == user_id
+    ).order_by(BranchEquity.date.desc()).all()
+    
+    return jsonify({
+        "location": location.to_dict(),
+        "equity_records": [record.to_dict() for record in equity_records]
+    }), 200
+
+
 @app.route('/api/finance/summaries/monthly', methods=['GET'])
 def get_monthly_summary():
     """API endpoint to get monthly financial summaries"""
@@ -1888,6 +2311,72 @@ def get_finance_categories():
     categories = [cat.value for cat in TransactionCategory]
 
     return jsonify(categories)
+
+
+@app.route('/api/finance/sync-accounting', methods=['POST'])
+@login_required
+def sync_financial_accounting():
+    """API endpoint to sync financial data with accounting records"""
+    from models import FinancialTransaction, Sale
+    from financial_service import FinancialService
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    try:
+        service = FinancialService(user_id)
+        
+        # Initialize chart of accounts if not exists
+        service.initialize_chart_of_accounts()
+        
+        # Get all sales without journal entries
+        sales = Sale.query.filter(Sale.user_id == user_id).all()
+        synced_sales = 0
+        
+        for sale in sales:
+            try:
+                service.record_sale_journal_entry(sale)
+                synced_sales += 1
+            except Exception as e:
+                logger.warning(f"Could not sync sale {sale.invoice_number}: {str(e)}")
+        
+        # Get all financial transactions and update cash flow
+        transactions = FinancialTransaction.query.filter(
+            FinancialTransaction.user_id == user_id
+        ).all()
+        synced_transactions = 0
+        
+        for transaction in transactions:
+            try:
+                if transaction.transaction_type == 'Income':
+                    service.update_cash_flow(
+                        date=datetime.combine(transaction.date, datetime.min.time()),
+                        cash_in=transaction.amount,
+                        source=transaction.description,
+                        reference_id=transaction.reference_id
+                    )
+                else:
+                    service.update_cash_flow(
+                        date=datetime.combine(transaction.date, datetime.min.time()),
+                        cash_out=transaction.amount,
+                        source=transaction.description,
+                        reference_id=transaction.reference_id
+                    )
+                synced_transactions += 1
+            except Exception as e:
+                logger.warning(f"Could not sync transaction {transaction.id}: {str(e)}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Synced {synced_sales} sales and {synced_transactions} transactions with accounting records",
+            "synced_sales": synced_sales,
+            "synced_transactions": synced_transactions
+        })
+        
+    except Exception as e:
+        logger.error(f"Error syncing financial data: {str(e)}")
+        return jsonify({"error": f"Failed to sync financial data: {str(e)}"}), 500
 
 
 # Sales API Routes
@@ -2111,9 +2600,20 @@ def create_sale():
         db.session.commit()
         logger.info(f"Sale completed successfully. Processed {items_processed} items.")
 
-        # Create financial transaction record for income
+        # Create financial transaction record for income with COGS
         try:
             from models import FinancialTransaction
+            
+            # Calculate total COGS for this sale
+            total_cogs = 0
+            for item_data in data.get('items', []):
+                item_id = item_data.get('id')
+                item = Item.query.filter_by(id=item_id).first() if item_id else None
+                if item:
+                    quantity_sold = float(item_data.get('quantity', 1))
+                    item_cogs = (item.buying_price or 0) * quantity_sold
+                    total_cogs += item_cogs
+            
             financial_transaction = FinancialTransaction(
                 description=f"Sale - Invoice {invoice_number}",
                 amount=float(data.get('total', 0)),
@@ -2121,11 +2621,23 @@ def create_sale():
                 category='Sales',
                 payment_method=payment_data.get('method', 'cash'),
                 reference_id=invoice_number,
-                date=datetime.utcnow().date()
+                date=datetime.utcnow().date(),
+                cost_of_goods_sold=total_cogs,
+                gross_amount=float(data.get('total', 0)) - total_cogs,
+                user_id=user_id
             )
             db.session.add(financial_transaction)
+            
+            # Also create journal entries if accounting is initialized
+            try:
+                from financial_service import FinancialService
+                service = FinancialService(user_id)
+                service.record_sale_journal_entry(new_sale)
+            except Exception as journal_error:
+                logger.warning(f"Could not create journal entries: {str(journal_error)}")
+            
             db.session.commit()
-            logger.info("Financial transaction record created")
+            logger.info("Financial transaction record created with COGS")
         except Exception as finance_error:
             logger.error(f"Error creating financial transaction: {str(finance_error)}")
             # Don't fail the sale if financial record creation fails
