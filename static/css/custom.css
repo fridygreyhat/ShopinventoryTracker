@@ -3716,6 +3716,118 @@ canvas {
     background-color: var(--card-bg);
 }
 
+/* Vertical Finance Navigation Styles */
+.finance-sidebar {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    border: none;
+    overflow: hidden;
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+}
+
+.finance-sidebar .card-header {
+    background: linear-gradient(135deg, #4C50C5, #41C1E0);
+    color: white;
+    border-bottom: none;
+    padding: 1rem;
+    font-weight: 600;
+}
+
+.finance-nav .list-group-item {
+    background: transparent;
+    padding: 0.5rem 1rem;
+    border: none;
+}
+
+.finance-nav-btn {
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.finance-nav-btn::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary-color);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+}
+
+.finance-nav-btn:hover {
+    background: rgba(76, 80, 197, 0.08) !important;
+    color: var(--primary-color) !important;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(76, 80, 197, 0.15);
+}
+
+.finance-nav-btn:hover::before {
+    transform: scaleY(1);
+}
+
+.finance-nav-btn.active {
+    background: linear-gradient(90deg, rgba(76, 80, 197, 0.12), rgba(76, 80, 197, 0.08)) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    box-shadow: 0 2px 12px rgba(76, 80, 197, 0.2);
+    border-left: 3px solid var(--primary-color) !important;
+}
+
+.finance-nav-btn.active::before {
+    transform: scaleY(1);
+}
+
+.finance-nav-btn i {
+    width: 20px;
+    transition: all 0.3s ease;
+}
+
+.finance-nav-btn:hover i,
+.finance-nav-btn.active i {
+    transform: scale(1.1);
+}
+
+.finance-content-card {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    border: none;
+    min-height: 600px;
+}
+
+.finance-content-card .card-body {
+    padding: 2rem;
+}
+
+/* Responsive adjustments for finance navigation */
+@media (max-width: 768px) {
+    .finance-sidebar {
+        position: static;
+        max-height: none;
+        margin-bottom: 1rem;
+    }
+    
+    .finance-nav-btn {
+        font-size: 0.9rem;
+        padding: 0.6rem 0.8rem;
+    }
+    
+    .finance-content-card .card-body {
+        padding: 1rem;
+    }
+}
+
 .financial-card .card-header {
     background-color: rgba(76, 80, 197, 0.03);
     border-bottom: 1px solid var(--light-bg-alt);

@@ -127,6 +127,12 @@ document.addEventListener('DOMContentLoaded', function() {
         tab.addEventListener('shown.bs.tab', function(event) {
             const targetId = event.target.getAttribute('data-bs-target');
             
+            // Update active state for vertical navigation
+            document.querySelectorAll('.finance-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
             switch(targetId) {
                 case '#cash-flow-content':
                     loadCashFlow();
@@ -160,6 +166,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadBranchEquity();
                     break;
             }
+        });
+    });
+    
+    // Add click handlers for vertical navigation buttons
+    document.querySelectorAll('.finance-nav-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('.finance-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Add active class to clicked button
+            this.classList.add('active');
         });
     });
     
