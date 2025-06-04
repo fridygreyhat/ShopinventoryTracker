@@ -1,74 +1,220 @@
-
 {% extends "layout.html" %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">💰 Financial & Accounting Management</h1>
-    
-    <!-- Ultra-Compact Financial Summary Grid -->
-    <div class="row g-1 mb-2">
-        <div class="col-6 col-md-3">
-            <div class="card mini-kpi-card income-card border-0">
-                <div class="card-body p-2">
+    <!-- Enhanced Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1 fw-bold text-gradient">💰 Financial & Accounting Management</h1>
+            <p class="text-muted mb-0">Comprehensive financial oversight and accounting controls</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#financeSettingsModal">
+                <i class="fas fa-cog me-1"></i>Settings
+            </button>
+            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                <i class="fas fa-plus me-1"></i>Add Transaction
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-download me-1"></i>Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Export to Excel</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>Export to PDF</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-csv me-2"></i>Export to CSV</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Financial Summary Dashboard -->
+    <div class="row g-3 mb-4">
+        <!-- Total Revenue Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card gradient-card revenue-card h-100 border-0 shadow-sm">
+                <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div class="kpi-icon bg-success bg-opacity-10">
-                            <i class="fas fa-arrow-trend-up text-success"></i>
-                        </div>
-                        <div class="text-end flex-grow-1">
-                            <div class="kpi-label">Income</div>
-                            <div class="kpi-value text-success" id="total-income">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-wrapper me-2">
+                                    <i class="fas fa-arrow-trend-up"></i>
+                                </div>
+                                <h6 class="mb-0 fw-semibold">Total Revenue</h6>
+                            </div>
+                            <h3 class="mb-1 fw-bold" id="total-income">
                                 <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
+                            </h3>
+                            <div class="trend-indicator positive">
+                                <i class="fas fa-arrow-up me-1"></i>
+                                <span>+12.5% vs last month</span>
                             </div>
+                        </div>
+                        <div class="chart-mini">
+                            <canvas id="revenue-mini-chart" width="60" height="40"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card mini-kpi-card expense-card border-0">
-                <div class="card-body p-2">
+
+        <!-- Total Expenses Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card gradient-card expense-card h-100 border-0 shadow-sm">
+                <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div class="kpi-icon bg-danger bg-opacity-10">
-                            <i class="fas fa-arrow-trend-down text-danger"></i>
-                        </div>
-                        <div class="text-end flex-grow-1">
-                            <div class="kpi-label">Expenses</div>
-                            <div class="kpi-value text-danger" id="total-expenses">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-wrapper me-2">
+                                    <i class="fas fa-arrow-trend-down"></i>
+                                </div>
+                                <h6 class="mb-0 fw-semibold">Total Expenses</h6>
+                            </div>
+                            <h3 class="mb-1 fw-bold" id="total-expenses">
                                 <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
+                            </h3>
+                            <div class="trend-indicator negative">
+                                <i class="fas fa-arrow-down me-1"></i>
+                                <span>-5.2% vs last month</span>
                             </div>
+                        </div>
+                        <div class="chart-mini">
+                            <canvas id="expense-mini-chart" width="60" height="40"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card mini-kpi-card profit-card border-0">
-                <div class="card-body p-2">
+
+        <!-- Gross Profit Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card gradient-card profit-card h-100 border-0 shadow-sm">
+                <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div class="kpi-icon bg-warning bg-opacity-10">
-                            <i class="fas fa-coins text-warning"></i>
-                        </div>
-                        <div class="text-end flex-grow-1">
-                            <div class="kpi-label">Gross</div>
-                            <div class="kpi-value text-warning" id="gross-profit">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-wrapper me-2">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <h6 class="mb-0 fw-semibold">Gross Profit</h6>
+                            </div>
+                            <h3 class="mb-1 fw-bold" id="gross-profit">
                                 <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
+                            </h3>
+                            <div class="trend-indicator positive">
+                                <i class="fas fa-arrow-up me-1"></i>
+                                <span>+8.7% vs last month</span>
+                            </div>
+                        </div>
+                        <div class="profit-margin-indicator">
+                            <div class="circular-progress" data-percentage="68">
+                                <span class="percentage">68%</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card mini-kpi-card net-profit-card border-0">
-                <div class="card-body p-2">
+
+        <!-- Net Profit Card -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card gradient-card net-profit-card h-100 border-0 shadow-sm">
+                <div class="card-body p-3">
                     <div class="d-flex align-items-center justify-content-between">
-                        <div class="kpi-icon bg-primary bg-opacity-10">
-                            <i class="fas fa-chart-line text-primary"></i>
-                        </div>
-                        <div class="text-end flex-grow-1">
-                            <div class="kpi-label">Net</div>
-                            <div class="kpi-value text-primary" id="net-profit">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-wrapper me-2">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h6 class="mb-0 fw-semibold">Net Profit</h6>
+                            </div>
+                            <h3 class="mb-1 fw-bold" id="net-profit">
                                 <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
+                            </h3>
+                            <div class="trend-indicator positive">
+                                <i class="fas fa-arrow-up me-1"></i>
+                                <span>+15.3% vs last month</span>
+                            </div>
+                        </div>
+                        <div class="performance-indicator">
+                            <div class="performance-score excellent">A+</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Overview Row -->
+    <div class="row g-3 mb-4">
+        <!-- Cash Flow Overview -->
+        <div class="col-lg-8">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0 fw-bold">Cash Flow Overview</h5>
+                            <small class="text-muted">Monthly cash flow trends</small>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="cashflow-period" id="cf-3m" checked>
+                            <label class="btn btn-outline-primary" for="cf-3m">3M</label>
+                            <input type="radio" class="btn-check" name="cashflow-period" id="cf-6m">
+                            <label class="btn btn-outline-primary" for="cf-6m">6M</label>
+                            <input type="radio" class="btn-check" name="cashflow-period" id="cf-1y">
+                            <label class="btn btn-outline-primary" for="cf-1y">1Y</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    <canvas id="enhanced-cashflow-chart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h5 class="mb-0 fw-bold">Financial Health</h5>
+                    <small class="text-muted">Key performance indicators</small>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-success bg-opacity-10">
+                                <i class="fas fa-percentage text-success"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Profit Margin</div>
+                                <div class="stat-value text-success">32.5%</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon bg-info bg-opacity-10">
+                                <i class="fas fa-clock text-info"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Cash Conversion</div>
+                                <div class="stat-value text-info">45 days</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon bg-warning bg-opacity-10">
+                                <i class="fas fa-chart-pie text-warning"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Expense Ratio</div>
+                                <div class="stat-value text-warning">67.5%</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon bg-primary bg-opacity-10">
+                                <i class="fas fa-trending-up text-primary"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Growth Rate</div>
+                                <div class="stat-value text-primary">+18.2%</div>
                             </div>
                         </div>
                     </div>

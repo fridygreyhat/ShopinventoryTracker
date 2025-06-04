@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBankAccounts();
     loadBankTransfers();
     loadBranchEquity();
+    initializeEnhancedDashboard();
 
     // Event listeners
     filterBtn.addEventListener('click', function() {
@@ -1201,4 +1202,213 @@ document.addEventListener('DOMContentLoaded', function() {
     function populateBankAccountSelects(accounts) {
         // Placeholder for populate bank account selects functionality
         console.log('Populate bank account selects functionality to be implemented');
+    }
+
+    // Enhanced Dashboard Functions
+    function initializeEnhancedDashboard() {
+        console.log('Initializing enhanced financial dashboard...');
+        
+        // Initialize mini charts
+        initializeMiniCharts();
+        
+        // Initialize enhanced cash flow chart
+        initializeEnhancedCashFlowChart();
+        
+        // Setup real-time updates
+        setupRealTimeUpdates();
+        
+        // Initialize performance indicators
+        initializePerformanceIndicators();
+    }
+
+    function initializeMiniCharts() {
+        // Revenue mini chart
+        const revenueCtx = document.getElementById('revenue-mini-chart');
+        if (revenueCtx) {
+            new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        data: [12000, 15000, 18000, 16000, 22000, 25000],
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    elements: { point: { radius: 0 } }
+                }
+            });
+        }
+
+        // Expense mini chart
+        const expenseCtx = document.getElementById('expense-mini-chart');
+        if (expenseCtx) {
+            new Chart(expenseCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        data: [8000, 9500, 11000, 10500, 12000, 11500],
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    elements: { point: { radius: 0 } }
+                }
+            });
+        }
+    }
+
+    function initializeEnhancedCashFlowChart() {
+        const ctx = document.getElementById('enhanced-cashflow-chart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [
+                        {
+                            label: 'Cash Inflow',
+                            data: [25000, 28000, 32000, 30000, 35000, 38000, 40000, 42000, 45000, 48000, 50000, 52000],
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Cash Outflow',
+                            data: [18000, 20000, 22000, 21000, 24000, 26000, 28000, 29000, 30000, 32000, 34000, 35000],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Net Cash Flow',
+                            data: [7000, 8000, 10000, 9000, 11000, 12000, 12000, 13000, 15000, 16000, 16000, 17000],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#6b7280' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { 
+                                color: '#6b7280',
+                                callback: function(value) {
+                                    return 'TZS ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+    }
+
+    function setupRealTimeUpdates() {
+        // Setup periodic updates for financial data
+        setInterval(() => {
+            updateFinancialMetrics();
+        }, 30000); // Update every 30 seconds
+    }
+
+    function updateFinancialMetrics() {
+        // Simulate real-time updates
+        const trends = document.querySelectorAll('.trend-indicator');
+        trends.forEach(trend => {
+            // Add slight animation when updating
+            trend.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                trend.style.transform = 'scale(1)';
+            }, 200);
+        });
+    }
+
+    function initializePerformanceIndicators() {
+        // Initialize circular progress indicators
+        const progressElements = document.querySelectorAll('.circular-progress');
+        progressElements.forEach(element => {
+            const percentage = element.getAttribute('data-percentage');
+            if (percentage) {
+                animateProgress(element, percentage);
+            }
+        });
+    }
+
+    function animateProgress(element, targetPercentage) {
+        let currentPercentage = 0;
+        const increment = targetPercentage / 50; // 50 steps animation
+        
+        const animation = setInterval(() => {
+            currentPercentage += increment;
+            if (currentPercentage >= targetPercentage) {
+                currentPercentage = targetPercentage;
+                clearInterval(animation);
+            }
+            
+            const degrees = (currentPercentage / 100) * 360;
+            element.style.background = `conic-gradient(#22c55e 0deg ${degrees}deg, rgba(255, 255, 255, 0.2) ${degrees}deg 360deg)`;
+        }, 20);
     }

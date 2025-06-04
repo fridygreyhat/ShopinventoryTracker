@@ -641,7 +641,6 @@ class Journal(db.Model):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         return f"JE-{timestamp}"
 
-```python
     def __repr__(self):
         return f'<Journal {self.journal_number}>'
 

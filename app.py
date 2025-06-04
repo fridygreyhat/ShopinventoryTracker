@@ -525,6 +525,68 @@ def installments_page():
     return render_template('installments.html')
 
 
+@app.route('/finance')
+@login_required
+def finance():
+    """Render the finance and accounting management page"""
+    return render_template('finance.html')
+
+
+# Financial API Routes
+@app.route('/api/finance/transactions', methods=['GET'])
+@login_required
+def get_financial_transactions():
+    """API endpoint to get financial transactions"""
+    from models import FinancialTransaction
+    
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get date filters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        query = FinancialTransaction.query.filter(FinancialTransaction.user_id == user_id)
+        
+        if start_date:
+            query = query.filter(FinancialTransaction.date >= start_date)
+        if end_date:
+            query = query.filter(FinancialTransaction.date <= end_date)
+        
+        transactions = query.all()
+        
+        # Calculate summary
+        total_income = sum(t.amount for t in transactions if t.transaction_type == 'Income')
+        total_expenses = sum(t.amount for t in transactions if t.transaction_type == 'Expense')
+        
+        return jsonify({
+            'transactions': [t.to_dict() for t in transactions],
+            'summary': {
+                'total_income': total_income,
+                'total_expenses': total_expenses,
+                'net_profit': total_income - total_expenses
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting financial transactions: {str(e)}")
+        return jsonify({"error": "Failed to get financial transactions"}), 500
+
+
+@app.route('/api/finance/categories', methods=['GET'])
+@login_required
+def get_financial_categories():
+    """API endpoint to get financial transaction categories"""
+    categories = [
+        "Sales", "Purchase", "Expense", "Salary", "Rent", "Utilities",
+        "Maintenance", "Marketing", "Tax", "Insurance", "Transportation",
+        "Office Supplies", "Other Income", "Other Expense"
+    ]
+    return jsonify(categories)
+
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 @login_required
