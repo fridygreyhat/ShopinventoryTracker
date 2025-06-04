@@ -76,18 +76,18 @@ class Item(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-
+        
         if include_locations and self.track_by_location:
             result['locations'] = [stock.to_dict() for stock in self.location_stocks]
             result['total_stock_across_locations'] = sum(stock.quantity for stock in self.location_stocks)
-
+        
         return result
 
     def get_stock_at_location(self, location_id):
         """Get stock quantity at a specific location"""
         if not self.track_by_location:
             return self.quantity
-
+        
         stock = next((s for s in self.location_stocks if s.location_id == location_id), None)
         return stock.quantity if stock else 0
 
@@ -95,7 +95,7 @@ class Item(db.Model):
         """Get available stock quantity at a specific location (excluding reserved)"""
         if not self.track_by_location:
             return self.quantity
-
+        
         stock = next((s for s in self.location_stocks if s.location_id == location_id), None)
         return stock.available_quantity if stock else 0
 
@@ -473,16 +473,16 @@ class FinancialTransaction(db.Model):
     category = db.Column(db.String(50), nullable=False)
     reference_id = db.Column(db.String(100))  # To link to sales or other records
     payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
-
+    
     # Tax and COGS tracking
     tax_rate = db.Column(db.Float, default=0.0)  # Tax rate percentage
     tax_amount = db.Column(db.Float, default=0.0)  # Calculated tax amount
     cost_of_goods_sold = db.Column(db.Float, default=0.0)  # COGS for sales transactions
     gross_amount = db.Column(db.Float, default=0.0)  # Amount before tax
-
+    
     # User ownership
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
+    
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -1093,13 +1093,13 @@ class PricingRule(db.Model):
         """Convert pricing rule to dictionary for API responses"""
         conditions_dict = {}
         applicable_items_list = []
-
+        
         if self.conditions:
             try:
                 conditions_dict = json.loads(self.conditions)
             except json.JSONDecodeError:
                 conditions_dict = {}
-
+        
         if self.applicable_items:
             try:
                 applicable_items_list = json.loads(self.applicable_items)
@@ -1233,4 +1233,78 @@ class StockTransfer(db.Model):
     actual_arrival = db.Column(db.Date)
     notes = db.Column(db.Text)
     requested_by = db.Column(db.String(100))
-    approved_by = db
+    approved_by = db.Column(db.String(100))
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    items = db.relationship('StockTransferItem', backref='transfer', lazy=True, cascade='all, delete-orphan')
+    creator = db.relationship('User', backref=db.backref('stock_transfers', lazy=True))
+
+    def __repr__(self):
+        return f'<StockTransfer {self.transfer_number}>'
+
+    @staticmethod
+    def generate_transfer_number():
+        """Generate a unique transfer number"""
+        import time
+        timestamp = str(int(time.time()))[-6:]  # Last 6 digits of timestamp
+        random_suffix = ''.join(random.choices(string.digits, k=3))
+        return f"TRF-{timestamp}-{random_suffix}"
+
+    def to_dict(self):
+        """Convert stock transfer to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'transfer_number': self.transfer_number,
+            'from_location_id': self.from_location_id,
+            'from_location_name': self.from_location.name if self.from_location else '',
+            'from_location_code': self.from_location.code if self.from_location else '',
+            'to_location_id': self.to_location_id,
+            'to_location_name': self.to_location.name if self.to_location else '',
+            'to_location_code': self.to_location.code if self.to_location else '',
+            'status': self.status,
+            'transfer_date': self.transfer_date.isoformat() if self.transfer_date else None,
+            'expected_arrival': self.expected_arrival.isoformat() if self.expected_arrival else None,
+            'actual_arrival': self.actual_arrival.isoformat() if self.actual_arrival else None,
+            'notes': self.notes,
+            'requested_by': self.requested_by,
+            'approved_by': self.approved_by,
+            'created_by': self.created_by,
+            'items_count': len(self.items),
+            'total_quantity': sum(item.quantity for item in self.items),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class StockTransferItem(db.Model):
+    """Model for items in a stock transfer"""
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_id = db.Column(db.Integer, db.ForeignKey('stock_transfer.id', ondelete='CASCADE'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity_requested = db.Column(db.Integer, nullable=False)
+    quantity_shipped = db.Column(db.Integer, default=0)
+    quantity_received = db.Column(db.Integer, default=0)
+    notes = db.Column(db.Text)
+
+    # Relationships
+    item = db.relationship('Item', backref=db.backref('transfer_items', lazy=True))
+
+    def __repr__(self):
+        return f'<StockTransferItem {self.item.name if self.item else "Unknown"}: {self.quantity_requested}>'
+
+    def to_dict(self):
+        """Convert stock transfer item to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'transfer_id': self.transfer_id,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else '',
+            'item_sku': self.item.sku if self.item else '',
+            'quantity_requested': self.quantity_requested,
+            'quantity_shipped': self.quantity_shipped,
+            'quantity_received': self.quantity_received,
+            'notes': self.notes
+        }
