@@ -548,22 +548,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tableBody) return;
 
         if (cashFlows.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No cash flow data found</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No cash flow data found</td></tr>';
             return;
         }
 
         let html = '';
         cashFlows.forEach(flow => {
-            const netClass = flow.net_cash_flow >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold';
-            const accumulatedClass = flow.accumulated_cash >= 0 ? 'text-success' : 'text-danger';
+            const netClass = flow.net_cash_flow >= 0 ? 'text-success' : 'text-danger';
             html += `
                 <tr>
-                    <td class="px-3">${formatDate(flow.date)}</td>
-                    <td class="px-3 text-success fw-medium">${formatCurrency(flow.cash_in)}</td>
-                    <td class="px-3 text-danger fw-medium">${formatCurrency(flow.cash_out)}</td>
-                    <td class="px-3 ${netClass}">${formatCurrency(flow.net_cash_flow)}</td>
-                    <td class="px-3 ${accumulatedClass} fw-medium">${formatCurrency(flow.accumulated_cash)}</td>
-                    <td class="px-3 text-muted">${flow.source || '-'}</td>
+                    <td>${formatDate(flow.date)}</td>
+                    <td class="text-success">${formatCurrency(flow.cash_in)}</td>
+                    <td class="text-danger">${formatCurrency(flow.cash_out)}</td>
+                    <td class="${netClass}">${formatCurrency(flow.net_cash_flow)}</td>
+                    <td>${formatCurrency(flow.accumulated_cash)}</td>
+                    <td>${flow.source || '-'}</td>
                 </tr>
             `;
         });
