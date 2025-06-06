@@ -94,13 +94,9 @@ def verify_firebase_token(id_token):
 
             # Verify token with REST API
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={firebase_api_key}"
-            logger.info(f"Making request to Firebase REST API...")
+            logger.info(f"Making request to Firebase REST API at {url[:50]}...")
 
-            headers = {
-                'Content-Type': 'application/json'
-            }
-            
-            response = requests.post(url, json={"idToken": id_token}, headers=headers, timeout=10)
+            response = requests.post(url, json={"idToken": id_token})
 
             if response.status_code != 200:
                 logger.error(f"Failed to verify token with REST API: Status code {response.status_code}")
@@ -109,19 +105,15 @@ def verify_firebase_token(id_token):
 
             # Extract user data
             response_data = response.json()
-            logger.info(f"REST API response received successfully")
+            logger.info(f"REST API response received: {json.dumps(response_data)[:100]}...")
 
             if "users" not in response_data or not response_data["users"]:
                 logger.error("No user found in Firebase response")
                 return None
 
-            user_info = response_data["users"][0]
-            logger.info(f"Token verified with Firebase REST API for user: {user_info.get('email')}")
-            return user_info
+            logger.info(f"Token verified with Firebase REST API for user: {response_data['users'][0].get('email')}")
+            return response_data["users"][0]
 
-    except requests.exceptions.RequestException as req_error:
-        logger.error(f"Network error during token verification: {str(req_error)}")
-        return None
     except Exception as e:
         logger.error(f"Error verifying Firebase token: {str(e)}")
         logger.error(f"Token verification failed. Token starts with: {id_token[:10] if id_token and len(id_token) >= 10 else 'INVALID_TOKEN'}...")
@@ -198,68 +190,45 @@ def create_or_update_user(user_data, extra_data=None):
     try:
         # Get email from Firebase user data
         email = user_data.get("email")
-        firebase_uid = user_data.get("localId") or user_data.get("uid")
+        firebase_uid = user_data.get("localId")
 
-        if not email:
-            logger.error("Missing email in user data")
+        if not email or not firebase_uid:
+            logger.error("Missing email or Firebase UID in user data")
             return None
 
-        # Check if user exists by email first, then by firebase_uid
+        # Check if user exists
         user = User.query.filter_by(email=email).first()
-        
-        if not user and firebase_uid:
-            user = User.query.filter_by(firebase_uid=firebase_uid).first()
 
         if user:
             # Update existing user
-            if firebase_uid:
-                user.firebase_uid = firebase_uid
-            user.email = email  # Update email in case it changed
+            user.firebase_uid = firebase_uid
             user.email_verified = user_data.get("emailVerified", False)
-            user.updated_at = datetime.utcnow()
-            
-            # Ensure user is active
-            user.active = True
-            if hasattr(user, 'is_active'):
-                user.is_active = True
 
             # Update additional fields if provided
             if extra_data:
-                if 'firstName' in extra_data and extra_data['firstName']:
+                if 'firstName' in extra_data:
                     user.first_name = extra_data.get('firstName')
-                if 'lastName' in extra_data and extra_data['lastName']:
+                if 'lastName' in extra_data:
                     user.last_name = extra_data.get('lastName')
-                if 'phone' in extra_data and extra_data['phone']:
+                if 'phone' in extra_data:
                     user.phone = extra_data.get('phone')
-                if 'shopName' in extra_data and extra_data['shopName']:
+                if 'shopName' in extra_data:
                     user.shop_name = extra_data.get('shopName')
-                if 'productCategories' in extra_data and extra_data['productCategories']:
+                if 'productCategories' in extra_data:
                     user.product_categories = extra_data.get('productCategories')
 
             db.session.commit()
-            logger.info(f"Updated existing user: {user.username}")
             return user
 
         # Create new user with username from email (default behavior)
-        base_username = email.split("@")[0] if email else "user"
-        username = base_username
-
-        # Ensure username is unique
-        counter = 1
-        while User.query.filter_by(username=username).first():
-            username = f"{base_username}{counter}"
-            counter += 1
+        username = email.split("@")[0] if email else "user"
 
         # Create new user
         new_user = User(
             email=email,
             username=username,
             firebase_uid=firebase_uid,
-            email_verified=user_data.get("emailVerified", False),
-            active=True,
-            is_active=True,
-            is_admin=False,
-            role='viewer'
+            email_verified=user_data.get("emailVerified", False)
         )
 
         # Set a placeholder password hash for Firebase users
@@ -268,20 +237,14 @@ def create_or_update_user(user_data, extra_data=None):
 
         # Add additional fields if provided
         if extra_data:
-            if 'firstName' in extra_data and extra_data['firstName']:
-                new_user.first_name = extra_data.get('firstName')
-            if 'lastName' in extra_data and extra_data['lastName']:
-                new_user.last_name = extra_data.get('lastName')
-            if 'phone' in extra_data and extra_data['phone']:
-                new_user.phone = extra_data.get('phone')
-            if 'shopName' in extra_data and extra_data['shopName']:
-                new_user.shop_name = extra_data.get('shopName')
-            if 'productCategories' in extra_data and extra_data['productCategories']:
-                new_user.product_categories = extra_data.get('productCategories')
+            new_user.first_name = extra_data.get('firstName')
+            new_user.last_name = extra_data.get('lastName')
+            new_user.phone = extra_data.get('phone')
+            new_user.shop_name = extra_data.get('shopName')
+            new_user.product_categories = extra_data.get('productCategories')
 
         db.session.add(new_user)
         db.session.commit()
-        logger.info(f"Created new user: {new_user.username}")
         return new_user
 
     except Exception as e:
@@ -299,25 +262,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         # Check if user is logged in
         if "user_id" not in session:
-            if request.is_json:
-                return jsonify({"error": "Authentication required"}), 401
             return redirect(url_for("login", next=request.url))
-        
-        # Verify user still exists in database
-        try:
-            from models import User
-            user = User.query.get(session["user_id"])
-            if not user or not getattr(user, 'active', True):
-                session.clear()
-                if request.is_json:
-                    return jsonify({"error": "User account not found or inactive"}), 401
-                return redirect(url_for("login"))
-        except Exception as e:
-            logger.error(f"Error verifying user in login_required: {str(e)}")
-            if request.is_json:
-                return jsonify({"error": "Authentication error"}), 500
-            return redirect(url_for("login"))
-        
         return f(*args, **kwargs)
     return decorated_function
 
