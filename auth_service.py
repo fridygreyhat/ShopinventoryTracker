@@ -47,97 +47,231 @@ def authenticate_user(email, password):
         logger.error(f"Error authenticating user {email}: {str(e)}")
         return None
 
+def validate_email_format(email):
+    """
+    Validate email format with enhanced regex
+    
+    Args:
+        email (str): Email address to validate
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not email or not isinstance(email, str):
+        return False, "Email is required"
+    
+    email = email.strip()
+    
+    if len(email) == 0:
+        return False, "Email cannot be empty"
+    
+    if len(email) > 320:  # RFC 5321 limit
+        return False, "Email address is too long"
+    
+    # Enhanced email regex with better validation
+    import re
+    email_regex = r'^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+    
+    if not re.match(email_regex, email):
+        return False, "Please enter a valid email address"
+    
+    # Check for common invalid patterns
+    if email.startswith('.') or email.endswith('.'):
+        return False, "Email cannot start or end with a period"
+    
+    if '..' in email:
+        return False, "Email cannot contain consecutive periods"
+    
+    local_part, domain = email.rsplit('@', 1)
+    
+    if len(local_part) > 64:  # RFC 5321 limit for local part
+        return False, "Email local part is too long"
+    
+    if len(domain) > 255:  # RFC 5321 limit for domain
+        return False, "Email domain is too long"
+    
+    return True, ""
+
+def validate_password_strength(password):
+    """
+    Validate password strength requirements
+    
+    Args:
+        password (str): Password to validate
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not password or not isinstance(password, str):
+        return False, "Password is required"
+    
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters long"
+    
+    if len(password) > 128:
+        return False, "Password is too long (maximum 128 characters)"
+    
+    # Check for at least one letter and one number (optional but recommended)
+    import re
+    if not re.search(r'[a-zA-Z]', password):
+        return False, "Password should contain at least one letter"
+    
+    # Check for common weak passwords
+    weak_passwords = ['password', '123456', 'qwerty', 'abc123', 'password123']
+    if password.lower() in weak_passwords:
+        return False, "Password is too weak. Please choose a stronger password"
+    
+    return True, ""
+
+def clean_and_validate_username(email):
+    """
+    Generate and validate username from email
+    
+    Args:
+        email (str): Email address
+        
+    Returns:
+        str: Clean username
+    """
+    import re
+    
+    # Create username from email local part
+    username = email.split("@")[0] if email else "user"
+    
+    # Clean username (keep only alphanumeric and underscore)
+    username = re.sub(r'[^a-zA-Z0-9_]', '', username)
+    
+    # Ensure username is not empty and has minimum length
+    if not username or len(username) < 3:
+        username = "user"
+    
+    # Limit username length
+    if len(username) > 20:
+        username = username[:20]
+    
+    return username
+
 def create_or_update_user(user_data, extra_data=None):
     """
-    Create or update user in the database
+    Create or update user in the database with enhanced validation
 
     Args:
         user_data (dict): User data including email, password
         extra_data (dict, optional): Additional user data from registration form
 
     Returns:
-        User: User model instance
+        tuple: (User object or None, error_message)
     """
     try:
-        # Get email from user data
+        # Get and validate email
         email = user_data.get("email", "").strip().lower()
         password = user_data.get("password", "")
 
-        if not email or not password:
-            logger.error("Missing email or password in user data")
-            return None
-
         # Validate email format
-        import re
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, email):
-            logger.error(f"Invalid email format: {email}")
-            return None
+        email_valid, email_error = validate_email_format(email)
+        if not email_valid:
+            logger.error(f"Email validation failed: {email_error}")
+            return None, email_error
 
-        # Check if user exists
-        user = User.query.filter_by(email=email).first()
+        # Validate password strength
+        password_valid, password_error = validate_password_strength(password)
+        if not password_valid:
+            logger.error(f"Password validation failed: {password_error}")
+            return None, password_error
 
-        if user:
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
             logger.info(f"User already exists: {email}")
-            return user
+            return None, "An account with this email already exists"
 
-        # Create username from email (default behavior)
-        username = email.split("@")[0] if email else "user"
+        # Generate and validate username
+        username = clean_and_validate_username(email)
         
-        # Clean username (remove special characters except underscore)
-        username = re.sub(r'[^a-zA-Z0-9_]', '', username)
-        if not username:
-            username = "user"
-
         # Ensure username is unique
         counter = 1
         original_username = username
         while User.query.filter_by(username=username).first():
             username = f"{original_username}{counter}"
             counter += 1
+            # Prevent infinite loop
+            if counter > 1000:
+                username = f"user{int(datetime.utcnow().timestamp())}"
+                break
 
-        # Create new user
-        new_user = User(
-            email=email,
-            username=username,
-            email_verified=True,  # Set to True for PostgreSQL auth
-            active=True,
-            is_active=True,
-            is_admin=False
-        )
-
-        # Set password
-        new_user.set_password(password)
-
-        # Add additional fields if provided
+        # Validate and clean extra data
+        validated_extra_data = {}
         if extra_data:
+            # Clean and validate first name
             if extra_data.get('firstName'):
-                new_user.first_name = extra_data.get('firstName').strip()
+                first_name = str(extra_data.get('firstName')).strip()
+                if len(first_name) <= 64:
+                    validated_extra_data['first_name'] = first_name
+            
+            # Clean and validate last name  
             if extra_data.get('lastName'):
-                new_user.last_name = extra_data.get('lastName').strip()
+                last_name = str(extra_data.get('lastName')).strip()
+                if len(last_name) <= 64:
+                    validated_extra_data['last_name'] = last_name
+            
+            # Clean and validate phone
             if extra_data.get('phone'):
-                new_user.phone = extra_data.get('phone').strip()
+                phone = str(extra_data.get('phone')).strip()
+                if len(phone) <= 20:
+                    validated_extra_data['phone'] = phone
+            
+            # Clean and validate shop name
             if extra_data.get('shopName'):
-                new_user.shop_name = extra_data.get('shopName').strip()
+                shop_name = str(extra_data.get('shopName')).strip()
+                if len(shop_name) <= 128:
+                    validated_extra_data['shop_name'] = shop_name
+            
+            # Clean and validate product categories
             if extra_data.get('productCategories'):
-                new_user.product_categories = extra_data.get('productCategories').strip()
+                product_categories = str(extra_data.get('productCategories')).strip()
+                if len(product_categories) <= 512:
+                    validated_extra_data['product_categories'] = product_categories
 
-        # Set creation timestamp
-        new_user.created_at = datetime.utcnow()
-        new_user.updated_at = datetime.utcnow()
+        # Create new user within transaction
+        try:
+            new_user = User(
+                email=email,
+                username=username,
+                email_verified=True,
+                active=True,
+                is_active=True,
+                is_admin=False,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                **validated_extra_data
+            )
 
-        db.session.add(new_user)
-        db.session.flush()  # Flush to get the user ID before commit
-        
-        logger.info(f"Created new user with ID {new_user.id}: {email}")
-        
-        db.session.commit()
-        return new_user
+            # Set password hash
+            new_user.set_password(password)
+
+            # Add to session and flush to get ID
+            db.session.add(new_user)
+            db.session.flush()
+            
+            logger.info(f"Created new user with ID {new_user.id}: {email}")
+            
+            # Commit transaction
+            db.session.commit()
+            return new_user, None
+
+        except Exception as db_error:
+            db.session.rollback()
+            logger.error(f"Database error creating user: {str(db_error)}")
+            return None, "Failed to create account due to database error"
 
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating/updating user: {str(e)}")
-        return None
+        # Ensure rollback on any unexpected error
+        try:
+            db.session.rollback()
+        except:
+            pass
+        logger.error(f"Unexpected error creating user: {str(e)}")
+        return None, "An unexpected error occurred during registration"
 
 def update_user_profile(user_id, profile_data):
     """

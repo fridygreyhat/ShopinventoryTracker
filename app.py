@@ -4225,7 +4225,7 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Handle the registration page"""
+    """Handle the registration page with enhanced validation"""
     # If user is already logged in, redirect to dashboard
     if 'user_id' in session:
         return redirect(url_for('index'))
@@ -4234,64 +4234,69 @@ def register():
         try:
             data = request.json if request.is_json else request.form
             
-            email = data.get('email', '').strip()
+            # Get and clean input data
+            email = data.get('email', '').strip().lower()
             password = data.get('password', '')
             confirm_password = data.get('confirmPassword', '')
+            first_name = data.get('firstName', '').strip()
+            last_name = data.get('lastName', '').strip()
+            shop_name = data.get('shopName', '').strip()
+            product_categories = data.get('productCategories', '').strip()
+            
+            # Enhanced validation with specific error messages
+            validation_errors = []
             
             # Validate required fields
-            if not email or not password:
-                error_msg = "Email and password are required"
+            if not email:
+                validation_errors.append("Email address is required")
+            elif len(email) > 320:
+                validation_errors.append("Email address is too long")
+                
+            if not password:
+                validation_errors.append("Password is required")
+            elif len(password) < 6:
+                validation_errors.append("Password must be at least 6 characters long")
+            elif len(password) > 128:
+                validation_errors.append("Password is too long (maximum 128 characters)")
+                
+            if not confirm_password:
+                validation_errors.append("Password confirmation is required")
+            elif password and confirm_password and password != confirm_password:
+                validation_errors.append("Passwords do not match")
+            
+            # Validate optional fields length
+            if first_name and len(first_name) > 64:
+                validation_errors.append("First name is too long (maximum 64 characters)")
+            if last_name and len(last_name) > 64:
+                validation_errors.append("Last name is too long (maximum 64 characters)")
+            if shop_name and len(shop_name) > 128:
+                validation_errors.append("Shop name is too long (maximum 128 characters)")
+            if product_categories and len(product_categories) > 512:
+                validation_errors.append("Product categories is too long (maximum 512 characters)")
+            
+            # Return validation errors if any
+            if validation_errors:
+                error_msg = "; ".join(validation_errors)
                 if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 400
+                    return jsonify({
+                        "success": False, 
+                        "error": error_msg,
+                        "validation_errors": validation_errors
+                    }), 400
                 flash(error_msg, 'danger')
                 return render_template('register.html')
             
-            # Validate email format
-            import re
-            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not re.match(email_regex, email):
-                error_msg = "Please enter a valid email address"
-                if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 400
-                flash(error_msg, 'danger')
-                return render_template('register.html')
-            
-            # Validate password length
-            if len(password) < 6:
-                error_msg = "Password must be at least 6 characters long"
-                if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 400
-                flash(error_msg, 'danger')
-                return render_template('register.html')
-            
-            # Validate password confirmation
-            if password != confirm_password:
-                error_msg = "Passwords do not match"
-                if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 400
-                flash(error_msg, 'danger')
-                return render_template('register.html')
-            
-            # Check if user already exists
-            existing_user = User.query.filter_by(email=email).first()
-            if existing_user:
-                error_msg = "Email already registered"
-                if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 400
-                flash(error_msg, 'danger')
-                return render_template('register.html')
-            
-            # Prepare user data
+            # Prepare user data for creation
             user_data = {'email': email, 'password': password}
             extra_data = {
-                'firstName': data.get('firstName', '').strip(),
-                'lastName': data.get('lastName', '').strip(),
-                'shopName': data.get('shopName', '').strip(),
-                'productCategories': data.get('productCategories', '').strip()
+                'firstName': first_name,
+                'lastName': last_name,
+                'shopName': shop_name,
+                'productCategories': product_categories
             }
             
-            # Create user
-            user = create_or_update_user(user_data, extra_data)
+            # Create user with enhanced validation
+            user, error_message = create_or_update_user(user_data, extra_data)
             
             if user:
                 # Create session
@@ -4301,34 +4306,55 @@ def register():
                 session['user_theme'] = 'tanzanite'  # Default theme
                 session.permanent = True
                 
-                # Update last login time
-                user.last_login = datetime.utcnow()
-                db.session.commit()
+                # Update last login time within transaction
+                try:
+                    user.last_login = datetime.utcnow()
+                    db.session.commit()
+                except Exception as session_error:
+                    logger.warning(f"Could not update last login time: {str(session_error)}")
+                    # Don't fail registration for this
                 
                 logger.info(f"New user registered successfully: {email}")
                 
                 if request.is_json:
                     return jsonify({
                         "success": True, 
-                        "message": "Registration successful",
+                        "message": "Registration successful! Welcome to your inventory system.",
                         "user": user.to_dict()
                     })
                 
                 flash('Registration successful! Welcome to your inventory system.', 'success')
                 return redirect(url_for('index'))
             else:
-                error_msg = "Registration failed. Please check your information and try again."
-                logger.error(f"Failed to create user for email: {email}")
+                # Use specific error message from create_or_update_user
+                error_msg = error_message or "Registration failed. Please try again."
+                logger.error(f"Failed to create user for email {email}: {error_msg}")
+                
                 if request.is_json:
-                    return jsonify({"success": False, "error": error_msg}), 500
+                    return jsonify({
+                        "success": False, 
+                        "error": error_msg
+                    }), 400
                 flash(error_msg, 'danger')
+                return render_template('register.html')
                 
         except Exception as e:
-            error_msg = f"Registration failed: {str(e)}"
-            logger.error(f"Registration error: {str(e)}")
+            # Ensure any database changes are rolled back
+            try:
+                db.session.rollback()
+            except:
+                pass
+                
+            error_msg = "Registration failed due to an unexpected error. Please try again."
+            logger.error(f"Unexpected registration error: {str(e)}")
+            
             if request.is_json:
-                return jsonify({"success": False, "error": "Registration failed. Please try again."}), 500
-            flash("Registration failed. Please try again.", 'danger')
+                return jsonify({
+                    "success": False, 
+                    "error": error_msg
+                }), 500
+            flash(error_msg, 'danger')
+            return render_template('register.html')
 
     return render_template('register.html')
 
