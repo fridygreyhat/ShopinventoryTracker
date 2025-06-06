@@ -60,11 +60,18 @@ def create_or_update_user(user_data, extra_data=None):
     """
     try:
         # Get email from user data
-        email = user_data.get("email")
-        password = user_data.get("password")
+        email = user_data.get("email", "").strip().lower()
+        password = user_data.get("password", "")
 
         if not email or not password:
             logger.error("Missing email or password in user data")
+            return None
+
+        # Validate email format
+        import re
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            logger.error(f"Invalid email format: {email}")
             return None
 
         # Check if user exists
@@ -76,6 +83,11 @@ def create_or_update_user(user_data, extra_data=None):
 
         # Create username from email (default behavior)
         username = email.split("@")[0] if email else "user"
+        
+        # Clean username (remove special characters except underscore)
+        username = re.sub(r'[^a-zA-Z0-9_]', '', username)
+        if not username:
+            username = "user"
 
         # Ensure username is unique
         counter = 1
@@ -88,7 +100,10 @@ def create_or_update_user(user_data, extra_data=None):
         new_user = User(
             email=email,
             username=username,
-            email_verified=True  # Set to True for PostgreSQL auth
+            email_verified=True,  # Set to True for PostgreSQL auth
+            active=True,
+            is_active=True,
+            is_admin=False
         )
 
         # Set password
@@ -96,16 +111,27 @@ def create_or_update_user(user_data, extra_data=None):
 
         # Add additional fields if provided
         if extra_data:
-            new_user.first_name = extra_data.get('firstName')
-            new_user.last_name = extra_data.get('lastName')
-            new_user.phone = extra_data.get('phone')
-            new_user.shop_name = extra_data.get('shopName')
-            new_user.product_categories = extra_data.get('productCategories')
+            if extra_data.get('firstName'):
+                new_user.first_name = extra_data.get('firstName').strip()
+            if extra_data.get('lastName'):
+                new_user.last_name = extra_data.get('lastName').strip()
+            if extra_data.get('phone'):
+                new_user.phone = extra_data.get('phone').strip()
+            if extra_data.get('shopName'):
+                new_user.shop_name = extra_data.get('shopName').strip()
+            if extra_data.get('productCategories'):
+                new_user.product_categories = extra_data.get('productCategories').strip()
+
+        # Set creation timestamp
+        new_user.created_at = datetime.utcnow()
+        new_user.updated_at = datetime.utcnow()
 
         db.session.add(new_user)
+        db.session.flush()  # Flush to get the user ID before commit
+        
+        logger.info(f"Created new user with ID {new_user.id}: {email}")
+        
         db.session.commit()
-
-        logger.info(f"Created new user: {email}")
         return new_user
 
     except Exception as e:

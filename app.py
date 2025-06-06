@@ -4231,69 +4231,104 @@ def register():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        data = request.json if request.is_json else request.form
-        
-        email = data.get('email')
-        password = data.get('password')
-        confirm_password = data.get('confirmPassword')
-        
-        # Validate required fields
-        if not email or not password:
-            error_msg = "Email and password are required"
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, 'danger')
-            return render_template('register.html')
-        
-        # Validate password confirmation
-        if password != confirm_password:
-            error_msg = "Passwords do not match"
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, 'danger')
-            return render_template('register.html')
-        
-        # Check if user already exists
-        if User.query.filter_by(email=email).first():
-            error_msg = "Email already registered"
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, 'danger')
-            return render_template('register.html')
-        
-        # Prepare user data
-        user_data = {'email': email, 'password': password}
-        extra_data = {
-            'firstName': data.get('firstName'),
-            'lastName': data.get('lastName'),
-            'shopName': data.get('shopName'),
-            'productCategories': data.get('productCategories')
-        }
-        
-        # Create user
-        user = create_or_update_user(user_data, extra_data)
-        
-        if user:
-            # Create session
-            session['user_id'] = user.id
-            session['email'] = user.email
-            session['is_admin'] = user.is_admin
-            session['user_theme'] = 'tanzanite'  # Default theme
+        try:
+            data = request.json if request.is_json else request.form
             
-            # Update last login time
-            user.last_login = datetime.utcnow()
-            db.session.commit()
+            email = data.get('email', '').strip()
+            password = data.get('password', '')
+            confirm_password = data.get('confirmPassword', '')
             
-            if request.is_json:
-                return jsonify({"success": True, "user": user.to_dict()})
+            # Validate required fields
+            if not email or not password:
+                error_msg = "Email and password are required"
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 400
+                flash(error_msg, 'danger')
+                return render_template('register.html')
             
-            flash('Registration successful! Welcome to your inventory system.', 'success')
-            return redirect(url_for('index'))
-        else:
-            error_msg = "Registration failed. Please try again."
+            # Validate email format
+            import re
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_regex, email):
+                error_msg = "Please enter a valid email address"
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 400
+                flash(error_msg, 'danger')
+                return render_template('register.html')
+            
+            # Validate password length
+            if len(password) < 6:
+                error_msg = "Password must be at least 6 characters long"
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 400
+                flash(error_msg, 'danger')
+                return render_template('register.html')
+            
+            # Validate password confirmation
+            if password != confirm_password:
+                error_msg = "Passwords do not match"
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 400
+                flash(error_msg, 'danger')
+                return render_template('register.html')
+            
+            # Check if user already exists
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                error_msg = "Email already registered"
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 400
+                flash(error_msg, 'danger')
+                return render_template('register.html')
+            
+            # Prepare user data
+            user_data = {'email': email, 'password': password}
+            extra_data = {
+                'firstName': data.get('firstName', '').strip(),
+                'lastName': data.get('lastName', '').strip(),
+                'shopName': data.get('shopName', '').strip(),
+                'productCategories': data.get('productCategories', '').strip()
+            }
+            
+            # Create user
+            user = create_or_update_user(user_data, extra_data)
+            
+            if user:
+                # Create session
+                session['user_id'] = user.id
+                session['email'] = user.email
+                session['is_admin'] = user.is_admin
+                session['user_theme'] = 'tanzanite'  # Default theme
+                session.permanent = True
+                
+                # Update last login time
+                user.last_login = datetime.utcnow()
+                db.session.commit()
+                
+                logger.info(f"New user registered successfully: {email}")
+                
+                if request.is_json:
+                    return jsonify({
+                        "success": True, 
+                        "message": "Registration successful",
+                        "user": user.to_dict()
+                    })
+                
+                flash('Registration successful! Welcome to your inventory system.', 'success')
+                return redirect(url_for('index'))
+            else:
+                error_msg = "Registration failed. Please check your information and try again."
+                logger.error(f"Failed to create user for email: {email}")
+                if request.is_json:
+                    return jsonify({"success": False, "error": error_msg}), 500
+                flash(error_msg, 'danger')
+                
+        except Exception as e:
+            error_msg = f"Registration failed: {str(e)}"
+            logger.error(f"Registration error: {str(e)}")
             if request.is_json:
-                return jsonify({"error": error_msg}), 500
-            flash(error_msg, 'danger')
+                return jsonify({"success": False, "error": "Registration failed. Please try again."}), 500
+            flash("Registration failed. Please try again.", 'danger')
 
     return render_template('register.html')
 

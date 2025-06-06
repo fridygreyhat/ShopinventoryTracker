@@ -145,15 +145,22 @@
 
     // Show error message
     function showError(message) {
-        errorDiv.textContent = message;
-        errorDiv.classList.remove('d-none');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('d-none');
+        } else {
+            console.error('Error div not found, showing alert instead:', message);
+            alert('Error: ' + message);
+        }
     }
 
     // Hide error when user starts typing
     const inputs = registerForm.querySelectorAll('input');
     inputs.forEach(input => {
         input.addEventListener('input', () => {
-            errorDiv.classList.add('d-none');
+            if (errorDiv) {
+                errorDiv.classList.add('d-none');
+            }
         });
     });
 </script>
