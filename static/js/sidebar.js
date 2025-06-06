@@ -117,9 +117,69 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle sidebar link clicks on mobile
     const sidebarLinks = sidebar.querySelectorAll('.sidebar-link');
     sidebarLinks.forEach(link => {
-        link.addEventListener('click', function() {
+        link.addEventListener('click', function(e) {
+            // Handle submenu toggle
+            if (this.hasAttribute('data-submenu')) {
+                e.preventDefault();
+                const submenuId = this.getAttribute('data-submenu');
+                const parentItem = this.closest('.sidebar-item');
+                const submenu = document.getElementById(submenuId);
+                
+                if (parentItem && submenu) {
+                    const isExpanded = parentItem.classList.contains('expanded');
+                    
+                    // Close all other submenus
+                    document.querySelectorAll('.sidebar-item.has-submenu.expanded').forEach(item => {
+                        if (item !== parentItem) {
+                            item.classList.remove('expanded');
+                        }
+                    });
+                    
+                    // Toggle current submenu
+                    if (isExpanded) {
+                        parentItem.classList.remove('expanded');
+                    } else {
+                        parentItem.classList.add('expanded');
+                    }
+                }
+                return;
+            }
+            
             if (window.innerWidth < 992) {
                 // Small delay to allow navigation to start
+                setTimeout(() => {
+                    hideMobileSidebar();
+                }, 100);
+            }
+        });
+    });
+
+    // Handle submenu link clicks
+    const sidebarSublinks = sidebar.querySelectorAll('.sidebar-sublink');
+    sidebarSublinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const targetId = this.getAttribute('data-target');
+            const url = this.getAttribute('href');
+            
+            // Update active states
+            sidebarSublinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Navigate to finance page if not already there
+            if (window.location.pathname !== url.split('#')[0]) {
+                // Store the target for after page load
+                sessionStorage.setItem('financeTarget', targetId);
+                window.location.href = url.split('#')[0];
+            } else {
+                // Already on finance page, just switch tabs
+                if (typeof window.switchFinanceTab === 'function') {
+                    window.switchFinanceTab(targetId);
+                }
+            }
+            
+            if (window.innerWidth < 992) {
                 setTimeout(() => {
                     hideMobileSidebar();
                 }, 100);
