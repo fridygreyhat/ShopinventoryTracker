@@ -1659,6 +1659,51 @@ def get_transactions():
     })
 
 
+@app.route('/api/finance/categories', methods=['GET'])
+@login_required
+def get_finance_categories():
+    """Get available financial transaction categories"""
+    try:
+        income_categories = [
+            'Sales Revenue',
+            'Service Revenue', 
+            'Interest Income',
+            'Rental Income',
+            'Commission Income',
+            'Other Income'
+        ]
+
+        expense_categories = [
+            'Cost of Goods Sold',
+            'Rent',
+            'Utilities',
+            'Salaries and Wages',
+            'Office Supplies',
+            'Marketing',
+            'Transportation',
+            'Insurance',
+            'Maintenance',
+            'Professional Services',
+            'Bank Fees',
+            'Depreciation',
+            'Tax',
+            'Other Expenses'
+        ]
+
+        transaction_type = request.args.get('type')
+        
+        if transaction_type == 'Income':
+            return jsonify(income_categories)
+        elif transaction_type == 'Expense':
+            return jsonify(expense_categories)
+        else:
+            # Return all categories
+            return jsonify(income_categories + expense_categories)
+            
+    except Exception as e:
+        app.logger.error(f"Error getting finance categories: {e}")
+        return jsonify({'error': 'Failed to get categories'}), 500
+
 @app.route('/api/finance/transactions', methods=['POST'])
 @login_required
 def add_transaction():
