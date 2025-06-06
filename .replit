@@ -10,6 +10,7 @@ deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -54,7 +55,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "python app.py"
 
 [[ports]]
 localPort = 5000

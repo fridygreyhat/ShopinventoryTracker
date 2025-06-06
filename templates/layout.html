@@ -175,67 +175,14 @@
 
         <!-- Sidebar Footer -->
         <div class="sidebar-footer">
-            {% if session.get('user_id') %}
-                <!-- Language Selector -->
-                <div class="sidebar-item">
-                    <div class="language-selector">
-                        <i class="fas fa-globe"></i>
-                        <select id="languageSelector" class="form-select form-select-sm">
-                            <option value="en">English</option>
-                            <option value="sw">Kiswahili</option>
-                        </select>
-                    </div>
+            <div class="sidebar-item">
+                <div class="sidebar-link text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-copyright me-1"></i>
+                        2025 Inventory Tracker
+                    </small>
                 </div>
-
-                <!-- User Menu -->
-                <div class="sidebar-item">
-                    <div class="user-menu dropdown">
-                        <a class="sidebar-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-circle"></i>
-                            <span class="sidebar-text">{{ session.get('email', 'Account') }}</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('account') }}">
-                                    <i class="fas fa-user me-2"></i> My Account
-                                </a>
-                            </li>
-                            {% if session.get('is_admin') %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('admin_users') }}">
-                                    <i class="fas fa-users-cog me-2"></i> User Management
-                                </a>
-                            </li>
-                            {% endif %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('logout') }}">
-                                    <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            {% else %}
-                <!-- Auth Links -->
-                <ul class="sidebar-menu">
-                    <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('login') %}active{% endif %}" 
-                           href="{{ url_for('login') }}">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span class="sidebar-text">Login</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-item">
-                        <a class="sidebar-link {% if request.path == url_for('register') %}active{% endif %}" 
-                           href="{{ url_for('register') }}">
-                            <i class="fas fa-user-plus"></i>
-                            <span class="sidebar-text">Register</span>
-                        </a>
-                    </li>
-                </ul>
-            {% endif %}
+            </div>
         </div>
     </div>
 
@@ -250,6 +197,73 @@
                 <h1 class="page-title mb-0">
                     {% block page_title %}Dashboard{% endblock %}
                 </h1>
+            </div>
+            
+            <!-- Top-right controls -->
+            <div class="top-bar-controls">
+                {% if session.get('user_id') %}
+                    <!-- Language Selector -->
+                    <div class="top-language-selector me-3">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="topLanguageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-globe me-2"></i>
+                                <span id="currentLanguage">English</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topLanguageDropdown">
+                                <li>
+                                    <a class="dropdown-item language-option" href="#" data-lang="en">
+                                        <i class="fas fa-flag-usa me-2"></i> English
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item language-option" href="#" data-lang="sw">
+                                        <i class="fas fa-flag me-2"></i> Kiswahili
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- User Dropdown -->
+                    <div class="top-user-menu">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="topUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-2"></i>
+                                <span class="user-email">{{ session.get('email', 'Account') }}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topUserDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('account') }}">
+                                        <i class="fas fa-user me-2"></i> My Account
+                                    </a>
+                                </li>
+                                {% if session.get('is_admin') %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('admin_users') }}">
+                                        <i class="fas fa-users-cog me-2"></i> User Management
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="/logout">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Auth Links for non-logged users -->
+                    <div class="top-auth-links">
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-sign-in-alt me-1"></i> Login
+                        </a>
+                        <a href="{{ url_for('register') }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-1"></i> Register
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
