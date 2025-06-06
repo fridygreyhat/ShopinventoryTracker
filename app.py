@@ -140,6 +140,12 @@ def sanitize_input(data, allowed_fields):
 
 # Import auth service
 from auth_service import login_required, verify_firebase_token, create_or_update_user
+from datetime import datetime, timedelta
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # Template helper function
@@ -4225,6 +4231,67 @@ def register():
 
 
 @app.route('/api/auth/session', methods=['POST'])
+def create_session():
+    """Create a session after Firebase authentication"""
+    try:
+        data = request.get_json()
+        if not data or 'idToken' not in data:
+            logger.error("No ID token provided in session request")
+            return jsonify({'error': 'ID token is required'}), 400
+
+        id_token = data['idToken']
+        remember = data.get('remember', False)
+
+        logger.info(f"Creating session with token length: {len(id_token) if id_token else 0}")
+
+        # Verify the Firebase token
+        user_data = verify_firebase_token(id_token)
+        if not user_data:
+            logger.error("Token verification failed")
+            return jsonify({'error': 'Invalid token'}), 401
+
+        logger.info(f"Token verified for user: {user_data.get('email')}")
+
+        # Create or update user in database
+        user = create_or_update_user(user_data)
+        if not user:
+            logger.error("Failed to create/update user in database")
+            return jsonify({'error': 'Failed to create user session'}), 500
+
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+
+        # Create session
+        session['user_id'] = user.id
+        session['user_email'] = user.email
+        session['firebase_uid'] = user.firebase_uid
+
+        # Set session permanence
+        if remember:
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(days=30)
+        else:
+            session.permanent = False
+
+        logger.info(f"Session created successfully for user ID: {user.id}")
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'firebase_uid': user.firebase_uid
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Session creation error: {str(e)}")
+        return jsonify({'error': 'Session creation failed'}), 500
+
+
+@app.route('/api/auth/register', methods=['POST'])
 def create_session():
     """Create a session for authenticated user using Firebase token"""
     try:

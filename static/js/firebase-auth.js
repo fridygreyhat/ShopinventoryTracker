@@ -101,6 +101,8 @@ export async function sendPasswordReset(auth, email) {
 export async function createSession(token, remember = false) {
     try {
         console.log('Creating session with server...');
+        console.log('Token length:', token ? token.length : 0);
+        console.log('Remember me:', remember);
 
         const response = await fetch('/api/auth/session', {
             method: 'POST',
@@ -113,13 +115,24 @@ export async function createSession(token, remember = false) {
             })
         });
 
+        console.log('Session response status:', response.status);
+
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorText = await response.text();
+            console.error('Session creation failed:', errorText);
+            
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { error: 'Session creation failed' };
+            }
+            
             throw new Error(errorData.error || 'Session creation failed');
         }
 
         const sessionData = await response.json();
-        console.log('Session created successfully');
+        console.log('Session created successfully:', sessionData);
         return sessionData;
     } catch (error) {
         console.error('Session creation error:', error);
