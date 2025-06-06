@@ -115,8 +115,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=True)
     role = db.Column(db.String(20), default=UserRole.VIEWER.value)
-    # Firebase UID for authentication
-    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
+    # Removed Firebase UID - using PostgreSQL authentication only
 
     def set_password(self, password):
         """Set the user's password hash"""

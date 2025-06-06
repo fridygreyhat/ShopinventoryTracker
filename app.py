@@ -63,11 +63,7 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
     return response
 
-# Firebase configuration
-app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
-app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
-app.config["FIREBASE_APP_ID"] = os.environ.get("FIREBASE_APP_ID")
-print(os.environ.get("FIREBASE_API_KEY"))
+# Removed Firebase configuration - using PostgreSQL authentication only
 
 
 # Database configuration
@@ -139,7 +135,7 @@ def sanitize_input(data, allowed_fields):
 
 
 # Import auth service
-from auth_service import login_required, verify_firebase_token, create_or_update_user
+from auth_service import login_required, authenticate_user, create_or_update_user
 
 
 # Template helper function
@@ -4179,15 +4175,52 @@ def login():
     if 'user_id' in session:
         return redirect(url_for('index'))
 
-    # Render login template
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
+    if request.method == 'POST':
+        data = request.json if request.is_json else request.form
+        email = data.get('email')
+        password = data.get('password')
+        remember = data.get('remember', False)
 
-    return render_template('login.html', firebase_config=firebase_config)
+        if not email or not password:
+            if request.is_json:
+                return jsonify({"error": "Email and password are required"}), 400
+            flash('Email and password are required', 'danger')
+            return render_template('login.html')
+
+        # Authenticate user
+        user = authenticate_user(email, password)
+        
+        if user:
+            # Create session
+            session['user_id'] = user.id
+            session['email'] = user.email
+            session['is_admin'] = user.is_admin
+            session.permanent = remember
+
+            # Update last login time
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+
+            # Load user theme preference
+            from models import Setting
+            theme_key = f"user_{user.id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            if theme_setting:
+                session['user_theme'] = theme_setting.value
+            else:
+                session['user_theme'] = 'tanzanite'  # Default theme
+
+            if request.is_json:
+                return jsonify({"success": True, "user": user.to_dict()})
+            
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('index'))
+        else:
+            if request.is_json:
+                return jsonify({"error": "Invalid email or password"}), 401
+            flash('Invalid email or password', 'danger')
+
+    return render_template('login.html')
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -4197,130 +4230,75 @@ def register():
     if 'user_id' in session:
         return redirect(url_for('index'))
 
-    # Render registration template with Firebase config
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
-
-    return render_template('register.html', firebase_config=firebase_config)
-
-
-@app.route('/api/auth/session', methods=['POST'])
-def create_session():
-    """Create a session for authenticated user using Firebase token"""
-    try:
-        data = request.json
-
-        logger.info("Session creation request received")
-
-        if not data or 'idToken' not in data:
-            logger.warning("Missing idToken in session creation request")
-            return jsonify({"error": "Firebase ID token is required"}), 400
-
-        # Verify the Firebase token
-        logger.info("Verifying Firebase token...")
-        user_data = verify_firebase_token(data['idToken'])
-
-        if not user_data:
-            logger.warning("Firebase token verification failed")
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        logger.info(
-            f"Firebase token verified successfully for email: {user_data.get('email')}"
-        )
-
-        # Create or update user in database
-        logger.info("Creating or updating user in database...")
-        user = create_or_update_user(user_data)
-
-        if not user:
-            logger.error("Failed to create or update user record")
-            return jsonify({"error": "Failed to create user record"}), 500
-
-        logger.info(
-            f"User record updated/created successfully for ID: {user.id}")
-
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-
-        # Set session data
-        logger.info("Setting session data...")
-        session['user_id'] = user.id
-        session['email'] = user.email
-        session['is_admin'] = user.is_admin
-        session.permanent = data.get('remember', False)
-
-        # Load user theme preference
-        from models import Setting
-        theme_key = f"user_{user.id}_theme"
-        theme_setting = Setting.query.filter_by(key=theme_key).first()
-        if theme_setting:
-            session['user_theme'] = theme_setting.value
-            logger.info(f"Loaded user theme: {theme_setting.value}")
-        else:
-            session['user_theme'] = 'tanzanite'  # Default theme
-            logger.info("Using default theme: tanzanite")
-
-        logger.info("Session created successfully")
-        return jsonify({"success": True, "user": user.to_dict()})
-
-    except Exception as e:
-        logger.error(f"Error creating session with Firebase: {str(e)}")
-        return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
-
-
-@app.route('/api/auth/register', methods=['POST'])
-def register_user():
-    """Register a new user via Firebase API"""
-    try:
-        data = request.json
-
-        if not data or 'idToken' not in data:
-            return jsonify({"error": "Firebase ID token is required"}), 400
-
-        # Additional user data from registration form
-        extra_data = {}
-        if 'username' in data:
-            extra_data['username'] = data['username']
-        if 'firstName' in data:
-            extra_data['first_name'] = data['firstName']
-        if 'lastName' in data:
-            extra_data['last_name'] = data['lastName']
-        if 'shopName' in data:
-            extra_data['shop_name'] = data['shopName']
-        if 'productCategories' in data:
-            extra_data['product_categories'] = data['productCategories']
-
-        # Verify the Firebase token
-        user_data = verify_firebase_token(data['idToken'])
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        # Create or update user in database with extra profile data
+    if request.method == 'POST':
+        data = request.json if request.is_json else request.form
+        
+        email = data.get('email')
+        password = data.get('password')
+        confirm_password = data.get('confirmPassword')
+        
+        # Validate required fields
+        if not email or not password:
+            error_msg = "Email and password are required"
+            if request.is_json:
+                return jsonify({"error": error_msg}), 400
+            flash(error_msg, 'danger')
+            return render_template('register.html')
+        
+        # Validate password confirmation
+        if password != confirm_password:
+            error_msg = "Passwords do not match"
+            if request.is_json:
+                return jsonify({"error": error_msg}), 400
+            flash(error_msg, 'danger')
+            return render_template('register.html')
+        
+        # Check if user already exists
+        if User.query.filter_by(email=email).first():
+            error_msg = "Email already registered"
+            if request.is_json:
+                return jsonify({"error": error_msg}), 400
+            flash(error_msg, 'danger')
+            return render_template('register.html')
+        
+        # Prepare user data
+        user_data = {'email': email, 'password': password}
+        extra_data = {
+            'firstName': data.get('firstName'),
+            'lastName': data.get('lastName'),
+            'shopName': data.get('shopName'),
+            'productCategories': data.get('productCategories')
+        }
+        
+        # Create user
         user = create_or_update_user(user_data, extra_data)
+        
+        if user:
+            # Create session
+            session['user_id'] = user.id
+            session['email'] = user.email
+            session['is_admin'] = user.is_admin
+            session['user_theme'] = 'tanzanite'  # Default theme
+            
+            # Update last login time
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
+            if request.is_json:
+                return jsonify({"success": True, "user": user.to_dict()})
+            
+            flash('Registration successful! Welcome to your inventory system.', 'success')
+            return redirect(url_for('index'))
+        else:
+            error_msg = "Registration failed. Please try again."
+            if request.is_json:
+                return jsonify({"error": error_msg}), 500
+            flash(error_msg, 'danger')
 
-        if not user:
-            return jsonify({"error": "Failed to create user record"}), 500
+    return render_template('register.html')
 
-        # Set session data
-        session['user_id'] = user.id
-        session['email'] = user.email
-        session['is_admin'] = user.is_admin
-        session.permanent = data.get('remember', False)
 
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify({"success": True, "user": user.to_dict()})
-
-    except Exception as e:
-        logger.error(f"Error registering user: {str(e)}")
-        return jsonify({"error": "Failed to register user"}), 500
+# PostgreSQL-based authentication routes are now handled in the main login/register routes above
 
 
 # This logout route is now unified with the existing one at line 770
