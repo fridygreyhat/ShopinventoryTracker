@@ -1530,6 +1530,7 @@ def logout():
         # Update last logout time if user exists
         if user_id:
             try:
+                from models import User
                 user = User.query.get(user_id)
                 if user:
                     user.updated_at = datetime.utcnow()

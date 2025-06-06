@@ -1,3 +1,4 @@
+
 /**
  * Firebase Authentication Module
  * This module provides functions for handling authentication with Firebase
@@ -13,10 +14,9 @@
  */
 export async function loginWithEmailPassword(auth, email, password) {
     try {
-        // Import directly to avoid naming conflict
+        // Import signInWithEmailAndPassword function
         const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
-        // Use the auth instance passed from the login page
         console.log('Attempting to sign in with:', email);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log('Sign in successful, user:', userCredential.user.email);
@@ -37,7 +37,7 @@ export async function loginWithEmailPassword(auth, email, password) {
  */
 export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
-        // Import directly to avoid naming conflict
+        // Import createUserWithEmailAndPassword function
         const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
         console.log('Attempting to register with:', email);
@@ -81,10 +81,9 @@ export async function registerWithEmailPassword(auth, email, password, userData)
  */
 export async function sendPasswordReset(auth, email) {
     try {
-        // Import directly to avoid naming conflict
+        // Import sendPasswordResetEmail function
         const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
-        // Use the Firebase function with the auth instance passed from the login page
         await sendPasswordResetEmail(auth, email);
         return { success: true };
     } catch (error) {
@@ -128,34 +127,19 @@ export async function createSession(token, remember = false) {
     }
 }
 
-// Session management
-export async function createSession(idToken, remember = false) {
+/**
+ * Sign out user
+ * @param {Object} auth - Firebase Auth instance
+ * @returns {Promise} Promise that resolves when user is signed out
+ */
+export async function signOutUser(auth) {
     try {
-        const response = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                idToken: idToken,
-                remember: remember
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Session creation failed');
-        }
-
-        return data;
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        await signOut(auth);
+        console.log('User signed out successfully');
+        return { success: true };
     } catch (error) {
-        console.error('Session creation error:', error);
+        console.error('Sign out error:', error);
         throw error;
     }
 }
-
-export { signInWithEmailAndPassword as loginWithEmailPassword };
-export { createUserWithEmailAndPassword as registerWithEmailPassword };
-export { sendPasswordResetEmail as sendPasswordReset };
-export { signOut as signOutUser };

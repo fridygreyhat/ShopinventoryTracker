@@ -124,8 +124,13 @@
             return;
         }
 
-        if (!email.includes('@')) {
+        if (!email.includes('@') || !email.includes('.')) {
             showError('Please enter a valid email address.');
+            return;
+        }
+
+        if (password.length < 6) {
+            showError('Password must be at least 6 characters long.');
             return;
         }
 
@@ -144,29 +149,21 @@
             
             // Create session with server
             console.log('Creating session with server...');
-            try {
-                const sessionResult = await createSession(token, remember);
-                console.log('Session created successfully:', sessionResult);
-                
-                // Clear form
-                emailInput.value = '';
-                passwordInput.value = '';
-                
-                // On success, redirect to dashboard
+            const sessionResult = await createSession(token, remember);
+            console.log('Session created successfully:', sessionResult);
+            
+            // Clear form
+            emailInput.value = '';
+            passwordInput.value = '';
+            
+            // Show success message briefly
+            loginButton.innerHTML = '<i class="fas fa-check"></i> Success!';
+            
+            // Redirect to dashboard after brief delay
+            setTimeout(() => {
                 console.log('Redirecting to dashboard...');
                 window.location.href = '/';
-            } catch (sessionError) {
-                console.error('Session creation failed:', sessionError);
-                loginButton.disabled = false;
-                loginButton.innerHTML = 'Login';
-                
-                if (sessionError.message && sessionError.message.includes('session')) {
-                    showError('Session creation failed. Please try again.');
-                } else {
-                    showError('Login succeeded but could not create session. Please try again.');
-                }
-                throw sessionError;
-            }
+            }, 1000);
             
         } catch (error) {
             // Reset button and show error
@@ -176,7 +173,11 @@
             console.error('Login error:', error);
             
             let errorMessage = 'Authentication failed. Please check your credentials.';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            
+            // Handle Firebase auth errors
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = 'No account found with this email address.';
+            } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                 errorMessage = 'Invalid email or password. Please try again.';
             } else if (error.code === 'auth/too-many-requests') {
                 errorMessage = 'Too many failed login attempts. Please try again later.';
@@ -188,11 +189,13 @@
                 errorMessage = 'Network error. Please check your connection and try again.';
             } else if (error.message && error.message.includes('session')) {
                 errorMessage = 'Login succeeded but session creation failed. Please try again.';
+            } else if (error.message && error.message.includes('Session creation failed')) {
+                errorMessage = 'Session creation failed. Please try again.';
             }
             
             // Log specific error details for debugging
-            console.log('Firebase error code:', error.code);
-            console.log('Firebase error message:', error.message);
+            console.log('Error code:', error.code);
+            console.log('Error message:', error.message);
             
             showError(errorMessage);
         }

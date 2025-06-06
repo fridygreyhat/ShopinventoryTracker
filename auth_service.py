@@ -94,9 +94,13 @@ def verify_firebase_token(id_token):
 
             # Verify token with REST API
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={firebase_api_key}"
-            logger.info(f"Making request to Firebase REST API at {url[:50]}...")
+            logger.info(f"Making request to Firebase REST API...")
 
-            response = requests.post(url, json={"idToken": id_token})
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(url, json={"idToken": id_token}, headers=headers, timeout=10)
 
             if response.status_code != 200:
                 logger.error(f"Failed to verify token with REST API: Status code {response.status_code}")
@@ -105,15 +109,19 @@ def verify_firebase_token(id_token):
 
             # Extract user data
             response_data = response.json()
-            logger.info(f"REST API response received: {json.dumps(response_data)[:100]}...")
+            logger.info(f"REST API response received successfully")
 
             if "users" not in response_data or not response_data["users"]:
                 logger.error("No user found in Firebase response")
                 return None
 
-            logger.info(f"Token verified with Firebase REST API for user: {response_data['users'][0].get('email')}")
-            return response_data["users"][0]
+            user_info = response_data["users"][0]
+            logger.info(f"Token verified with Firebase REST API for user: {user_info.get('email')}")
+            return user_info
 
+    except requests.exceptions.RequestException as req_error:
+        logger.error(f"Network error during token verification: {str(req_error)}")
+        return None
     except Exception as e:
         logger.error(f"Error verifying Firebase token: {str(e)}")
         logger.error(f"Token verification failed. Token starts with: {id_token[:10] if id_token and len(id_token) >= 10 else 'INVALID_TOKEN'}...")
