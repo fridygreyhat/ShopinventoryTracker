@@ -1,0 +1,114 @@
+When migrating from Firebase Authentication to a custom PostgreSQL-based login system, users often face login issues because Firebase handled authentication (password hashing, tokens, etc.) differently from a custom backend. Here’s a step-by-step guide to help fix login issues post-migration:
+
+🔧 1. Understand What Firebase Auth Did
+Firebase Authentication:
+
+Hashed and stored passwords securely (usually using bcrypt).
+
+Managed login tokens (JWTs).
+
+Provided email/password, social logins (Google, Facebook), etc.
+
+If you're now using PostgreSQL for authentication, you’re likely implementing this manually.
+
+✅ 2. Export Firebase Users (if you haven't)
+If you haven’t already, you can export Firebase users via:
+
+Firebase Admin SDK (listUsers)
+
+Or the Firebase CLI for JSON export
+
+Each user will look like:
+
+json
+Copy
+Edit
+{
+  "uid": "123",
+  "email": "user@example.com",
+  "passwordHash": "HASHED_STRING",
+  ...
+}
+🔐 3. Migrate Password Hashes
+Firebase uses a specific hashing algorithm (typically scrypt or bcrypt, depending on the project). You cannot just copy the password string into PostgreSQL unless your new system uses the exact same hashing method and salt.
+
+Option A: Use Firebase password hashes
+Set up your backend to support Firebase's scrypt/bcrypt format.
+
+Firebase often uses modified scrypt.
+
+You’ll need:
+
+passwordHash
+
+salt
+
+Other parameters like signerKey, memoryCost, rounds, etc.
+
+See Firebase export format for full hash params.
+
+Option B: Ask users to reset passwords
+Force a password reset on next login.
+
+Notify users via email with a reset link.
+
+On reset, store passwords using your new hashing scheme (e.g., bcrypt).
+
+🧪 4. Fix Login Logic in PostgreSQL System
+Your custom login flow should:
+
+Query PostgreSQL for the user by email.
+
+Retrieve hashed password and salt.
+
+Hash the incoming password using the same algorithm.
+
+Compare hashes securely (timingSafeEqual, etc.).
+
+🔁 5. JWT Token Generation
+If Firebase managed session tokens, your new backend must now:
+
+Issue JWT tokens (or sessions).
+
+Store refresh tokens securely (if needed).
+
+Validate tokens on protected routes.
+
+Use libraries like:
+
+jsonwebtoken (Node.js)
+
+jwt (Python)
+
+pyjwt, etc.
+
+🧼 6. Clean Up Firebase Auth (Optional)
+Once you're confident the migration is successful:
+
+Disable Firebase Auth.
+
+Or remove users from Firebase.
+
+✅ Example Login Code (Node.js + bcrypt):
+js
+Copy
+Edit
+const bcrypt = require('bcrypt');
+const user = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+
+if (!user) return res.status(401).send('Invalid credentials');
+
+const valid = await bcrypt.compare(inputPassword, user.password_hash);
+if (!valid) return res.status(401).send('Invalid credentials');
+
+// Generate JWT
+const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+res.send({ token });
+📌 Final Tips
+Validate your hashing algorithm.
+
+Use HTTPS.
+
+Implement rate limiting and brute-force protection.
+
+Securely store salts and hash parameters if using Firebase's old hashes.
