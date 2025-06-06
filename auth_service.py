@@ -198,20 +198,22 @@ def create_or_update_user(user_data, extra_data=None):
     try:
         # Get email from Firebase user data
         email = user_data.get("email")
-        firebase_uid = user_data.get("localId")
+        firebase_uid = user_data.get("localId") or user_data.get("uid")
 
-        if not email or not firebase_uid:
-            logger.error("Missing email or Firebase UID in user data")
+        if not email:
+            logger.error("Missing email in user data")
             return None
 
-        # Check if user exists by email or firebase_uid
-        user = User.query.filter(
-            (User.email == email) | (User.firebase_uid == firebase_uid)
-        ).first()
+        # Check if user exists by email first, then by firebase_uid
+        user = User.query.filter_by(email=email).first()
+        
+        if not user and firebase_uid:
+            user = User.query.filter_by(firebase_uid=firebase_uid).first()
 
         if user:
             # Update existing user
-            user.firebase_uid = firebase_uid
+            if firebase_uid:
+                user.firebase_uid = firebase_uid
             user.email = email  # Update email in case it changed
             user.email_verified = user_data.get("emailVerified", False)
             user.updated_at = datetime.utcnow()
@@ -256,7 +258,8 @@ def create_or_update_user(user_data, extra_data=None):
             email_verified=user_data.get("emailVerified", False),
             active=True,
             is_active=True,
-            is_admin=False
+            is_admin=False,
+            role='viewer'
         )
 
         # Set a placeholder password hash for Firebase users
@@ -296,7 +299,25 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         # Check if user is logged in
         if "user_id" not in session:
+            if request.is_json:
+                return jsonify({"error": "Authentication required"}), 401
             return redirect(url_for("login", next=request.url))
+        
+        # Verify user still exists in database
+        try:
+            from models import User
+            user = User.query.get(session["user_id"])
+            if not user or not getattr(user, 'active', True):
+                session.clear()
+                if request.is_json:
+                    return jsonify({"error": "User account not found or inactive"}), 401
+                return redirect(url_for("login"))
+        except Exception as e:
+            logger.error(f"Error verifying user in login_required: {str(e)}")
+            if request.is_json:
+                return jsonify({"error": "Authentication error"}), 500
+            return redirect(url_for("login"))
+        
         return f(*args, **kwargs)
     return decorated_function
 

@@ -4292,7 +4292,7 @@ def create_session():
 
 
 @app.route('/api/auth/register', methods=['POST'])
-def register_user():
+def create_session():
     """Create a session for authenticated user using Firebase token"""
     try:
         data = request.json
