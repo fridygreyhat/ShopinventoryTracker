@@ -156,3 +156,77 @@ export async function signOutUser(auth) {
         throw error;
     }
 }
+
+/**
+ * Native login (fallback when Firebase is unavailable)
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {boolean} remember - Whether to remember the session
+ * @returns {Promise} Server response
+ */
+export async function loginNative(email, password, remember = false) {
+    try {
+        console.log('Attempting native login for:', email);
+        
+        const response = await fetch('/api/auth/login-native', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                remember: remember
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Native login failed');
+        }
+
+        const loginData = await response.json();
+        console.log('Native login successful:', loginData);
+        return loginData;
+    } catch (error) {
+        console.error('Native login error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Native registration (fallback when Firebase is unavailable)
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {Object} userData - Additional user data
+ * @returns {Promise} Server response
+ */
+export async function registerNative(email, password, userData) {
+    try {
+        console.log('Attempting native registration for:', email);
+        
+        const response = await fetch('/api/auth/register-native', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                ...userData
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Native registration failed');
+        }
+
+        const registrationData = await response.json();
+        console.log('Native registration successful:', registrationData);
+        return registrationData;
+    } catch (error) {
+        console.error('Native registration error:', error);
+        throw error;
+    }
+}
