@@ -87,7 +87,7 @@
     // Import Firebase modules and our authentication module
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { loginWithEmailPassword, createSession, sendPasswordReset } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
+    import { loginWithEmailPassword, createSession, sendPasswordReset, loginNative } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
 
     // Firebase configuration from server
     const firebaseConfig = {
@@ -138,31 +138,51 @@
             loginButton.disabled = true;
             loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
 
-            // Sign in with Firebase using our helper function
-            console.log('Attempting to login with Firebase...');
-            const userCredential = await loginWithEmailPassword(auth, email, password);
-            console.log('Firebase login successful, getting token...');
+            let loginSuccessful = false;
 
-            const token = await userCredential.user.getIdToken();
-            console.log('Token received, length:', token ? token.length : 0);
+            try {
+                // Try Firebase login first
+                console.log('Attempting to login with Firebase...');
+                const userCredential = await loginWithEmailPassword(auth, email, password);
+                console.log('Firebase login successful, getting token...');
 
-            // Create session with server
-            console.log('Creating session with server...');
-            const sessionResult = await createSession(token, remember);
-            console.log('Session created successfully:', sessionResult);
+                const token = await userCredential.user.getIdToken();
+                console.log('Token received, length:', token ? token.length : 0);
 
-            // Clear form
-            emailInput.value = '';
-            passwordInput.value = '';
+                // Create session with server
+                console.log('Creating session with server...');
+                const sessionResult = await createSession(token, remember);
+                console.log('Session created successfully:', sessionResult);
+                
+                loginSuccessful = true;
+            } catch (firebaseError) {
+                console.log('Firebase login failed, trying native login...', firebaseError.message);
+                
+                // Fallback to native login
+                try {
+                    const nativeResult = await loginNative(email, password, remember);
+                    console.log('Native login successful:', nativeResult);
+                    loginSuccessful = true;
+                } catch (nativeError) {
+                    console.error('Native login also failed:', nativeError);
+                    throw nativeError; // This will be caught by the outer catch block
+                }
+            }
 
-            // Show success message briefly
-            loginButton.innerHTML = '<i class="fas fa-check"></i> Success!';
+            if (loginSuccessful) {
+                // Clear form
+                emailInput.value = '';
+                passwordInput.value = '';
 
-            // Redirect to dashboard after brief delay
-            setTimeout(() => {
-                console.log('Redirecting to dashboard...');
-                window.location.href = '/';
-            }, 1000);
+                // Show success message briefly
+                loginButton.innerHTML = '<i class="fas fa-check"></i> Success!';
+
+                // Redirect to dashboard after brief delay
+                setTimeout(() => {
+                    console.log('Redirecting to dashboard...');
+                    window.location.href = '/';
+                }, 1000);
+            }
 
         } catch (error) {
             // Reset button and show error
