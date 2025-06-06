@@ -6,203 +6,184 @@
     <h1 class="mb-4">💰 Financial & Accounting Management</h1>
     
     <!-- Financial Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-arrow-circle-down fa-3x mb-3 text-success"></i>
-                    <h5 class="card-title">Total Income</h5>
-                    <p class="display-6" id="total-income">
-                        <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
-                    </p>
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-arrow-trend-up fa-2x text-white"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Total Income</h6>
+                        <h3 class="display-6 text-white mb-0" id="total-income">
+                            <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
+                        </h3>
+                    </div>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-arrow-circle-up fa-3x mb-3 text-danger"></i>
-                    <h5 class="card-title">Total Expenses</h5>
-                    <p class="display-6" id="total-expenses">
-                        <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
-                    </p>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-arrow-trend-down fa-2x text-white"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Total Expenses</h6>
+                        <h3 class="display-6 text-white mb-0" id="total-expenses">
+                            <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
+                        </h3>
+                    </div>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-down text-white"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-coins fa-3x mb-3 text-warning"></i>
-                    <h5 class="card-title">Gross Profit</h5>
-                    <p class="display-6" id="gross-profit">
-                        <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
-                    </p>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-coins fa-2x text-white"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Gross Profit</h6>
+                        <h3 class="display-6 text-white mb-0" id="gross-profit">
+                            <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
+                        </h3>
+                    </div>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-chart-line fa-3x mb-3 text-info"></i>
-                    <h5 class="card-title">Net Profit</h5>
-                    <p class="display-6" id="net-profit">
-                        <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
-                    </p>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
+            <div class="card summary-card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-3">
+                    <div class="icon-container me-3">
+                        <i class="fas fa-chart-line fa-2x text-white"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="card-title text-white mb-1">Net Profit</h6>
+                        <h3 class="display-6 text-white mb-0" id="net-profit">
+                            <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
+                        </h3>
+                    </div>
+                    <div class="trend-indicator">
+                        <i class="fas fa-arrow-up text-white"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Financial Modules Navigation - Vertical Layout -->
+    <!-- Main Content Area -->
     <div class="row">
-        <!-- Vertical Finance Navigation Sidebar -->
-        <div class="col-lg-3 col-md-4 mb-4">
-            <div class="card finance-sidebar">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Finance Modules</h5>
-                </div>
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
-                    <ul class="list-group list-group-flush finance-nav" id="finance-modules-nav" role="tablist">
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn active" 
-                                    id="cash-flow-tab" data-bs-toggle="tab" data-bs-target="#cash-flow-content" 
-                                    type="button" role="tab" aria-controls="cash-flow-content" aria-selected="true">
-                                <i class="fas fa-money-bill-wave me-3 text-success"></i>Cash Flow
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="profit-loss-tab" data-bs-toggle="tab" data-bs-target="#profit-loss-content" 
-                                    type="button" role="tab" aria-controls="profit-loss-content" aria-selected="false">
-                                <i class="fas fa-chart-bar me-3 text-info"></i>Profit / Loss
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="balance-sheet-tab" data-bs-toggle="tab" data-bs-target="#balance-sheet-content" 
-                                    type="button" role="tab" aria-controls="balance-sheet-content" aria-selected="false">
-                                <i class="fas fa-balance-scale me-3 text-warning"></i>Balance Sheet
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="trial-balance-tab" data-bs-toggle="tab" data-bs-target="#trial-balance-content" 
-                                    type="button" role="tab" aria-controls="trial-balance-content" aria-selected="false">
-                                <i class="fas fa-calculator me-3 text-secondary"></i>Trial Balance
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="general-ledger-tab" data-bs-toggle="tab" data-bs-target="#general-ledger-content" 
-                                    type="button" role="tab" aria-controls="general-ledger-content" aria-selected="false">
-                                <i class="fas fa-book me-3 text-primary"></i>General Ledger
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="chart-accounts-tab" data-bs-toggle="tab" data-bs-target="#chart-accounts-content" 
-                                    type="button" role="tab" aria-controls="chart-accounts-content" aria-selected="false">
-                                <i class="fas fa-list me-3 text-success"></i>Chart of Accounts
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-content" 
-                                    type="button" role="tab" aria-controls="journal-content" aria-selected="false">
-                                <i class="fas fa-journal-whills me-3 text-info"></i>Manual Journal
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="bank-transfers-tab" data-bs-toggle="tab" data-bs-target="#bank-transfers-content" 
-                                    type="button" role="tab" aria-controls="bank-transfers-content" aria-selected="false">
-                                <i class="fas fa-exchange-alt me-3 text-warning"></i>Bank Transfers
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="reconcile-tab" data-bs-toggle="tab" data-bs-target="#reconcile-content" 
-                                    type="button" role="tab" aria-controls="reconcile-content" aria-selected="false">
-                                <i class="fas fa-check-double me-3 text-success"></i>Reconcile
-                            </button>
-                        </li>
-                        <li class="list-group-item border-0">
-                            <button class="btn btn-outline-light w-100 text-start finance-nav-btn" 
-                                    id="branch-equity-tab" data-bs-toggle="tab" data-bs-target="#branch-equity-content" 
-                                    type="button" role="tab" aria-controls="branch-equity-content" aria-selected="false">
-                                <i class="fas fa-building me-3 text-primary"></i>Branch Equity
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Main Content Area -->
-        <div class="col-lg-9 col-md-8">
-            <div class="card finance-content-card">
-                <div class="card-body">
                     <div class="tab-content" id="finance-modules-content"></div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- End of vertical layout wrapper -->
-                <!-- Cash Flow Tab -->
                 <div class="tab-pane fade show active" id="cash-flow-content" role="tabpanel">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <h5><i class="fas fa-money-bill-wave text-success"></i> Cash Flow Analysis</h5>
+                    <div class="p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h4 class="mb-1 fw-bold text-primary">
+                                    <i class="fas fa-water me-2"></i>Cash Flow Analysis
+                                </h4>
+                                <p class="text-muted mb-0">Monitor your cash inflows and outflows</p>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
+                                    <i class="fas fa-plus me-1"></i>Add Entry
+                                </button>
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-md-6 text-end">
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCashFlowModal">
-                                <i class="fas fa-plus"></i> Add Cash Flow Entry
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Cash Flow Charts -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Monthly Cash Flow</h6>
+                        
+                        <!-- Enhanced Cash Flow Charts -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-header bg-transparent border-0 pb-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-wrapper me-2">
+                                                <i class="fas fa-chart-bar text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">Monthly Cash Flow</h6>
+                                                <small class="text-muted">Income vs expenses by month</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body pt-2">
+                                        <div style="height: 250px;">
+                                            <canvas id="monthlyCashFlowChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-body">
-                                    <canvas id="monthlyCashFlowChart" height="200"></canvas>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-header bg-transparent border-0 pb-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="icon-wrapper me-2">
+                                                <i class="fas fa-chart-line text-success"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold">Accumulated Cash Flow</h6>
+                                                <small class="text-muted">Running total over time</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body pt-2">
+                                        <div style="height: 250px;">
+                                            <canvas id="accumulatedCashFlowChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h6>Accumulated Cash Flow</h6>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="accumulatedCashFlowChart" height="200"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Cash Flow Table -->
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Cash In</th>
-                                    <th>Cash Out</th>
-                                    <th>Net Flow</th>
-                                    <th>Accumulated</th>
-                                    <th>Source</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cash-flow-table">
-                                <tr><td colspan="6" class="text-center">Loading cash flow data...</td></tr>
-                            </tbody>
-                        </table>
+                        <!-- Cash Flow Table -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-transparent py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 fw-semibold">Cash Flow Transactions</h6>
+                                    <small class="text-muted">Recent activity</small>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="cash-flow-table-container">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover mb-0">
+                                            <thead class="table-light sticky-top">
+                                                <tr>
+                                                    <th class="px-3 py-2">Date</th>
+                                                    <th class="px-3 py-2">Cash In</th>
+                                                    <th class="px-3 py-2">Cash Out</th>
+                                                    <th class="px-3 py-2">Net Flow</th>
+                                                    <th class="px-3 py-2">Accumulated</th>
+                                                    <th class="px-3 py-2">Source</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="cash-flow-table">
+                                                <tr><td colspan="6" class="text-center py-3">Loading cash flow data...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -642,9 +623,10 @@
                         </table>
                     </div>
                 </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
     <!-- Transaction Management Section -->
     <div class="card mb-4">

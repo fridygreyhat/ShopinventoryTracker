@@ -140,6 +140,12 @@ def sanitize_input(data, allowed_fields):
 
 # Import auth service
 from auth_service import login_required, verify_firebase_token, create_or_update_user
+from datetime import datetime, timedelta
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # Template helper function
@@ -1525,17 +1531,33 @@ def logout():
     try:
         # Get user info before clearing session
         user_email = session.get('email', 'Unknown user')
+        user_id = session.get('user_id')
+        
+        # Update last logout time if user exists
+        if user_id:
+            try:
+                from models import User
+                user = User.query.get(user_id)
+                if user:
+                    user.updated_at = datetime.utcnow()
+                    db.session.commit()
+            except Exception as db_error:
+                logger.warning(f"Could not update user logout time: {str(db_error)}")
         
         # Clear session data
         session.clear()
         flash('You have been logged out successfully', 'success')
         logger.info(f"User {user_email} logged out successfully")
+        
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
+        session.clear()  # Clear session anyway
         flash('Logout completed', 'info')
     
     # Handle both regular requests and AJAX requests
-    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+    if (request.headers.get('Content-Type') == 'application/json' or 
+        request.is_json or 
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'):
         return jsonify({'success': True, 'redirect': '/login'})
     
     return redirect('/login')
@@ -2078,17 +2100,31 @@ def get_cash_flow():
         CashFlow.date <= end_date.date()
     ).order_by(CashFlow.date).all()
     
-    # Get monthly summary
-    monthly_summary = db.session.query(
-        func.strftime('%Y-%m', CashFlow.date).label('month'),
-        func.sum(CashFlow.cash_in).label('total_cash_in'),
-        func.sum(CashFlow.cash_out).label('total_cash_out'),
-        func.sum(CashFlow.net_cash_flow).label('total_net_flow')
-    ).filter(
-        CashFlow.user_id == user_id,
-        CashFlow.date >= start_date.date(),
-        CashFlow.date <= end_date.date()
-    ).group_by(func.strftime('%Y-%m', CashFlow.date)).all()
+    # Get monthly summary - PostgreSQL compatible
+    if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+        # PostgreSQL syntax
+        monthly_summary = db.session.query(
+            func.to_char(CashFlow.date, 'YYYY-MM').label('month'),
+            func.sum(CashFlow.cash_in).label('total_cash_in'),
+            func.sum(CashFlow.cash_out).label('total_cash_out'),
+            func.sum(CashFlow.net_cash_flow).label('total_net_flow')
+        ).filter(
+            CashFlow.user_id == user_id,
+            CashFlow.date >= start_date.date(),
+            CashFlow.date <= end_date.date()
+        ).group_by(func.to_char(CashFlow.date, 'YYYY-MM')).all()
+    else:
+        # SQLite syntax
+        monthly_summary = db.session.query(
+            func.strftime('%Y-%m', CashFlow.date).label('month'),
+            func.sum(CashFlow.cash_in).label('total_cash_in'),
+            func.sum(CashFlow.cash_out).label('total_cash_out'),
+            func.sum(CashFlow.net_cash_flow).label('total_net_flow')
+        ).filter(
+            CashFlow.user_id == user_id,
+            CashFlow.date >= start_date.date(),
+            CashFlow.date <= end_date.date()
+        ).group_by(func.strftime('%Y-%m', CashFlow.date)).all()
     
     return jsonify({
         "cash_flows": [cf.to_dict() for cf in cash_flows],
@@ -2443,14 +2479,14 @@ def get_slow_moving_items():
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         # Subquery to get items that have had sales for current user
-        sold_items = db.session.query(SaleItem.item_id).join(Sale).filter(
+        sold_items_subquery = db.session.query(SaleItem.item_id).join(Sale).filter(
             Sale.created_at >= cutoff_date,
-            Sale.user_id == user_id).distinct().subquery()
+            Sale.user_id == user_id).distinct()
 
         # Query to get items with no recent sales for current user only
         slow_items = Item.query.filter(
             Item.user_id == user_id,
-            ~Item.id.in_(sold_items), 
+            ~Item.id.in_(sold_items_subquery.subquery()), 
             Item.quantity > 0).order_by(Item.quantity.desc()).limit(5).all()
 
         # Format response
@@ -4196,6 +4232,67 @@ def register():
 
 @app.route('/api/auth/session', methods=['POST'])
 def create_session():
+    """Create a session after Firebase authentication"""
+    try:
+        data = request.get_json()
+        if not data or 'idToken' not in data:
+            logger.error("No ID token provided in session request")
+            return jsonify({'error': 'ID token is required'}), 400
+
+        id_token = data['idToken']
+        remember = data.get('remember', False)
+
+        logger.info(f"Creating session with token length: {len(id_token) if id_token else 0}")
+
+        # Verify the Firebase token
+        user_data = verify_firebase_token(id_token)
+        if not user_data:
+            logger.error("Token verification failed")
+            return jsonify({'error': 'Invalid token'}), 401
+
+        logger.info(f"Token verified for user: {user_data.get('email')}")
+
+        # Create or update user in database
+        user = create_or_update_user(user_data)
+        if not user:
+            logger.error("Failed to create/update user in database")
+            return jsonify({'error': 'Failed to create user session'}), 500
+
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+
+        # Create session
+        session['user_id'] = user.id
+        session['user_email'] = user.email
+        session['firebase_uid'] = user.firebase_uid
+
+        # Set session permanence
+        if remember:
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(days=30)
+        else:
+            session.permanent = False
+
+        logger.info(f"Session created successfully for user ID: {user.id}")
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'firebase_uid': user.firebase_uid
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Session creation error: {str(e)}")
+        return jsonify({'error': 'Session creation failed'}), 500
+
+
+@app.route('/api/auth/register', methods=['POST'])
+def create_session():
     """Create a session for authenticated user using Firebase token"""
     try:
         data = request.json
@@ -4229,33 +4326,51 @@ def create_session():
         logger.info(
             f"User record updated/created successfully for ID: {user.id}")
 
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
+        try:
+            # Update last login time and ensure user is active
+            user.last_login = datetime.utcnow()
+            user.updated_at = datetime.utcnow()
+            if not hasattr(user, 'active') or user.active is None:
+                user.active = True
+            if not hasattr(user, 'is_active') or user.is_active is None:
+                user.is_active = True
+            
+            db.session.commit()
+            logger.info("User login time updated successfully")
+        except Exception as db_error:
+            logger.warning(f"Could not update user login time: {str(db_error)}")
+            db.session.rollback()
 
         # Set session data
         logger.info("Setting session data...")
+        session.clear()  # Clear any existing session data
         session['user_id'] = user.id
         session['email'] = user.email
-        session['is_admin'] = user.is_admin
+        session['username'] = user.username
+        session['is_admin'] = getattr(user, 'is_admin', False)
         session.permanent = data.get('remember', False)
 
         # Load user theme preference
-        from models import Setting
-        theme_key = f"user_{user.id}_theme"
-        theme_setting = Setting.query.filter_by(key=theme_key).first()
-        if theme_setting:
-            session['user_theme'] = theme_setting.value
-            logger.info(f"Loaded user theme: {theme_setting.value}")
-        else:
-            session['user_theme'] = 'tanzanite'  # Default theme
-            logger.info("Using default theme: tanzanite")
+        try:
+            from models import Setting
+            theme_key = f"user_{user.id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            if theme_setting:
+                session['user_theme'] = theme_setting.value
+                logger.info(f"Loaded user theme: {theme_setting.value}")
+            else:
+                session['user_theme'] = 'tanzanite'  # Default theme
+                logger.info("Using default theme: tanzanite")
+        except Exception as theme_error:
+            logger.warning(f"Could not load user theme: {str(theme_error)}")
+            session['user_theme'] = 'tanzanite'
 
-        logger.info("Session created successfully")
+        logger.info(f"Session created successfully for user: {user.username}")
         return jsonify({"success": True, "user": user.to_dict()})
 
     except Exception as e:
         logger.error(f"Error creating session with Firebase: {str(e)}")
+        db.session.rollback()
         return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
 

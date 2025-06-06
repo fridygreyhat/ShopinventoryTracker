@@ -1,3 +1,4 @@
+
 /**
  * Firebase Authentication Module
  * This module provides functions for handling authentication with Firebase
@@ -13,10 +14,9 @@
  */
 export async function loginWithEmailPassword(auth, email, password) {
     try {
-        // Import directly to avoid naming conflict
+        // Import signInWithEmailAndPassword function
         const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
-        // Use the auth instance passed from the login page
         console.log('Attempting to sign in with:', email);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log('Sign in successful, user:', userCredential.user.email);
@@ -37,7 +37,7 @@ export async function loginWithEmailPassword(auth, email, password) {
  */
 export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
-        // Import directly to avoid naming conflict
+        // Import createUserWithEmailAndPassword function
         const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
         console.log('Attempting to register with:', email);
@@ -81,10 +81,9 @@ export async function registerWithEmailPassword(auth, email, password, userData)
  */
 export async function sendPasswordReset(auth, email) {
     try {
-        // Import directly to avoid naming conflict
+        // Import sendPasswordResetEmail function
         const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
-        // Use the Firebase function with the auth instance passed from the login page
         await sendPasswordResetEmail(auth, email);
         return { success: true };
     } catch (error) {
@@ -102,6 +101,8 @@ export async function sendPasswordReset(auth, email) {
 export async function createSession(token, remember = false) {
     try {
         console.log('Creating session with server...');
+        console.log('Token length:', token ? token.length : 0);
+        console.log('Remember me:', remember);
 
         const response = await fetch('/api/auth/session', {
             method: 'POST',
@@ -114,16 +115,44 @@ export async function createSession(token, remember = false) {
             })
         });
 
+        console.log('Session response status:', response.status);
+
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorText = await response.text();
+            console.error('Session creation failed:', errorText);
+            
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { error: 'Session creation failed' };
+            }
+            
             throw new Error(errorData.error || 'Session creation failed');
         }
 
         const sessionData = await response.json();
-        console.log('Session created successfully');
+        console.log('Session created successfully:', sessionData);
         return sessionData;
     } catch (error) {
         console.error('Session creation error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Sign out user
+ * @param {Object} auth - Firebase Auth instance
+ * @returns {Promise} Promise that resolves when user is signed out
+ */
+export async function signOutUser(auth) {
+    try {
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        await signOut(auth);
+        console.log('User signed out successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('Sign out error:', error);
         throw error;
     }
 }
