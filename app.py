@@ -11,6 +11,9 @@ import io
 import csv
 import requests
 from dotenv import load_dotenv
+from functools import wraps
+import time
+from collections import defaultdict
 
 load_dotenv()
 # Configure logging
@@ -23,6 +26,43 @@ app.secret_key = os.environ.get("SESSION_SECRET",
                                 "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Rate limiting storage
+rate_limit_storage = defaultdict(list)
+
+def rate_limit(max_requests=100, window=3600):
+    """Rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user_id = session.get('user_id')
+            if not user_id:
+                return f(*args, **kwargs)
+            
+            now = time.time()
+            user_requests = rate_limit_storage[user_id]
+            
+            # Remove old requests
+            user_requests[:] = [req_time for req_time in user_requests if now - req_time < window]
+            
+            if len(user_requests) >= max_requests:
+                return jsonify({"error": "Rate limit exceeded"}), 429
+            
+            user_requests.append(now)
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
+    return response
+
 # Firebase configuration
 app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
 app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
@@ -34,9 +74,15 @@ print(os.environ.get("FIREBASE_API_KEY"))
 class Base(DeclarativeBase):
     pass
 
+# Get DATABASE_URL and handle SQLite fallback
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    database_url = "sqlite:///inventory.db"
+elif database_url.startswith("postgres://"):
+    # Fix postgres:// to postgresql:// for SQLAlchemy compatibility
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -61,6 +107,35 @@ def get_setting_value(key, default=None):
     from models import Setting
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
+
+def validate_user_access(user_id, resource_user_id):
+    """
+    Validate that user has access to resource
+    
+    Args:
+        user_id: Current user ID
+        resource_user_id: User ID associated with resource
+        
+    Returns:
+        bool: True if access allowed
+    """
+    return user_id == resource_user_id
+
+def sanitize_input(data, allowed_fields):
+    """
+    Sanitize input data by only allowing specified fields
+    
+    Args:
+        data: Input data dictionary
+        allowed_fields: List of allowed field names
+        
+    Returns:
+        dict: Sanitized data
+    """
+    if not isinstance(data, dict):
+        return {}
+    
+    return {key: value for key, value in data.items() if key in allowed_fields}
 
 
 # Import auth service
@@ -106,10 +181,19 @@ with app.app_context():
     # Helper function to check if column exists
     def column_exists(table_name, column_name):
         try:
-            result = db.session.execute(
-                db.text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result.fetchall()]
-            return column_name in columns
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT column_name FROM information_schema.columns WHERE table_name = :table_name AND column_name = :column_name"),
+                    {"table_name": table_name, "column_name": column_name}
+                )
+                return result.fetchone() is not None
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text(f"PRAGMA table_info({table_name})"))
+                columns = [row[1] for row in result.fetchall()]
+                return column_name in columns
         except Exception:
             return False
 
@@ -152,9 +236,16 @@ with app.app_context():
     try:
         # Ensure User table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='user';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='user';")
+                ).fetchone()
             if result:
                 add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
                 add_column_safely('user', 'phone', 'VARCHAR(20)')
@@ -163,9 +254,16 @@ with app.app_context():
 
         # Ensure Item table has required columns and user_id
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='item';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='item';")
+                ).fetchone()
             if result:
                 add_column_safely('item', 'subcategory', 'VARCHAR(100)')
                 add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
@@ -205,16 +303,124 @@ with app.app_context():
 
         # Ensure FinancialTransaction table has required columns
         try:
-            result = db.session.execute(
-                db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
-            ).fetchone()
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='financial_transaction';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='financial_transaction';")
+                ).fetchone()
             if result:
                 add_column_safely('financial_transaction', 'tax_rate', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'tax_amount', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'cost_of_goods_sold', 'FLOAT DEFAULT 0.0', '0.0')
                 add_column_safely('financial_transaction', 'gross_amount', 'FLOAT DEFAULT 0.0', '0.0')
+                add_column_safely('financial_transaction', 'user_id', 'INTEGER')
+                
+                # Assign orphaned financial transactions to first user
+                try:
+                    orphaned_transactions = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM financial_transaction WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_transactions > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE financial_transaction SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_transactions} orphaned financial transactions to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned financial transactions: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
         except Exception as e:
             logger.error(f"Error checking financial_transaction table: {str(e)}")
+
+        # Ensure Sale table has user_id column
+        try:
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='sale';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='sale';")
+                ).fetchone()
+            if result:
+                add_column_safely('sale', 'user_id', 'INTEGER')
+                
+                # Assign orphaned sales to first user
+                try:
+                    orphaned_sales = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM sale WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_sales > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE sale SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_sales} orphaned sales to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned sales: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
+        except Exception as e:
+            logger.error(f"Error checking sale table: {str(e)}")
+
+        # Ensure OnDemandProduct table has user_id column
+        try:
+            if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                # PostgreSQL syntax
+                result = db.session.execute(
+                    db.text("SELECT table_name FROM information_schema.tables WHERE table_name='on_demand_product';")
+                ).fetchone()
+            else:
+                # SQLite syntax
+                result = db.session.execute(
+                    db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='on_demand_product';")
+                ).fetchone()
+            if result:
+                add_column_safely('on_demand_product', 'user_id', 'INTEGER')
+                
+                # Assign orphaned on-demand products to first user
+                try:
+                    orphaned_products = db.session.execute(
+                        db.text("SELECT COUNT(*) FROM on_demand_product WHERE user_id IS NULL")
+                    ).scalar()
+                    
+                    if orphaned_products > 0:
+                        first_user = User.query.first()
+                        if first_user:
+                            db.session.execute(
+                                db.text("UPDATE on_demand_product SET user_id = :user_id WHERE user_id IS NULL"),
+                                {"user_id": first_user.id}
+                            )
+                            db.session.commit()
+                            logger.info(f"Assigned {orphaned_products} orphaned on-demand products to user: {first_user.username}")
+                except Exception as e:
+                    logger.error(f"Error assigning orphaned on-demand products: {str(e)}")
+                    try:
+                        db.session.rollback()
+                    except:
+                        pass
+        except Exception as e:
+            logger.error(f"Error checking on_demand_product table: {str(e)}")
 
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
@@ -743,15 +949,22 @@ def bulk_import_inventory():
 
 
 @app.route('/api/inventory/categories', methods=['GET'])
+@login_required
 def get_inventory_categories():
     """API endpoint to get all unique inventory categories"""
     from models import Item
     from sqlalchemy import func
 
-    # Query distinct categories
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Query distinct categories for current user only
     categories = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        Item.user_id == user_id).distinct().all()
 
     return jsonify([c.category for c in categories])
 
@@ -932,12 +1145,18 @@ def export_csv():
 
 # On-Demand Products API endpoints
 @app.route('/api/on-demand', methods=['GET'])
+@login_required
 def get_on_demand_products():
     """API endpoint to get all on-demand products"""
     from models import OnDemandProduct
 
-    # Start query
-    query = OnDemandProduct.query
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Start query with user_id filter
+    query = OnDemandProduct.query.filter(OnDemandProduct.user_id == user_id)
 
     # Optional filtering
     category = request.args.get('category')
@@ -963,11 +1182,17 @@ def get_on_demand_products():
 
 
 @app.route('/api/on-demand', methods=['POST'])
+@login_required
 def add_on_demand_product():
     """API endpoint to add a new on-demand product"""
     from models import OnDemandProduct
 
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         product_data = request.json
 
         # Validate required fields
@@ -977,7 +1202,7 @@ def add_on_demand_product():
                 return jsonify({"error":
                                 f"Missing required field: {field}"}), 400
 
-        # Create new product
+        # Create new product with user_id
         new_product = OnDemandProduct(
             name=product_data["name"],
             description=product_data.get("description", ""),
@@ -985,7 +1210,8 @@ def add_on_demand_product():
             production_time=int(product_data.get("production_time", 0)),
             category=product_data.get("category", "Uncategorized"),
             materials=product_data.get("materials", ""),
-            is_active=product_data.get("is_active", True))
+            is_active=product_data.get("is_active", True),
+            user_id=user_id)
 
         # Add to database
         db.session.add(new_product)
@@ -1000,11 +1226,20 @@ def add_on_demand_product():
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['GET'])
+@login_required
 def get_on_demand_product(product_id):
     """API endpoint to get a specific on-demand product"""
     from models import OnDemandProduct
 
-    product = OnDemandProduct.query.get(product_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    product = OnDemandProduct.query.filter(
+        OnDemandProduct.id == product_id,
+        OnDemandProduct.user_id == user_id
+    ).first()
 
     if not product:
         return jsonify({"error": "Product not found"}), 404
@@ -1013,21 +1248,29 @@ def get_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['PUT'])
+@login_required
 def update_on_demand_product(product_id):
     """API endpoint to update an on-demand product"""
     from models import OnDemandProduct
 
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         product_data = request.json
-        product = OnDemandProduct.query.get(product_id)
+        product = OnDemandProduct.query.filter(
+            OnDemandProduct.id == product_id,
+            OnDemandProduct.user_id == user_id
+        ).first()
 
         if product is None:
             return jsonify({"error": "Product not found"}), 404
 
         # Update the product with new data
         for key, value in product_data.items():
-            if key not in ['id',
-                           'created_at']:  # Don't allow changing these fields
+            if key not in ['id', 'created_at', 'user_id']:  # Don't allow changing these fields
                 setattr(product, key, value)
 
         # Save to database
@@ -1042,12 +1285,21 @@ def update_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/<int:product_id>', methods=['DELETE'])
+@login_required
 def delete_on_demand_product(product_id):
     """API endpoint to delete an on-demand product"""
     from models import OnDemandProduct
 
     try:
-        product = OnDemandProduct.query.get(product_id)
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        product = OnDemandProduct.query.filter(
+            OnDemandProduct.id == product_id,
+            OnDemandProduct.user_id == user_id
+        ).first()
 
         if product is None:
             return jsonify({"error": "Product not found"}), 404
@@ -1072,15 +1324,22 @@ def delete_on_demand_product(product_id):
 
 
 @app.route('/api/on-demand/categories', methods=['GET'])
+@login_required
 def get_on_demand_product_categories():
-    """API endpoint to get all unique on-demand product categories"""
+    """API endpoint to get all unique on-demand product categories for current user"""
     from models import OnDemandProduct
     from sqlalchemy import func
 
-    # Query distinct categories
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    # Query distinct categories for current user only
     categories = db.session.query(
         func.coalesce(OnDemandProduct.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        OnDemandProduct.user_id == user_id).distinct().all()
 
     return jsonify([c.category for c in categories])
 
@@ -1292,10 +1551,16 @@ def finance():
 
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
+@login_required
 def get_transactions():
     """API endpoint to get financial transactions with optional filtering"""
     from models import FinancialTransaction
     from datetime import datetime, timedelta
+
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
 
     # Get filter parameters
     transaction_type = request.args.get('type')
@@ -1331,10 +1596,11 @@ def get_transactions():
     elif not start_date and end_date:
         start_date = end_date - timedelta(days=30)
 
-    # Build query
+    # Build query with user_id filter
     query = FinancialTransaction.query.filter(
-        FinancialTransaction.date >= start_date, FinancialTransaction.date
-        <= end_date)
+        FinancialTransaction.date >= start_date, 
+        FinancialTransaction.date <= end_date,
+        FinancialTransaction.user_id == user_id)
 
     if transaction_type:
         query = query.filter(
@@ -1368,9 +1634,15 @@ def get_transactions():
 
 
 @app.route('/api/finance/transactions', methods=['POST'])
+@login_required
 def add_transaction():
     """API endpoint to add a new financial transaction"""
     from models import FinancialTransaction
+
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
 
     data = request.json
 
@@ -1396,7 +1668,7 @@ def add_transaction():
             return jsonify({"error":
                             "Invalid date format. Use YYYY-MM-DD"}), 400
 
-    # Create new transaction
+    # Create new transaction with user_id
     transaction = FinancialTransaction(
         date=date,
         description=data['description'],
@@ -1405,7 +1677,8 @@ def add_transaction():
         category=data['category'],
         reference_id=data.get('reference_id'),
         payment_method=data.get('payment_method'),
-        notes=data.get('notes'))
+        notes=data.get('notes'),
+        user_id=user_id)
 
     try:
         db.session.add(transaction)
@@ -1417,11 +1690,21 @@ def add_transaction():
 
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['GET'])
+@login_required
 def get_transaction(transaction_id):
     """API endpoint to get a specific financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1429,11 +1712,21 @@ def get_transaction(transaction_id):
 
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
+@login_required
 def update_transaction(transaction_id):
     """API endpoint to update a financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1486,11 +1779,21 @@ def update_transaction(transaction_id):
 
 @app.route('/api/finance/transactions/<int:transaction_id>',
            methods=['DELETE'])
+@login_required
 def delete_transaction(transaction_id):
     """API endpoint to delete a financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    # Get current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+
+    transaction = FinancialTransaction.query.filter(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.user_id == user_id
+    ).first()
+    
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -1589,23 +1892,31 @@ def get_finance_categories():
 
 # Sales API Routes
 @app.route('/api/sales/performance/top', methods=['GET'])
+@login_required
 def get_top_selling_items():
-    """API endpoint to get top selling items"""
+    """API endpoint to get top selling items for current user"""
     try:
         from sqlalchemy import func
         from models import Item, Sale, SaleItem
+
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
 
         # Get sales data from last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-        # Query to get top selling items
+        # Query to get top selling items for current user only
         top_items = db.session.query(
             Item,
             func.sum(SaleItem.quantity).label('total_quantity'),
             func.sum(SaleItem.total).label('total_revenue')).join(
                 SaleItem).join(Sale).filter(
-                    Sale.created_at >= cutoff_date).group_by(Item.id).order_by(
+                    Sale.created_at >= cutoff_date,
+                    Sale.user_id == user_id,
+                    Item.user_id == user_id).group_by(Item.id).order_by(
                         func.sum(SaleItem.quantity).desc()).limit(5).all()
 
         # Format response
@@ -1627,23 +1938,31 @@ def get_top_selling_items():
 
 
 @app.route('/api/sales/performance/slow', methods=['GET'])
+@login_required
 def get_slow_moving_items():
-    """API endpoint to get slow moving items"""
+    """API endpoint to get slow moving items for current user"""
     try:
         from models import Item, Sale, SaleItem
+
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
 
         # Get items with no sales in last 30 days
         days = request.args.get('days', 30, type=int)
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-        # Subquery to get items that have had sales
+        # Subquery to get items that have had sales for current user
         sold_items = db.session.query(SaleItem.item_id).join(Sale).filter(
-            Sale.created_at >= cutoff_date).distinct().subquery()
+            Sale.created_at >= cutoff_date,
+            Sale.user_id == user_id).distinct().subquery()
 
-        # Query to get items with no recent sales
+        # Query to get items with no recent sales for current user only
         slow_items = Item.query.filter(
-            ~Item.id.in_(sold_items), Item.quantity
-            > 0).order_by(Item.quantity.desc()).limit(5).all()
+            Item.user_id == user_id,
+            ~Item.id.in_(sold_items), 
+            Item.quantity > 0).order_by(Item.quantity.desc()).limit(5).all()
 
         # Format response
         result = []
@@ -1651,7 +1970,8 @@ def get_slow_moving_items():
             # Calculate days in stock based on last sale or creation date
             last_sale = db.session.query(
                 Sale.created_at).join(SaleItem).filter(
-                    SaleItem.item_id == item.id).order_by(
+                    SaleItem.item_id == item.id,
+                    Sale.user_id == user_id).order_by(
                         Sale.created_at.desc()).first()
 
             reference_date = last_sale[0] if last_sale else item.created_at
@@ -1710,7 +2030,12 @@ def create_sale():
         else:
             payment_details = payment_data.get('mobile_info', {})
 
-        # Create new sale record
+        # Get current user ID
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
+        # Create new sale record with user_id
         new_sale = Sale(
             invoice_number=invoice_number,
             customer_name=customer_data.get('name', 'Walk-in Customer'),
@@ -1725,7 +2050,8 @@ def create_sale():
             payment_details=json.dumps(payment_details),
             payment_amount=float(payment_data.get('amount', 0)),
             change_amount=float(payment_data.get('change', 0)),
-            notes=data.get('notes', ''))
+            notes=data.get('notes', ''),
+            user_id=user_id)
 
         db.session.add(new_sale)
         db.session.flush()  # Flush to get the sale ID
@@ -1822,17 +2148,23 @@ def create_sale():
 
 
 @app.route('/api/sales', methods=['GET'])
+@login_required
 def get_sales():
     """API endpoint to get sales data with optional filtering"""
     try:
+        # Get current user ID from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+
         # Get query parameters for filtering
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         customer = request.args.get('customer')
         payment_method = request.args.get('payment_method')
 
-        # Build query
-        query = Sale.query
+        # Build query with user_id filter
+        query = Sale.query.filter(Sale.user_id == user_id)
 
         # Apply filters if provided
         if start_date:
@@ -2627,6 +2959,124 @@ def get_abc_analysis():
         logger.error(f"Error performing ABC analysis: {str(e)}")
         return jsonify({"error": "Failed to perform ABC analysis"}), 500
 
+@app.route('/api/reports/profit-analysis', methods=['GET'])
+@login_required
+def get_profit_analysis():
+    """API endpoint for comprehensive profit analysis with simplified/realistic views"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        # Get query parameters
+        view_mode = request.args.get('view_mode', 'simplified')  # 'simplified' or 'realistic'
+        category = request.args.get('category')
+        search = request.args.get('search')
+        expense_rate = float(request.args.get('expense_rate', 10))  # Default 10%
+        
+        # Build query for user's items
+        query = Item.query.filter_by(user_id=user_id)
+        
+        if category:
+            query = query.filter(Item.category == category)
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    Item.name.contains(search),
+                    Item.sku.contains(search)
+                )
+            )
+        
+        items = query.all()
+        
+        # Calculate profit analysis
+        profit_analysis = []
+        summary = {
+            'total_items': len(items),
+            'total_gross_profit': 0,
+            'total_net_profit': 0,
+            'total_revenue': 0,
+            'total_cost': 0,
+            'view_mode': view_mode,
+            'expense_rate': expense_rate
+        }
+        
+        for item in items:
+            buying_price = item.buying_price or 0
+            selling_price = item.selling_price_retail or 0
+            quantity = item.quantity or 0
+            
+            # Calculate profits
+            gross_profit_per_unit = selling_price - buying_price
+            
+            if view_mode == 'realistic':
+                expenses_per_unit = gross_profit_per_unit * (expense_rate / 100)
+                net_profit_per_unit = gross_profit_per_unit - expenses_per_unit
+            else:  # simplified
+                net_profit_per_unit = gross_profit_per_unit
+                expenses_per_unit = 0
+            
+            # Calculate totals
+            total_gross_profit = gross_profit_per_unit * quantity
+            total_net_profit = net_profit_per_unit * quantity
+            total_revenue = selling_price * quantity
+            total_cost = buying_price * quantity
+            
+            # Calculate margins
+            gross_margin = (gross_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            net_margin = (net_profit_per_unit / selling_price * 100) if selling_price > 0 else 0
+            markup = (gross_profit_per_unit / buying_price * 100) if buying_price > 0 else 0
+            
+            item_analysis = {
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku or '',
+                'category': item.category or 'Uncategorized',
+                'quantity': quantity,
+                'buying_price': buying_price,
+                'selling_price': selling_price,
+                'gross_profit_per_unit': gross_profit_per_unit,
+                'net_profit_per_unit': net_profit_per_unit,
+                'expenses_per_unit': expenses_per_unit,
+                'total_gross_profit': total_gross_profit,
+                'total_net_profit': total_net_profit,
+                'total_revenue': total_revenue,
+                'total_cost': total_cost,
+                'gross_margin': gross_margin,
+                'net_margin': net_margin,
+                'markup': markup
+            }
+            
+            profit_analysis.append(item_analysis)
+            
+            # Add to summary
+            summary['total_gross_profit'] += total_gross_profit
+            summary['total_net_profit'] += total_net_profit
+            summary['total_revenue'] += total_revenue
+            summary['total_cost'] += total_cost
+        
+        # Calculate overall margins
+        if summary['total_revenue'] > 0:
+            summary['overall_gross_margin'] = (summary['total_gross_profit'] / summary['total_revenue']) * 100
+            summary['overall_net_margin'] = (summary['total_net_profit'] / summary['total_revenue']) * 100
+        else:
+            summary['overall_gross_margin'] = 0
+            summary['overall_net_margin'] = 0
+        
+        # Sort by net profit (descending)
+        profit_analysis.sort(key=lambda x: x['total_net_profit'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'profit_analysis': profit_analysis,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting profit analysis: {str(e)}")
+        return jsonify({"error": "Failed to get profit analysis"}), 500
+
 @app.route('/api/reports/profit-margin', methods=['GET'])
 @login_required
 def get_profit_margin_analysis():
@@ -3129,6 +3579,32 @@ def get_customer_analytics(customer_name):
     except Exception as e:
         logger.error(f"Error getting customer analytics for {customer_name}: {str(e)}")
         return jsonify({"error": "Failed to get customer analytics"}), 500
+
+# Debug endpoint to list all users
+@app.route('/api/debug/users', methods=['GET'])
+@login_required
+def debug_list_users():
+    """Debug endpoint to list all users"""
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+        
+        users = User.query.all()
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(users),
+            'users': [user.to_dict() for user in users]
+        })
+    
+    except Exception as e:
+        logger.error(f"Debug users error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])

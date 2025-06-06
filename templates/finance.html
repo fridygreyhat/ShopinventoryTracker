@@ -6,36 +6,86 @@
     
     <!-- Financial Summary Cards -->
     <div class="row mb-4">
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
             <div class="card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-arrow-circle-down fa-3x mb-3 text-success"></i>
                     <h5 class="card-title">Total Income</h5>
-                    <p class="display-5" id="total-income">
-                        <span id="income-value">0</span>
+                    <p class="display-6" id="total-income">
+                        <span class="currency-symbol">TZS</span> <span id="income-value">0</span>
                     </p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
             <div class="card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-arrow-circle-up fa-3x mb-3 text-danger"></i>
                     <h5 class="card-title">Total Expenses</h5>
-                    <p class="display-5" id="total-expenses">
+                    <p class="display-6" id="total-expenses">
                         <span class="currency-symbol">TZS</span> <span id="expenses-value">0</span>
                     </p>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-3">
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-coins fa-3x mb-3 text-warning"></i>
+                    <h5 class="card-title">Gross Profit</h5>
+                    <p class="display-6" id="gross-profit">
+                        <span class="currency-symbol">TZS</span> <span id="gross-profit-value">0</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
             <div class="card h-100">
                 <div class="card-body text-center">
                     <i class="fas fa-chart-line fa-3x mb-3 text-info"></i>
                     <h5 class="card-title">Net Profit</h5>
-                    <p class="display-5" id="net-profit">
+                    <p class="display-6" id="net-profit">
                         <span class="currency-symbol">TZS</span> <span id="profit-value">0</span>
                     </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Profit Analysis Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">📊 Profit Analysis</h5>
+                <div class="form-group mb-0">
+                    <label for="profit-view-mode" class="form-label me-2">View:</label>
+                    <select id="profit-view-mode" class="form-select d-inline-block" style="width: auto;">
+                        <option value="simplified">Simplified (Net = Gross)</option>
+                        <option value="realistic">Realistic (Net = Gross - Expenses)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="chart-container" style="position: relative; height: 300px;">
+                        <canvas id="profitAnalysisChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="profit-formulas">
+                        <h6>Current Formulas:</h6>
+                        <div class="bg-light p-3 rounded">
+                            <div><strong>Gross Profit = Sales Revenue - Cost of Goods Sold</strong></div>
+                            <div id="net-profit-formula"><strong>Net Profit = Gross Profit</strong> <small class="text-muted">(Simplified)</small></div>
+                        </div>
+                        <div class="mt-3" id="expense-rate-container" style="display: none;">
+                            <label for="expense-rate" class="form-label">Expense Rate (%)</label>
+                            <input type="number" class="form-control" id="expense-rate" value="10" min="0" max="100" step="0.1">
+                            <div class="form-text">Percentage of gross profit allocated to expenses</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
