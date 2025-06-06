@@ -115,8 +115,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=True)
     role = db.Column(db.String(20), default=UserRole.VIEWER.value)
-    # Firebase UID for authentication
-    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
+    # Removed Firebase UID - using PostgreSQL authentication only
 
     def set_password(self, password):
         """Set the user's password hash"""
@@ -161,27 +160,47 @@ class User(UserMixin, db.Model):
         """Convert user to dictionary for API responses"""
         # Handle missing is_active column gracefully
         try:
-            is_active_value = getattr(self, 'is_active', self.active)
+            is_active_value = getattr(self, 'is_active', getattr(self, 'active', True))
         except (AttributeError, Exception):
-            is_active_value = getattr(self, 'active', True)
+            is_active_value = True
 
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'email_verified': self.email_verified,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'phone': self.phone,
-            'shop_name': self.shop_name,
-            'product_categories': self.product_categories,
-            'active': getattr(self, 'active', True),
-            'is_active': is_active_value,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
+        try:
+            return {
+                'id': getattr(self, 'id', 0),
+                'username': getattr(self, 'username', ''),
+                'email': getattr(self, 'email', ''),
+                'email_verified': getattr(self, 'email_verified', True),
+                'first_name': getattr(self, 'first_name', ''),
+                'last_name': getattr(self, 'last_name', ''),
+                'phone': getattr(self, 'phone', ''),
+                'shop_name': getattr(self, 'shop_name', ''),
+                'product_categories': getattr(self, 'product_categories', ''),
+                'active': getattr(self, 'active', True),
+                'is_active': is_active_value,
+                'is_admin': getattr(self, 'is_admin', False),
+                'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+                'updated_at': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None,
+                'last_login': self.last_login.isoformat() if getattr(self, 'last_login', None) else None
+            }
+        except Exception as e:
+            # Fallback dictionary in case of any errors
+            return {
+                'id': 0,
+                'username': '',
+                'email': '',
+                'email_verified': False,
+                'first_name': '',
+                'last_name': '',
+                'phone': '',
+                'shop_name': '',
+                'product_categories': '',
+                'active': True,
+                'is_active': True,
+                'is_admin': False,
+                'created_at': None,
+                'updated_at': None,
+                'last_login': None
+            }
 
 
 class Subuser(db.Model):

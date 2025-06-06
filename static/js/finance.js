@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (trialBalanceDate) trialBalanceDate.value = formatDateForInput(today);
 
     // Load initial data
-    loadCategories();
+    loadCategories(); // Load all categories initially
     loadTransactions();
     loadCashFlow();
     loadProfitLoss();
@@ -97,6 +97,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     confirmDeleteBtn.addEventListener('click', function() {
         deleteTransaction(transactionId.value);
+    });
+
+    // Add event listener for transaction type change to update categories
+    transactionType.addEventListener('change', function() {
+        loadCategories(this.value);
+        transactionCategory.value = ''; // Reset category selection
     });
 
     document.getElementById('sync-accounting-btn').addEventListener('click', syncWithAccounting);
@@ -440,22 +446,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Load categories for transaction form
-    function loadCategories() {
-        fetch('/api/finance/categories')
-            .then(response => response.json())
-            .then(categories => {
-                transactionCategory.innerHTML = '<option value="">Select Category</option>';
+    function loadCategories(transactionType = null) {
+        // Define categories based on transaction type
+        const incomeCategories = [
+            'Sales Revenue',
+            'Service Revenue', 
+            'Interest Income',
+            'Rental Income',
+            'Commission Income',
+            'Other Income'
+        ];
 
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category;
-                    option.textContent = category;
-                    transactionCategory.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading categories:', error);
-            });
+        const expenseCategories = [
+            'Cost of Goods Sold',
+            'Rent',
+            'Utilities',
+            'Salaries and Wages',
+            'Office Supplies',
+            'Marketing',
+            'Transportation',
+            'Insurance',
+            'Maintenance',
+            'Professional Services',
+            'Bank Fees',
+            'Depreciation',
+            'Tax',
+            'Other Expenses'
+        ];
+
+        // Clear existing options
+        transactionCategory.innerHTML = '<option value="">Select Category</option>';
+
+        let categoriesToShow = [];
+        
+        if (transactionType === 'Income') {
+            categoriesToShow = incomeCategories;
+        } else if (transactionType === 'Expense') {
+            categoriesToShow = expenseCategories;
+        } else {
+            // Show all categories if no type selected
+            categoriesToShow = [...incomeCategories, ...expenseCategories];
+        }
+
+        categoriesToShow.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            transactionCategory.appendChild(option);
+        });
     }
 
     // Display functions
@@ -548,22 +586,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tableBody) return;
 
         if (cashFlows.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No cash flow data found</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No cash flow data found</td></tr>';
             return;
         }
 
         let html = '';
         cashFlows.forEach(flow => {
-            const netClass = flow.net_cash_flow >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold';
-            const accumulatedClass = flow.accumulated_cash >= 0 ? 'text-success' : 'text-danger';
+            const netClass = flow.net_cash_flow >= 0 ? 'text-success' : 'text-danger';
             html += `
                 <tr>
-                    <td class="px-3">${formatDate(flow.date)}</td>
-                    <td class="px-3 text-success fw-medium">${formatCurrency(flow.cash_in)}</td>
-                    <td class="px-3 text-danger fw-medium">${formatCurrency(flow.cash_out)}</td>
-                    <td class="px-3 ${netClass}">${formatCurrency(flow.net_cash_flow)}</td>
-                    <td class="px-3 ${accumulatedClass} fw-medium">${formatCurrency(flow.accumulated_cash)}</td>
-                    <td class="px-3 text-muted">${flow.source || '-'}</td>
+                    <td>${formatDate(flow.date)}</td>
+                    <td class="text-success">${formatCurrency(flow.cash_in)}</td>
+                    <td class="text-danger">${formatCurrency(flow.cash_out)}</td>
+                    <td class="${netClass}">${formatCurrency(flow.net_cash_flow)}</td>
+                    <td>${formatCurrency(flow.accumulated_cash)}</td>
+                    <td>${flow.source || '-'}</td>
                 </tr>
             `;
         });
@@ -1042,6 +1079,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (transactionForm) {
             transactionForm.reset();
             transactionId.value = '';
+            loadCategories(); // Reload all categories when resetting form
         }
     }
 
