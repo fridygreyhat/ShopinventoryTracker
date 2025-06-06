@@ -1525,17 +1525,32 @@ def logout():
     try:
         # Get user info before clearing session
         user_email = session.get('email', 'Unknown user')
+        user_id = session.get('user_id')
+        
+        # Update last logout time if user exists
+        if user_id:
+            try:
+                user = User.query.get(user_id)
+                if user:
+                    user.updated_at = datetime.utcnow()
+                    db.session.commit()
+            except Exception as db_error:
+                logger.warning(f"Could not update user logout time: {str(db_error)}")
         
         # Clear session data
         session.clear()
         flash('You have been logged out successfully', 'success')
         logger.info(f"User {user_email} logged out successfully")
+        
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
+        session.clear()  # Clear session anyway
         flash('Logout completed', 'info')
     
     # Handle both regular requests and AJAX requests
-    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+    if (request.headers.get('Content-Type') == 'application/json' or 
+        request.is_json or 
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'):
         return jsonify({'success': True, 'redirect': '/login'})
     
     return redirect('/login')
@@ -4243,33 +4258,51 @@ def create_session():
         logger.info(
             f"User record updated/created successfully for ID: {user.id}")
 
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
+        try:
+            # Update last login time and ensure user is active
+            user.last_login = datetime.utcnow()
+            user.updated_at = datetime.utcnow()
+            if not hasattr(user, 'active') or user.active is None:
+                user.active = True
+            if not hasattr(user, 'is_active') or user.is_active is None:
+                user.is_active = True
+            
+            db.session.commit()
+            logger.info("User login time updated successfully")
+        except Exception as db_error:
+            logger.warning(f"Could not update user login time: {str(db_error)}")
+            db.session.rollback()
 
         # Set session data
         logger.info("Setting session data...")
+        session.clear()  # Clear any existing session data
         session['user_id'] = user.id
         session['email'] = user.email
-        session['is_admin'] = user.is_admin
+        session['username'] = user.username
+        session['is_admin'] = getattr(user, 'is_admin', False)
         session.permanent = data.get('remember', False)
 
         # Load user theme preference
-        from models import Setting
-        theme_key = f"user_{user.id}_theme"
-        theme_setting = Setting.query.filter_by(key=theme_key).first()
-        if theme_setting:
-            session['user_theme'] = theme_setting.value
-            logger.info(f"Loaded user theme: {theme_setting.value}")
-        else:
-            session['user_theme'] = 'tanzanite'  # Default theme
-            logger.info("Using default theme: tanzanite")
+        try:
+            from models import Setting
+            theme_key = f"user_{user.id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            if theme_setting:
+                session['user_theme'] = theme_setting.value
+                logger.info(f"Loaded user theme: {theme_setting.value}")
+            else:
+                session['user_theme'] = 'tanzanite'  # Default theme
+                logger.info("Using default theme: tanzanite")
+        except Exception as theme_error:
+            logger.warning(f"Could not load user theme: {str(theme_error)}")
+            session['user_theme'] = 'tanzanite'
 
-        logger.info("Session created successfully")
+        logger.info(f"Session created successfully for user: {user.username}")
         return jsonify({"success": True, "user": user.to_dict()})
 
     except Exception as e:
         logger.error(f"Error creating session with Firebase: {str(e)}")
+        db.session.rollback()
         return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
 

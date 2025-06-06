@@ -196,39 +196,59 @@ def create_or_update_user(user_data, extra_data=None):
             logger.error("Missing email or Firebase UID in user data")
             return None
 
-        # Check if user exists
-        user = User.query.filter_by(email=email).first()
+        # Check if user exists by email or firebase_uid
+        user = User.query.filter(
+            (User.email == email) | (User.firebase_uid == firebase_uid)
+        ).first()
 
         if user:
             # Update existing user
             user.firebase_uid = firebase_uid
+            user.email = email  # Update email in case it changed
             user.email_verified = user_data.get("emailVerified", False)
+            user.updated_at = datetime.utcnow()
+            
+            # Ensure user is active
+            user.active = True
+            if hasattr(user, 'is_active'):
+                user.is_active = True
 
             # Update additional fields if provided
             if extra_data:
-                if 'firstName' in extra_data:
+                if 'firstName' in extra_data and extra_data['firstName']:
                     user.first_name = extra_data.get('firstName')
-                if 'lastName' in extra_data:
+                if 'lastName' in extra_data and extra_data['lastName']:
                     user.last_name = extra_data.get('lastName')
-                if 'phone' in extra_data:
+                if 'phone' in extra_data and extra_data['phone']:
                     user.phone = extra_data.get('phone')
-                if 'shopName' in extra_data:
+                if 'shopName' in extra_data and extra_data['shopName']:
                     user.shop_name = extra_data.get('shopName')
-                if 'productCategories' in extra_data:
+                if 'productCategories' in extra_data and extra_data['productCategories']:
                     user.product_categories = extra_data.get('productCategories')
 
             db.session.commit()
+            logger.info(f"Updated existing user: {user.username}")
             return user
 
         # Create new user with username from email (default behavior)
-        username = email.split("@")[0] if email else "user"
+        base_username = email.split("@")[0] if email else "user"
+        username = base_username
+
+        # Ensure username is unique
+        counter = 1
+        while User.query.filter_by(username=username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
 
         # Create new user
         new_user = User(
             email=email,
             username=username,
             firebase_uid=firebase_uid,
-            email_verified=user_data.get("emailVerified", False)
+            email_verified=user_data.get("emailVerified", False),
+            active=True,
+            is_active=True,
+            is_admin=False
         )
 
         # Set a placeholder password hash for Firebase users
@@ -237,14 +257,20 @@ def create_or_update_user(user_data, extra_data=None):
 
         # Add additional fields if provided
         if extra_data:
-            new_user.first_name = extra_data.get('firstName')
-            new_user.last_name = extra_data.get('lastName')
-            new_user.phone = extra_data.get('phone')
-            new_user.shop_name = extra_data.get('shopName')
-            new_user.product_categories = extra_data.get('productCategories')
+            if 'firstName' in extra_data and extra_data['firstName']:
+                new_user.first_name = extra_data.get('firstName')
+            if 'lastName' in extra_data and extra_data['lastName']:
+                new_user.last_name = extra_data.get('lastName')
+            if 'phone' in extra_data and extra_data['phone']:
+                new_user.phone = extra_data.get('phone')
+            if 'shopName' in extra_data and extra_data['shopName']:
+                new_user.shop_name = extra_data.get('shopName')
+            if 'productCategories' in extra_data and extra_data['productCategories']:
+                new_user.product_categories = extra_data.get('productCategories')
 
         db.session.add(new_user)
         db.session.commit()
+        logger.info(f"Created new user: {new_user.username}")
         return new_user
 
     except Exception as e:

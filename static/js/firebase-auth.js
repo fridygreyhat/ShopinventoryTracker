@@ -127,3 +127,35 @@ export async function createSession(token, remember = false) {
         throw error;
     }
 }
+
+// Session management
+export async function createSession(idToken, remember = false) {
+    try {
+        const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                idToken: idToken,
+                remember: remember
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Session creation failed');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Session creation error:', error);
+        throw error;
+    }
+}
+
+export { signInWithEmailAndPassword as loginWithEmailPassword };
+export { createUserWithEmailAndPassword as registerWithEmailPassword };
+export { sendPasswordResetEmail as sendPasswordReset };
+export { signOut as signOutUser };

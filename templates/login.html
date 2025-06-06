@@ -111,13 +111,21 @@
 
     // Login button click handler
     loginButton.addEventListener('click', async () => {
-        const email = emailInput.value;
+        const email = emailInput.value.trim();
         const password = passwordInput.value;
         const remember = rememberCheck.checked;
+
+        // Hide any previous errors
+        errorDiv.classList.add('d-none');
 
         // Validate inputs
         if (!email || !password) {
             showError('Please enter both email and password.');
+            return;
+        }
+
+        if (!email.includes('@')) {
+            showError('Please enter a valid email address.');
             return;
         }
 
@@ -140,6 +148,10 @@
                 const sessionResult = await createSession(token, remember);
                 console.log('Session created successfully:', sessionResult);
                 
+                // Clear form
+                emailInput.value = '';
+                passwordInput.value = '';
+                
                 // On success, redirect to dashboard
                 console.log('Redirecting to dashboard...');
                 window.location.href = '/';
@@ -147,7 +159,12 @@
                 console.error('Session creation failed:', sessionError);
                 loginButton.disabled = false;
                 loginButton.innerHTML = 'Login';
-                showError('Authentication succeeded but session creation failed. Please try again.');
+                
+                if (sessionError.message && sessionError.message.includes('session')) {
+                    showError('Session creation failed. Please try again.');
+                } else {
+                    showError('Login succeeded but could not create session. Please try again.');
+                }
                 throw sessionError;
             }
             
@@ -169,6 +186,8 @@
                 errorMessage = 'This account has been disabled. Please contact support.';
             } else if (error.code === 'auth/network-request-failed') {
                 errorMessage = 'Network error. Please check your connection and try again.';
+            } else if (error.message && error.message.includes('session')) {
+                errorMessage = 'Login succeeded but session creation failed. Please try again.';
             }
             
             // Log specific error details for debugging
