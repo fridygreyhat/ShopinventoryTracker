@@ -1,4 +1,3 @@
-
 /**
  * Firebase Authentication Module
  * This module provides functions for handling authentication with Firebase
@@ -14,9 +13,10 @@
  */
 export async function loginWithEmailPassword(auth, email, password) {
     try {
-        // Import signInWithEmailAndPassword function
+        // Import directly to avoid naming conflict
         const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
+        // Use the auth instance passed from the login page
         console.log('Attempting to sign in with:', email);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log('Sign in successful, user:', userCredential.user.email);
@@ -37,7 +37,7 @@ export async function loginWithEmailPassword(auth, email, password) {
  */
 export async function registerWithEmailPassword(auth, email, password, userData) {
     try {
-        // Import createUserWithEmailAndPassword function
+        // Import directly to avoid naming conflict
         const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
         console.log('Attempting to register with:', email);
@@ -81,9 +81,10 @@ export async function registerWithEmailPassword(auth, email, password, userData)
  */
 export async function sendPasswordReset(auth, email) {
     try {
-        // Import sendPasswordResetEmail function
+        // Import directly to avoid naming conflict
         const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
 
+        // Use the Firebase function with the auth instance passed from the login page
         await sendPasswordResetEmail(auth, email);
         return { success: true };
     } catch (error) {
@@ -101,8 +102,6 @@ export async function sendPasswordReset(auth, email) {
 export async function createSession(token, remember = false) {
     try {
         console.log('Creating session with server...');
-        console.log('Token length:', token ? token.length : 0);
-        console.log('Remember me:', remember);
 
         const response = await fetch('/api/auth/session', {
             method: 'POST',
@@ -115,118 +114,16 @@ export async function createSession(token, remember = false) {
             })
         });
 
-        console.log('Session response status:', response.status);
-
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Session creation failed:', errorText);
-            
-            let errorData;
-            try {
-                errorData = JSON.parse(errorText);
-            } catch (e) {
-                errorData = { error: 'Session creation failed' };
-            }
-            
+            const errorData = await response.json();
             throw new Error(errorData.error || 'Session creation failed');
         }
 
         const sessionData = await response.json();
-        console.log('Session created successfully:', sessionData);
+        console.log('Session created successfully');
         return sessionData;
     } catch (error) {
         console.error('Session creation error:', error);
-        throw error;
-    }
-}
-
-/**
- * Sign out user
- * @param {Object} auth - Firebase Auth instance
- * @returns {Promise} Promise that resolves when user is signed out
- */
-export async function signOutUser(auth) {
-    try {
-        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
-        await signOut(auth);
-        console.log('User signed out successfully');
-        return { success: true };
-    } catch (error) {
-        console.error('Sign out error:', error);
-        throw error;
-    }
-}
-
-/**
- * Native login (fallback when Firebase is unavailable)
- * @param {string} email - User email
- * @param {string} password - User password
- * @param {boolean} remember - Whether to remember the session
- * @returns {Promise} Server response
- */
-export async function loginNative(email, password, remember = false) {
-    try {
-        console.log('Attempting native login for:', email);
-        
-        const response = await fetch('/api/auth/login-native', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password,
-                remember: remember
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Native login failed');
-        }
-
-        const loginData = await response.json();
-        console.log('Native login successful:', loginData);
-        return loginData;
-    } catch (error) {
-        console.error('Native login error:', error);
-        throw error;
-    }
-}
-
-/**
- * Native registration (fallback when Firebase is unavailable)
- * @param {string} email - User email
- * @param {string} password - User password
- * @param {Object} userData - Additional user data
- * @returns {Promise} Server response
- */
-export async function registerNative(email, password, userData) {
-    try {
-        console.log('Attempting native registration for:', email);
-        
-        const response = await fetch('/api/auth/register-native', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password,
-                ...userData
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Native registration failed');
-        }
-
-        const registrationData = await response.json();
-        console.log('Native registration successful:', registrationData);
-        return registrationData;
-    } catch (error) {
-        console.error('Native registration error:', error);
         throw error;
     }
 }
