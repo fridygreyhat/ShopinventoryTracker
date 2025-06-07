@@ -136,9 +136,6 @@ def sanitize_input(data, allowed_fields):
     return {key: value for key, value in data.items() if key in allowed_fields}
 
 
-# Import auth service
-from auth_service import login_required, authenticate_user, create_or_update_user
-
 # Import models for validation functions
 from models import User
 
@@ -429,6 +426,9 @@ with app.app_context():
             db.session.rollback()
         except:
             pass
+
+# Import auth service after app initialization to avoid circular imports
+from auth_service import login_required, authenticate_user, create_or_update_user
 
 
 @app.route('/')
@@ -1539,8 +1539,12 @@ def logout():
                 logger.warning(f"Could not update user logout time: {str(db_error)}")
                 # Don't fail logout for this
         
-        # Clear all session data
+        # Clear all session data completely
         session.clear()
+        
+        # Additional session cleanup to ensure complete logout
+        for key in list(session.keys()):
+            session.pop(key, None)
         
         # Set success message
         flash('You have been successfully logged out. Thank you for using our system!', 'success')
@@ -1557,14 +1561,20 @@ def logout():
     
     # Handle AJAX requests (for logout buttons that use JavaScript)
     if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-        return jsonify({
+        response = jsonify({
             'success': True, 
             'message': 'Logged out successfully',
             'redirect': '/login'
         })
+        # Clear any potential cookies
+        response.set_cookie('session', '', expires=0)
+        return response
     
     # Handle form submissions and direct navigation
-    return redirect(url_for('login'))
+    response = redirect(url_for('login'))
+    # Clear any potential session cookies
+    response.set_cookie('session', '', expires=0)
+    return response
 
 
 # Financial Statement Routes
