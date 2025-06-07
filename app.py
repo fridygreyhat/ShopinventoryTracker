@@ -2362,15 +2362,7 @@ def get_monthly_summary():
     })
 
 
-@app.route('/api/finance/categories', methods=['GET'])
-def get_finance_categories():
-    """API endpoint to get all transaction categories"""
-    from models import TransactionCategory
 
-    # Get all categories from the enum
-    categories = [cat.value for cat in TransactionCategory]
-
-    return jsonify(categories)
 
 
 @app.route('/api/finance/sync-accounting', methods=['POST'])
