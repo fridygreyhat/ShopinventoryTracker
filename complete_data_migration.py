@@ -42,35 +42,33 @@ def migrate_users(users_data):
     for user_data in users_data:
         try:
             # Check if user already exists
-            existing_user = User.query.filter_by(email=user_data.get('email')).first()
+            existing_user = User.query.filter_by(email=user_data['email']).first()
             if existing_user:
-                print(f"⚠️ User {user_data.get('email')} already exists, skipping")
+                print(f"⚠️ User {user_data['email']} already exists, skipping")
                 continue
             
             user = User(
-                username=user_data.get('username'),
-                email=user_data.get('email'),
+                username=user_data['username'],
+                email=user_data['email'],
+                password_hash=user_data.get('password_hash'),
+                firebase_uid=user_data.get('firebase_uid'),
+                email_verified=bool(user_data.get('email_verified', False)),
                 first_name=user_data.get('first_name'),
                 last_name=user_data.get('last_name'),
                 phone=user_data.get('phone'),
                 shop_name=user_data.get('shop_name'),
                 product_categories=user_data.get('product_categories'),
-                active=user_data.get('active', True),
-                is_admin=user_data.get('is_admin', False),
-                email_verified=user_data.get('email_verified', True)
+                is_active=bool(user_data.get('is_active', True)),
+                is_admin=bool(user_data.get('is_admin', False)),
+                created_at=datetime.fromisoformat(user_data['created_at']) if user_data.get('created_at') else datetime.utcnow(),
+                last_login=datetime.fromisoformat(user_data['last_login']) if user_data.get('last_login') else None
             )
             
-            # Set a temporary password if password_hash exists
-            if user_data.get('password_hash'):
-                user.password_hash = user_data['password_hash']
-            else:
-                user.set_password('temp123456')  # User should change this
-            
             db.session.add(user)
-            print(f"✅ Migrated user: {user.email}")
+            print(f"✅ Added user: {user.username}")
             
         except Exception as e:
-            print(f"❌ Error migrating user {user_data.get('email')}: {e}")
+            print(f"❌ Error migrating user {user_data.get('username', 'unknown')}: {e}")
     
     db.session.commit()
 
@@ -110,14 +108,16 @@ def migrate_items(items_data):
                 selling_price_wholesale=float(item_data.get('selling_price_wholesale', 0)),
                 price=float(item_data.get('price', 0)),
                 sales_type=item_data.get('sales_type', 'both'),
-                track_by_location=item_data.get('track_by_location', False),
-                user_id=user.id
+                track_by_location=bool(item_data.get('track_by_location', False)),
+                user_id=item_data['user_id'],
+                created_at=datetime.fromisoformat(item_data['created_at']) if item_data.get('created_at') else datetime.utcnow()
             )
             
             db.session.add(item)
+            print(f"✅ Added item: {item.name}")
             
         except Exception as e:
-            print(f"❌ Error migrating item {item_data.get('name')}: {e}")
+            print(f"❌ Error migrating item {item_data.get('name', 'unknown')}: {e}")
     
     db.session.commit()
 
@@ -134,11 +134,13 @@ def migrate_sales(sales_data):
             # Check if sale already exists
             existing_sale = Sale.query.filter_by(invoice_number=sale_data.get('invoice_number')).first()
             if existing_sale:
+                print(f"⚠️ Sale {sale_data.get('invoice_number')} already exists, skipping")
                 continue
             
             # Get the user for this sale
             user = User.query.get(sale_data['user_id'])
             if not user:
+                print(f"❌ User ID {sale_data['user_id']} not found for sale {sale_data.get('invoice_number')}")
                 continue
             
             sale = Sale(
@@ -156,13 +158,15 @@ def migrate_sales(sales_data):
                 payment_amount=float(sale_data.get('payment_amount', 0)),
                 change_amount=float(sale_data.get('change_amount', 0)),
                 notes=sale_data.get('notes'),
-                user_id=user.id
+                user_id=sale_data['user_id'],
+                created_at=datetime.fromisoformat(sale_data['created_at']) if sale_data.get('created_at') else datetime.utcnow()
             )
             
             db.session.add(sale)
+            print(f"✅ Added sale: {sale.invoice_number}")
             
         except Exception as e:
-            print(f"❌ Error migrating sale {sale_data.get('invoice_number')}: {e}")
+            print(f"❌ Error migrating sale {sale_data.get('invoice_number', 'unknown')}: {e}")
     
     db.session.commit()
 
@@ -174,30 +178,33 @@ def migrate_financial_transactions(transactions_data):
     
     print(f"💳 Migrating {len(transactions_data)} financial transactions...")
     
-    for transaction_data in transactions_data:
+    for trans_data in transactions_data:
         try:
             # Get the user for this transaction
-            user = User.query.get(transaction_data['user_id'])
+            user = User.query.get(trans_data['user_id'])
             if not user:
+                print(f"❌ User ID {trans_data['user_id']} not found for transaction")
                 continue
             
             transaction = FinancialTransaction(
-                date=datetime.strptime(transaction_data['date'], '%Y-%m-%d').date(),
-                description=transaction_data['description'],
-                amount=float(transaction_data['amount']),
-                transaction_type=transaction_data['transaction_type'],
-                category=transaction_data['category'],
-                reference_id=transaction_data.get('reference_id'),
-                payment_method=transaction_data.get('payment_method'),
-                tax_rate=float(transaction_data.get('tax_rate', 0)),
-                tax_amount=float(transaction_data.get('tax_amount', 0)),
-                cost_of_goods_sold=float(transaction_data.get('cost_of_goods_sold', 0)),
-                gross_amount=float(transaction_data.get('gross_amount', 0)),
-                notes=transaction_data.get('notes'),
-                user_id=user.id
+                date=datetime.fromisoformat(trans_data['date']).date() if trans_data.get('date') else datetime.utcnow().date(),
+                description=trans_data['description'],
+                amount=float(trans_data['amount']),
+                transaction_type=trans_data['transaction_type'],
+                category=trans_data['category'],
+                reference_id=trans_data.get('reference_id'),
+                payment_method=trans_data.get('payment_method'),
+                tax_rate=float(trans_data.get('tax_rate', 0)),
+                tax_amount=float(trans_data.get('tax_amount', 0)),
+                cost_of_goods_sold=float(trans_data.get('cost_of_goods_sold', 0)),
+                gross_amount=float(trans_data.get('gross_amount', 0)),
+                notes=trans_data.get('notes'),
+                user_id=trans_data['user_id'],
+                created_at=datetime.fromisoformat(trans_data['created_at']) if trans_data.get('created_at') else datetime.utcnow()
             )
             
             db.session.add(transaction)
+            print(f"✅ Added transaction: {transaction.description}")
             
         except Exception as e:
             print(f"❌ Error migrating transaction: {e}")
@@ -205,27 +212,24 @@ def migrate_financial_transactions(transactions_data):
     db.session.commit()
 
 def create_default_location_for_users():
-    """Create a default location for each user"""
-    print("🏪 Creating default locations for users...")
+    """Create default locations for users who don't have any"""
+    print("🏢 Creating default locations for users...")
     
     users = User.query.all()
     for user in users:
-        # Check if user already has a location
+        # Check if user has any locations
         existing_location = Location.query.filter_by(user_id=user.id).first()
-        if existing_location:
-            continue
-        
-        # Create default location
-        location = Location(
-            name=f"{user.shop_name or user.username}'s Main Store",
-            code="MAIN",
-            type="store",
-            is_default=True,
-            user_id=user.id
-        )
-        
-        db.session.add(location)
-        print(f"✅ Created default location for user: {user.username}")
+        if not existing_location:
+            default_location = Location(
+                name=f"{user.shop_name or user.username}'s Main Store",
+                code=f"MAIN-{user.id}",
+                type='store',
+                is_active=True,
+                is_default=True,
+                user_id=user.id
+            )
+            db.session.add(default_location)
+            print(f"✅ Created default location for user: {user.username}")
     
     db.session.commit()
 
@@ -293,6 +297,7 @@ def main():
             
         except Exception as e:
             print(f"❌ Migration failed: {e}")
+            db.session.rollback()
 
 if __name__ == "__main__":
     main()
