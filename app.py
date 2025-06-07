@@ -1522,24 +1522,49 @@ def delete_setting(key):
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    """Logout route to clear session data"""
+    """Enhanced logout route with comprehensive session cleanup"""
     try:
-        # Get user info before clearing session
+        # Get user info before clearing session for logging
         user_email = session.get('email', 'Unknown user')
+        user_id = session.get('user_id')
         
-        # Clear session data
+        # Update user's last logout time if user exists
+        if user_id:
+            try:
+                user = User.query.get(user_id)
+                if user:
+                    user.last_login = datetime.utcnow()  # Can be used to track session duration
+                    db.session.commit()
+            except Exception as db_error:
+                logger.warning(f"Could not update user logout time: {str(db_error)}")
+                # Don't fail logout for this
+        
+        # Clear all session data
         session.clear()
-        flash('You have been logged out successfully', 'success')
+        
+        # Set success message
+        flash('You have been successfully logged out. Thank you for using our system!', 'success')
         logger.info(f"User {user_email} logged out successfully")
+        
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
-        flash('Logout completed', 'info')
+        # Still clear session even if there's an error
+        try:
+            session.clear()
+        except:
+            pass
+        flash('You have been logged out', 'info')
     
-    # Handle both regular requests and AJAX requests
+    # Handle AJAX requests (for logout buttons that use JavaScript)
     if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-        return jsonify({'success': True, 'redirect': '/login'})
+        return jsonify({
+            'success': True, 
+            'message': 'Logged out successfully',
+            'redirect': '/login'
+        })
     
-    return redirect('/login')
+    # Handle form submissions and direct navigation
+    return redirect(url_for('login'))
 
 
 # Financial Statement Routes
