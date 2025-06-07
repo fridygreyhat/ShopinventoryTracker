@@ -78,6 +78,8 @@ elif database_url.startswith("postgres://"):
     # Fix postgres:// to postgresql:// for SQLAlchemy compatibility
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
+logger.info(f"Using database: {database_url.split('@')[0]}@[hidden]" if '@' in database_url else database_url)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -136,6 +138,9 @@ def sanitize_input(data, allowed_fields):
 
 # Import auth service
 from auth_service import login_required, authenticate_user, create_or_update_user
+
+# Import models for validation functions
+from models import User
 
 
 # Template helper function
@@ -2357,15 +2362,7 @@ def get_monthly_summary():
     })
 
 
-@app.route('/api/finance/categories', methods=['GET'])
-def get_finance_categories():
-    """API endpoint to get all transaction categories"""
-    from models import TransactionCategory
 
-    # Get all categories from the enum
-    categories = [cat.value for cat in TransactionCategory]
-
-    return jsonify(categories)
 
 
 @app.route('/api/finance/sync-accounting', methods=['POST'])

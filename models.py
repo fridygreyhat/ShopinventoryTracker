@@ -370,28 +370,6 @@ class Sale(db.Model):
 
     def to_dict(self):
         """Convert sale to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'invoice_number': self.invoice_number,
-            'customer_name': self.customer_name,
-            'customer_phone': self.customer_phone,
-            'sale_type': self.sale_type,
-            'subtotal': self.subtotal,
-            'discount_type': self.discount_type,
-            'discount_value': self.discount_value,
-            'discount_amount': self.discount_amount,
-            'total': self.total,
-            'payment_method': self.payment_method,
-            'payment_details': self.payment_details,
-            'payment_amount': self.payment_amount,
-            'change_amount': self.change_amount,
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-    def to_dict(self):
-        """Convert sale to dictionary for API responses"""
         payment_details_dict = {}
         if self.payment_details:
             try:
