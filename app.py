@@ -63,6 +63,27 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
     return response
 
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors"""
+    logger.error(f"Internal server error: {str(error)}")
+    db.session.rollback()
+    
+    # Check if request is for API endpoint
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'The server encountered an error processing your request'
+        }), 500
+    
+    # For regular pages, render error template or redirect to login
+    try:
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return render_template('index.html'), 500
+    except Exception:
+        return "Internal Server Error - Please try refreshing the page", 500
+
 # Removed Firebase configuration - using PostgreSQL authentication only
 
 
@@ -158,7 +179,15 @@ def inject_current_user():
                 return None
         return None
 
-    return dict(get_current_user=get_current_user)
+    def safe_get_current_user():
+        """Safe wrapper that never fails"""
+        try:
+            return get_current_user()
+        except Exception as e:
+            logger.error(f"Critical error in user context: {str(e)}")
+            return None
+
+    return dict(get_current_user=safe_get_current_user)
 
 
 # Initialize database tables

@@ -1,24 +1,31 @@
-
 // Enhanced Navigation Bar JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-    const navbar = document.querySelector('.navbar');
+    // Get navbar element with multiple selectors as fallback
+    const navbar = document.querySelector('#main-navbar') || 
+                  document.querySelector('.navbar') || 
+                  document.querySelector('nav');
+
+    if (!navbar) {
+        console.error('Navbar element not found');
+        return;
+    }
     const navLinks = document.querySelectorAll('.nav-link');
     const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
-    
+
     // Navbar scroll effect
     let lastScrollTop = 0;
     let scrollTimeout;
-    
+
     function handleNavbarScroll() {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        
+
         // Add scrolled class for enhanced shadow
         if (scrollTop > 10) {
             navbar.classList.add('scrolled');
         } else {
             navbar.classList.remove('scrolled');
         }
-        
+
         // Optional: Hide navbar on scroll down, show on scroll up
         if (scrollTop > lastScrollTop && scrollTop > 100) {
             // Scrolling down
@@ -27,16 +34,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Scrolling up
             navbar.style.transform = 'translateY(0)';
         }
-        
+
         lastScrollTop = scrollTop;
-        
+
         // Clear timeout and set new one
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             navbar.style.transform = 'translateY(0)';
         }, 150);
     }
-    
+
     // Throttled scroll listener
     let ticking = false;
     window.addEventListener('scroll', function() {
@@ -70,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
         navbarRippleStyleElement.textContent = navbarRippleCSS;
         document.head.appendChild(navbarRippleStyleElement);
     }
-    
+
     // Enhanced nav link interactions
     navLinks.forEach(link => {
         // Add ripple effect on click
@@ -80,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const size = Math.max(rect.width, rect.height);
             const x = e.clientX - rect.left - size / 2;
             const y = e.clientY - rect.top - size / 2;
-            
+
             ripple.style.cssText = `
                 position: absolute;
                 width: ${size}px;
@@ -94,32 +101,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 pointer-events: none;
                 z-index: 1;
             `;
-            
+
             this.appendChild(ripple);
-            
+
             setTimeout(() => {
                 ripple.remove();
             }, 600);
         });
-        
+
         // Enhanced hover tracking
         link.addEventListener('mouseenter', function() {
             this.style.setProperty('--hover-scale', '1.02');
         });
-        
+
         link.addEventListener('mouseleave', function() {
             this.style.setProperty('--hover-scale', '1');
         });
     });
-    
+
     // Enhanced dropdown interactions
     dropdownToggles.forEach(toggle => {
         const dropdown = toggle.nextElementSibling;
-        
+
         toggle.addEventListener('click', function(e) {
             e.preventDefault();
             const isOpen = dropdown.classList.contains('show');
-            
+
             // Close all other dropdowns first
             document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
                 if (menu !== dropdown) {
@@ -127,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     menu.previousElementSibling.setAttribute('aria-expanded', 'false');
                 }
             });
-            
+
             // Toggle current dropdown
             if (isOpen) {
                 dropdown.classList.remove('show');
@@ -138,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.dropdown')) {
@@ -148,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Keyboard navigation improvements
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
@@ -158,17 +165,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Handle logout functionality
     document.addEventListener('click', function(e) {
         if (e.target.closest('a[href="/logout"]') || e.target.closest('a[href*="logout"]')) {
             e.preventDefault();
-            
+
             // Show loading state
             const logoutLink = e.target.closest('a');
             const originalContent = logoutLink.innerHTML;
             logoutLink.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Logging out...';
-            
+
             // Perform logout
             fetch('/logout', {
                 method: 'GET',
@@ -188,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Active page detection
     function setActiveNavLink() {
         const currentPath = window.location.pathname;
@@ -201,10 +208,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Set active link on page load
     setActiveNavLink();
-    
+
     // Update active link on navigation (for SPAs)
     window.addEventListener('popstate', setActiveNavLink);
 });
