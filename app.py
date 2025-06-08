@@ -63,6 +63,27 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://auth.util.repl.co https://identitytoolkit.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
     return response
 
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors"""
+    logger.error(f"Internal server error: {str(error)}")
+    db.session.rollback()
+    
+    # Check if request is for API endpoint
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'The server encountered an error processing your request'
+        }), 500
+    
+    # For regular pages, render error template or redirect to login
+    try:
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return render_template('index.html'), 500
+    except Exception:
+        return "Internal Server Error - Please try refreshing the page", 500
+
 # Removed Firebase configuration - using PostgreSQL authentication only
 
 
@@ -136,9 +157,6 @@ def sanitize_input(data, allowed_fields):
     return {key: value for key, value in data.items() if key in allowed_fields}
 
 
-# Import auth service
-from auth_service import login_required, authenticate_user, create_or_update_user
-
 # Import models for validation functions
 from models import User
 
@@ -161,7 +179,15 @@ def inject_current_user():
                 return None
         return None
 
-    return dict(get_current_user=get_current_user)
+    def safe_get_current_user():
+        """Safe wrapper that never fails"""
+        try:
+            return get_current_user()
+        except Exception as e:
+            logger.error(f"Critical error in user context: {str(e)}")
+            return None
+
+    return dict(get_current_user=safe_get_current_user)
 
 
 # Initialize database tables
@@ -429,6 +455,9 @@ with app.app_context():
             db.session.rollback()
         except:
             pass
+
+# Import auth service after app initialization to avoid circular imports
+from auth_service import login_required, authenticate_user, create_or_update_user
 
 
 @app.route('/')
@@ -1522,24 +1551,59 @@ def delete_setting(key):
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    """Logout route to clear session data"""
+    """Enhanced logout route with comprehensive session cleanup"""
     try:
-        # Get user info before clearing session
+        # Get user info before clearing session for logging
         user_email = session.get('email', 'Unknown user')
+        user_id = session.get('user_id')
         
-        # Clear session data
+        # Update user's last logout time if user exists
+        if user_id:
+            try:
+                user = User.query.get(user_id)
+                if user:
+                    user.last_login = datetime.utcnow()  # Can be used to track session duration
+                    db.session.commit()
+            except Exception as db_error:
+                logger.warning(f"Could not update user logout time: {str(db_error)}")
+                # Don't fail logout for this
+        
+        # Clear all session data completely
         session.clear()
-        flash('You have been logged out successfully', 'success')
+        
+        # Additional session cleanup to ensure complete logout
+        for key in list(session.keys()):
+            session.pop(key, None)
+        
+        # Set success message
+        flash('You have been successfully logged out. Thank you for using our system!', 'success')
         logger.info(f"User {user_email} logged out successfully")
+        
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
-        flash('Logout completed', 'info')
+        # Still clear session even if there's an error
+        try:
+            session.clear()
+        except:
+            pass
+        flash('You have been logged out', 'info')
     
-    # Handle both regular requests and AJAX requests
+    # Handle AJAX requests (for logout buttons that use JavaScript)
     if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-        return jsonify({'success': True, 'redirect': '/login'})
+        response = jsonify({
+            'success': True, 
+            'message': 'Logged out successfully',
+            'redirect': '/login'
+        })
+        # Clear any potential cookies
+        response.set_cookie('session', '', expires=0)
+        return response
     
-    return redirect('/login')
+    # Handle form submissions and direct navigation
+    response = redirect(url_for('login'))
+    # Clear any potential session cookies
+    response.set_cookie('session', '', expires=0)
+    return response
 
 
 # Financial Statement Routes
@@ -2362,15 +2426,7 @@ def get_monthly_summary():
     })
 
 
-@app.route('/api/finance/categories', methods=['GET'])
-def get_finance_categories():
-    """API endpoint to get all transaction categories"""
-    from models import TransactionCategory
 
-    # Get all categories from the enum
-    categories = [cat.value for cat in TransactionCategory]
-
-    return jsonify(categories)
 
 
 @app.route('/api/finance/sync-accounting', methods=['POST'])
@@ -4437,28 +4493,38 @@ def account():
 @login_required
 def admin_portal():
     """Render the main admin portal page (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        flash('Admin access required', 'danger')
-        return redirect(url_for('index'))
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            flash('Admin access required', 'danger')
+            return redirect(url_for('index'))
 
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users)
+        users = User.query.order_by(User.created_at.desc()).all()
+        return render_template('admin_users.html', users=users)
+    except Exception as e:
+        logger.error(f"Error loading admin portal: {str(e)}")
+        flash('Error loading admin portal', 'danger')
+        return redirect(url_for('index'))
 
 
 @app.route('/admin/users')
 @login_required
 def admin_users():
     """Render the user management page (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        flash('Admin access required', 'danger')
-        return redirect(url_for('index'))
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            flash('Admin access required', 'danger')
+            return redirect(url_for('index'))
 
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users)
+        users = User.query.order_by(User.created_at.desc()).all()
+        return render_template('admin_users.html', users=users)
+    except Exception as e:
+        logger.error(f"Error loading admin users: {str(e)}")
+        flash('Error loading admin users', 'danger')
+        return redirect(url_for('index'))
 
 
 @app.route('/api/auth/users', methods=['GET'])

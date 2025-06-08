@@ -1,4 +1,3 @@
-
 {% extends 'layout.html' %}
 
 {% block content %}
@@ -187,14 +186,18 @@
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ user.active ? 'success' : 'danger' }}">
-                                                        {{ user.active ? 'Active' : 'Inactive' }}
-                                                    </span>
+                                                    {% if user.active %}
+                                                        <span class="badge bg-success">Active</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Inactive</span>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ user.is_admin ? 'primary' : 'secondary' }}">
-                                                        {{ user.is_admin ? 'Admin' : 'User' }}
-                                                    </span>
+                                                    {% if user.is_admin %}
+                                                        <span class="badge bg-primary">Admin</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">User</span>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
                                                     <small class="text-muted">
@@ -209,8 +212,8 @@
                                                         <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="{{ user.id }}">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
-                                                        <button type="button" class="btn btn-outline-{{ user.active ? 'warning' : 'success' }} toggle-status-btn" title="{{ user.active ? 'Deactivate' : 'Activate' }} User" data-user-id="{{ user.id }}">
-                                                            <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
+                                                        <button type="button" class="btn btn-outline-{% if user.active %}warning{% else %}success{% endif %} toggle-status-btn" title="{% if user.active %}Deactivate{% else %}Activate{% endif %} User" data-user-id="{{ user.id }}">
+                                                            <i class="fas fa-{% if user.active %}ban{% else %}check{% endif %}"></i>
                                                         </button>
                                                         {% if user.id != session.get('user_id') %}
                                                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="{{ user.id }}">
@@ -251,7 +254,7 @@
                             <div class="p-4">
                                 <h5>User Permissions Overview</h5>
                                 <p class="text-muted">Manage user roles and permissions across the system.</p>
-                                
+
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="card">
@@ -299,7 +302,7 @@
                             <div class="p-4">
                                 <h5>System Settings</h5>
                                 <p class="text-muted">Configure system-wide settings and preferences.</p>
-                                
+
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="card">
@@ -363,7 +366,7 @@
                             <div class="p-4">
                                 <h5>Activity Logs</h5>
                                 <p class="text-muted">Monitor user activities and system events.</p>
-                                
+
                                 <div class="table-responsive">
                                     <table class="table table-sm">
                                         <thead>
@@ -501,21 +504,21 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize admin portal
     initializeAdminPortal();
-    
+
     function initializeAdminPortal() {
         // Load statistics
         loadUserStatistics();
-        
+
         // Initialize event listeners
         initializeEventListeners();
-        
+
         // Initialize role distribution chart
         initializeRoleChart();
-        
+
         // Load initial data
         loadUsersData();
     }
-    
+
     function loadUserStatistics() {
         fetch('/api/auth/users/stats')
             .then(response => response.json())
@@ -524,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error loading statistics:', data.error);
                     return;
                 }
-                
+
                 document.getElementById('totalUsersCount').textContent = data.total_users || 0;
                 document.getElementById('activeUsersCount').textContent = data.active_users || 0;
                 document.getElementById('adminUsersCount').textContent = data.admin_users || 0;
@@ -534,33 +537,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading user statistics:', error);
             });
     }
-    
+
     function initializeEventListeners() {
         // Search functionality
         document.getElementById('userSearch').addEventListener('input', filterUsers);
         document.getElementById('userStatusFilter').addEventListener('change', filterUsers);
         document.getElementById('userRoleFilter').addEventListener('change', filterUsers);
-        
+
         // Refresh button
         document.getElementById('refreshUsers').addEventListener('click', function() {
             loadUsersData();
             loadUserStatistics();
         });
-        
+
         // Select all checkbox
         document.getElementById('selectAllUsers').addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.user-checkbox');
             checkboxes.forEach(cb => cb.checked = this.checked);
             updateBulkActions();
         });
-        
+
         // Individual checkboxes
         document.addEventListener('change', function(e) {
             if (e.target.classList.contains('user-checkbox')) {
                 updateBulkActions();
             }
         });
-        
+
         // User action buttons
         document.addEventListener('click', function(e) {
             if (e.target.closest('.edit-user-btn')) {
@@ -574,61 +577,77 @@ document.addEventListener('DOMContentLoaded', function() {
                 deleteUser(userId);
             }
         });
-        
+
         // Modal form submissions
         document.getElementById('saveNewUserBtn').addEventListener('click', createNewUser);
         document.getElementById('saveUserBtn').addEventListener('click', saveUserChanges);
-        
+
         // Bulk actions
         document.getElementById('bulkActivate').addEventListener('click', () => bulkAction('activate'));
         document.getElementById('bulkDeactivate').addEventListener('click', () => bulkAction('deactivate'));
         document.getElementById('bulkDelete').addEventListener('click', () => bulkAction('delete'));
     }
-    
+
     function initializeRoleChart() {
-        const ctx = document.getElementById('roleDistributionChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Admin Users', 'Regular Users'],
-                datasets: [{
-                    data: [{{ users|selectattr('is_admin')|list|length }}, {{ users|rejectattr('is_admin')|list|length }}],
-                    backgroundColor: ['#0d6efd', '#6c757d'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+        try {
+            const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+            const adminCount = {{ users|selectattr('is_admin')|list|length if users else 0 }};
+            const userCount = {{ users|rejectattr('is_admin')|list|length if users else 0 }};
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Admin Users', 'Regular Users'],
+                    datasets: [{
+                        data: [adminCount, userCount],
+                        backgroundColor: ['#0d6efd', '#6c757d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
                     }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error initializing role chart:', error);
+        }
     }
-    
+
     function loadUsersData() {
         fetch('/api/auth/users')
-            .then(response => response.json())
-            .then(users => {
-                if (Array.isArray(users)) {
-                    renderUsersTable(users);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                if (Array.isArray(data)) {
+                    renderUsersTable(data);
                 } else {
-                    console.error('Invalid users data:', users);
+                    console.error('Invalid users data:', data);
+                    showAlert('Invalid users data received', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error loading users:', error);
-                showAlert('Failed to load users data', 'danger');
+                showAlert('Failed to load users data: ' + error.message, 'danger');
             });
     }
-    
+
     function renderUsersTable(users) {
         const tbody = document.getElementById('usersTableBody');
-        
-        if (users.length === 0) {
+
+        if (!users || users.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8" class="text-center py-4">
@@ -639,7 +658,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             return;
         }
-        
+
         tbody.innerHTML = users.map(user => `
             <tr data-user-id="${user.id}">
                 <td>
@@ -651,8 +670,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="text-white small fw-bold">${user.username.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
-                            <div class="fw-semibold">${user.username}</div>
-                            <small class="text-muted">${user.first_name || ''} ${user.last_name || ''}</small>
+                            <div class="fw-semibold">${user.username || ''}</div>
+                            <small class="text-muted">${(user.first_name || '') + ' ' + (user.last_name || '')}</small>
                         </div>
                     </div>
                 </td>
@@ -666,14 +685,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </td>
                 <td>
-                    <span class="badge bg-${user.active ? 'success' : 'danger'}">
-                        ${user.active ? 'Active' : 'Inactive'}
-                    </span>
+                    ${user.active ? 
+                            '<span class="badge bg-success">Active</span>' :
+                            '<span class="badge bg-danger">Inactive</span>'
+                        }
                 </td>
                 <td>
-                    <span class="badge bg-${user.is_admin ? 'primary' : 'secondary'}">
-                        ${user.is_admin ? 'Admin' : 'User'}
-                    </span>
+                    ${user.is_admin ?
+                        '<span class="badge bg-primary">Admin</span>' :
+                        '<span class="badge bg-secondary">User</span>'
+                    }
                 </td>
                 <td>
                     <small class="text-muted">
@@ -688,10 +709,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="${user.id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-${user.active ? 'warning' : 'success'} toggle-status-btn" title="${user.active ? 'Deactivate' : 'Activate'} User" data-user-id="${user.id}">
-                            <i class="fas fa-${user.active ? 'ban' : 'check'}"></i>
+                        <button type="button" class="btn btn-outline-{% if user.active %}warning{% else %}success{% endif %} toggle-status-btn" title="{% if user.active %}Deactivate{% else %}Activate{% endif %} User" data-user-id="${user.id}">
+                            <i class="fas fa-{% if user.active %}ban{% else %}check{% endif %}"></i>
                         </button>
-                        ${user.id !== {{ session.get('user_id') }} ? `
+                        ${user.id !== {{ session.get('user_id', 0) }} ? `
                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="${user.id}">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -701,82 +722,81 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>
         `).join('');
     }
-    
+
     function filterUsers() {
         const searchTerm = document.getElementById('userSearch').value.toLowerCase();
         const statusFilter = document.getElementById('userStatusFilter').value;
         const roleFilter = document.getElementById('userRoleFilter').value;
-        
+
         const rows = document.querySelectorAll('#usersTableBody tr');
-        
+
         rows.forEach(row => {
             const userData = row.dataset.userId;
             if (!userData) return;
-            
+
             const username = row.querySelector('.fw-semibold').textContent.toLowerCase();
             const email = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
             const status = row.querySelector('.badge').textContent.toLowerCase();
             const role = row.querySelector('td:nth-child(5) .badge').textContent.toLowerCase();
-            
+
             let show = true;
-            
+
             // Search filter
             if (searchTerm && !username.includes(searchTerm) && !email.includes(searchTerm)) {
                 show = false;
             }
-            
+
             // Status filter
             if (statusFilter && !status.includes(statusFilter)) {
                 show = false;
             }
-            
+
             // Role filter
             if (roleFilter && !role.includes(roleFilter)) {
                 show = false;
             }
-            
+
             row.style.display = show ? '' : 'none';
         });
     }
-    
+
     function updateBulkActions() {
         const checkboxes = document.querySelectorAll('.user-checkbox');
         const checked = document.querySelectorAll('.user-checkbox:checked');
-        
+
         document.getElementById('selectedCount').textContent = checked.length;
         document.getElementById('bulkActions').classList.toggle('d-none', checked.length === 0);
-        
+
         // Update select all checkbox
         const selectAll = document.getElementById('selectAllUsers');
         selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
         selectAll.checked = checked.length === checkboxes.length;
     }
-    
+
     function createNewUser() {
         const form = document.getElementById('addUserForm');
         const formData = new FormData(form);
-        
+
         const userData = {
             username: document.getElementById('newUsername').value,
             email: document.getElementById('newEmail').value,
             firstName: document.getElementById('newFirstName').value,
             lastName: document.getElementById('newLastName').value,
             password: document.getElementById('newPassword').value,
-            is_active: document.getElementById('newIsActive').checked,
-            is_admin: document.getElementById('newIsAdmin').checked
+            is_active: document.getElementById('newIsActive').checked,            is_admin: document.getElementById('newIsAdmin').checked
         };
-        
+
         // Basic validation
         if (!userData.username || !userData.email || !userData.password) {
             showModalError('addUserError', 'addErrorMessage', 'Please fill in all required fields');
             return;
         }
-        
+
         // Show loading state
         const saveBtn = document.getElementById('saveNewUserBtn');
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
-        
+
         fetch('/api/auth/users', {
             method: 'POST',
             headers: {
@@ -784,13 +804,22 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(userData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.error) {
                 showModalError('addUserError', 'addErrorMessage', data.error);
             } else {
                 // Success
-                bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+                const modalElement = document.getElementById('addUserModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
                 form.reset();
                 loadUsersData();
                 loadUserStatistics();
@@ -805,7 +834,7 @@ document.addEventListener('DOMContentLoaded', function() {
             saveBtn.innerHTML = 'Create User';
         });
     }
-    
+
     function editUser(userId) {
         fetch(`/api/auth/users/${userId}`)
             .then(response => response.json())
@@ -817,17 +846,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('editLastName').value = user.last_name || '';
                 document.getElementById('editIsActive').checked = user.active;
                 document.getElementById('editIsAdmin').checked = user.is_admin;
-                
+
                 // Clear previous errors
                 document.getElementById('editUserError').classList.add('d-none');
-                
+
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
             })
             .catch(error => {
                 showAlert('Failed to load user data', 'danger');
             });
     }
-    
+
     function saveUserChanges() {
         const userId = document.getElementById('editUserId').value;
         const userData = {
@@ -837,11 +866,11 @@ document.addEventListener('DOMContentLoaded', function() {
             is_active: document.getElementById('editIsActive').checked,
             is_admin: document.getElementById('editIsAdmin').checked
         };
-        
+
         const saveBtn = document.getElementById('saveUserBtn');
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-        
+
         fetch(`/api/auth/users/${userId}`, {
             method: 'PUT',
             headers: {
@@ -868,7 +897,7 @@ document.addEventListener('DOMContentLoaded', function() {
             saveBtn.innerHTML = 'Save Changes';
         });
     }
-    
+
     function toggleUserStatus(userId) {
         if (confirm('Are you sure you want to change this user\'s status?')) {
             fetch(`/api/auth/users/${userId}`, {
@@ -893,7 +922,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     function deleteUser(userId) {
         if (confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
             fetch(`/api/auth/users/${userId}`, {
@@ -914,13 +943,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     function bulkAction(action) {
         const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
         const userIds = Array.from(checkedBoxes).map(cb => cb.value);
-        
+
         if (userIds.length === 0) return;
-        
+
         const actionText = action.charAt(0).toUpperCase() + action.slice(1);
         if (confirm(`Are you sure you want to ${action} ${userIds.length} selected user(s)?`)) {
             // Implementation for bulk actions would go here
@@ -929,12 +958,12 @@ document.addEventListener('DOMContentLoaded', function() {
             loadUserStatistics();
         }
     }
-    
+
     function showModalError(errorId, messageId, message) {
         document.getElementById(messageId).textContent = message;
         document.getElementById(errorId).classList.remove('d-none');
     }
-    
+
     function showAlert(message, type) {
         // Create and show bootstrap alert
         const alertDiv = document.createElement('div');
@@ -945,7 +974,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(alertDiv);
-        
+
         // Auto-remove after 5 seconds
         setTimeout(() => {
             if (alertDiv.parentNode) {
