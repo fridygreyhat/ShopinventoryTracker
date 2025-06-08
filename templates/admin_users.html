@@ -589,49 +589,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initializeRoleChart() {
-        const ctx = document.getElementById('roleDistributionChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Admin Users', 'Regular Users'],
-                datasets: [{
-                    data: [{{ users|selectattr('is_admin')|list|length }}, {{ users|rejectattr('is_admin')|list|length }}],
-                    backgroundColor: ['#0d6efd', '#6c757d'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+        try {
+            const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+            const adminCount = {{ users|selectattr('is_admin')|list|length if users else 0 }};
+            const userCount = {{ users|rejectattr('is_admin')|list|length if users else 0 }};
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Admin Users', 'Regular Users'],
+                    datasets: [{
+                        data: [adminCount, userCount],
+                        backgroundColor: ['#0d6efd', '#6c757d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
                     }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error initializing role chart:', error);
+        }
     }
 
     function loadUsersData() {
         fetch('/api/auth/users')
-            .then(response => response.json())
-            .then(users => {
-                if (Array.isArray(users)) {
-                    renderUsersTable(users);
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                if (Array.isArray(data)) {
+                    renderUsersTable(data);
                 } else {
-                    console.error('Invalid users data:', users);
+                    console.error('Invalid users data:', data);
+                    showAlert('Invalid users data received', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error loading users:', error);
-                showAlert('Failed to load users data', 'danger');
+                showAlert('Failed to load users data: ' + error.message, 'danger');
             });
     }
 
     function renderUsersTable(users) {
         const tbody = document.getElementById('usersTableBody');
 
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8" class="text-center py-4">
@@ -654,8 +670,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="text-white small fw-bold">${user.username.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
-                            <div class="fw-semibold">${user.username}</div>
-                            <small class="text-muted">${user.first_name || ''} ${user.last_name || ''}</small>
+                            <div class="fw-semibold">${user.username || ''}</div>
+                            <small class="text-muted">${(user.first_name || '') + ' ' + (user.last_name || '')}</small>
                         </div>
                     </div>
                 </td>
@@ -696,7 +712,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="btn btn-outline-${user.active ? 'warning' : 'success'} toggle-status-btn" title="${user.active ? 'Deactivate' : 'Activate'} User" data-user-id="${user.id}">
                             <i class="fas fa-${user.active ? 'ban' : 'check'}"></i>
                         </button>
-                        ${user.id !== {{ session.get('user_id') }} ? `
+                        ${user.id !== {{ session.get('user_id', 0) }} ? `
                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="${user.id}">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -788,13 +804,22 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(userData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.error) {
                 showModalError('addUserError', 'addErrorMessage', data.error);
             } else {
                 // Success
-                bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+                const modalElement = document.getElementById('addUserModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
                 form.reset();
                 loadUsersData();
                 loadUserStatistics();

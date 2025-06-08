@@ -4493,28 +4493,38 @@ def account():
 @login_required
 def admin_portal():
     """Render the main admin portal page (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        flash('Admin access required', 'danger')
-        return redirect(url_for('index'))
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            flash('Admin access required', 'danger')
+            return redirect(url_for('index'))
 
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users)
+        users = User.query.order_by(User.created_at.desc()).all()
+        return render_template('admin_users.html', users=users)
+    except Exception as e:
+        logger.error(f"Error loading admin portal: {str(e)}")
+        flash('Error loading admin portal', 'danger')
+        return redirect(url_for('index'))
 
 
 @app.route('/admin/users')
 @login_required
 def admin_users():
     """Render the user management page (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        flash('Admin access required', 'danger')
-        return redirect(url_for('index'))
+    try:
+        # Check if current user is admin
+        current_user = User.query.get(session['user_id'])
+        if not current_user or not current_user.is_admin:
+            flash('Admin access required', 'danger')
+            return redirect(url_for('index'))
 
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users)
+        users = User.query.order_by(User.created_at.desc()).all()
+        return render_template('admin_users.html', users=users)
+    except Exception as e:
+        logger.error(f"Error loading admin users: {str(e)}")
+        flash('Error loading admin users', 'danger')
+        return redirect(url_for('index'))
 
 
 @app.route('/api/auth/users', methods=['GET'])
