@@ -502,6 +502,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Set current user ID for comparison
+    const currentUserId = {{ session.get('user_id', 0) }};
+    
     // Initialize admin portal
     initializeAdminPortal();
 
@@ -591,8 +594,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeRoleChart() {
         try {
             const ctx = document.getElementById('roleDistributionChart').getContext('2d');
-            const adminCount = {{ users|selectattr('is_admin')|list|length if users else 0 }};
-            const userCount = {{ users|rejectattr('is_admin')|list|length if users else 0 }};
+            const adminCount = {% if users %}{{ users|selectattr('is_admin')|list|length }}{% else %}0{% endif %};
+            const userCount = {% if users %}{{ users|rejectattr('is_admin')|list|length }}{% else %}0{% endif %};
 
             new Chart(ctx, {
                 type: 'doughnut',
@@ -709,10 +712,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="${user.id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-{% if user.active %}warning{% else %}success{% endif %} toggle-status-btn" title="{% if user.active %}Deactivate{% else %}Activate{% endif %} User" data-user-id="${user.id}">
-                            <i class="fas fa-{% if user.active %}ban{% else %}check{% endif %}"></i>
+                        <button type="button" class="btn btn-outline-${user.active ? 'warning' : 'success'} toggle-status-btn" title="${user.active ? 'Deactivate' : 'Activate'} User" data-user-id="${user.id}">
+                            <i class="fas fa-${user.active ? 'ban' : 'check'}"></i>
                         </button>
-                        ${user.id !== {{ session.get('user_id', 0) }} ? `
+                        ${user.id !== currentUserId ? `
                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="${user.id}">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -783,7 +786,8 @@ document.addEventListener('DOMContentLoaded', function() {
             firstName: document.getElementById('newFirstName').value,
             lastName: document.getElementById('newLastName').value,
             password: document.getElementById('newPassword').value,
-            is_active: document.getElementById('newIsActive').checked,            is_admin: document.getElementById('newIsAdmin').checked
+            is_active: document.getElementById('newIsActive').checked,
+            is_admin: document.getElementById('newIsAdmin').checked
         };
 
         // Basic validation
