@@ -8,18 +8,8 @@ from app import app, db
 from models import User
 import re
 
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-
 # Create auth blueprint
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+auth_bp = Blueprint('postgresql_auth', __name__, url_prefix='/auth')
 
 def validate_email(email):
     """Validate email format"""
