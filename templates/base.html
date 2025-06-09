@@ -430,6 +430,169 @@
             padding: 30px;
         }
 
+        /* Dark Mode Styles for Common Elements */
+        .card {
+            background-color: var(--card-bg) !important;
+            border-color: var(--border-color) !important;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            box-shadow: 0 2px 4px var(--shadow-color) !important;
+        }
+
+        .card-header {
+            background-color: var(--bg-tertiary) !important;
+            border-bottom-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .card-body {
+            color: var(--text-primary) !important;
+        }
+
+        .form-control, .form-select {
+            background-color: var(--input-bg) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--input-bg) !important;
+            border-color: var(--primary-color) !important;
+            color: var(--text-primary) !important;
+            box-shadow: 0 0 0 0.2rem rgba(var(--primary-color), 0.25) !important;
+        }
+
+        .form-label {
+            color: var(--text-secondary) !important;
+        }
+
+        .table {
+            color: var(--text-primary) !important;
+            background-color: var(--card-bg) !important;
+        }
+
+        .table th {
+            border-bottom-color: var(--border-color) !important;
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .table td {
+            border-top-color: var(--border-color) !important;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+
+        .btn-success {
+            background-color: var(--success-color) !important;
+            border-color: var(--success-color) !important;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color) !important;
+            border-color: var(--danger-color) !important;
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color) !important;
+            border-color: var(--warning-color) !important;
+        }
+
+        .btn-info {
+            background-color: var(--info-color) !important;
+            border-color: var(--info-color) !important;
+        }
+
+        .alert {
+            border-color: var(--border-color) !important;
+            transition: all 0.3s ease;
+        }
+
+        .alert-success {
+            background-color: rgba(var(--success-color), 0.1) !important;
+            border-color: var(--success-color) !important;
+            color: var(--success-color) !important;
+        }
+
+        .alert-danger {
+            background-color: rgba(var(--danger-color), 0.1) !important;
+            border-color: var(--danger-color) !important;
+            color: var(--danger-color) !important;
+        }
+
+        .alert-warning {
+            background-color: rgba(var(--warning-color), 0.1) !important;
+            border-color: var(--warning-color) !important;
+            color: var(--warning-color) !important;
+        }
+
+        .alert-info {
+            background-color: rgba(var(--info-color), 0.1) !important;
+            border-color: var(--info-color) !important;
+            color: var(--info-color) !important;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .modal-header {
+            border-bottom-color: var(--border-color) !important;
+        }
+
+        .modal-footer {
+            border-top-color: var(--border-color) !important;
+        }
+
+        .breadcrumb {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .breadcrumb-item a {
+            color: var(--primary-color) !important;
+        }
+
+        .breadcrumb-item.active {
+            color: var(--text-secondary) !important;
+        }
+
+        .nav-tabs .nav-link {
+            color: var(--text-secondary) !important;
+            border-color: transparent !important;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--text-primary) !important;
+            background-color: var(--card-bg) !important;
+            border-color: var(--border-color) var(--border-color) var(--card-bg) !important;
+        }
+
+        .tab-content {
+            background-color: var(--card-bg) !important;
+        }
+
+        /* Text colors */
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-primary) !important;
+        }
+
+        /* Smooth transitions for all elements */
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+
         /* Mobile Responsiveness */
         @media (max-width: 768px) {
             .sidebar {
@@ -518,6 +681,14 @@
                     <i class="fas fa-chart-line"></i>
                     <span class="brand-text">BusinessManager</span>
                 </a>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <div class="theme-toggle">
+                <div class="theme-switch" id="themeToggle">
+                    <i class="fas fa-sun theme-icon sun-icon"></i>
+                    <i class="fas fa-moon theme-icon moon-icon"></i>
+                </div>
             </div>
 
             <!-- Navigation Menu -->
@@ -800,8 +971,52 @@
             backdrop.classList.remove('show');
         }
         
+        // Dark Mode Toggle Functionality
+        function initializeTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            
+            // Apply saved theme
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // Update toggle appearance
+            if (savedTheme === 'dark') {
+                themeToggle.classList.add('dark');
+            }
+        }
+        
+        function toggleTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            // Apply new theme with smooth transition
+            document.documentElement.style.transition = 'all 0.3s ease';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            
+            // Update toggle appearance
+            themeToggle.classList.toggle('dark', newTheme === 'dark');
+            
+            // Save theme preference
+            localStorage.setItem('theme', newTheme);
+            
+            // Remove transition after animation completes
+            setTimeout(() => {
+                document.documentElement.style.transition = '';
+            }, 300);
+        }
+        
         // Restore sidebar state on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize theme first
+            initializeTheme();
+            
+            // Add theme toggle event listener
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+            
             const sidebar = document.getElementById('sidebar');
             if (sidebar) {
                 const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
