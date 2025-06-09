@@ -11,8 +11,7 @@
         </h1>
         <div class="text-muted">
             <i class="fas fa-calendar"></i>
-            {% set now = moment() %}
-            {{ now.strftime('%B %d, %Y') if now else '' }}
+            {{ current_date.strftime('%B %d, %Y') }}
         </div>
     </div>
 
