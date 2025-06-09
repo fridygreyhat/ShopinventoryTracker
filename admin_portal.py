@@ -230,7 +230,7 @@ def system_cleanup():
                 # Find users inactive for 6+ months
                 cutoff_date = datetime.utcnow() - timedelta(days=180)
                 inactive_count = User.query.filter(
-                    User.last_login < cutoff_date,
+                    User.created_at < cutoff_date,
                     User.is_admin == False
                 ).count()
                 flash(f'Found {inactive_count} inactive users (6+ months).', 'info')
@@ -271,12 +271,12 @@ def dashboard_data():
      .group_by(func.date(Sale.created_at))\
      .order_by('date').all()
     
-    # User activity
-    daily_logins = db.session.query(
-        func.date(User.last_login).label('date'),
+    # User registrations (using created_at instead of last_login)
+    daily_registrations = db.session.query(
+        func.date(User.created_at).label('date'),
         func.count(User.id).label('count')
-    ).filter(User.last_login >= start_date)\
-     .group_by(func.date(User.last_login))\
+    ).filter(User.created_at >= start_date)\
+     .group_by(func.date(User.created_at))\
      .order_by('date').all()
     
     return jsonify({
@@ -290,9 +290,9 @@ def dashboard_data():
         ],
         'user_activity': [
             {
-                'date': login.date.isoformat() if login.date else None,
-                'count': login.count
+                'date': registration.date.isoformat() if registration.date else None,
+                'count': registration.count
             }
-            for login in daily_logins if login.date
+            for registration in daily_registrations if registration.date
         ]
     })
