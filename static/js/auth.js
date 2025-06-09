@@ -129,7 +129,9 @@ function clearUserData() {
 /**
  * Show notification function
  */
-function showNotification(message, type = 'info') {
+function showNotification(message, type) {
+    type = type || 'info';
+    
     // Remove existing notifications
     const existingNotifications = document.querySelectorAll('.auth-notification');
     existingNotifications.forEach(notification => notification.remove());
