@@ -11,6 +11,120 @@ from models import (User, Category, Item, Sale, SaleItem, StockMovement, Financi
                     Customer, CustomerPurchaseHistory, LoyaltyTransaction)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
+def calculate_financial_metrics(user_id, date_filter=None, period='all'):
+    """Calculate comprehensive financial metrics including gross profit"""
+    
+    # Base queries filtered by user and date
+    sales_query = Sale.query.filter_by(user_id=user_id)
+    transactions_query = FinancialTransaction.query.filter_by(user_id=user_id)
+    
+    if date_filter:
+        if period == 'today':
+            sales_query = sales_query.filter(func.date(Sale.created_at) == date_filter)
+            transactions_query = transactions_query.filter(func.date(FinancialTransaction.created_at) == date_filter)
+        else:
+            sales_query = sales_query.filter(func.date(Sale.created_at) >= date_filter)
+            transactions_query = transactions_query.filter(func.date(FinancialTransaction.created_at) >= date_filter)
+    
+    # Sales and Revenue Calculations
+    total_sales_count = sales_query.count()
+    total_revenue = sales_query.with_entities(func.sum(Sale.total_amount)).scalar() or 0
+    
+    # Calculate Cost of Goods Sold (COGS) from sales
+    cogs_subquery = db.session.query(
+        func.sum(SaleItem.quantity * SaleItem.unit_cost).label('total_cogs')
+    ).join(Sale).filter(Sale.user_id == user_id)
+    
+    if date_filter:
+        if period == 'today':
+            cogs_subquery = cogs_subquery.filter(func.date(Sale.created_at) == date_filter)
+        else:
+            cogs_subquery = cogs_subquery.filter(func.date(Sale.created_at) >= date_filter)
+    
+    total_cogs = cogs_subquery.scalar() or 0
+    
+    # Gross Profit Calculations
+    gross_profit = total_revenue - total_cogs
+    gross_profit_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+    
+    # Operating Expenses
+    total_expenses = transactions_query.filter_by(transaction_type='expense').with_entities(
+        func.sum(FinancialTransaction.amount)
+    ).scalar() or 0
+    
+    # Other Income
+    other_income = transactions_query.filter_by(transaction_type='income').with_entities(
+        func.sum(FinancialTransaction.amount)
+    ).scalar() or 0
+    
+    # Net Profit Calculations
+    net_profit = gross_profit + other_income - total_expenses
+    net_profit_margin = (net_profit / (total_revenue + other_income) * 100) if (total_revenue + other_income) > 0 else 0
+    
+    # Average Transaction Value
+    avg_transaction_value = (total_revenue / total_sales_count) if total_sales_count > 0 else 0
+    
+    # Inventory Value (Current Stock Value)
+    inventory_value = db.session.query(
+        func.sum(Item.stock_quantity * Item.buying_price)
+    ).filter_by(user_id=user_id, is_active=True).scalar() or 0
+    
+    # Inventory Turnover (COGS / Average Inventory Value)
+    inventory_turnover = (total_cogs / inventory_value) if inventory_value > 0 else 0
+    
+    # Tax calculations
+    total_tax_collected = sales_query.with_entities(func.sum(Sale.tax_amount)).scalar() or 0
+    
+    # Payment method breakdown
+    payment_methods = db.session.query(
+        Sale.payment_method,
+        func.count(Sale.id).label('count'),
+        func.sum(Sale.total_amount).label('total')
+    ).filter_by(user_id=user_id)
+    
+    if date_filter:
+        if period == 'today':
+            payment_methods = payment_methods.filter(func.date(Sale.created_at) == date_filter)
+        else:
+            payment_methods = payment_methods.filter(func.date(Sale.created_at) >= date_filter)
+    
+    payment_breakdown = payment_methods.group_by(Sale.payment_method).all()
+    
+    # Top selling items
+    top_items = db.session.query(
+        Item.name,
+        func.sum(SaleItem.quantity).label('total_sold'),
+        func.sum(SaleItem.quantity * SaleItem.unit_price).label('total_revenue'),
+        func.sum(SaleItem.quantity * (SaleItem.unit_price - SaleItem.unit_cost)).label('total_profit')
+    ).join(SaleItem).join(Sale).filter(Sale.user_id == user_id)
+    
+    if date_filter:
+        if period == 'today':
+            top_items = top_items.filter(func.date(Sale.created_at) == date_filter)
+        else:
+            top_items = top_items.filter(func.date(Sale.created_at) >= date_filter)
+    
+    top_items = top_items.group_by(Item.id, Item.name).order_by(desc('total_sold')).limit(5).all()
+    
+    return {
+        'total_sales_count': total_sales_count,
+        'total_revenue': float(total_revenue),
+        'total_cogs': float(total_cogs),
+        'gross_profit': float(gross_profit),
+        'gross_profit_margin': float(gross_profit_margin),
+        'total_expenses': float(total_expenses),
+        'other_income': float(other_income),
+        'net_profit': float(net_profit),
+        'net_profit_margin': float(net_profit_margin),
+        'avg_transaction_value': float(avg_transaction_value),
+        'inventory_value': float(inventory_value),
+        'inventory_turnover': float(inventory_turnover),
+        'total_tax_collected': float(total_tax_collected),
+        'payment_breakdown': payment_breakdown,
+        'top_items': top_items,
+        'period': period
+    }
+
 # Register authentication blueprint
 from auth import auth_bp
 app.register_blueprint(auth_bp)
@@ -338,14 +452,16 @@ def process_sale():
             if not item or item.stock_quantity < cart_item['quantity']:
                 raise Exception(f"Insufficient stock for {item.name if item else 'unknown item'}")
             
-            # Create sale item
+            # Create sale item with cost tracking
             unit_price = Decimal(str(cart_item['price']))
+            unit_cost = item.buying_price  # Use buying price as cost
             quantity = cart_item['quantity']
             total_price = unit_price * quantity
             
             sale_item = SaleItem(
                 quantity=quantity,
                 unit_price=unit_price,
+                unit_cost=unit_cost,
                 total_price=total_price,
                 sale_id=sale.id,
                 item_id=item.id
@@ -492,26 +608,41 @@ def add_installment_payment():
 def financial():
     page = request.args.get('page', 1, type=int)
     transaction_type = request.args.get('type', '')
+    period = request.args.get('period', 'all')  # all, today, week, month, year
     
-    query = FinancialTransaction.query
+    # Date filtering
+    date_filter = None
+    if period == 'today':
+        date_filter = datetime.utcnow().date()
+    elif period == 'week':
+        date_filter = datetime.utcnow().date() - timedelta(days=7)
+    elif period == 'month':
+        date_filter = datetime.utcnow().date() - timedelta(days=30)
+    elif period == 'year':
+        date_filter = datetime.utcnow().date() - timedelta(days=365)
+    
+    # Build query
+    query = FinancialTransaction.query.filter_by(user_id=current_user.id)
     if transaction_type:
         query = query.filter_by(transaction_type=transaction_type)
+    if date_filter:
+        if period == 'today':
+            query = query.filter(func.date(FinancialTransaction.created_at) == date_filter)
+        else:
+            query = query.filter(func.date(FinancialTransaction.created_at) >= date_filter)
     
     transactions = query.order_by(desc(FinancialTransaction.created_at)).paginate(
         page=page, per_page=20, error_out=False
     )
     
-    # Summary statistics
-    total_income = db.session.query(func.sum(FinancialTransaction.amount)).filter_by(transaction_type='income').scalar() or 0
-    total_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter_by(transaction_type='expense').scalar() or 0
-    net_profit = total_income - total_expenses
+    # Calculate comprehensive financial metrics
+    financial_metrics = calculate_financial_metrics(current_user.id, date_filter, period)
     
     return render_template('financial.html', 
                          transactions=transactions,
-                         total_income=total_income,
-                         total_expenses=total_expenses,
-                         net_profit=net_profit,
-                         selected_type=transaction_type)
+                         metrics=financial_metrics,
+                         selected_type=transaction_type,
+                         selected_period=period)
 
 @app.route('/add_transaction', methods=['POST'])
 @login_required
