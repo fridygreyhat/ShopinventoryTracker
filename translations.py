@@ -203,12 +203,22 @@ translations = {
         'financial_insights': 'Get detailed financial insights',
         'multi_location': 'Multi-location support',
         
-        # Currency
+        # Currency and Pricing
         'currency_symbol': 'TSh',
         'currency_name': 'Tanzanian Shilling',
         'amount': 'Amount (TSh)',
         'price_tsh': 'Price (TSh)',
         'total_tsh': 'Total (TSh)',
+        'buying_price': 'Buying Price (TSh)',
+        'wholesale_price': 'Wholesale (TSh)',
+        'retail_price': 'Retail (TSh)',
+        'cost_price': 'Cost Price (TSh)',
+        'selling_price': 'Selling Price (TSh)',
+        'unit_price': 'Unit Price (TSh)',
+        'subtotal': 'Subtotal (TSh)',
+        'discount': 'Discount (TSh)',
+        'tax': 'Tax (TSh)',
+        'grand_total': 'Grand Total (TSh)',
     },
     
     'sw': {
@@ -410,12 +420,22 @@ translations = {
         'financial_insights': 'Pata ufahamu wa kina wa kifedha',
         'multi_location': 'Msaada wa maeneo mengi',
         
-        # Currency
+        # Currency and Pricing
         'currency_symbol': 'TSh',
         'currency_name': 'Shilingi ya Kitanzania',
         'amount': 'Kiasi (TSh)',
         'price_tsh': 'Bei (TSh)',
         'total_tsh': 'Jumla (TSh)',
+        'buying_price': 'Bei ya Ununuzi (TSh)',
+        'wholesale_price': 'Bei ya Jumla (TSh)',
+        'retail_price': 'Bei ya Rejareja (TSh)',
+        'cost_price': 'Bei ya Gharama (TSh)',
+        'selling_price': 'Bei ya Kuuza (TSh)',
+        'unit_price': 'Bei ya Kipimo (TSh)',
+        'subtotal': 'Jumla Ndogo (TSh)',
+        'discount': 'Punguzo (TSh)',
+        'tax': 'Kodi (TSh)',
+        'grand_total': 'Jumla Kuu (TSh)',
     }
 }
 
