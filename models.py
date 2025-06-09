@@ -104,6 +104,7 @@ class Sale(db.Model):
     status = db.Column(db.String(20), nullable=False, default='completed')
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -440,3 +441,90 @@ class BranchEquity(db.Model):
     
     def __repr__(self):
         return f'<BranchEquity {self.location.name}: {self.total_equity}>'
+
+
+# Customer Management Models
+class Customer(db.Model):
+    """Customer profile model"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True)
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    date_of_birth = db.Column(db.Date)
+    customer_type = db.Column(db.String(20), default='retail')  # 'retail', 'wholesale', 'vip'
+    
+    # Loyalty program
+    loyalty_points = db.Column(db.Integer, default=0)
+    loyalty_tier = db.Column(db.String(20), default='bronze')  # 'bronze', 'silver', 'gold', 'platinum'
+    
+    # Credit management
+    credit_limit = db.Column(db.Float, default=0.0)
+    current_credit = db.Column(db.Float, default=0.0)
+    
+    # Preferences
+    preferred_payment_method = db.Column(db.String(50))
+    marketing_consent = db.Column(db.Boolean, default=True)
+    
+    # User association
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_purchase_date = db.Column(db.DateTime)
+    
+    # Relationships
+    purchases = db.relationship('Sale', backref='customer_profile', lazy=True, foreign_keys='Sale.customer_id')
+    
+    def __repr__(self):
+        return f'<Customer {self.name}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'phone': self.phone,
+            'address': self.address,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'customer_type': self.customer_type,
+            'loyalty_points': self.loyalty_points,
+            'loyalty_tier': self.loyalty_tier,
+            'credit_limit': self.credit_limit,
+            'current_credit': self.current_credit,
+            'preferred_payment_method': self.preferred_payment_method,
+            'marketing_consent': self.marketing_consent,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_purchase_date': self.last_purchase_date.isoformat() if self.last_purchase_date else None
+        }
+
+
+class CustomerPurchaseHistory(db.Model):
+    """Detailed customer purchase history"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
+    purchase_amount = db.Column(db.Float, nullable=False)
+    loyalty_points_earned = db.Column(db.Integer, default=0)
+    loyalty_points_used = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref='purchase_history')
+    sale = db.relationship('Sale', backref='customer_purchase')
+
+
+class LoyaltyTransaction(db.Model):
+    """Loyalty points transactions"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'earned', 'redeemed', 'expired'
+    points = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(255))
+    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref='loyalty_transactions')
