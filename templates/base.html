@@ -15,12 +15,57 @@
             --sidebar-width: 280px;
             --sidebar-collapsed-width: 70px;
             --header-height: 60px;
+            
+            /* Light theme colors */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-muted: #adb5bd;
+            --border-color: #dee2e6;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --sidebar-bg: linear-gradient(145deg, #1a1d29, #16213e);
+            --sidebar-text: #ffffff;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --navbar-bg: #ffffff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --primary-color: #007bff;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme colors */
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --text-muted: #888888;
+            --border-color: #404040;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --sidebar-bg: linear-gradient(145deg, #0d1117, #161b22);
+            --sidebar-text: #ffffff;
+            --card-bg: #1e1e1e;
+            --input-bg: #2d2d2d;
+            --navbar-bg: #1e1e1e;
+            --success-color: #4caf50;
+            --danger-color: #f44336;
+            --warning-color: #ff9800;
+            --info-color: #2196f3;
+            --primary-color: #2196f3;
         }
 
         body {
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .wrapper {
@@ -35,12 +80,12 @@
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background: linear-gradient(145deg, #1a1d29, #16213e);
-            border-right: 1px solid #2d3748;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
             transition: all 0.3s ease;
             z-index: 1000;
             overflow-y: auto;
-            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 4px 0 15px var(--shadow-color);
         }
 
         .sidebar.collapsed {
@@ -50,18 +95,89 @@
         .sidebar-header {
             padding: 20px;
             text-align: center;
-            border-bottom: 1px solid #2d3748;
+            border-bottom: 1px solid var(--border-color);
             background: rgba(255, 255, 255, 0.05);
         }
 
         .sidebar-header .brand {
-            color: #64b5f6;
+            color: var(--primary-color);
             font-size: 1.5rem;
             font-weight: bold;
             text-decoration: none;
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        /* Dark Mode Toggle */
+        .theme-toggle {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--bg-tertiary);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid var(--border-color);
+        }
+
+        .theme-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .theme-switch.dark::before {
+            transform: translateX(28px);
+            background: var(--warning-color);
+        }
+
+        .theme-switch .theme-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-switch .sun-icon {
+            left: 6px;
+            color: var(--warning-color);
+            opacity: 1;
+        }
+
+        .theme-switch .moon-icon {
+            right: 6px;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .theme-switch.dark .sun-icon {
+            opacity: 0.5;
+        }
+
+        .theme-switch.dark .moon-icon {
+            opacity: 1;
+            color: var(--primary-color);
         }
 
         .sidebar.collapsed .brand-text {
@@ -90,7 +206,7 @@
         }
 
         .nav-section-title {
-            color: #64b5f6;
+            color: var(--primary-color);
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -108,7 +224,7 @@
             transform: translateY(-50%);
             width: 3px;
             height: 14px;
-            background: #64b5f6;
+            background: var(--primary-color);
             border-radius: 2px;
         }
 
@@ -124,7 +240,7 @@
             display: flex;
             align-items: center;
             padding: 14px 20px;
-            color: #e2e8f0;
+            color: var(--sidebar-text);
             text-decoration: none;
             transition: all 0.3s ease;
             position: relative;
@@ -302,7 +418,7 @@
             width: calc(100% - var(--sidebar-width));
             transition: all 0.3s ease;
             min-height: 100vh;
-            background: #f8fafc;
+            background: var(--bg-secondary);
         }
 
         .sidebar.collapsed + .main-content {
