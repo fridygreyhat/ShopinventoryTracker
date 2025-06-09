@@ -7,7 +7,8 @@ from sqlalchemy import func, desc, and_, or_
 from app import app, db
 from models import (User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, 
                     Location, LocationStock, StockTransfer, StockTransferItem, ChartOfAccounts, 
-                    Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount)
+                    Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount,
+                    Customer, CustomerPurchaseHistory, LoyaltyTransaction)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 @app.route('/')
@@ -989,6 +990,85 @@ def add_bank_account():
             flash(f'Error adding bank account: {str(e)}', 'danger')
     
     return render_template('accounting/add_bank_account.html')
+
+# Customer Management Routes
+@app.route('/customers')
+@login_required
+def customers():
+    """Display all customers for the current user"""
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    return render_template('customers/list.html', customers=customers)
+
+@app.route('/customers/add', methods=['GET', 'POST'])
+@login_required
+def add_customer():
+    """Add a new customer"""
+    if request.method == 'POST':
+        try:
+            customer = Customer(
+                name=request.form['name'],
+                email=request.form.get('email') or None,
+                phone=request.form.get('phone') or None,
+                address=request.form.get('address') or None,
+                customer_type=request.form.get('customer_type', 'retail'),
+                credit_limit=float(request.form.get('credit_limit', 0)),
+                preferred_payment_method=request.form.get('preferred_payment_method'),
+                user_id=current_user.id
+            )
+            
+            db.session.add(customer)
+            db.session.commit()
+            
+            flash('Customer added successfully!', 'success')
+            return redirect(url_for('customers'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding customer: {str(e)}', 'danger')
+    
+    return render_template('customers/add.html')
+
+@app.route('/customers/<int:customer_id>')
+@login_required
+def customer_profile(customer_id):
+    """Display customer profile and purchase history"""
+    customer = Customer.query.filter_by(id=customer_id, user_id=current_user.id).first_or_404()
+    
+    # Get purchase history
+    purchases = Sale.query.filter_by(customer_id=customer_id, user_id=current_user.id).order_by(Sale.created_at.desc()).limit(10).all()
+    
+    # Calculate metrics using the provided function
+    from customer_management import calculate_customer_metrics
+    metrics = calculate_customer_metrics(db, customer_id)
+    
+    return render_template('customers/profile.html', customer=customer, purchases=purchases, metrics=metrics)
+
+@app.route('/customers/<int:customer_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_customer(customer_id):
+    """Edit customer information"""
+    customer = Customer.query.filter_by(id=customer_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        try:
+            customer.name = request.form['name']
+            customer.email = request.form.get('email') or None
+            customer.phone = request.form.get('phone') or None
+            customer.address = request.form.get('address') or None
+            customer.customer_type = request.form.get('customer_type', 'retail')
+            customer.credit_limit = float(request.form.get('credit_limit', 0))
+            customer.preferred_payment_method = request.form.get('preferred_payment_method')
+            customer.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Customer updated successfully!', 'success')
+            return redirect(url_for('customer_profile', customer_id=customer_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating customer: {str(e)}', 'danger')
+    
+    return render_template('customers/edit.html', customer=customer)
 
 # Call the function to create default data
 with app.app_context():
