@@ -50,10 +50,21 @@ class User(UserMixin, db.Model):
     login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime, nullable=True)
     
+    # Subuser Management
+    parent_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    is_subuser = db.Column(db.Boolean, default=False, nullable=False)
+    subuser_permissions = db.Column(db.Text, nullable=True)  # JSON string of specific subuser permissions
+    
     # Relationships
     sales = db.relationship('Sale', backref='user', lazy=True)
     financial_transactions = db.relationship('FinancialTransaction', backref='user', lazy=True)
     locations = db.relationship('Location', backref='owner', lazy=True)
+    
+    # Subuser relationships
+    subusers = db.relationship('User', 
+                              foreign_keys=[parent_user_id],
+                              backref=db.backref('parent_user', remote_side='User.id'),
+                              lazy='dynamic')
 
     
     @property
@@ -110,6 +121,79 @@ class User(UserMixin, db.Model):
                     self.permissions = json.dumps(user_perms)
             except json.JSONDecodeError:
                 pass
+    
+    def get_effective_user(self):
+        """Get the effective user for data access (parent user for subusers)"""
+        if self.is_subuser and self.parent_user:
+            return self.parent_user
+        return self
+    
+    def can_manage_subusers(self):
+        """Check if user can manage subusers"""
+        return not self.is_subuser and (self.is_admin or self.has_permission('manage_subusers'))
+    
+    def get_subuser_permissions(self):
+        """Get subuser specific permissions"""
+        if not self.is_subuser:
+            return []
+        
+        import json
+        if self.subuser_permissions:
+            try:
+                return json.loads(self.subuser_permissions)
+            except json.JSONDecodeError:
+                return []
+        return []
+    
+    def set_subuser_permissions(self, permissions):
+        """Set subuser specific permissions"""
+        import json
+        self.subuser_permissions = json.dumps(permissions)
+    
+    def has_subuser_permission(self, permission):
+        """Check if subuser has specific permission"""
+        if not self.is_subuser:
+            return True
+        
+        if self.is_admin:
+            return True
+            
+        subuser_perms = self.get_subuser_permissions()
+        return permission in subuser_perms
+    
+    def get_all_subusers(self):
+        """Get all subusers for this user"""
+        if self.is_subuser:
+            return []
+        return self.subusers.all()
+    
+    def create_subuser(self, username, email, password, first_name, last_name, permissions=None):
+        """Create a new subuser"""
+        if not self.can_manage_subusers():
+            raise ValueError("User cannot manage subusers")
+        
+        # Check if username/email already exists
+        if User.query.filter_by(username=username).first():
+            raise ValueError("Username already exists")
+        if User.query.filter_by(email=email).first():
+            raise ValueError("Email already exists")
+        
+        subuser = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            parent_user_id=self.id,
+            is_subuser=True,
+            shop_name=self.shop_name,
+            business_type=self.business_type
+        )
+        subuser.set_password(password)
+        
+        if permissions:
+            subuser.set_subuser_permissions(permissions)
+        
+        return subuser
     
     def get_permissions(self):
         """Get all user permissions"""
