@@ -111,7 +111,6 @@ class Sale(db.Model):
     
     # Relationships
     sale_items = db.relationship('SaleItem', backref='sale', lazy=True, cascade='all, delete-orphan')
-    installment_plan = db.relationship('InstallmentPlan', backref='sale', uselist=False, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Sale {self.sale_number}>'
