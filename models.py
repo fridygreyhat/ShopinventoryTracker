@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -44,10 +44,17 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(255), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
     
+    # Permissions
+    permissions = db.Column(db.Text, nullable=True)  # JSON string of permissions
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    
     # Relationships
     sales = db.relationship('Sale', backref='user', lazy=True)
     financial_transactions = db.relationship('FinancialTransaction', backref='user', lazy=True)
     locations = db.relationship('Location', backref='owner', lazy=True)
+
     
     @property
     def is_active(self):
@@ -62,6 +69,87 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    def has_permission(self, permission):
+        """Check if user has a specific permission"""
+        if self.is_admin:
+            return True
+        
+        import json
+        if self.permissions:
+            try:
+                user_perms = json.loads(self.permissions)
+                return permission in user_perms
+            except json.JSONDecodeError:
+                return False
+        return False
+    
+    def add_permission(self, permission):
+        """Add a permission to the user"""
+        import json
+        if self.permissions:
+            try:
+                user_perms = json.loads(self.permissions)
+            except json.JSONDecodeError:
+                user_perms = []
+        else:
+            user_perms = []
+        
+        if permission not in user_perms:
+            user_perms.append(permission)
+            self.permissions = json.dumps(user_perms)
+    
+    def remove_permission(self, permission):
+        """Remove a permission from the user"""
+        import json
+        if self.permissions:
+            try:
+                user_perms = json.loads(self.permissions)
+                if permission in user_perms:
+                    user_perms.remove(permission)
+                    self.permissions = json.dumps(user_perms)
+            except json.JSONDecodeError:
+                pass
+    
+    def get_permissions(self):
+        """Get all user permissions"""
+        import json
+        if self.is_admin:
+            return ['admin', 'manage_users', 'manage_inventory', 'manage_sales', 'manage_finances', 'view_reports']
+        
+        if self.permissions:
+            try:
+                return json.loads(self.permissions)
+            except json.JSONDecodeError:
+                return []
+        return []
+    
+    @property
+    def is_locked(self):
+        """Check if user account is locked"""
+        if self.locked_until:
+            return datetime.utcnow() < self.locked_until
+        return False
+    
+    def lock_account(self, minutes=30):
+        """Lock user account for specified minutes"""
+        self.locked_until = datetime.utcnow() + timedelta(minutes=minutes)
+        self.login_attempts = 0
+    
+    def unlock_account(self):
+        """Unlock user account"""
+        self.locked_until = None
+        self.login_attempts = 0
+    
+    def record_login_attempt(self, success=False):
+        """Record login attempt"""
+        if success:
+            self.login_attempts = 0
+            self.last_login = datetime.utcnow()
+        else:
+            self.login_attempts += 1
+            if self.login_attempts >= 5:  # Lock after 5 failed attempts
+                self.lock_account(30)  # Lock for 30 minutes
     
     def __repr__(self):
         return f'<User {self.username}>'

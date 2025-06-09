@@ -257,6 +257,169 @@ def system_stats():
                          business_stats=business_stats,
                          registration_trends=registration_trends)
 
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    """Delete a user account"""
+    if user_id == current_user.id:
+        flash('You cannot delete your own account.', 'error')
+        return redirect(url_for('admin_portal.user_management'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Check if user is another admin
+    if user.is_admin:
+        flash('Cannot delete another admin user.', 'error')
+        return redirect(url_for('admin_portal.user_management'))
+    
+    try:
+        # Store user info for logging
+        username = user.username
+        email = user.email
+        
+        # Delete the user (cascade will handle related records)
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'User {username} ({email}) has been successfully deleted.', 'success')
+        
+        # Log the deletion
+        app.logger.info(f'Admin {current_user.username} deleted user {username} ({email})')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+        app.logger.error(f'Error deleting user {user_id}: {str(e)}')
+    
+    return redirect(url_for('admin_portal.user_management'))
+
+@admin_bp.route('/users/<int:user_id>/change-password', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def change_user_password(user_id):
+    """Change a user's password"""
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate passwords
+        if not new_password or len(new_password) < 8:
+            flash('Password must be at least 8 characters long.', 'error')
+            return render_template('admin/change_password.html', user=user)
+        
+        if new_password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template('admin/change_password.html', user=user)
+        
+        try:
+            # Update password
+            user.set_password(new_password)
+            user.login_attempts = 0  # Reset login attempts
+            user.locked_until = None  # Unlock account if locked
+            db.session.commit()
+            
+            flash(f'Password for {user.username} has been successfully changed.', 'success')
+            
+            # Log the password change
+            app.logger.info(f'Admin {current_user.username} changed password for user {user.username}')
+            
+            return redirect(url_for('admin_portal.user_management'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error changing password: {str(e)}', 'error')
+            app.logger.error(f'Error changing password for user {user_id}: {str(e)}')
+    
+    return render_template('admin/change_password.html', user=user)
+
+@admin_bp.route('/users/<int:user_id>/permissions', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_user_permissions(user_id):
+    """Manage user permissions"""
+    user = User.query.get_or_404(user_id)
+    
+    # Available permissions
+    available_permissions = [
+        'manage_inventory',
+        'manage_sales', 
+        'manage_customers',
+        'manage_finances',
+        'view_reports',
+        'manage_locations',
+        'manage_categories'
+    ]
+    
+    if request.method == 'POST':
+        selected_permissions = request.form.getlist('permissions')
+        
+        try:
+            # Update user permissions
+            import json
+            user.permissions = json.dumps(selected_permissions)
+            db.session.commit()
+            
+            flash(f'Permissions for {user.username} have been updated.', 'success')
+            
+            # Log the permission change
+            app.logger.info(f'Admin {current_user.username} updated permissions for user {user.username}')
+            
+            return redirect(url_for('admin_portal.user_management'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating permissions: {str(e)}', 'error')
+            app.logger.error(f'Error updating permissions for user {user_id}: {str(e)}')
+    
+    # Get current permissions
+    current_permissions = user.get_permissions()
+    
+    return render_template('admin/manage_permissions.html', 
+                         user=user, 
+                         available_permissions=available_permissions,
+                         current_permissions=current_permissions)
+
+@admin_bp.route('/users/<int:user_id>/lock', methods=['POST'])
+@login_required
+@admin_required
+def lock_user(user_id):
+    """Lock/unlock a user account"""
+    if user_id == current_user.id:
+        flash('You cannot lock your own account.', 'error')
+        return redirect(url_for('admin_portal.user_management'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if user.is_admin:
+        flash('Cannot lock another admin user.', 'error')
+        return redirect(url_for('admin_portal.user_management'))
+    
+    try:
+        if user.is_locked:
+            # Unlock the user
+            user.unlock_account()
+            action = 'unlocked'
+        else:
+            # Lock the user for 24 hours
+            user.lock_account(24 * 60)  # 24 hours in minutes
+            action = 'locked'
+        
+        db.session.commit()
+        flash(f'User {user.username} has been {action}.', 'success')
+        
+        # Log the action
+        app.logger.info(f'Admin {current_user.username} {action} user {user.username}')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating user status: {str(e)}', 'error')
+        app.logger.error(f'Error locking/unlocking user {user_id}: {str(e)}')
+    
+    return redirect(url_for('admin_portal.user_management'))
+
 @admin_bp.route('/system/cleanup', methods=['GET', 'POST'])
 @login_required
 @admin_required
