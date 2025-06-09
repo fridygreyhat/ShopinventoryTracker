@@ -8,7 +8,7 @@ from app import app, db
 from models import (User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, 
                     Location, LocationStock, StockTransfer, StockTransferItem, ChartOfAccounts, 
                     Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount,
-                    Customer, CustomerPurchaseHistory, LoyaltyTransaction)
+                    Customer, CustomerPurchaseHistory, LoyaltyTransaction, OnDemandProduct, OnDemandOrder)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 def calculate_financial_metrics(user_id, date_filter=None, period='all'):

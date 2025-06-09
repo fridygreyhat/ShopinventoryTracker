@@ -629,3 +629,80 @@ class Installment(db.Model):
     
     def __repr__(self):
         return f'<Installment {self.installment_number} - ${self.amount}>'
+
+
+class OnDemandProduct(db.Model):
+    """On-demand products that can be ordered when not in stock"""
+    __tablename__ = 'on_demand_products'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
+    
+    # Pricing
+    estimated_cost = db.Column(db.Float, nullable=False, default=0.0)
+    selling_price = db.Column(db.Float, nullable=False, default=0.0)
+    
+    # Supplier information
+    supplier_name = db.Column(db.String(100))
+    supplier_contact = db.Column(db.String(100))
+    estimated_delivery_days = db.Column(db.Integer, default=7)
+    
+    # Order tracking
+    minimum_order_quantity = db.Column(db.Integer, default=1)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    category = db.relationship('Category', backref='on_demand_products')
+    
+    def __repr__(self):
+        return f'<OnDemandProduct {self.name}>'
+
+
+class OnDemandOrder(db.Model):
+    """Orders for on-demand products"""
+    __tablename__ = 'on_demand_orders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Product and quantity
+    product_id = db.Column(db.Integer, db.ForeignKey('on_demand_products.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    total_amount = db.Column(db.Float, nullable=False)
+    
+    # Customer information
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    customer_name = db.Column(db.String(100))
+    customer_phone = db.Column(db.String(20))
+    customer_email = db.Column(db.String(120))
+    
+    # Order status and tracking
+    status = db.Column(db.String(20), default='pending')  # pending, ordered, received, delivered, cancelled
+    payment_status = db.Column(db.String(20), default='pending')  # pending, paid, partial
+    payment_method = db.Column(db.String(50))
+    
+    # Important dates
+    order_date = db.Column(db.DateTime, default=datetime.utcnow)
+    expected_delivery_date = db.Column(db.Date)
+    actual_delivery_date = db.Column(db.Date)
+    
+    # Additional information
+    notes = db.Column(db.Text)
+    advance_payment = db.Column(db.Float, default=0.0)
+    remaining_payment = db.Column(db.Float, default=0.0)
+    
+    # Relationships
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    product = db.relationship('OnDemandProduct', backref='orders')
+    customer = db.relationship('Customer', backref='on_demand_orders')
+    
+    def __repr__(self):
+        return f'<OnDemandOrder {self.order_number}>'
