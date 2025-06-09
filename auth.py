@@ -244,6 +244,87 @@ def change_password():
     
     return render_template('auth/change_password.html')
 
+@auth_bp.route('/settings')
+@login_required
+def settings():
+    return render_template('auth/settings.html', user=current_user)
+
+@auth_bp.route('/settings/preferences', methods=['POST'])
+@login_required
+def update_preferences():
+    try:
+        # Get form data
+        language = request.form.get('language', 'en')
+        currency_format = request.form.get('currency_format', 'TSh')
+        date_format = request.form.get('date_format', 'DD/MM/YYYY')
+        timezone = request.form.get('timezone', 'Africa/Dar_es_Salaam')
+        
+        # Update user preferences (we'll add these fields to User model)
+        current_user.language = language
+        current_user.currency_format = currency_format
+        current_user.date_format = date_format
+        current_user.timezone = timezone
+        current_user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Preferences updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Failed to update preferences. Please try again.', 'error')
+    
+    return redirect(url_for('postgresql_auth.settings'))
+
+@auth_bp.route('/settings/notifications', methods=['POST'])
+@login_required
+def update_notifications():
+    try:
+        # Get notification preferences
+        email_notifications = 'email_notifications' in request.form
+        sms_notifications = 'sms_notifications' in request.form
+        low_stock_alerts = 'low_stock_alerts' in request.form
+        sales_reports = 'sales_reports' in request.form
+        
+        # Update user notification preferences
+        current_user.email_notifications = email_notifications
+        current_user.sms_notifications = sms_notifications
+        current_user.low_stock_alerts = low_stock_alerts
+        current_user.sales_reports = sales_reports
+        current_user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Notification preferences updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Failed to update notification preferences. Please try again.', 'error')
+    
+    return redirect(url_for('postgresql_auth.settings'))
+
+@auth_bp.route('/settings/business', methods=['POST'])
+@login_required
+def update_business_settings():
+    try:
+        # Get business settings
+        business_type = request.form.get('business_type', '')
+        default_tax_rate = float(request.form.get('default_tax_rate', 0))
+        low_stock_threshold = int(request.form.get('low_stock_threshold', 10))
+        
+        # Update user business settings
+        current_user.business_type = business_type
+        current_user.default_tax_rate = default_tax_rate
+        current_user.low_stock_threshold = low_stock_threshold
+        current_user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Business settings updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Failed to update business settings. Please try again.', 'error')
+    
+    return redirect(url_for('postgresql_auth.settings'))
+
 # Custom decorators
 def admin_required(f):
     @wraps(f)

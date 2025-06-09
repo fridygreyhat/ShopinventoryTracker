@@ -579,6 +579,13 @@
                         </a>
                     </div>
                     <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('postgresql_auth.settings') }}">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
+                            <div class="nav-tooltip">Account Settings</div>
+                        </a>
+                    </div>
+                    <div class="nav-item">
                         <a class="nav-link logout-link" href="{{ url_for('postgresql_auth.logout') }}">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>{{ g.t('logout') }}</span>

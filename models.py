@@ -23,6 +23,23 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # User Preferences
+    language = db.Column(db.String(10), default='en', nullable=False)
+    currency_format = db.Column(db.String(10), default='TSh', nullable=False)
+    date_format = db.Column(db.String(20), default='DD/MM/YYYY', nullable=False)
+    timezone = db.Column(db.String(50), default='Africa/Dar_es_Salaam', nullable=False)
+    
+    # Notification Settings
+    email_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    sms_notifications = db.Column(db.Boolean, default=False, nullable=False)
+    low_stock_alerts = db.Column(db.Boolean, default=True, nullable=False)
+    sales_reports = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Business Settings
+    business_type = db.Column(db.String(100), default='retail', nullable=False)
+    default_tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
+    low_stock_threshold = db.Column(db.Integer, default=10, nullable=False)
+    
     # Relationships
     sales = db.relationship('Sale', backref='user', lazy=True)
     financial_transactions = db.relationship('FinancialTransaction', backref='user', lazy=True)
