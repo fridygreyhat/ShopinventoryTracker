@@ -816,6 +816,180 @@ def complete_transfer(transfer_id):
     
     return redirect(url_for('stock_transfers'))
 
+# Financial Management Routes
+@app.route('/accounting')
+@login_required
+def accounting_dashboard():
+    """Accounting dashboard with financial overview"""
+    from enhanced_financial_service import FinancialService
+    
+    financial_service = FinancialService(current_user.id)
+    
+    # Get recent journals
+    recent_journals = Journal.query.filter_by(user_id=current_user.id).order_by(desc(Journal.created_at)).limit(10).all()
+    
+    # Get account summary
+    accounts = ChartOfAccounts.query.filter_by(user_id=current_user.id, is_active=True).all()
+    
+    # Calculate current period P&L (this month)
+    start_date = datetime.now().replace(day=1)
+    end_date = datetime.now()
+    pl_data = financial_service.calculate_profit_loss(start_date, end_date)
+    
+    return render_template('accounting/dashboard.html', 
+                         recent_journals=recent_journals,
+                         accounts=accounts,
+                         pl_data=pl_data)
+
+@app.route('/accounting/chart-of-accounts')
+@login_required
+def chart_of_accounts():
+    """Chart of accounts management"""
+    accounts = ChartOfAccounts.query.filter_by(user_id=current_user.id).order_by(ChartOfAccounts.account_code).all()
+    
+    # Group by account type
+    grouped_accounts = {}
+    for account in accounts:
+        if account.account_type not in grouped_accounts:
+            grouped_accounts[account.account_type] = []
+        grouped_accounts[account.account_type].append(account)
+    
+    return render_template('accounting/chart_of_accounts.html', grouped_accounts=grouped_accounts)
+
+@app.route('/accounting/initialize-accounts', methods=['POST'])
+@login_required
+def initialize_chart_of_accounts():
+    """Initialize default chart of accounts for user"""
+    from enhanced_financial_service import FinancialService
+    
+    financial_service = FinancialService(current_user.id)
+    
+    if financial_service.initialize_chart_of_accounts():
+        flash('Chart of accounts initialized successfully!', 'success')
+    else:
+        flash('Error initializing chart of accounts', 'danger')
+    
+    return redirect(url_for('chart_of_accounts'))
+
+@app.route('/accounting/journal-entries')
+@login_required
+def journal_entries():
+    """View journal entries"""
+    page = request.args.get('page', 1, type=int)
+    journals = Journal.query.filter_by(user_id=current_user.id).order_by(desc(Journal.created_at)).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    return render_template('accounting/journal_entries.html', journals=journals)
+
+@app.route('/accounting/journal-entry/<int:journal_id>')
+@login_required
+def view_journal_entry(journal_id):
+    """View specific journal entry details"""
+    journal = Journal.query.filter_by(id=journal_id, user_id=current_user.id).first_or_404()
+    return render_template('accounting/journal_entry_detail.html', journal=journal)
+
+@app.route('/accounting/reports/profit-loss')
+@login_required
+def profit_loss_report():
+    """Profit and Loss report"""
+    from enhanced_financial_service import FinancialService
+    
+    # Get date parameters
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    if start_date_str and end_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+    else:
+        # Default to current month
+        start_date = datetime.now().replace(day=1)
+        end_date = datetime.now()
+    
+    financial_service = FinancialService(current_user.id)
+    pl_data = financial_service.calculate_profit_loss(start_date, end_date)
+    
+    return render_template('accounting/profit_loss.html', 
+                         pl_data=pl_data,
+                         start_date=start_date,
+                         end_date=end_date)
+
+@app.route('/accounting/reports/balance-sheet')
+@login_required
+def balance_sheet_report():
+    """Balance sheet report"""
+    from enhanced_financial_service import FinancialService
+    
+    # Get date parameter
+    as_of_date_str = request.args.get('as_of_date')
+    
+    if as_of_date_str:
+        as_of_date = datetime.strptime(as_of_date_str, '%Y-%m-%d')
+    else:
+        as_of_date = datetime.now()
+    
+    financial_service = FinancialService(current_user.id)
+    balance_sheet_data = financial_service.generate_balance_sheet(as_of_date)
+    
+    return render_template('accounting/balance_sheet.html', 
+                         balance_sheet_data=balance_sheet_data,
+                         as_of_date=as_of_date)
+
+@app.route('/accounting/reports/trial-balance')
+@login_required
+def trial_balance_report():
+    """Trial balance report"""
+    from enhanced_financial_service import FinancialService
+    
+    # Get date parameter
+    as_of_date_str = request.args.get('as_of_date')
+    
+    if as_of_date_str:
+        as_of_date = datetime.strptime(as_of_date_str, '%Y-%m-%d')
+    else:
+        as_of_date = datetime.now()
+    
+    financial_service = FinancialService(current_user.id)
+    trial_balance_data = financial_service.generate_trial_balance(as_of_date)
+    
+    return render_template('accounting/trial_balance.html', 
+                         trial_balance_data=trial_balance_data,
+                         as_of_date=as_of_date)
+
+@app.route('/accounting/bank-accounts')
+@login_required
+def bank_accounts():
+    """Bank accounts management"""
+    accounts = BankAccount.query.filter_by(user_id=current_user.id).all()
+    return render_template('accounting/bank_accounts.html', accounts=accounts)
+
+@app.route('/accounting/bank-account/add', methods=['GET', 'POST'])
+@login_required
+def add_bank_account():
+    """Add new bank account"""
+    if request.method == 'POST':
+        try:
+            account = BankAccount(
+                account_name=request.form['account_name'],
+                account_number=request.form.get('account_number', ''),
+                bank_name=request.form.get('bank_name', ''),
+                account_type=request.form['account_type'],
+                current_balance=float(request.form.get('current_balance', 0)),
+                user_id=current_user.id
+            )
+            
+            db.session.add(account)
+            db.session.commit()
+            
+            flash('Bank account added successfully!', 'success')
+            return redirect(url_for('bank_accounts'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding bank account: {str(e)}', 'danger')
+    
+    return render_template('accounting/add_bank_account.html')
+
 # Call the function to create default data
 with app.app_context():
     create_default_data()
