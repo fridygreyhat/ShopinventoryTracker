@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Logged Out - Business Management System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle fa-4x text-success"></i>
+                </div>
+                <h3 class="card-title">Logged Out Successfully</h3>
+                <p class="card-text text-muted">
+                    You have been safely logged out of your account. 
+                    Thank you for using our Business Management System.
+                </p>
+                <div class="mt-4">
+                    <a href="{{ url_for('postgresql_auth.login') }}" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Login Again
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-home"></i> Go to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

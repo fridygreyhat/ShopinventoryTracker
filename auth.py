@@ -146,11 +146,18 @@ def register():
     return render_template('auth/register.html')
 
 @auth_bp.route('/logout')
-@login_required
 def logout():
-    logout_user()
+    if current_user.is_authenticated:
+        logout_user()
     session.clear()
-    flash('You have been logged out successfully.', 'info')
+    return render_template('auth/logout_success.html')
+
+@auth_bp.route('/logout-redirect')
+def logout_redirect():
+    """Handles logout redirects from various parts of the app"""
+    if current_user.is_authenticated:
+        logout_user()
+    session.clear()
     return redirect(url_for('index'))
 
 @auth_bp.route('/profile')
