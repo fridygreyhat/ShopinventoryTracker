@@ -75,7 +75,7 @@ class Item(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    sale_items = db.relationship('SaleItem', backref='item', lazy=True)
+    sale_items = db.relationship('SaleItem', lazy=True)
     stock_movements = db.relationship('StockMovement', backref='item', lazy=True)
     
     @property
@@ -122,8 +122,11 @@ class SaleItem(db.Model):
     sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
     
+    # Relationship to Item
+    item = db.relationship('Item')
+    
     def __repr__(self):
-        return f'<SaleItem {self.item.name} x{self.quantity}>'
+        return f'<SaleItem {self.item.name if self.item else "Unknown"} x{self.quantity}>'
 
 class StockMovement(db.Model):
     __tablename__ = 'stock_movements'
@@ -234,5 +237,206 @@ class StockTransferItem(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     
+    # Relationship to Item
+    item = db.relationship('Item')
+    
     def __repr__(self):
-        return f'<StockTransferItem {self.item.name} x{self.quantity}>'
+        return f'<StockTransferItem {self.item.name if self.item else "Unknown"} x{self.quantity}>'
+
+# Financial Accounting Models
+
+class ChartOfAccounts(db.Model):
+    __tablename__ = 'chart_of_accounts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_code = db.Column(db.String(20), nullable=False)
+    account_name = db.Column(db.String(200), nullable=False)
+    account_type = db.Column(db.String(50), nullable=False)  # Asset, Liability, Equity, Revenue, Expense
+    parent_account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Self-referential relationship for account hierarchy
+    children = db.relationship('ChartOfAccounts', backref=db.backref('parent', remote_side=[id]))
+    
+    # Relationships
+    journal_entries = db.relationship('JournalEntry', backref='account', lazy=True)
+    ledger_entries = db.relationship('GeneralLedger', backref='account', lazy=True)
+    
+    def __repr__(self):
+        return f'<Account {self.account_code}: {self.account_name}>'
+
+class Journal(db.Model):
+    __tablename__ = 'journals'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    journal_number = db.Column(db.String(50), unique=True, nullable=False)
+    date = db.Column(db.Date, default=datetime.utcnow, nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    reference_type = db.Column(db.String(50))  # 'sale', 'purchase', 'transfer', 'manual'
+    reference_id = db.Column(db.String(100))
+    total_debit = db.Column(db.Numeric(15, 2), nullable=False)
+    total_credit = db.Column(db.Numeric(15, 2), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    entries = db.relationship('JournalEntry', backref='journal', lazy=True, cascade='all, delete-orphan')
+    
+    @staticmethod
+    def generate_journal_number():
+        """Generate unique journal number"""
+        import time
+        return f"JE{int(time.time())}"
+    
+    def __repr__(self):
+        return f'<Journal {self.journal_number}>'
+
+class JournalEntry(db.Model):
+    __tablename__ = 'journal_entries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    journal_id = db.Column(db.Integer, db.ForeignKey('journals.id'), nullable=False)
+    account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False)
+    debit_amount = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    credit_amount = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    description = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<JournalEntry {self.account.account_name}: D{self.debit_amount} C{self.credit_amount}>'
+
+class GeneralLedger(db.Model):
+    __tablename__ = 'general_ledger'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    journal_id = db.Column(db.Integer, db.ForeignKey('journals.id'), nullable=False)
+    account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False)
+    debit_amount = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    credit_amount = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    journal = db.relationship('Journal', backref='ledger_entries')
+    
+    def __repr__(self):
+        return f'<GeneralLedger {self.account.account_name}>'
+
+class CashFlow(db.Model):
+    __tablename__ = 'cash_flow'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)
+    cash_in = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    cash_out = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    net_cash_flow = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    accumulated_cash = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    source = db.Column(db.String(200))
+    category = db.Column(db.String(100))  # 'operations', 'investing', 'financing'
+    reference_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<CashFlow {self.date}: Net {self.net_cash_flow}>'
+
+class BalanceSheet(db.Model):
+    __tablename__ = 'balance_sheets'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    as_of_date = db.Column(db.Date, nullable=False)
+    total_assets = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    total_liabilities = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    total_equity = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    cash_and_equivalents = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    inventory_value = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<BalanceSheet {self.as_of_date}>'
+
+class BankAccount(db.Model):
+    __tablename__ = 'bank_accounts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_name = db.Column(db.String(200), nullable=False)
+    account_number = db.Column(db.String(50))
+    bank_name = db.Column(db.String(200))
+    account_type = db.Column(db.String(50))  # 'checking', 'savings', 'credit'
+    current_balance = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    transfers_from = db.relationship('BankTransfer', foreign_keys='BankTransfer.from_account_id', backref='from_account')
+    transfers_to = db.relationship('BankTransfer', foreign_keys='BankTransfer.to_account_id', backref='to_account')
+    
+    def __repr__(self):
+        return f'<BankAccount {self.account_name}>'
+
+class BankTransfer(db.Model):
+    __tablename__ = 'bank_transfers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_number = db.Column(db.String(50), unique=True, nullable=False)
+    from_account_id = db.Column(db.Integer, db.ForeignKey('bank_accounts.id'), nullable=False)
+    to_account_id = db.Column(db.Integer, db.ForeignKey('bank_accounts.id'), nullable=False)
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    transfer_fee = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    description = db.Column(db.Text)
+    status = db.Column(db.String(20), default='completed')  # 'pending', 'completed', 'failed'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    @staticmethod
+    def generate_transfer_number():
+        """Generate unique transfer number"""
+        import time
+        return f"TRF{int(time.time())}"
+    
+    def __repr__(self):
+        return f'<BankTransfer {self.transfer_number}: {self.amount}>'
+
+class BankReconciliation(db.Model):
+    __tablename__ = 'bank_reconciliations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_accounts.id'), nullable=False)
+    statement_date = db.Column(db.Date, nullable=False)
+    statement_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    book_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    reconciled_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    outstanding_deposits = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    outstanding_checks = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    is_reconciled = db.Column(db.Boolean, default=False, nullable=False)
+    notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    bank_account = db.relationship('BankAccount', backref='reconciliations')
+    
+    def __repr__(self):
+        return f'<BankReconciliation {self.statement_date}>'
+
+class BranchEquity(db.Model):
+    __tablename__ = 'branch_equity'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
+    equity_date = db.Column(db.Date, nullable=False)
+    contributed_capital = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    retained_earnings = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    total_equity = db.Column(db.Numeric(15, 2), default=0, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    location = db.relationship('Location', backref='equity_records')
+    
+    def __repr__(self):
+        return f'<BranchEquity {self.location.name}: {self.total_equity}>'
