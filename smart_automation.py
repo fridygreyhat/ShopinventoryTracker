@@ -149,7 +149,7 @@ class SmartAutomationEngine:
                         recommended_quantity=reorder_analysis['quantity'],
                         urgency_level=reorder_analysis['urgency'],
                         reason=reorder_analysis['reason'],
-                        estimated_cost=reorder_analysis['quantity'] * (item.cost_price or 0),
+                        estimated_cost=reorder_analysis['quantity'] * (getattr(item, 'cost_price', None) or 0),
                         supplier_info=self._get_supplier_info(item)
                     )
                     recommendations.append(recommendation)
@@ -287,13 +287,13 @@ class SmartAutomationEngine:
             cutoff_date = datetime.utcnow() - timedelta(days=60)
             
             stagnant_items = db.session.query(Item).filter(
-                Item.user_id == self.user_id,
-                ~Item.id.in_(
-                    db.session.query(SaleItem.item_id).join(Sale).filter(
-                        Sale.created_at >= cutoff_date,
-                        Sale.user_id == self.user_id
-                    )
-                )
+                and_(Item.user_id == self.user_id,
+                     ~Item.id.in_(
+                         db.session.query(SaleItem.item_id).join(Sale).filter(
+                             Sale.created_at >= cutoff_date,
+                             Sale.user_id == self.user_id
+                         )
+                     ))
             ).limit(10).all()
             
             if stagnant_items:
