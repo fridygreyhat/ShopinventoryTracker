@@ -34,16 +34,16 @@
 
         /* Global text visibility improvements for sidebar */
         .sidebar *, .sidebar *::before, .sidebar *::after {
-            color: #ffffff !important;
+            color: #000000 !important;
         }
         
         .sidebar .nav-link, .sidebar .nav-section-title, .sidebar .brand, 
         .sidebar .user-name, .sidebar .user-email, .sidebar .user-role,
         .sidebar .btn, .sidebar a, .sidebar span, .sidebar div, .sidebar i,
         .sidebar small, .sidebar .text-muted, .sidebar .badge {
-            color: #ffffff !important;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
-            font-weight: 500 !important;
+            color: #000000 !important;
+            text-shadow: none !important;
+            font-weight: 600 !important;
             opacity: 1 !important;
         }
         
@@ -79,7 +79,7 @@
         }
 
         .sidebar-header .brand {
-            color: white;
+            color: #000000;
             font-size: 1.2rem;
             font-weight: 700;
             text-decoration: none;
@@ -88,7 +88,6 @@
             justify-content: center;
             gap: 12px;
             transition: all 0.3s ease;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
 
         .sidebar-header .brand:hover {
@@ -129,7 +128,7 @@
         }
 
         .nav-section-title {
-            color: #ffffff;
+            color: #000000;
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -137,7 +136,6 @@
             padding: 0 20px 12px;
             margin-bottom: 12px;
             position: relative;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .nav-section-title::before {
@@ -148,9 +146,8 @@
             transform: translateY(-50%);
             width: 3px;
             height: 14px;
-            background: #ffffff;
+            background: #000000;
             border-radius: 2px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .sidebar.collapsed .nav-section-title {
@@ -165,7 +162,7 @@
             display: flex;
             align-items: center;
             padding: 14px 20px;
-            color: #ffffff;
+            color: #000000;
             text-decoration: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -173,13 +170,12 @@
             margin: 4px 12px;
             background: transparent;
             border: 1px solid transparent;
-            font-weight: 500;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
         }
 
         .nav-link:hover {
             background: rgba(255, 255, 255, 0.15);
-            color: white;
+            color: #000000;
             transform: translateX(5px) scale(1.02);
             box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -257,14 +253,13 @@
         .user-name {
             font-weight: 600;
             font-size: 0.95rem;
-            color: #ffffff;
+            color: #000000;
             margin-bottom: 2px;
         }
 
         .user-email {
             font-size: 0.8rem;
-            color: #ffffff;
-            opacity: 0.8;
+            color: #000000;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -272,12 +267,11 @@
 
         .user-role {
             font-size: 0.75rem;
-            color: #ffffff;
+            color: #000000;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-top: 2px;
-            opacity: 0.9;
         }
 
         .sidebar.collapsed .user-details {
@@ -289,16 +283,15 @@
         }
 
         .user-actions .btn {
-            border-color: rgba(255, 255, 255, 0.5);
-            color: #ffffff;
+            border-color: rgba(0, 0, 0, 0.3);
+            color: #000000;
             transition: all 0.3s ease;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .user-actions .btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: #ffffff;
-            color: #ffffff;
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #000000;
+            color: #000000;
         }
 
         .sidebar.collapsed .user-actions span {
