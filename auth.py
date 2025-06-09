@@ -186,6 +186,59 @@ def logout_redirect():
     session.clear()
     return redirect(url_for('index'))
 
+@auth_bp.route('/verification-sent')
+def verification_sent():
+    email = request.args.get('email', '')
+    return render_template('auth/verification_sent.html', email=email)
+
+@auth_bp.route('/verify-email/<token>')
+def verify_email(token):
+    user = User.query.filter_by(email_verification_token=token).first()
+    
+    if not user:
+        flash('Invalid verification link.', 'error')
+        return redirect(url_for('postgresql_auth.login'))
+    
+    if user.verify_email_token(token):
+        db.session.commit()
+        
+        # Send welcome email after successful verification
+        EmailService.send_welcome_email(user)
+        
+        flash('Email verified successfully! You can now log in.', 'success')
+        return redirect(url_for('postgresql_auth.login'))
+    else:
+        flash('Verification link has expired. Please register again.', 'error')
+        return redirect(url_for('postgresql_auth.register'))
+
+@auth_bp.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    email = request.form.get('email', '').strip().lower()
+    
+    if not email:
+        flash('Please provide your email address.', 'error')
+        return redirect(url_for('postgresql_auth.verification_sent', email=''))
+    
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        flash('Email address not found.', 'error')
+        return redirect(url_for('postgresql_auth.register'))
+    
+    if user.email_verified:
+        flash('Email is already verified. You can log in.', 'info')
+        return redirect(url_for('postgresql_auth.login'))
+    
+    # Generate new verification token
+    verification_token = user.generate_email_verification_token()
+    db.session.commit()
+    
+    # Send new verification email
+    EmailService.send_verification_email(user, verification_token)
+    
+    flash('New verification email sent. Please check your inbox.', 'success')
+    return redirect(url_for('postgresql_auth.verification_sent', email=email))
+
 @auth_bp.route('/profile')
 @login_required
 def profile():

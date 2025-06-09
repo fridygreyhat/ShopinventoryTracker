@@ -116,6 +116,82 @@ info@mauzotz.com
             return False
     
     @staticmethod
+    def send_verification_email(user: User, verification_token: str) -> bool:
+        """Send email verification email"""
+        try:
+            # Create verification URL
+            verification_url = url_for('postgresql_auth.verify_email', token=verification_token, _external=True)
+            
+            subject = "Verify Your Email - Mauzo TZ Business Management"
+            
+            body = f"""
+Dear {user.first_name or user.email},
+
+Thank you for registering with Mauzo TZ!
+
+To complete your registration, please verify your email address by clicking the link below:
+
+{verification_url}
+
+This verification link will expire in 24 hours for security reasons.
+
+If you did not create this account, please ignore this email.
+
+Best regards,
+Mauzo TZ Team
+info@mauzotz.com
+            """
+            
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {{ max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }}
+        .header {{ background-color: #667eea; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 30px; line-height: 1.6; }}
+        .button {{ display: inline-block; padding: 12px 25px; background-color: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }}
+        .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Email Verification</h1>
+        </div>
+        <div class="content">
+            <p>Dear {user.first_name or user.email},</p>
+            
+            <p>Thank you for registering with Mauzo TZ!</p>
+            
+            <p>To complete your registration, please verify your email address by clicking the button below:</p>
+            
+            <a href="{verification_url}" class="button">Verify Email Address</a>
+            
+            <p>Or copy and paste this link into your browser:</p>
+            <p><a href="{verification_url}">{verification_url}</a></p>
+            
+            <p><strong>This verification link will expire in 24 hours for security reasons.</strong></p>
+            
+            <p>If you did not create this account, please ignore this email.</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>
+            Mauzo TZ Team<br>
+            info@mauzotz.com</p>
+        </div>
+    </div>
+</body>
+</html>
+            """
+            
+            return EmailService.send_email(user.email, subject, body, html_body)
+            
+        except Exception as e:
+            app.logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            return False
+    
+    @staticmethod
     def send_welcome_email(user: User) -> bool:
         """Send welcome email to new users"""
         try:
@@ -126,7 +202,7 @@ Dear {user.first_name or user.email},
 
 Welcome to Mauzo TZ!
 
-Your account has been successfully created. You can now access all the powerful features of our business management platform:
+Your account has been successfully created and verified. You can now access all the powerful features of our business management platform:
 
 • Inventory Management
 • Sales Tracking
