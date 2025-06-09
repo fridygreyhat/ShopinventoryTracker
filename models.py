@@ -147,3 +147,77 @@ class FinancialTransaction(db.Model):
     
     def __repr__(self):
         return f'<FinancialTransaction {self.transaction_number}>'
+
+class Location(db.Model):
+    __tablename__ = 'locations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    address = db.Column(db.Text)
+    phone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    manager_name = db.Column(db.String(100))
+    location_type = db.Column(db.String(50), nullable=False, default='store')  # 'store', 'warehouse', 'outlet'
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    location_stock = db.relationship('LocationStock', backref='location', lazy=True, cascade='all, delete-orphan')
+    stock_transfers_from = db.relationship('StockTransfer', foreign_keys='StockTransfer.from_location_id', backref='from_location', lazy=True)
+    stock_transfers_to = db.relationship('StockTransfer', foreign_keys='StockTransfer.to_location_id', backref='to_location', lazy=True)
+    
+    def __repr__(self):
+        return f'<Location {self.name}>'
+
+class LocationStock(db.Model):
+    __tablename__ = 'location_stock'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
+    location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    minimum_stock = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint to prevent duplicate item-location combinations
+    __table_args__ = (db.UniqueConstraint('item_id', 'location_id', name='unique_item_location'),)
+    
+    @property
+    def is_low_stock(self):
+        return self.quantity <= self.minimum_stock
+    
+    def __repr__(self):
+        return f'<LocationStock {self.item.name} at {self.location.name}>'
+
+class StockTransfer(db.Model):
+    __tablename__ = 'stock_transfers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_number = db.Column(db.String(50), unique=True, nullable=False)
+    from_location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
+    to_location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'in_transit', 'completed', 'cancelled'
+    notes = db.Column(db.Text)
+    initiated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    
+    # Relationships
+    transfer_items = db.relationship('StockTransferItem', backref='transfer', lazy=True, cascade='all, delete-orphan')
+    initiated_by_user = db.relationship('User', backref='initiated_transfers')
+    
+    def __repr__(self):
+        return f'<StockTransfer {self.transfer_number}>'
+
+class StockTransferItem(db.Model):
+    __tablename__ = 'stock_transfer_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_id = db.Column(db.Integer, db.ForeignKey('stock_transfers.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    
+    def __repr__(self):
+        return f'<StockTransferItem {self.item.name} x{self.quantity}>'
