@@ -74,7 +74,10 @@ def admin_dashboard():
     recent_users = User.query.order_by(desc(User.created_at)).limit(5).all()
     recent_sales_list = Sale.query.order_by(desc(Sale.created_at)).limit(10).all()
     
+    from datetime import datetime
+    
     return render_template('admin/dashboard.html',
+                         current_date=datetime.now(),
                          total_users=total_users,
                          active_users=active_users,
                          admin_users=admin_users,
