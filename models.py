@@ -40,6 +40,10 @@ class User(UserMixin, db.Model):
     default_tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
     low_stock_threshold = db.Column(db.Integer, default=10, nullable=False)
     
+    # Password Reset
+    reset_token = db.Column(db.String(255), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
+    
     # Relationships
     sales = db.relationship('Sale', backref='user', lazy=True)
     financial_transactions = db.relationship('FinancialTransaction', backref='user', lazy=True)
