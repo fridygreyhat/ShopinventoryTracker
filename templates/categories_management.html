@@ -132,7 +132,9 @@
                                 <thead>
                                     <tr>
                                         <th>Category</th>
+                                        <th>Level</th>
                                         <th>Items</th>
+                                        <th>Subcategories</th>
                                         <th>Inventory Value</th>
                                         <th>Potential Value</th>
                                         <th>Potential Profit</th>
@@ -146,22 +148,46 @@
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
+                                                    {% for i in range(stat.category.level) %}
+                                                        <span class="me-1 text-muted">└</span>
+                                                    {% endfor %}
                                                     <div class="category-icon me-2">
-                                                        <i class="fas fa-tag"></i>
+                                                        {% if stat.category.level == 0 %}
+                                                            <i class="fas fa-folder text-primary"></i>
+                                                        {% else %}
+                                                            <i class="fas fa-folder-open text-secondary"></i>
+                                                        {% endif %}
                                                     </div>
                                                     <div>
                                                         <strong>{{ stat.category.name }}</strong>
                                                         {% if stat.category.description %}
                                                             <br><small class="text-muted">{{ stat.category.description }}</small>
                                                         {% endif %}
+                                                        {% if stat.category.parent %}
+                                                            <br><small class="text-info">Parent: {{ stat.category.parent.name }}</small>
+                                                        {% endif %}
                                                     </div>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                {% if stat.category.level == 0 %}
+                                                    <span class="badge bg-primary">Root</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Level {{ stat.category.level }}</span>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 <a href="{{ url_for('category_items', category_id=stat.category.id) }}" 
                                                    class="text-decoration-none">
                                                     <span class="badge bg-info">{{ stat.item_count }} items</span>
                                                 </a>
+                                            </td>
+                                            <td>
+                                                {% if stat.subcategory_count > 0 %}
+                                                    <span class="badge bg-success">{{ stat.subcategory_count }} subcategories</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark">0</span>
+                                                {% endif %}
                                             </td>
                                             <td>TSh {{ "{:,.2f}".format(stat.total_value) }}</td>
                                             <td>TSh {{ "{:,.2f}".format(stat.total_retail_value) }}</td>
