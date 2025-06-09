@@ -459,6 +459,22 @@ with app.app_context():
 # Import auth service after app initialization to avoid circular imports
 from auth_service import login_required, authenticate_user, create_or_update_user
 
+# Admin required decorator
+def admin_required(f):
+    """Decorator that requires admin privileges"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        
+        user = User.query.get(session['user_id'])
+        if not user or not user.is_admin:
+            flash('Admin access required', 'danger')
+            return redirect(url_for('index'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 @app.route('/')
 @login_required
@@ -553,6 +569,20 @@ def layaway_page():
 def installments_page():
     """Render the installments management page"""
     return render_template('installments.html')
+
+
+@app.route('/customers')
+@login_required
+def customers_page():
+    """Render the customer management page"""
+    return render_template('customers.html')
+
+
+@app.route('/suppliers')
+@login_required
+def suppliers_page():
+    """Render the supplier management page"""
+    return render_template('suppliers.html')
 
 
 @app.route('/admin/users')
