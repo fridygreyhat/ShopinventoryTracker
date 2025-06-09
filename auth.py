@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import app, db
@@ -145,14 +145,29 @@ def register():
     
     return render_template('auth/register.html')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
     from datetime import datetime
     logout_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')
     
+    # Clear session completely
+    session.clear()
+    
+    # Logout user if authenticated
     if current_user.is_authenticated:
         logout_user()
-    session.clear()
+    
+    # Force session to be saved
+    session.permanent = False
+    
+    # Handle AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'message': 'Logged out successfully',
+            'redirect': url_for('index')
+        })
+    
     return render_template('auth/logout_success.html', logout_time=logout_time)
 
 @auth_bp.route('/logout-redirect')

@@ -37,7 +37,7 @@ function logoutUser() {
     showNotification('Logging out...', 'info');
 
     // Perform logout request
-    fetch('/logout', {
+    fetch('/auth/logout', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ function logoutUser() {
         // Fallback: direct navigation to logout
         showNotification('Redirecting to logout...', 'warning');
         setTimeout(() => {
-            window.location.href = '/logout';
+            window.location.href = '/auth/logout';
         }, 1000);
     })
     .finally(() => {
