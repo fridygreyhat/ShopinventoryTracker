@@ -95,7 +95,7 @@ function logoutUser() {
 function quickLogout() {
     logoutInProgress = true;
     clearUserData();
-    window.location.href = '/logout';
+    window.location.href = '/auth/logout';
 }
 
 /**
@@ -202,12 +202,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle logout links in navigation
+    // Handle logout links in navigation with confirmation
     document.querySelectorAll('a[href*="logout"]').forEach(function(link) {
         link.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            logoutUser();
+            if (!confirm('Are you sure you want to log out?')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            // Let the normal link behavior proceed if confirmed
+            clearUserData();
         });
     });
 
