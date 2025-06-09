@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
-from sqlalchemy import func, desc, and_
+from sqlalchemy import func, desc, and_, or_
 from app import app, db
-from models import User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction
+from models import User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, Location, LocationStock, StockTransfer, StockTransferItem
 
 @app.route('/')
 def index():
@@ -465,6 +465,276 @@ def create_default_data():
         
         db.session.commit()
         logging.info("Default admin user and categories created")
+
+# Location Management Routes
+@app.route('/locations')
+@login_required
+def locations():
+    user_locations = Location.query.filter_by(user_id=current_user.id, is_active=True).order_by(Location.name).all()
+    return render_template('locations.html', locations=user_locations)
+
+@app.route('/add_location', methods=['POST'])
+@login_required
+def add_location():
+    try:
+        location = Location(
+            name=request.form['name'],
+            address=request.form.get('address', ''),
+            phone=request.form.get('phone', ''),
+            email=request.form.get('email', ''),
+            manager_name=request.form.get('manager_name', ''),
+            location_type=request.form.get('location_type', 'store'),
+            user_id=current_user.id
+        )
+        
+        db.session.add(location)
+        db.session.commit()
+        
+        flash(f'Location "{location.name}" has been created successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating location: {str(e)}', 'danger')
+    
+    return redirect(url_for('locations'))
+
+@app.route('/edit_location/<int:location_id>', methods=['GET', 'POST'])
+@login_required
+def edit_location(location_id):
+    location = Location.query.filter_by(id=location_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        try:
+            location.name = request.form['name']
+            location.address = request.form.get('address', '')
+            location.phone = request.form.get('phone', '')
+            location.email = request.form.get('email', '')
+            location.manager_name = request.form.get('manager_name', '')
+            location.location_type = request.form.get('location_type', 'store')
+            
+            db.session.commit()
+            flash(f'Location "{location.name}" has been updated successfully!', 'success')
+            return redirect(url_for('locations'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating location: {str(e)}', 'danger')
+    
+    return render_template('edit_location.html', location=location)
+
+@app.route('/location_stock/<int:location_id>')
+@login_required
+def location_stock(location_id):
+    location = Location.query.filter_by(id=location_id, user_id=current_user.id).first_or_404()
+    
+    # Get all items with their stock at this location
+    items_query = db.session.query(Item, LocationStock).outerjoin(
+        LocationStock, and_(Item.id == LocationStock.item_id, LocationStock.location_id == location_id)
+    ).filter(Item.is_active == True).order_by(Item.name)
+    
+    items_stock = items_query.all()
+    
+    return render_template('location_stock.html', location=location, items_stock=items_stock)
+
+@app.route('/update_location_stock', methods=['POST'])
+@login_required
+def update_location_stock():
+    try:
+        location_id = int(request.form['location_id'])
+        item_id = int(request.form['item_id'])
+        quantity = int(request.form['quantity'])
+        minimum_stock = int(request.form.get('minimum_stock', 0))
+        
+        # Verify location belongs to current user
+        location = Location.query.filter_by(id=location_id, user_id=current_user.id).first_or_404()
+        
+        # Check if location stock entry exists
+        location_stock = LocationStock.query.filter_by(item_id=item_id, location_id=location_id).first()
+        
+        if location_stock:
+            old_quantity = location_stock.quantity
+            location_stock.quantity = quantity
+            location_stock.minimum_stock = minimum_stock
+        else:
+            location_stock = LocationStock(
+                item_id=item_id,
+                location_id=location_id,
+                quantity=quantity,
+                minimum_stock=minimum_stock
+            )
+            db.session.add(location_stock)
+            old_quantity = 0
+        
+        # Create stock movement record
+        movement_type = 'in' if quantity > old_quantity else 'out' if quantity < old_quantity else 'adjustment'
+        if quantity != old_quantity:
+            stock_movement = StockMovement(
+                movement_type=movement_type,
+                quantity=abs(quantity - old_quantity),
+                reason=f'Location stock update at {location.name}',
+                item_id=item_id
+            )
+            db.session.add(stock_movement)
+        
+        db.session.commit()
+        flash('Stock updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating stock: {str(e)}', 'danger')
+    
+    return redirect(url_for('location_stock', location_id=location_id))
+
+@app.route('/stock_transfers')
+@login_required
+def stock_transfers():
+    # Get transfers where user owns both locations
+    user_location_ids = [loc.id for loc in Location.query.filter_by(user_id=current_user.id).all()]
+    
+    transfers = StockTransfer.query.filter(
+        or_(StockTransfer.from_location_id.in_(user_location_ids),
+            StockTransfer.to_location_id.in_(user_location_ids))
+    ).order_by(desc(StockTransfer.created_at)).all()
+    
+    return render_template('stock_transfers.html', transfers=transfers)
+
+@app.route('/create_transfer', methods=['GET', 'POST'])
+@login_required
+def create_transfer():
+    if request.method == 'POST':
+        try:
+            from_location_id = int(request.form['from_location_id'])
+            to_location_id = int(request.form['to_location_id'])
+            
+            if from_location_id == to_location_id:
+                flash('Source and destination locations cannot be the same.', 'danger')
+                return redirect(url_for('create_transfer'))
+            
+            # Verify both locations belong to current user
+            from_location = Location.query.filter_by(id=from_location_id, user_id=current_user.id).first_or_404()
+            to_location = Location.query.filter_by(id=to_location_id, user_id=current_user.id).first_or_404()
+            
+            transfer_number = f"TRF-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            transfer = StockTransfer(
+                transfer_number=transfer_number,
+                from_location_id=from_location_id,
+                to_location_id=to_location_id,
+                notes=request.form.get('notes', ''),
+                initiated_by=current_user.id
+            )
+            
+            db.session.add(transfer)
+            db.session.flush()  # Get the transfer ID
+            
+            # Add transfer items
+            item_ids = request.form.getlist('item_id[]')
+            quantities = request.form.getlist('quantity[]')
+            
+            for item_id, quantity in zip(item_ids, quantities):
+                if item_id and quantity and int(quantity) > 0:
+                    # Check if enough stock available at source location
+                    source_stock = LocationStock.query.filter_by(
+                        item_id=int(item_id), 
+                        location_id=from_location_id
+                    ).first()
+                    
+                    if not source_stock or source_stock.quantity < int(quantity):
+                        raise Exception(f"Insufficient stock for item ID {item_id} at {from_location.name}")
+                    
+                    transfer_item = StockTransferItem(
+                        transfer_id=transfer.id,
+                        item_id=int(item_id),
+                        quantity=int(quantity)
+                    )
+                    db.session.add(transfer_item)
+            
+            db.session.commit()
+            flash(f'Stock transfer {transfer_number} created successfully!', 'success')
+            return redirect(url_for('stock_transfers'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating transfer: {str(e)}', 'danger')
+    
+    # GET request - show form
+    user_locations = Location.query.filter_by(user_id=current_user.id, is_active=True).all()
+    items = Item.query.filter_by(is_active=True).order_by(Item.name).all()
+    
+    return render_template('create_transfer.html', locations=user_locations, items=items)
+
+@app.route('/complete_transfer/<int:transfer_id>', methods=['POST'])
+@login_required
+def complete_transfer(transfer_id):
+    try:
+        transfer = StockTransfer.query.get_or_404(transfer_id)
+        
+        # Verify user has access to this transfer
+        if (transfer.from_location.user_id != current_user.id or 
+            transfer.to_location.user_id != current_user.id):
+            flash('Access denied.', 'danger')
+            return redirect(url_for('stock_transfers'))
+        
+        if transfer.status != 'pending':
+            flash('Transfer has already been processed.', 'warning')
+            return redirect(url_for('stock_transfers'))
+        
+        # Process each item in the transfer
+        for transfer_item in transfer.transfer_items:
+            # Reduce stock at source location
+            source_stock = LocationStock.query.filter_by(
+                item_id=transfer_item.item_id,
+                location_id=transfer.from_location_id
+            ).first()
+            
+            if source_stock:
+                source_stock.quantity -= transfer_item.quantity
+            
+            # Increase stock at destination location
+            dest_stock = LocationStock.query.filter_by(
+                item_id=transfer_item.item_id,
+                location_id=transfer.to_location_id
+            ).first()
+            
+            if dest_stock:
+                dest_stock.quantity += transfer_item.quantity
+            else:
+                dest_stock = LocationStock(
+                    item_id=transfer_item.item_id,
+                    location_id=transfer.to_location_id,
+                    quantity=transfer_item.quantity,
+                    minimum_stock=0
+                )
+                db.session.add(dest_stock)
+            
+            # Create stock movement records
+            out_movement = StockMovement(
+                movement_type='out',
+                quantity=transfer_item.quantity,
+                reason=f'Transfer {transfer.transfer_number} to {transfer.to_location.name}',
+                item_id=transfer_item.item_id
+            )
+            
+            in_movement = StockMovement(
+                movement_type='in',
+                quantity=transfer_item.quantity,
+                reason=f'Transfer {transfer.transfer_number} from {transfer.from_location.name}',
+                item_id=transfer_item.item_id
+            )
+            
+            db.session.add(out_movement)
+            db.session.add(in_movement)
+        
+        # Update transfer status
+        transfer.status = 'completed'
+        transfer.completed_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash(f'Transfer {transfer.transfer_number} completed successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error completing transfer: {str(e)}', 'danger')
+    
+    return redirect(url_for('stock_transfers'))
 
 # Call the function to create default data
 with app.app_context():

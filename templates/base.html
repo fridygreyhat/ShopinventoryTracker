@@ -52,6 +52,11 @@
                             <i class="fas fa-dollar-sign"></i> Financial
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('locations') }}">
+                            <i class="fas fa-map-marker-alt"></i> Locations
+                        </a>
+                    </li>
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('users') }}">
