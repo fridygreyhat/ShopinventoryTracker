@@ -32,25 +32,55 @@
             min-height: 100vh;
         }
 
-        /* Global text visibility improvements for sidebar */
-        .sidebar *, .sidebar *::before, .sidebar *::after {
+        /* Global text color - ALL text in black throughout the system */
+        *, *::before, *::after {
             color: #000000 !important;
         }
         
-        .sidebar .nav-link, .sidebar .nav-section-title, .sidebar .brand, 
-        .sidebar .user-name, .sidebar .user-email, .sidebar .user-role,
-        .sidebar .btn, .sidebar a, .sidebar span, .sidebar div, .sidebar i,
-        .sidebar small, .sidebar .text-muted, .sidebar .badge {
+        body, p, h1, h2, h3, h4, h5, h6, span, div, a, button, input, textarea, select, label, 
+        .nav-link, .nav-section-title, .brand, .user-name, .user-email, .user-role,
+        .btn, .badge, .text-muted, .text-secondary, .text-primary, .text-info, .text-warning, .text-success, .text-danger,
+        .card-title, .card-text, .form-label, .form-control, .table, .modal-title, .modal-body,
+        .navbar-brand, .navbar-nav, .dropdown-item, .breadcrumb, .pagination, .alert {
             color: #000000 !important;
             text-shadow: none !important;
-            font-weight: 600 !important;
             opacity: 1 !important;
         }
         
+        /* Override Bootstrap and other framework colors */
+        .text-white { color: #000000 !important; }
+        .text-light { color: #000000 !important; }
+        .text-dark { color: #000000 !important; }
+        .text-primary { color: #000000 !important; }
+        .text-secondary { color: #000000 !important; }
+        .text-success { color: #000000 !important; }
+        .text-danger { color: #000000 !important; }
+        .text-warning { color: #000000 !important; }
+        .text-info { color: #000000 !important; }
+        .text-muted { color: #000000 !important; }
+        
         /* Override any opacity settings that make text hard to read */
-        .sidebar [style*="opacity"], .sidebar .opacity-75, .sidebar .opacity-50 {
+        [style*="opacity"], .opacity-75, .opacity-50, .opacity-25 {
             opacity: 1 !important;
         }
+
+        /* Force black text on all interactive elements */
+        .btn, .btn-primary, .btn-secondary, .btn-success, .btn-danger, .btn-warning, .btn-info, .btn-light, .btn-dark,
+        .btn-outline-primary, .btn-outline-secondary, .btn-outline-success, .btn-outline-danger, .btn-outline-warning, .btn-outline-info,
+        .form-control, .form-select, .form-check-label, .form-label, input, select, textarea, option,
+        .nav-tabs .nav-link, .nav-pills .nav-link, .navbar-nav .nav-link, .dropdown-menu .dropdown-item,
+        .breadcrumb-item, .pagination .page-link, .card-header, .card-footer, .list-group-item,
+        .alert, .alert-primary, .alert-secondary, .alert-success, .alert-danger, .alert-warning, .alert-info,
+        .toast, .tooltip, .popover, .modal-header, .modal-body, .modal-footer,
+        .progress, .badge, .btn-group .btn, .btn-toolbar .btn {
+            color: #000000 !important;
+        }
+
+        /* Ensure all pseudo-elements are black */
+        ::placeholder { color: #000000 !important; opacity: 0.7 !important; }
+        ::-webkit-input-placeholder { color: #000000 !important; opacity: 0.7 !important; }
+        ::-moz-placeholder { color: #000000 !important; opacity: 0.7 !important; }
+        :-ms-input-placeholder { color: #000000 !important; opacity: 0.7 !important; }
 
         /* Sidebar Styles */
         .sidebar {
@@ -513,7 +543,7 @@
         .table thead th {
             background: #f7fafc;
             border: none;
-            color: #2d3748;
+            color: #000000;
             font-weight: 600;
             padding: 15px;
             border-bottom: 2px solid #e2e8f0;
@@ -554,12 +584,12 @@
         .metric-value {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #3182ce;
+            color: #000000;
             margin-bottom: 10px;
         }
 
         .metric-label {
-            color: #6c757d;
+            color: #000000;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 1px;
