@@ -121,7 +121,8 @@ def register():
                 shop_name=shop_name,
                 phone=phone,
                 active=True,
-                is_admin=False
+                is_admin=False,
+                role='user'
             )
             user.set_password(password)
             
@@ -129,11 +130,13 @@ def register():
             db.session.commit()
             
             flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('postgresql_auth.login'))
             
         except Exception as e:
             db.session.rollback()
-            flash('Registration failed. Please try again.', 'error')
+            import logging
+            logging.error(f"Registration error: {str(e)}")
+            flash(f'Registration failed: {str(e)}', 'error')
             return render_template('auth/register.html')
     
     return render_template('auth/register.html')
@@ -187,7 +190,7 @@ def edit_profile():
             
             db.session.commit()
             flash('Profile updated successfully!', 'success')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('postgresql_auth.profile'))
             
         except Exception as e:
             db.session.rollback()
@@ -233,7 +236,7 @@ def change_password():
             db.session.commit()
             
             flash('Password changed successfully!', 'success')
-            return redirect(url_for('auth.profile'))
+            return redirect(url_for('postgresql_auth.profile'))
             
         except Exception as e:
             db.session.rollback()
