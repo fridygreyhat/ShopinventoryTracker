@@ -202,6 +202,13 @@ translations = {
         'track_sales': 'Track sales and customer data',
         'financial_insights': 'Get detailed financial insights',
         'multi_location': 'Multi-location support',
+        
+        # Currency
+        'currency_symbol': 'TSh',
+        'currency_name': 'Tanzanian Shilling',
+        'amount': 'Amount (TSh)',
+        'price_tsh': 'Price (TSh)',
+        'total_tsh': 'Total (TSh)',
     },
     
     'sw': {
@@ -402,6 +409,13 @@ translations = {
         'track_sales': 'Fuatilia mauzo na data ya wateja',
         'financial_insights': 'Pata ufahamu wa kina wa kifedha',
         'multi_location': 'Msaada wa maeneo mengi',
+        
+        # Currency
+        'currency_symbol': 'TSh',
+        'currency_name': 'Shilingi ya Kitanzania',
+        'amount': 'Kiasi (TSh)',
+        'price_tsh': 'Bei (TSh)',
+        'total_tsh': 'Jumla (TSh)',
     }
 }
 
