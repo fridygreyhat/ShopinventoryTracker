@@ -469,75 +469,73 @@
 
         /* Form enhancements */
         .form-control, .form-select {
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
             transition: all 0.3s ease;
+            padding: 10px 12px;
         }
 
         .form-control:focus, .form-select:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-            background: rgba(255, 255, 255, 0.95);
+            border-color: #3182ce;
+            box-shadow: 0 0 0 0.2rem rgba(49, 130, 206, 0.25);
+            background: #ffffff;
         }
 
         /* Table enhancements */
         .table {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 12px;
+            background: #ffffff;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e2e8f0;
         }
 
         .table thead th {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            background: #f7fafc;
             border: none;
-            color: #495057;
+            color: #2d3748;
             font-weight: 600;
             padding: 15px;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .table tbody td {
             border: none;
             padding: 12px 15px;
             vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
         }
 
         .table tbody tr {
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .table tbody tr:hover {
-            background: rgba(102, 126, 234, 0.05);
-            transform: scale(1.01);
+            background: #f8fafc;
         }
 
         /* Dashboard metric cards */
         .metric-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.8) 100%);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
             padding: 25px;
             text-align: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .metric-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+            border-color: #cbd5e0;
         }
 
         .metric-value {
             font-size: 2.5rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #3182ce;
             margin-bottom: 10px;
         }
 
@@ -551,17 +549,16 @@
 
         /* Modal enhancements */
         .modal-content {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
         }
 
         .modal-header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px 16px 0 0;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 12px 12px 0 0;
+            background: #f7fafc;
         }
 
         /* Mobile Responsiveness */
