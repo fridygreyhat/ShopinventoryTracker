@@ -190,7 +190,7 @@ def edit_profile():
             
             db.session.commit()
             flash('Profile updated successfully!', 'success')
-            return redirect(url_for('postgresql_auth.profile'))
+            return redirect(url_for('postgresql_auth.settings') + '#account')
             
         except Exception as e:
             db.session.rollback()
@@ -236,7 +236,7 @@ def change_password():
             db.session.commit()
             
             flash('Password changed successfully!', 'success')
-            return redirect(url_for('postgresql_auth.profile'))
+            return redirect(url_for('postgresql_auth.settings') + '#security')
             
         except Exception as e:
             db.session.rollback()
@@ -259,7 +259,7 @@ def update_preferences():
         date_format = request.form.get('date_format', 'DD/MM/YYYY')
         timezone = request.form.get('timezone', 'Africa/Dar_es_Salaam')
         
-        # Update user preferences (we'll add these fields to User model)
+        # Update user preferences
         current_user.language = language
         current_user.currency_format = currency_format
         current_user.date_format = date_format
@@ -271,9 +271,11 @@ def update_preferences():
         
     except Exception as e:
         db.session.rollback()
+        import logging
+        logging.error(f"Preferences update error: {str(e)}")
         flash('Failed to update preferences. Please try again.', 'error')
     
-    return redirect(url_for('postgresql_auth.settings'))
+    return redirect(url_for('postgresql_auth.settings') + '#preferences')
 
 @auth_bp.route('/settings/notifications', methods=['POST'])
 @login_required
@@ -297,18 +299,29 @@ def update_notifications():
         
     except Exception as e:
         db.session.rollback()
+        import logging
+        logging.error(f"Notifications update error: {str(e)}")
         flash('Failed to update notification preferences. Please try again.', 'error')
     
-    return redirect(url_for('postgresql_auth.settings'))
+    return redirect(url_for('postgresql_auth.settings') + '#notifications')
 
 @auth_bp.route('/settings/business', methods=['POST'])
 @login_required
 def update_business_settings():
     try:
         # Get business settings
-        business_type = request.form.get('business_type', '')
+        business_type = request.form.get('business_type', 'retail')
         default_tax_rate = float(request.form.get('default_tax_rate', 0))
         low_stock_threshold = int(request.form.get('low_stock_threshold', 10))
+        
+        # Validate inputs
+        if default_tax_rate < 0 or default_tax_rate > 100:
+            flash('Tax rate must be between 0 and 100 percent.', 'error')
+            return redirect(url_for('postgresql_auth.settings') + '#business')
+        
+        if low_stock_threshold < 1:
+            flash('Low stock threshold must be at least 1.', 'error')
+            return redirect(url_for('postgresql_auth.settings') + '#business')
         
         # Update user business settings
         current_user.business_type = business_type
@@ -319,11 +332,15 @@ def update_business_settings():
         db.session.commit()
         flash('Business settings updated successfully!', 'success')
         
+    except ValueError:
+        flash('Invalid number format. Please check your inputs.', 'error')
     except Exception as e:
         db.session.rollback()
+        import logging
+        logging.error(f"Business settings update error: {str(e)}")
         flash('Failed to update business settings. Please try again.', 'error')
     
-    return redirect(url_for('postgresql_auth.settings'))
+    return redirect(url_for('postgresql_auth.settings') + '#business')
 
 # Custom decorators
 def admin_required(f):
