@@ -271,7 +271,7 @@ def sales():
 @login_required
 def new_sale():
     """Create a new sale with payment options"""
-    items = Item.query.filter_by(user_id=current_user.id, is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
+    items = Item.query.filter_by(is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
     customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
     return render_template('sales/new_sale.html', items=items, customers=customers)
 
