@@ -24,7 +24,7 @@ function logoutUser() {
 
     logoutInProgress = true;
     
-    // Show loading state on logout button
+    // Show loading state on logout buttons
     const logoutButtons = document.querySelectorAll('[data-logout], [href*="logout"]');
     logoutButtons.forEach(button => {
         const originalContent = button.innerHTML;
@@ -53,7 +53,7 @@ function logoutUser() {
             window.location.href = response.url || '/login';
             return;
         } else {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
     })
     .then(data => {
@@ -69,7 +69,7 @@ function logoutUser() {
                 window.location.href = data.redirect || '/login';
             }, 1000);
         } else {
-            throw new Error(data?.message || 'Logout failed');
+            throw new Error((data && data.message) || 'Logout failed');
         }
     })
     .catch(error => {
@@ -144,13 +144,12 @@ function showNotification(message, type = 'info') {
         min-width: 300px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     `;
-    notification.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-${getIconForType(type)} me-2"></i>
-            <span>${message}</span>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
+    notification.innerHTML = 
+        '<div class="d-flex align-items-center">' +
+            '<i class="fas fa-' + getIconForType(type) + ' me-2"></i>' +
+            '<span>' + message + '</span>' +
+        '</div>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
     
     // Add to page
     document.body.appendChild(notification);
@@ -184,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing authentication handlers...');
     
     // Add click handlers to logout buttons
-    document.querySelectorAll('[data-logout]').forEach(button => {
+    document.querySelectorAll('[data-logout]').forEach(function(button) {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -193,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Add click handlers to quick logout buttons
-    document.querySelectorAll('[data-quick-logout]').forEach(button => {
+    document.querySelectorAll('[data-quick-logout]').forEach(function(button) {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -202,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle logout links in navigation
-    document.querySelectorAll('a[href*="logout"]').forEach(link => {
+    document.querySelectorAll('a[href*="logout"]').forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -262,7 +261,7 @@ function initializeSessionTimeout() {
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     const throttledReset = throttle(resetTimeouts, 60000); // Throttle to once per minute
 
-    activityEvents.forEach(event => {
+    activityEvents.forEach(function(event) {
         document.addEventListener(event, throttledReset, { passive: true });
     });
 }

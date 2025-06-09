@@ -208,7 +208,7 @@
                                                         <button type="button" class="btn btn-outline-secondary edit-user-btn" title="Edit User" data-user-id="{{ user.id }}">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
-                                                        <button type="button" class="btn btn-outline-{{ user.active ? 'warning' : 'success' }} toggle-status-btn" title="{{ user.active ? 'Deactivate' : 'Activate' }} User" data-user-id="{{ user.id }}">
+                                                        <button type="button" class="btn btn-outline-{% if user.active %}warning{% else %}success{% endif %} toggle-status-btn" title="{% if user.active %}Deactivate{% else %}Activate{% endif %} User" data-user-id="{{ user.id }}">
                                                             <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
                                                         </button>
                                                         {% if user.id != session.get('user_id') %}
