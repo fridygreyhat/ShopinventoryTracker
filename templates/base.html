@@ -75,17 +75,41 @@
         }
 
         .nav-section {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
+            position: relative;
+        }
+
+        .nav-section:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            bottom: -17px;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(113, 128, 150, 0.3), rgba(113, 128, 150, 0.1), rgba(113, 128, 150, 0.3));
         }
 
         .nav-section-title {
-            color: #718096;
+            color: #64b5f6;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 0 20px 10px;
-            margin-bottom: 10px;
+            padding: 0 20px 12px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .nav-section-title::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 14px;
+            background: #64b5f6;
+            border-radius: 2px;
         }
 
         .sidebar.collapsed .nav-section-title {
@@ -153,19 +177,56 @@
         .user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             background: linear-gradient(135deg, #64b5f6, #42a5f5);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 2px 8px rgba(100, 181, 246, 0.3);
+        }
+
+        .user-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            margin-bottom: 2px;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            color: #cbd5e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: #64b5f6;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
         }
 
         .sidebar.collapsed .user-details {
@@ -412,11 +473,16 @@
                     </div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('sales') }}">
-                            <i class="fas fa-shopping-cart"></i>
+                            <i class="fas fa-history"></i>
                             <span>{{ g.t('sale_history') }}</span>
                             <div class="nav-tooltip">{{ g.t('sale_history') }}</div>
                         </a>
                     </div>
+                </li>
+
+                <!-- Customer Management Section -->
+                <li class="nav-section">
+                    <div class="nav-section-title">{{ g.t('customers') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('customers') }}">
                             <i class="fas fa-user-friends"></i>
@@ -498,15 +564,10 @@
                         {{ current_user.first_name[0] if current_user.first_name else 'U' }}
                     </div>
                     <div class="user-details">
-                        <div style="font-weight: 600;">{{ current_user.first_name or 'User' }}</div>
-                        <div style="font-size: 0.85rem; opacity: 0.7;">{{ current_user.email }}</div>
+                        <div class="user-name">{{ current_user.first_name or 'User' }}</div>
+                        <div class="user-email">{{ current_user.email }}</div>
+                        <div class="user-role">{{ current_user.role.title() if current_user.role else 'User' }}</div>
                     </div>
-                </div>
-                <div class="user-actions mt-3">
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm w-100">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
                 </div>
             </div>
         </nav>
