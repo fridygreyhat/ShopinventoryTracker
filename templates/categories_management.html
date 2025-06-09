@@ -27,16 +27,18 @@
                                    value="{{ search }}" placeholder="Search by category name...">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-outline-primary">
-                                    <i class="fas fa-search"></i> Search
-                                </button>
-                            </div>
+                            <label for="show_subcategories" class="form-label">View Options</label>
+                            <select class="form-select" id="show_subcategories" name="show_subcategories">
+                                <option value="true" {% if show_subcategories %}selected{% endif %}>Show all categories</option>
+                                <option value="false" {% if not show_subcategories %}selected{% endif %}>Root categories only</option>
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
                                 <a href="{{ url_for('categories_management') }}" class="btn btn-outline-secondary">
                                     <i class="fas fa-times"></i> Clear
                                 </a>
