@@ -99,11 +99,11 @@
                     <div class="row">
                         <div class="col-6">
                             <h6>Total Revenue</h6>
-                            <h4 class="text-success">${{ "%.2f"|format(pl_data.total_revenue or 0) }}</h4>
+                            <h4 class="text-success">Tsh {{ "{:,.2f}".format(pl_data.total_revenue or 0) }}</h4>
                         </div>
                         <div class="col-6">
                             <h6>Total Expenses</h6>
-                            <h4 class="text-danger">${{ "%.2f"|format(pl_data.total_expenses or 0) }}</h4>
+                            <h4 class="text-danger">Tsh {{ "{:,.2f}".format(pl_data.total_expenses or 0) }}</h4>
                         </div>
                     </div>
                     <hr>
@@ -111,7 +111,7 @@
                         <div class="col-12">
                             <h6>Net Profit</h6>
                             <h3 class="{{ 'text-success' if (pl_data.net_profit or 0) >= 0 else 'text-danger' }}">
-                                ${{ "%.2f"|format(pl_data.net_profit or 0) }}
+                                Tsh {{ "{:,.2f}".format(pl_data.net_profit or 0) }}
                             </h3>
                         </div>
                     </div>
@@ -183,7 +183,7 @@
                                     <td>
                                         <span class="badge bg-secondary">{{ journal.reference_type or 'manual' }}</span>
                                     </td>
-                                    <td>${{ "%.2f"|format(journal.total_debit) }}</td>
+                                    <td>Tsh {{ "{:,.2f}".format(journal.total_debit) }}</td>
                                     <td>
                                         <a href="{{ url_for('view_journal_entry', journal_id=journal.id) }}" class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
