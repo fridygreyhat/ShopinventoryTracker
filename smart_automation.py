@@ -123,7 +123,7 @@ class SmartAutomationEngine:
         
         try:
             # Get current inventory levels
-            items = db.session.query(Item).filter(Item.user_id == self.user_id).all()
+            items = db.session.query(Item).filter_by(user_id=self.user_id).all()
             
             for item in items:
                 # Get total stock across all locations
@@ -287,13 +287,14 @@ class SmartAutomationEngine:
             cutoff_date = datetime.utcnow() - timedelta(days=60)
             
             stagnant_items = db.session.query(Item).filter(
-                and_(Item.user_id == self.user_id,
-                     ~Item.id.in_(
-                         db.session.query(SaleItem.item_id).join(Sale).filter(
-                             Sale.created_at >= cutoff_date,
-                             Sale.user_id == self.user_id
-                         )
-                     ))
+                Item.user_id == self.user_id
+            ).filter(
+                ~Item.id.in_(
+                    db.session.query(SaleItem.item_id).join(Sale).filter(
+                        Sale.created_at >= cutoff_date,
+                        Sale.user_id == self.user_id
+                    )
+                )
             ).limit(10).all()
             
             if stagnant_items:
@@ -369,7 +370,7 @@ class SmartAutomationEngine:
                 keywords = seasonal_items[current_month]
                 
                 # Find items that might be seasonal
-                seasonal_candidates = Item.query.filter(
+                seasonal_candidates = db.session.query(Item).filter(
                     Item.user_id == self.user_id,
                     or_(*[Item.name.ilike(f'%{keyword}%') for keyword in keywords])
                 ).limit(5).all()
