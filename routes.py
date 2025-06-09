@@ -1475,6 +1475,196 @@ def run_automation_analysis():
     
     return redirect(url_for('automation_dashboard'))
 
+# On-Demand Products Routes
+@app.route('/on-demand-products')
+@login_required
+def on_demand_products():
+    """Display on-demand products management"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '')
+    category_id = request.args.get('category_id', type=int)
+    
+    # Build query
+    query = OnDemandProduct.query.filter_by(user_id=current_user.id, is_active=True)
+    
+    if search:
+        query = query.filter(OnDemandProduct.name.contains(search))
+    
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    
+    products = query.order_by(OnDemandProduct.name).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    
+    return render_template('on_demand/products.html', 
+                         products=products, 
+                         categories=categories,
+                         search=search,
+                         category_id=category_id)
+
+@app.route('/on-demand-products/add', methods=['GET', 'POST'])
+@login_required
+def add_on_demand_product():
+    """Add a new on-demand product"""
+    if request.method == 'POST':
+        try:
+            product = OnDemandProduct(
+                name=request.form['name'],
+                description=request.form.get('description'),
+                category_id=int(request.form['category_id']) if request.form.get('category_id') else None,
+                estimated_cost=float(request.form['estimated_cost']),
+                selling_price=float(request.form['selling_price']),
+                supplier_name=request.form.get('supplier_name'),
+                supplier_contact=request.form.get('supplier_contact'),
+                estimated_delivery_days=int(request.form.get('estimated_delivery_days', 7)),
+                minimum_order_quantity=int(request.form.get('minimum_order_quantity', 1)),
+                user_id=current_user.id
+            )
+            
+            db.session.add(product)
+            db.session.commit()
+            
+            flash('On-demand product added successfully!', 'success')
+            return redirect(url_for('on_demand_products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding product: {str(e)}', 'danger')
+    
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    return render_template('on_demand/add_product.html', categories=categories)
+
+@app.route('/on-demand-products/<int:product_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_on_demand_product(product_id):
+    """Edit an on-demand product"""
+    product = OnDemandProduct.query.filter_by(id=product_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        try:
+            product.name = request.form['name']
+            product.description = request.form.get('description')
+            product.category_id = int(request.form['category_id']) if request.form.get('category_id') else None
+            product.estimated_cost = float(request.form['estimated_cost'])
+            product.selling_price = float(request.form['selling_price'])
+            product.supplier_name = request.form.get('supplier_name')
+            product.supplier_contact = request.form.get('supplier_contact')
+            product.estimated_delivery_days = int(request.form.get('estimated_delivery_days', 7))
+            product.minimum_order_quantity = int(request.form.get('minimum_order_quantity', 1))
+            product.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            flash('Product updated successfully!', 'success')
+            return redirect(url_for('on_demand_products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating product: {str(e)}', 'danger')
+    
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    return render_template('on_demand/edit_product.html', product=product, categories=categories)
+
+@app.route('/on-demand-orders')
+@login_required
+def on_demand_orders():
+    """Display on-demand orders"""
+    page = request.args.get('page', 1, type=int)
+    status = request.args.get('status', '')
+    
+    query = OnDemandOrder.query.filter_by(user_id=current_user.id)
+    
+    if status:
+        query = query.filter_by(status=status)
+    
+    orders = query.order_by(OnDemandOrder.order_date.desc()).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('on_demand/orders.html', orders=orders, status=status)
+
+@app.route('/on-demand-orders/create/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def create_on_demand_order(product_id):
+    """Create an order for an on-demand product"""
+    product = OnDemandProduct.query.filter_by(id=product_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'POST':
+        try:
+            quantity = int(request.form['quantity'])
+            unit_price = float(request.form['unit_price'])
+            total_amount = quantity * unit_price
+            advance_payment = float(request.form.get('advance_payment', 0))
+            
+            order_number = f"OD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            # Calculate expected delivery date
+            expected_delivery = datetime.utcnow().date() + timedelta(days=product.estimated_delivery_days)
+            
+            order = OnDemandOrder(
+                order_number=order_number,
+                product_id=product.id,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_amount=total_amount,
+                customer_id=int(request.form['customer_id']) if request.form.get('customer_id') else None,
+                customer_name=request.form.get('customer_name'),
+                customer_phone=request.form.get('customer_phone'),
+                customer_email=request.form.get('customer_email'),
+                payment_method=request.form.get('payment_method'),
+                expected_delivery_date=expected_delivery,
+                notes=request.form.get('notes'),
+                advance_payment=advance_payment,
+                remaining_payment=total_amount - advance_payment,
+                user_id=current_user.id
+            )
+            
+            # Set payment status
+            if advance_payment >= total_amount:
+                order.payment_status = 'paid'
+            elif advance_payment > 0:
+                order.payment_status = 'partial'
+            else:
+                order.payment_status = 'pending'
+            
+            db.session.add(order)
+            db.session.commit()
+            
+            flash(f'Order {order_number} created successfully!', 'success')
+            return redirect(url_for('on_demand_orders'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating order: {str(e)}', 'danger')
+    
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    return render_template('on_demand/create_order.html', product=product, customers=customers)
+
+@app.route('/on-demand-orders/<int:order_id>/update-status', methods=['POST'])
+@login_required
+def update_order_status(order_id):
+    """Update order status"""
+    order = OnDemandOrder.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        new_status = request.form['status']
+        order.status = new_status
+        
+        if new_status == 'delivered':
+            order.actual_delivery_date = datetime.utcnow().date()
+        
+        db.session.commit()
+        flash('Order status updated successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating status: {str(e)}', 'danger')
+    
+    return redirect(url_for('on_demand_orders'))
+
 # Call the function to create default data
 with app.app_context():
     create_default_data()
