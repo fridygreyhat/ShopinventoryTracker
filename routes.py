@@ -1070,6 +1070,115 @@ def edit_customer(customer_id):
     
     return render_template('customers/edit.html', customer=customer)
 
+# Smart Automation Routes
+@app.route('/automation')
+@login_required
+def automation_dashboard():
+    """Smart automation dashboard"""
+    from smart_automation import SmartAutomationEngine
+    
+    try:
+        engine = SmartAutomationEngine(current_user.id)
+        
+        # Get current analysis
+        patterns = engine.analyze_inventory_patterns()
+        purchase_orders = engine.generate_auto_purchase_orders()
+        notifications = engine.generate_smart_notifications()
+        
+        # Calculate summary metrics
+        total_items_analyzed = len(patterns)
+        high_priority_orders = len([po for po in purchase_orders if po.urgency_level in ['high', 'critical']])
+        critical_notifications = len([n for n in notifications if n.priority in ['high', 'critical']])
+        
+        automation_summary = {
+            'total_items_analyzed': total_items_analyzed,
+            'purchase_orders_needed': len(purchase_orders),
+            'high_priority_orders': high_priority_orders,
+            'notifications_count': len(notifications),
+            'critical_notifications': critical_notifications,
+            'last_analysis': datetime.utcnow()
+        }
+        
+        return render_template('automation/dashboard.html', 
+                             patterns=patterns,
+                             purchase_orders=purchase_orders,
+                             notifications=notifications,
+                             summary=automation_summary)
+                             
+    except Exception as e:
+        flash(f'Error loading automation dashboard: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/automation/purchase-orders')
+@login_required
+def automation_purchase_orders():
+    """View and manage auto-generated purchase orders"""
+    from smart_automation import SmartAutomationEngine
+    
+    try:
+        engine = SmartAutomationEngine(current_user.id)
+        purchase_orders = engine.generate_auto_purchase_orders()
+        
+        # Group by urgency
+        orders_by_urgency = {
+            'critical': [po for po in purchase_orders if po.urgency_level == 'critical'],
+            'high': [po for po in purchase_orders if po.urgency_level == 'high'],
+            'medium': [po for po in purchase_orders if po.urgency_level == 'medium'],
+            'low': [po for po in purchase_orders if po.urgency_level == 'low']
+        }
+        
+        return render_template('automation/purchase_orders.html', 
+                             orders_by_urgency=orders_by_urgency,
+                             total_orders=len(purchase_orders))
+                             
+    except Exception as e:
+        flash(f'Error loading purchase orders: {str(e)}', 'danger')
+        return redirect(url_for('automation_dashboard'))
+
+@app.route('/automation/notifications')
+@login_required
+def automation_notifications():
+    """View smart notifications"""
+    from smart_automation import SmartAutomationEngine
+    
+    try:
+        engine = SmartAutomationEngine(current_user.id)
+        notifications = engine.generate_smart_notifications()
+        
+        # Group by type
+        notifications_by_type = {}
+        for notification in notifications:
+            notif_type = notification.notification_type
+            if notif_type not in notifications_by_type:
+                notifications_by_type[notif_type] = []
+            notifications_by_type[notif_type].append(notification)
+        
+        return render_template('automation/notifications.html', 
+                             notifications=notifications,
+                             notifications_by_type=notifications_by_type)
+                             
+    except Exception as e:
+        flash(f'Error loading notifications: {str(e)}', 'danger')
+        return redirect(url_for('automation_dashboard'))
+
+@app.route('/automation/run-analysis', methods=['POST'])
+@login_required
+def run_automation_analysis():
+    """Manually trigger automation analysis"""
+    from smart_automation import run_automation_for_user
+    
+    try:
+        results = run_automation_for_user(current_user.id)
+        
+        flash(f'Automation analysis completed: {results["patterns_analyzed"]} items analyzed, '
+              f'{len(results["purchase_orders"])} purchase orders generated, '
+              f'{len(results["notifications"])} notifications created', 'success')
+              
+    except Exception as e:
+        flash(f'Error running automation analysis: {str(e)}', 'danger')
+    
+    return redirect(url_for('automation_dashboard'))
+
 # Call the function to create default data
 with app.app_context():
     create_default_data()
