@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Chart of Accounts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Chart of Accounts</h1>
+                {% if not grouped_accounts %}
+                <form method="POST" action="{{ url_for('initialize_chart_of_accounts') }}">
+                    <button type="submit" class="btn btn-primary">Initialize Chart of Accounts</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if grouped_accounts %}
+    <div class="row">
+        <div class="col-12">
+            {% for account_type, accounts in grouped_accounts.items() %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ account_type }} Accounts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Account Code</th>
+                                    <th>Account Name</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for account in accounts %}
+                                <tr>
+                                    <td><strong>{{ account.account_code }}</strong></td>
+                                    <td>{{ account.account_name }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if account.is_active else 'bg-secondary' }}">
+                                            {{ 'Active' if account.is_active else 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ account.created_at.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-list-alt fa-4x text-muted mb-3"></i>
+                    <h4>No Chart of Accounts Found</h4>
+                    <p class="text-muted">Initialize your chart of accounts to start professional accounting.</p>
+                    <form method="POST" action="{{ url_for('initialize_chart_of_accounts') }}">
+                        <button type="submit" class="btn btn-primary btn-lg">Initialize Chart of Accounts</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
