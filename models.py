@@ -100,7 +100,9 @@ class Sale(db.Model):
     tax_rate = db.Column(db.Numeric(5, 4), nullable=False, default=0)
     tax_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    payment_type = db.Column(db.String(20), nullable=False, default='cash')  # 'cash', 'installment', 'other'
     payment_method = db.Column(db.String(50), nullable=False)
+    payment_status = db.Column(db.String(20), nullable=False, default='paid')  # 'paid', 'partial', 'pending'
     status = db.Column(db.String(20), nullable=False, default='completed')
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -109,6 +111,7 @@ class Sale(db.Model):
     
     # Relationships
     sale_items = db.relationship('SaleItem', backref='sale', lazy=True, cascade='all, delete-orphan')
+    installment_plan = db.relationship('InstallmentPlan', backref='sale', uselist=False, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Sale {self.sale_number}>'
@@ -528,3 +531,75 @@ class LoyaltyTransaction(db.Model):
     
     # Relationships
     customer = db.relationship('Customer', backref='loyalty_transactions')
+
+
+# Installment Payment Models
+class InstallmentPlan(db.Model):
+    __tablename__ = 'installment_plans'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    down_payment = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    remaining_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    number_of_installments = db.Column(db.Integer, nullable=False)
+    installment_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    frequency = db.Column(db.String(20), nullable=False, default='monthly')  # 'weekly', 'monthly'
+    start_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='active')  # 'active', 'completed', 'defaulted'
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    installments = db.relationship('Installment', backref='plan', lazy=True, cascade='all, delete-orphan')
+    customer = db.relationship('Customer', backref='installment_plans')
+    
+    @property
+    def paid_amount(self):
+        return sum(float(installment.paid_amount) for installment in self.installments if installment.status == 'paid')
+    
+    @property
+    def outstanding_amount(self):
+        return float(self.total_amount) - self.paid_amount
+    
+    @property
+    def next_due_date(self):
+        unpaid_installments = [i for i in self.installments if i.status == 'pending']
+        if unpaid_installments:
+            return min(i.due_date for i in unpaid_installments)
+        return None
+    
+    def __repr__(self):
+        return f'<InstallmentPlan {self.id} - {self.customer.name if self.customer else "Unknown"}>'
+
+
+class Installment(db.Model):
+    __tablename__ = 'installments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('installment_plans.id'), nullable=False)
+    installment_number = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    due_date = db.Column(db.Date, nullable=False)
+    paid_date = db.Column(db.Date, nullable=True)
+    paid_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'paid', 'overdue'
+    late_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    @property
+    def is_overdue(self):
+        from datetime import date
+        return self.status == 'pending' and self.due_date < date.today()
+    
+    @property
+    def days_overdue(self):
+        if self.is_overdue:
+            from datetime import date
+            return (date.today() - self.due_date).days
+        return 0
+    
+    def __repr__(self):
+        return f'<Installment {self.installment_number} - ${self.amount}>'
