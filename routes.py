@@ -814,16 +814,7 @@ def create_default_data():
         admin.set_password('admin123')
         db.session.add(admin)
         
-        # Create default categories
-        categories = [
-            Category(name='Electronics', description='Electronic items and gadgets'),
-            Category(name='Clothing', description='Apparel and accessories'),
-            Category(name='Books', description='Books and publications'),
-            Category(name='Home & Garden', description='Home and garden supplies'),
-        ]
-        
-        for category in categories:
-            db.session.add(category)
+        # No default categories - users will create their own
         
         db.session.commit()
         
@@ -1834,44 +1825,56 @@ def profit_margin_analysis():
 @app.route('/categories')
 @login_required
 def categories_management():
-    """Category management dashboard"""
+    """Category management dashboard with subcategory support"""
     
-    # Get search parameter
+    # Get filter parameters
     search = request.args.get('search', '')
+    show_subcategories = request.args.get('show_subcategories', 'true') == 'true'
     
-    # Build query
-    query = Category.query
+    # Build query for root categories or all categories
+    if show_subcategories:
+        query = Category.query.filter_by(is_active=True)
+    else:
+        query = Category.query.filter_by(parent_id=None, is_active=True)
     
     if search:
         query = query.filter(Category.name.ilike(f'%{search}%'))
     
-    categories = query.order_by(Category.name).all()
+    categories = query.order_by(Category.sort_order, Category.name).all()
     
     # Calculate statistics for each category
     category_stats = []
     for category in categories:
-        # Count items in this category
-        item_count = Item.query.filter_by(category_id=category.id, is_active=True).count()
+        # Get all items in this category and subcategories
+        all_items = category.get_all_items()
+        active_items = [item for item in all_items if item.is_active]
+        
+        # Count items
+        item_count = len(active_items)
+        subcategory_count = len(category.get_descendants())
         
         # Calculate total inventory value
-        items = Item.query.filter_by(category_id=category.id, is_active=True).all()
-        total_value = sum((item.buying_price or 0) * item.stock_quantity for item in items)
-        total_retail_value = sum((item.retail_price or 0) * item.stock_quantity for item in items)
+        total_value = sum((item.buying_price or 0) * item.stock_quantity for item in active_items)
+        total_retail_value = sum((item.retail_price or 0) * item.stock_quantity for item in active_items)
         
         # Count low stock items
-        low_stock_count = sum(1 for item in items if item.stock_quantity <= item.minimum_stock)
+        low_stock_count = sum(1 for item in active_items if item.stock_quantity <= item.minimum_stock)
         
         # Calculate recent sales (last 30 days)
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
         from sqlalchemy import func
-        recent_sales = db.session.query(func.sum(SaleItem.quantity)).join(Sale).join(Item).filter(
-            Item.category_id == category.id,
-            Sale.created_at >= thirty_days_ago
-        ).scalar() or 0
+        item_ids = [item.id for item in active_items]
+        recent_sales = 0
+        if item_ids:
+            recent_sales = db.session.query(func.sum(SaleItem.quantity)).join(Sale).filter(
+                SaleItem.item_id.in_(item_ids),
+                Sale.created_at >= thirty_days_ago
+            ).scalar() or 0
         
         category_stats.append({
             'category': category,
             'item_count': item_count,
+            'subcategory_count': subcategory_count,
             'total_value': total_value,
             'total_retail_value': total_retail_value,
             'low_stock_count': low_stock_count,
@@ -1881,41 +1884,72 @@ def categories_management():
     
     return render_template('categories_management.html', 
                          category_stats=category_stats,
-                         search=search)
+                         search=search,
+                         show_subcategories=show_subcategories)
 
 @app.route('/categories/add', methods=['GET', 'POST'])
 @login_required
 def add_category():
-    """Add a new category"""
+    """Add a new category with subcategory support"""
+    
+    # Get all active categories for parent selection
+    parent_categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
     
     if request.method == 'POST':
         try:
             name = request.form['name'].strip()
             description = request.form.get('description', '').strip()
+            parent_id = request.form.get('parent_id')
+            sort_order = request.form.get('sort_order', '0')
             
-            # Check if category already exists
-            existing_category = Category.query.filter_by(name=name).first()
+            # Convert parent_id and sort_order
+            parent_id = int(parent_id) if parent_id and parent_id != '' else None
+            try:
+                sort_order = int(sort_order) if sort_order else 0
+            except ValueError:
+                sort_order = 0
+            
+            # Check if category already exists with same name and parent
+            existing_category = Category.query.filter_by(name=name, parent_id=parent_id).first()
             if existing_category:
-                flash('Category with this name already exists!', 'danger')
+                if parent_id:
+                    parent = Category.query.get(parent_id)
+                    flash(f'Subcategory with this name already exists under "{parent.name}"!', 'danger')
+                else:
+                    flash('Root category with this name already exists!', 'danger')
                 return redirect(url_for('add_category'))
+            
+            # Validate parent exists if specified
+            if parent_id:
+                parent = Category.query.get(parent_id)
+                if not parent or not parent.is_active:
+                    flash('Selected parent category does not exist!', 'danger')
+                    return redirect(url_for('add_category'))
             
             # Create new category
             category = Category(
                 name=name,
-                description=description if description else None
+                description=description if description else None,
+                parent_id=parent_id,
+                sort_order=sort_order,
+                is_active=True
             )
             
             db.session.add(category)
             db.session.commit()
             
-            flash(f'Category "{name}" added successfully!', 'success')
+            if parent_id:
+                parent = Category.query.get(parent_id)
+                flash(f'Subcategory "{name}" added under "{parent.name}" successfully!', 'success')
+            else:
+                flash(f'Category "{name}" added successfully!', 'success')
             return redirect(url_for('categories_management'))
             
         except Exception as e:
             db.session.rollback()
             flash(f'Error adding category: {str(e)}', 'danger')
     
-    return render_template('add_category.html')
+    return render_template('add_category.html', parent_categories=parent_categories)
 
 @app.route('/categories/<int:category_id>/edit', methods=['GET', 'POST'])
 @login_required

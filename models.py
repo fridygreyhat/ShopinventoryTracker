@@ -70,15 +70,64 @@ class Category(db.Model):
     __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
+    parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Self-referential relationship for subcategories
+    subcategories = db.relationship('Category', backref=db.backref('parent', remote_side=[id]), lazy=True)
     
     # Relationships
     items = db.relationship('Item', backref='category', lazy=True)
     
+    # Unique constraint for name within the same parent
+    __table_args__ = (db.UniqueConstraint('name', 'parent_id', name='unique_category_name_per_parent'),)
+    
+    @property
+    def full_name(self):
+        """Return the full hierarchical name"""
+        if self.parent:
+            return f"{self.parent.full_name} > {self.name}"
+        return self.name
+    
+    @property
+    def level(self):
+        """Return the depth level of this category"""
+        if self.parent:
+            return self.parent.level + 1
+        return 0
+    
+    @property
+    def is_root(self):
+        """Check if this is a root category"""
+        return self.parent_id is None
+    
+    @property
+    def has_children(self):
+        """Check if this category has subcategories"""
+        return len(self.subcategories) > 0
+    
+    def get_all_items(self):
+        """Get all items in this category and its subcategories"""
+        items = list(self.items)
+        for subcategory in self.subcategories:
+            items.extend(subcategory.get_all_items())
+        return items
+    
+    def get_descendants(self):
+        """Get all descendant categories"""
+        descendants = []
+        for subcategory in self.subcategories:
+            descendants.append(subcategory)
+            descendants.extend(subcategory.get_descendants())
+        return descendants
+    
     def __repr__(self):
-        return f'<Category {self.name}>'
+        return f'<Category {self.full_name}>'
 
 class Item(db.Model):
     __tablename__ = 'items'

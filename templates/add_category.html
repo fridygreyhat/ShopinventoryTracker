@@ -33,10 +33,28 @@
                                 </div>
 
                                 <div class="mb-3">
+                                    <label for="parent_id" class="form-label">Parent Category</label>
+                                    <select class="form-select" id="parent_id" name="parent_id">
+                                        <option value="">Select parent category (leave empty for root category)</option>
+                                        {% for parent in parent_categories %}
+                                            <option value="{{ parent.id }}">{{ parent.full_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Choose a parent category to create a subcategory, or leave empty for a main category</div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label for="description" class="form-label">Description</label>
                                     <textarea class="form-control" id="description" name="description" 
                                               rows="3" placeholder="Optional description of this category"></textarea>
                                     <div class="form-text">Provide additional details about what products belong in this category</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="sort_order" class="form-label">Sort Order</label>
+                                    <input type="number" class="form-control" id="sort_order" name="sort_order" 
+                                           value="0" min="0" placeholder="0">
+                                    <div class="form-text">Lower numbers appear first. Use 0 for default ordering.</div>
                                 </div>
 
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
