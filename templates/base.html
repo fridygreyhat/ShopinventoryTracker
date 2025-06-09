@@ -448,7 +448,7 @@
                 <li class="nav-section">
                     <div class="nav-section-title">Account</div>
                     <div class="nav-item">
-                        <a class="nav-link logout-link" href="{{ url_for('replit_auth.logout') }}">
+                        <a class="nav-link logout-link" href="{{ url_for('auth.logout') }}">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Logout</span>
                             <div class="nav-tooltip">Sign Out</div>
@@ -469,7 +469,7 @@
                     </div>
                 </div>
                 <div class="user-actions mt-3">
-                    <a href="{{ url_for('replit_auth.logout') }}" class="btn btn-outline-light btn-sm w-100">
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm w-100">
                         <i class="fas fa-sign-out-alt"></i>
                         <span>Logout</span>
                     </a>
