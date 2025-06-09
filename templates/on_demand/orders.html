@@ -129,16 +129,6 @@
                                             <td>
                                                 {% if order.expected_delivery_date %}
                                                     {{ order.expected_delivery_date.strftime('%d/%m/%Y') }}
-                                                    {% set days_diff = (order.expected_delivery_date - (order.actual_delivery_date or today())) %}
-                                                    {% if order.status != 'delivered' and order.status != 'cancelled' %}
-                                                        {% if days_diff.days < 0 %}
-                                                            <br><small class="text-danger">{{ abs(days_diff.days) }} days overdue</small>
-                                                        {% elif days_diff.days == 0 %}
-                                                            <br><small class="text-warning">Due today</small>
-                                                        {% else %}
-                                                            <br><small class="text-muted">{{ days_diff.days }} days remaining</small>
-                                                        {% endif %}
-                                                    {% endif %}
                                                 {% else %}
                                                     <span class="text-muted">Not set</span>
                                                 {% endif %}

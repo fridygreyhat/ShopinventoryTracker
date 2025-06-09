@@ -1497,7 +1497,7 @@ def on_demand_products():
         page=page, per_page=20, error_out=False
     )
     
-    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    categories = Category.query.order_by(Category.name).all()
     
     return render_template('on_demand/products.html', 
                          products=products, 
@@ -1534,7 +1534,7 @@ def add_on_demand_product():
             db.session.rollback()
             flash(f'Error adding product: {str(e)}', 'danger')
     
-    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    categories = Category.query.order_by(Category.name).all()
     return render_template('on_demand/add_product.html', categories=categories)
 
 @app.route('/on-demand-products/<int:product_id>/edit', methods=['GET', 'POST'])
@@ -1565,7 +1565,7 @@ def edit_on_demand_product(product_id):
             db.session.rollback()
             flash(f'Error updating product: {str(e)}', 'danger')
     
-    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    categories = Category.query.order_by(Category.name).all()
     return render_template('on_demand/edit_product.html', product=product, categories=categories)
 
 @app.route('/on-demand-orders')
