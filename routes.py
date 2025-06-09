@@ -563,13 +563,17 @@ def update_location_stock():
         if location_stock:
             old_quantity = location_stock.quantity
             location_stock.quantity = quantity
-            location_stock.minimum_stock = minimum_stock
+            location_stock.min_stock_level = minimum_stock
+            location_stock.last_updated = datetime.utcnow()
         else:
             location_stock = LocationStock(
                 item_id=item_id,
                 location_id=location_id,
                 quantity=quantity,
-                minimum_stock=minimum_stock
+                min_stock_level=minimum_stock,
+                reserved_quantity=0,
+                max_stock_level=quantity * 2,
+                last_updated=datetime.utcnow()
             )
             db.session.add(location_stock)
             old_quantity = 0

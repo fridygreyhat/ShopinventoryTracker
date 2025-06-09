@@ -178,18 +178,24 @@ class LocationStock(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
     location_id = db.Column(db.Integer, db.ForeignKey('locations.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
-    minimum_stock = db.Column(db.Integer, nullable=False, default=0)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    reserved_quantity = db.Column(db.Integer, nullable=False, default=0)
+    min_stock_level = db.Column(db.Integer, nullable=False, default=0)
+    max_stock_level = db.Column(db.Integer, nullable=False, default=0)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Unique constraint to prevent duplicate item-location combinations
     __table_args__ = (db.UniqueConstraint('item_id', 'location_id', name='unique_item_location'),)
     
     @property
     def is_low_stock(self):
-        return self.quantity <= self.minimum_stock
+        return self.quantity <= self.min_stock_level
+    
+    @property
+    def available_quantity(self):
+        return self.quantity - self.reserved_quantity
     
     def __repr__(self):
-        return f'<LocationStock {self.item.name} at {self.location.name}>'
+        return f'<LocationStock Item:{self.item_id} at Location:{self.location_id}>'
 
 class StockTransfer(db.Model):
     __tablename__ = 'stock_transfers'
