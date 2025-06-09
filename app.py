@@ -50,11 +50,15 @@ with app.app_context():
 
 # Import language utilities and set up translation system
 from language_utils import init_language_context, translate_filter
+from currency_utils import format_currency, format_currency_input, format_profit_margin
 
 @app.before_request
 def before_request():
     """Initialize language context before each request"""
     init_language_context()
 
-# Register translation filter for Jinja2 templates
+# Register filters for Jinja2 templates
 app.jinja_env.filters['t'] = translate_filter
+app.jinja_env.filters['currency'] = format_currency
+app.jinja_env.filters['currency_input'] = format_currency_input
+app.jinja_env.filters['profit_margin'] = lambda cost, selling: format_profit_margin(cost, selling)

@@ -48,10 +48,10 @@
                         <th>Name</th>
                         <th>SKU</th>
                         <th>Category</th>
-                        <th>Buying Price</th>
-                        <th>Wholesale</th>
-                        <th>Retail</th>
-                        <th>Default Price</th>
+                        <th>{{ g.t('buying_price') }}</th>
+                        <th>{{ g.t('wholesale_price') }}</th>
+                        <th>{{ g.t('retail_price') }}</th>
+                        <th>{{ g.t('price_tsh') }}</th>
                         <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -68,10 +68,10 @@
                         </td>
                         <td>{{ item.sku }}</td>
                         <td>{{ item.category.name }}</td>
-                        <td>${{ "%.2f"|format(item.buying_price) }}</td>
-                        <td>${{ "%.2f"|format(item.wholesale_price) }}</td>
-                        <td>${{ "%.2f"|format(item.retail_price) }}</td>
-                        <td>${{ "%.2f"|format(item.price) }}</td>
+                        <td>{{ item.buying_price|currency }}</td>
+                        <td>{{ item.wholesale_price|currency }}</td>
+                        <td>{{ item.retail_price|currency }}</td>
+                        <td>{{ item.price|currency }}</td>
                         <td>
                             <span class="badge {% if item.is_low_stock %}bg-warning{% else %}bg-success{% endif %}">
                                 {{ item.stock_quantity }}
