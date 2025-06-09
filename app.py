@@ -1575,8 +1575,6 @@ def logout():
         for key in list(session.keys()):
             session.pop(key, None)
         
-        # Set success message
-        flash('You have been successfully logged out. Thank you for using our system!', 'success')
         logger.info(f"User {user_email} logged out successfully")
         
     except Exception as e:
@@ -1586,20 +1584,27 @@ def logout():
             session.clear()
         except:
             pass
-        flash('You have been logged out', 'info')
     
-    # Handle AJAX requests (for logout buttons that use JavaScript)
-    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+    # Check if this is an AJAX request
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.headers.get('Content-Type') == 'application/json' or
+        request.is_json or
+        'application/json' in request.headers.get('Accept', '')
+    )
+    
+    if is_ajax:
         response = jsonify({
             'success': True, 
             'message': 'Logged out successfully',
-            'redirect': '/login'
+            'redirect': url_for('login')
         })
         # Clear any potential cookies
         response.set_cookie('session', '', expires=0)
         return response
     
-    # Handle form submissions and direct navigation
+    # For non-AJAX requests, set flash message and redirect
+    flash('You have been successfully logged out. Thank you for using our system!', 'success')
     response = redirect(url_for('login'))
     # Clear any potential session cookies
     response.set_cookie('session', '', expires=0)

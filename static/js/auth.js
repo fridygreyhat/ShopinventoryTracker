@@ -1,88 +1,193 @@
 
 /**
  * Authentication related JavaScript functions
+ * Enhanced logout functionality with proper error handling
  */
 
-// Enhanced logout function
+// Global variables for session management
+let sessionWarningShown = false;
+let logoutInProgress = false;
+
+/**
+ * Enhanced logout function with confirmation and proper error handling
+ */
 function logoutUser() {
-    // Show confirmation dialog
-    if (confirm('Are you sure you want to log out?')) {
-        // Show loading state
-        const logoutButton = document.querySelector('[data-logout]');
-        if (logoutButton) {
-            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging out...';
-            logoutButton.disabled = true;
-        }
-        
-        // Make AJAX request to logout
-        fetch('/logout', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show success message
-                showNotification('Logged out successfully!', 'success');
-                
-                // Clear any cached data
-                if (typeof(Storage) !== "undefined") {
-                    localStorage.removeItem('user_theme');
-                    sessionStorage.clear();
-                }
-                
-                // Redirect after a short delay
-                setTimeout(() => {
-                    window.location.href = data.redirect || '/login';
-                }, 1000);
-            } else {
-                throw new Error(data.message || 'Logout failed');
-            }
-        })
-        .catch(error => {
-            console.error('Logout error:', error);
-            // Fallback - redirect to logout URL directly
-            window.location.href = '/logout';
-        });
+    // Prevent multiple logout attempts
+    if (logoutInProgress) {
+        return;
     }
+
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to log out?')) {
+        return;
+    }
+
+    logoutInProgress = true;
+    
+    // Show loading state on logout button
+    const logoutButtons = document.querySelectorAll('[data-logout], [href*="logout"]');
+    logoutButtons.forEach(button => {
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging out...';
+        button.disabled = true;
+        button.style.pointerEvents = 'none';
+    });
+
+    // Show loading notification
+    showNotification('Logging out...', 'info');
+
+    // Perform logout request
+    fetch('/logout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json().catch(() => ({ success: true }));
+        } else if (response.redirected) {
+            // Handle redirect response
+            window.location.href = response.url || '/login';
+            return;
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    })
+    .then(data => {
+        if (data && data.success) {
+            // Clear local storage and session storage
+            clearUserData();
+            
+            // Show success message
+            showNotification('Logged out successfully!', 'success');
+            
+            // Redirect to login page
+            setTimeout(() => {
+                window.location.href = data.redirect || '/login';
+            }, 1000);
+        } else {
+            throw new Error(data?.message || 'Logout failed');
+        }
+    })
+    .catch(error => {
+        console.error('Logout error:', error);
+        
+        // Clear user data anyway
+        clearUserData();
+        
+        // Fallback: direct navigation to logout
+        showNotification('Redirecting to logout...', 'warning');
+        setTimeout(() => {
+            window.location.href = '/logout';
+        }, 1000);
+    })
+    .finally(() => {
+        logoutInProgress = false;
+    });
 }
 
-// Quick logout function (no confirmation)
+/**
+ * Quick logout function without confirmation
+ */
 function quickLogout() {
+    logoutInProgress = true;
+    clearUserData();
     window.location.href = '/logout';
 }
 
-// Show notification function
+/**
+ * Clear user data from browser storage
+ */
+function clearUserData() {
+    try {
+        // Clear localStorage
+        if (typeof(Storage) !== "undefined") {
+            const keysToRemove = ['user_theme', 'user_preferences', 'cart_data', 'draft_data'];
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+            });
+        }
+        
+        // Clear sessionStorage
+        sessionStorage.clear();
+        
+        // Clear any cached form data
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (form.reset) {
+                form.reset();
+            }
+        });
+    } catch (error) {
+        console.warn('Error clearing user data:', error);
+    }
+}
+
+/**
+ * Show notification function
+ */
 function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.auth-notification');
+    existingNotifications.forEach(notification => notification.remove());
+
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed auth-notification`;
+    notification.style.cssText = `
+        top: 20px; 
+        right: 20px; 
+        z-index: 9999; 
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
     notification.innerHTML = `
-        ${message}
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${getIconForType(type)} me-2"></i>
+            <span>${message}</span>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     
     // Add to page
     document.body.appendChild(notification);
     
-    // Auto remove after 3 seconds
+    // Auto remove after 5 seconds
     setTimeout(() => {
         if (notification.parentNode) {
             notification.remove();
         }
-    }, 3000);
+    }, 5000);
 }
 
-// Initialize logout handlers when DOM is loaded
+/**
+ * Get appropriate icon for notification type
+ */
+function getIconForType(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-circle',
+        'warning': 'exclamation-triangle',
+        'info': 'info-circle',
+        'primary': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+/**
+ * Initialize authentication handlers when DOM is loaded
+ */
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing authentication handlers...');
+    
     // Add click handlers to logout buttons
     document.querySelectorAll('[data-logout]').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             logoutUser();
         });
     });
@@ -91,60 +196,121 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('[data-quick-logout]').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             quickLogout();
         });
     });
+
+    // Handle logout links in navigation
+    document.querySelectorAll('a[href*="logout"]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            logoutUser();
+        });
+    });
+
+    // Session timeout management
+    initializeSessionTimeout();
 });
 
-// Session timeout warning
-let sessionTimeoutWarning = null;
-let sessionTimeoutTimer = null;
-
-function showSessionTimeoutWarning() {
-    if (sessionTimeoutWarning) return; // Already showing
-    
-    sessionTimeoutWarning = document.createElement('div');
-    sessionTimeoutWarning.className = 'alert alert-warning alert-dismissible position-fixed';
-    sessionTimeoutWarning.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px;';
-    sessionTimeoutWarning.innerHTML = `
-        <i class="fas fa-clock me-2"></i>
-        Your session will expire in 5 minutes. Click anywhere to stay logged in.
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
-    document.body.appendChild(sessionTimeoutWarning);
-    
-    // Auto-remove warning after 30 seconds
-    setTimeout(() => {
-        if (sessionTimeoutWarning && sessionTimeoutWarning.parentNode) {
-            sessionTimeoutWarning.remove();
-            sessionTimeoutWarning = null;
+/**
+ * Initialize session timeout warnings
+ */
+function initializeSessionTimeout() {
+    // Set session timeout warning (25 minutes = 1500000ms)
+    const sessionTimeoutWarning = setTimeout(() => {
+        if (!sessionWarningShown) {
+            sessionWarningShown = true;
+            const extendSession = confirm(
+                'Your session will expire in 5 minutes. Do you want to extend your session?'
+            );
+            
+            if (extendSession) {
+                // Make a simple request to extend session
+                fetch('/api/auth/profile', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                }).then(() => {
+                    showNotification('Session extended successfully', 'success');
+                    sessionWarningShown = false;
+                    // Restart the timeout
+                    initializeSessionTimeout();
+                }).catch(() => {
+                    showNotification('Failed to extend session', 'warning');
+                });
+            }
         }
-    }, 30000);
-}
+    }, 1500000); // 25 minutes
 
-// Reset session timeout
-function resetSessionTimeout() {
-    if (sessionTimeoutWarning) {
-        sessionTimeoutWarning.remove();
-        sessionTimeoutWarning = null;
-    }
-    
-    // Clear existing timer
-    if (sessionTimeoutTimer) {
-        clearTimeout(sessionTimeoutTimer);
-    }
-    
-    // Set new timer for 25 minutes (5 minutes before 30-minute session expires)
-    sessionTimeoutTimer = setTimeout(showSessionTimeoutWarning, 25 * 60 * 1000);
-}
+    // Force logout after 30 minutes of inactivity
+    const forceLogoutTimeout = setTimeout(() => {
+        showNotification('Session expired. You will be logged out.', 'warning');
+        setTimeout(quickLogout, 3000);
+    }, 1800000); // 30 minutes
 
-// Start session timeout monitoring if user is logged in
-if (document.querySelector('[data-logout]')) {
-    resetSessionTimeout();
-    
-    // Reset timeout on any user activity
-    ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
-        document.addEventListener(event, resetSessionTimeout, { passive: true, once: false });
+    // Reset timeouts on user activity
+    const resetTimeouts = () => {
+        clearTimeout(sessionTimeoutWarning);
+        clearTimeout(forceLogoutTimeout);
+        sessionWarningShown = false;
+        // Restart timeouts
+        setTimeout(initializeSessionTimeout, 100);
+    };
+
+    // Listen for user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const throttledReset = throttle(resetTimeouts, 60000); // Throttle to once per minute
+
+    activityEvents.forEach(event => {
+        document.addEventListener(event, throttledReset, { passive: true });
     });
 }
+
+/**
+ * Throttle function to limit how often a function can be called
+ */
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+/**
+ * Handle form submissions with authentication
+ */
+function handleAuthenticatedForm(form, callback) {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton ? submitButton.innerHTML : '';
+        
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        }
+        
+        if (callback && typeof callback === 'function') {
+            callback(form).finally(() => {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                }
+            });
+        }
+    });
+}
+
+// Export functions for global access
+window.logoutUser = logoutUser;
+window.quickLogout = quickLogout;
+window.showNotification = showNotification;
+window.handleAuthenticatedForm = handleAuthenticatedForm;

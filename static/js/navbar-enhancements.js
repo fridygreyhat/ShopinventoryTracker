@@ -166,35 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle logout functionality
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('a[href="/logout"]') || e.target.closest('a[href*="logout"]')) {
-            e.preventDefault();
-
-            // Show loading state
-            const logoutLink = e.target.closest('a');
-            const originalContent = logoutLink.innerHTML;
-            logoutLink.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Logging out...';
-
-            // Perform logout
-            fetch('/logout', {
-                method: 'GET',
-                credentials: 'same-origin'
-            }).then(response => {
-                if (response.ok || response.redirected) {
-                    // Redirect to login page
-                    window.location.href = '/login';
-                } else {
-                    // If fetch fails, try direct navigation
-                    window.location.href = '/logout';
-                }
-            }).catch(error => {
-                console.error('Logout error:', error);
-                // Fallback to direct navigation
-                window.location.href = '/logout';
-            });
-        }
-    });
+    // Logout functionality is now handled in auth.js
+    // This section is intentionally left empty to avoid conflicts
 
     // Active page detection
     function setActiveNavLink() {
