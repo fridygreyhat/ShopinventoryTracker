@@ -48,7 +48,10 @@
                         <th>Name</th>
                         <th>SKU</th>
                         <th>Category</th>
-                        <th>Price</th>
+                        <th>Buying Price</th>
+                        <th>Wholesale</th>
+                        <th>Retail</th>
+                        <th>Default Price</th>
                         <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -65,6 +68,9 @@
                         </td>
                         <td>{{ item.sku }}</td>
                         <td>{{ item.category.name }}</td>
+                        <td>${{ "%.2f"|format(item.buying_price) }}</td>
+                        <td>${{ "%.2f"|format(item.wholesale_price) }}</td>
+                        <td>${{ "%.2f"|format(item.retail_price) }}</td>
                         <td>${{ "%.2f"|format(item.price) }}</td>
                         <td>
                             <span class="badge {% if item.is_low_stock %}bg-warning{% else %}bg-success{% endif %}">
