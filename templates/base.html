@@ -32,6 +32,26 @@
             min-height: 100vh;
         }
 
+        /* Global text visibility improvements for sidebar */
+        .sidebar *, .sidebar *::before, .sidebar *::after {
+            color: #ffffff !important;
+        }
+        
+        .sidebar .nav-link, .sidebar .nav-section-title, .sidebar .brand, 
+        .sidebar .user-name, .sidebar .user-email, .sidebar .user-role,
+        .sidebar .btn, .sidebar a, .sidebar span, .sidebar div, .sidebar i,
+        .sidebar small, .sidebar .text-muted, .sidebar .badge {
+            color: #ffffff !important;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+            font-weight: 500 !important;
+            opacity: 1 !important;
+        }
+        
+        /* Override any opacity settings that make text hard to read */
+        .sidebar [style*="opacity"], .sidebar .opacity-75, .sidebar .opacity-50 {
+            opacity: 1 !important;
+        }
+
         /* Sidebar Styles */
         .sidebar {
             position: fixed;
@@ -269,15 +289,16 @@
         }
 
         .user-actions .btn {
-            border-color: rgba(255, 255, 255, 0.3);
-            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.5);
+            color: #ffffff;
             transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .user-actions .btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #64b5f6;
-            color: #64b5f6;
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #ffffff;
+            color: #ffffff;
         }
 
         .sidebar.collapsed .user-actions span {
