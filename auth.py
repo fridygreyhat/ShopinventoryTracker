@@ -147,10 +147,13 @@ def register():
 
 @auth_bp.route('/logout')
 def logout():
+    from datetime import datetime
+    logout_time = datetime.now().strftime('%B %d, %Y at %I:%M %p')
+    
     if current_user.is_authenticated:
         logout_user()
     session.clear()
-    return render_template('auth/logout_success.html')
+    return render_template('auth/logout_success.html', logout_time=logout_time)
 
 @auth_bp.route('/logout-redirect')
 def logout_redirect():
