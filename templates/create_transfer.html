@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Create Stock Transfer - Business Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-exchange-alt"></i> Create Stock Transfer</h1>
+    <a href="{{ url_for('stock_transfers') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Transfers
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('create_transfer') }}">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label for="from_location_id" class="form-label">From Location *</label>
+                    <select class="form-select" id="from_location_id" name="from_location_id" required onchange="updateItemStock()">
+                        <option value="">Select source location</option>
+                        {% for location in locations %}
+                        <option value="{{ location.id }}">{{ location.name }} ({{ location.location_type|title }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="to_location_id" class="form-label">To Location *</label>
+                    <select class="form-select" id="to_location_id" name="to_location_id" required>
+                        <option value="">Select destination location</option>
+                        {% for location in locations %}
+                        <option value="{{ location.id }}">{{ location.name }} ({{ location.location_type|title }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Optional notes about this transfer"></textarea>
+                </div>
+            </div>
+            
+            <h5><i class="fas fa-boxes"></i> Items to Transfer</h5>
+            <div id="transfer-items">
+                <div class="transfer-item-row row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Item</label>
+                        <select class="form-select item-select" name="item_id[]" onchange="updateAvailableStock(this)">
+                            <option value="">Select item</option>
+                            {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control quantity-input" name="quantity[]" min="1" placeholder="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Available</label>
+                        <input type="text" class="form-control available-stock" readonly placeholder="0">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-danger w-100" onclick="removeTransferItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-outline-secondary mb-3" onclick="addTransferItem()">
+                <i class="fas fa-plus"></i> Add Item
+            </button>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('stock_transfers') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Transfer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Store location stock data
+const locationStockData = {};
+
+function addTransferItem() {
+    const container = document.getElementById('transfer-items');
+    const newRow = document.querySelector('.transfer-item-row').cloneNode(true);
+    
+    // Clear values in the new row
+    newRow.querySelectorAll('select, input').forEach(input => {
+        if (input.type === 'text' && input.classList.contains('available-stock')) {
+            input.value = '';
+        } else if (input.type !== 'button') {
+            input.value = '';
+        }
+    });
+    
+    container.appendChild(newRow);
+}
+
+function removeTransferItem(button) {
+    const rows = document.querySelectorAll('.transfer-item-row');
+    if (rows.length > 1) {
+        button.closest('.transfer-item-row').remove();
+    }
+}
+
+function updateItemStock() {
+    const fromLocationId = document.getElementById('from_location_id').value;
+    if (!fromLocationId) return;
+    
+    // Update available stock for all item selections
+    document.querySelectorAll('.item-select').forEach(select => {
+        updateAvailableStock(select);
+    });
+}
+
+function updateAvailableStock(selectElement) {
+    const fromLocationId = document.getElementById('from_location_id').value;
+    const itemId = selectElement.value;
+    const availableInput = selectElement.closest('.transfer-item-row').querySelector('.available-stock');
+    
+    if (!fromLocationId || !itemId) {
+        availableInput.value = '0';
+        return;
+    }
+    
+    // In a real implementation, you would fetch this via AJAX
+    // For now, we'll show a placeholder
+    availableInput.value = 'Loading...';
+    
+    // Simulate API call
+    setTimeout(() => {
+        availableInput.value = '10'; // Placeholder value
+    }, 500);
+}
+
+// Prevent selecting the same location for from and to
+document.getElementById('from_location_id').addEventListener('change', function() {
+    const toSelect = document.getElementById('to_location_id');
+    const selectedValue = this.value;
+    
+    Array.from(toSelect.options).forEach(option => {
+        option.disabled = option.value === selectedValue;
+    });
+});
+
+document.getElementById('to_location_id').addEventListener('change', function() {
+    const fromSelect = document.getElementById('from_location_id');
+    const selectedValue = this.value;
+    
+    Array.from(fromSelect.options).forEach(option => {
+        option.disabled = option.value === selectedValue;
+    });
+});
+</script>
+{% endblock %}

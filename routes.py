@@ -464,7 +464,18 @@ def create_default_data():
             db.session.add(category)
         
         db.session.commit()
-        logging.info("Default admin user and categories created")
+        
+        # Create default location for the admin user
+        default_location = Location(
+            name='Main Store',
+            address='Main Office',
+            location_type='store',
+            user_id=admin.id
+        )
+        db.session.add(default_location)
+        db.session.commit()
+        
+        logging.info("Default admin user, categories, and location created")
 
 # Location Management Routes
 @app.route('/locations')
