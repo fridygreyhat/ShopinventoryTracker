@@ -14,6 +14,10 @@ from auth_service import authenticate_user, create_or_update_user, validate_emai
 # Import PostgreSQL authentication
 import auth
 
+# Import language routes
+from language_routes import language_bp
+app.register_blueprint(language_bp)
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
