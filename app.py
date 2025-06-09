@@ -459,22 +459,6 @@ with app.app_context():
 # Import auth service after app initialization to avoid circular imports
 from auth_service import login_required, authenticate_user, create_or_update_user
 
-# Admin required decorator
-def admin_required(f):
-    """Decorator that requires admin privileges"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        
-        user = User.query.get(session['user_id'])
-        if not user or not user.is_admin:
-            flash('Admin access required', 'danger')
-            return redirect(url_for('index'))
-        
-        return f(*args, **kwargs)
-    return decorated_function
-
 
 @app.route('/')
 @login_required
@@ -569,33 +553,6 @@ def layaway_page():
 def installments_page():
     """Render the installments management page"""
     return render_template('installments.html')
-
-
-@app.route('/customers')
-@login_required
-def customers_page():
-    """Render the customer management page"""
-    return render_template('customers.html')
-
-
-@app.route('/suppliers')
-@login_required
-def suppliers_page():
-    """Render the supplier management page"""
-    return render_template('suppliers.html')
-
-
-@app.route('/admin/users')
-@admin_required
-def admin_users():
-    """Render the admin users management page"""
-    try:
-        users = User.query.all()
-        return render_template('admin_users.html', users=users)
-    except Exception as e:
-        logger.error(f"Error loading admin portal: {str(e)}")
-        flash('Error loading admin portal', 'danger')
-        return redirect(url_for('index'))
 
 
 # API Routes
@@ -4277,159 +4234,6 @@ def debug_list_users():
             'error': str(e)
         }), 500
 
-# Admin user management API endpoints
-@app.route('/api/auth/users', methods=['GET'])
-@admin_required
-def admin_get_users():
-    """Admin endpoint to get all users"""
-    try:
-        users = User.query.all()
-        return jsonify([user.to_dict() for user in users])
-    except Exception as e:
-        logger.error(f"Error getting users: {str(e)}")
-        return jsonify({"error": "Failed to get users"}), 500
-
-@app.route('/api/auth/users/stats', methods=['GET'])
-@admin_required
-def admin_get_user_stats():
-    """Admin endpoint to get user statistics"""
-    try:
-        total_users = User.query.count()
-        active_users = User.query.filter_by(active=True).count()
-        admin_users = User.query.filter_by(is_admin=True).count()
-        unverified_users = User.query.filter_by(email_verified=False).count()
-        
-        return jsonify({
-            'total_users': total_users,
-            'active_users': active_users,
-            'admin_users': admin_users,
-            'unverified_users': unverified_users
-        })
-    except Exception as e:
-        logger.error(f"Error getting user stats: {str(e)}")
-        return jsonify({"error": "Failed to get user statistics"}), 500
-
-@app.route('/api/auth/users', methods=['POST'])
-@admin_required
-def admin_create_user():
-    """Admin endpoint to create a new user"""
-    try:
-        data = request.json
-        
-        # Validate required fields
-        if not data.get('username') or not data.get('email') or not data.get('password'):
-            return jsonify({"error": "Username, email, and password are required"}), 400
-        
-        # Check if user already exists
-        existing_user = User.query.filter_by(email=data['email']).first()
-        if existing_user:
-            return jsonify({"error": "User with this email already exists"}), 400
-        
-        # Create new user
-        new_user = User(
-            username=data['username'],
-            email=data['email'],
-            first_name=data.get('firstName', ''),
-            last_name=data.get('lastName', ''),
-            active=data.get('is_active', True),
-            is_active=data.get('is_active', True),
-            is_admin=data.get('is_admin', False),
-            email_verified=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        
-        new_user.set_password(data['password'])
-        
-        db.session.add(new_user)
-        db.session.commit()
-        
-        return jsonify(new_user.to_dict()), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating user: {str(e)}")
-        return jsonify({"error": "Failed to create user"}), 500
-
-@app.route('/api/auth/users/<int:user_id>', methods=['GET'])
-@admin_required
-def admin_get_user(user_id):
-    """Admin endpoint to get a specific user"""
-    try:
-        user = User.query.get_or_404(user_id)
-        return jsonify(user.to_dict())
-    except Exception as e:
-        logger.error(f"Error getting user {user_id}: {str(e)}")
-        return jsonify({"error": "Failed to get user"}), 500
-
-@app.route('/api/auth/users/<int:user_id>', methods=['PUT'])
-@admin_required
-def admin_update_user(user_id):
-    """Admin endpoint to update a user"""
-    try:
-        user = User.query.get_or_404(user_id)
-        data = request.json
-        
-        # Prevent admin from removing their own admin status
-        current_user_id = session.get('user_id')
-        if user_id == current_user_id and 'is_admin' in data and not data['is_admin']:
-            return jsonify({"error": "Cannot remove your own admin privileges"}), 400
-        
-        # Update user fields
-        if 'username' in data:
-            # Check username uniqueness
-            existing = User.query.filter(User.username == data['username'], User.id != user_id).first()
-            if existing:
-                return jsonify({"error": "Username already exists"}), 400
-            user.username = data['username']
-        
-        if 'firstName' in data:
-            user.first_name = data['firstName']
-        if 'lastName' in data:
-            user.last_name = data['lastName']
-        if 'is_active' in data:
-            user.active = data['is_active']
-            user.is_active = data['is_active']
-        if 'is_admin' in data:
-            user.is_admin = data['is_admin']
-        if 'toggle_status' in data:
-            user.active = not user.active
-            user.is_active = not user.is_active
-        
-        user.updated_at = datetime.utcnow()
-        db.session.commit()
-        
-        return jsonify(user.to_dict())
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating user {user_id}: {str(e)}")
-        return jsonify({"error": "Failed to update user"}), 500
-
-@app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
-@admin_required
-def admin_delete_user(user_id):
-    """Admin endpoint to delete a user"""
-    try:
-        current_user_id = session.get('user_id')
-        if user_id == current_user_id:
-            return jsonify({"error": "Cannot delete your own account"}), 400
-        
-        user = User.query.get_or_404(user_id)
-        
-        # Store user info before deletion
-        user_email = user.email
-        
-        db.session.delete(user)
-        db.session.commit()
-        
-        return jsonify({"message": f"User {user_email} deleted successfully"})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting user {user_id}: {str(e)}")
-        return jsonify({"error": "Failed to delete user"}), 500
-
 # Debug endpoint to check database
 @app.route('/api/debug/database', methods=['GET'])
 @login_required
@@ -4689,38 +4493,28 @@ def account():
 @login_required
 def admin_portal():
     """Render the main admin portal page (admin only)"""
-    try:
-        # Check if current user is admin
-        current_user = User.query.get(session['user_id'])
-        if not current_user or not current_user.is_admin:
-            flash('Admin access required', 'danger')
-            return redirect(url_for('index'))
-
-        users = User.query.order_by(User.created_at.desc()).all()
-        return render_template('admin_users.html', users=users)
-    except Exception as e:
-        logger.error(f"Error loading admin portal: {str(e)}")
-        flash('Error loading admin portal', 'danger')
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
         return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
 
 
 @app.route('/admin/users')
 @login_required
 def admin_users():
     """Render the user management page (admin only)"""
-    try:
-        # Check if current user is admin
-        current_user = User.query.get(session['user_id'])
-        if not current_user or not current_user.is_admin:
-            flash('Admin access required', 'danger')
-            return redirect(url_for('index'))
-
-        users = User.query.order_by(User.created_at.desc()).all()
-        return render_template('admin_users.html', users=users)
-    except Exception as e:
-        logger.error(f"Error loading admin users: {str(e)}")
-        flash('Error loading admin users', 'danger')
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or not current_user.is_admin:
+        flash('Admin access required', 'danger')
         return redirect(url_for('index'))
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
 
 
 @app.route('/api/auth/users', methods=['GET'])
