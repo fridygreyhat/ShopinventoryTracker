@@ -35,7 +35,7 @@ def format_currency(amount, show_symbol=True, decimal_places=2):
     formatted = f"{amount:,.{decimal_places}f}"
     
     if show_symbol:
-        return f"TSh {formatted}"
+        return f"Tsh {formatted}"
     return formatted
 
 def parse_currency(currency_string):
@@ -51,8 +51,8 @@ def parse_currency(currency_string):
     if not currency_string:
         return Decimal('0')
     
-    # Remove TSh symbol and whitespace
-    cleaned = str(currency_string).replace('TSh', '').replace(',', '').strip()
+    # Remove Tsh symbol and whitespace
+    cleaned = str(currency_string).replace('Tsh', '').replace(',', '').strip()
     
     try:
         return Decimal(cleaned)
@@ -116,6 +116,6 @@ def format_profit_margin(cost_price, selling_price):
         return "0%"
 
 # Currency constants
-CURRENCY_SYMBOL = "TSh"
+CURRENCY_SYMBOL = "Tsh"
 CURRENCY_NAME = "Tanzanian Shilling"
 CURRENCY_CODE = "TZS"
