@@ -211,10 +211,51 @@ def system_stats():
         func.count(User.id).label('count')
     ).group_by('month').order_by('month').limit(12).all()
     
+    # User statistics for template
+    user_stats = {
+        'total': User.query.count(),
+        'active': User.query.filter(User.active == True).count(),
+        'inactive': User.query.filter(User.active == False).count(),
+        'admins': User.query.filter(User.is_admin == True).count()
+    }
+    
+    # Sales statistics
+    sales_stats = {
+        'total': Sale.query.count(),
+        'today': Sale.query.filter(func.date(Sale.created_at) == func.current_date()).count(),
+        'this_month': Sale.query.filter(
+            func.date_trunc('month', Sale.created_at) == func.date_trunc('month', func.now())
+        ).count(),
+        'total_revenue': float(db.session.query(func.sum(Sale.total_amount)).scalar() or 0)
+    }
+    
+    # Inventory statistics
+    inventory_stats = {
+        'total_items': Item.query.count(),
+        'categories': Category.query.count(),
+        'locations': Location.query.count(),
+        'low_stock_items': Item.query.filter(Item.stock_quantity <= Item.minimum_stock).count()
+    }
+    
+    # Business statistics for template
+    business_stats = {
+        'total_sales': Sale.query.count(),
+        'total_items': Item.query.count(),
+        'total_transactions': FinancialTransaction.query.count()
+    }
+    
+    # Registration trends for template
+    registration_trends = user_registrations
+    
     return render_template('admin/system_stats.html',
                          table_stats=table_stats,
                          monthly_sales=monthly_sales,
-                         user_registrations=user_registrations)
+                         user_registrations=user_registrations,
+                         user_stats=user_stats,
+                         sales_stats=sales_stats,
+                         inventory_stats=inventory_stats,
+                         business_stats=business_stats,
+                         registration_trends=registration_trends)
 
 @admin_bp.route('/system/cleanup', methods=['GET', 'POST'])
 @login_required
