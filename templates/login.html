@@ -3,43 +3,143 @@
 {% block title %}Login - Business Management System{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card">
-            <div class="card-header text-center">
-                <h3><i class="fas fa-sign-in-alt"></i> Login</h3>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+<div class="login-hero">
+    <div class="row min-vh-100 align-items-center">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="login-content w-100">
+                <div class="text-center mb-5">
+                    <div class="logo-container mb-4">
+                        <i class="fas fa-chart-line logo-icon"></i>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt"></i> Login
-                        </button>
-                    </div>
-                </form>
+                    <h1 class="login-title">BusinessManager</h1>
+                    <p class="login-subtitle">Comprehensive business management solution</p>
+                </div>
                 
-                <div class="mt-4 text-center">
-                    <p class="mb-2">
-                        <a href="{{ url_for('register') }}" class="text-decoration-none">
-                            Don't have an account? Register here
-                        </a>
-                    </p>
-                    <small class="text-muted">
-                        Default login: admin@example.com / admin123
-                    </small>
+                <div class="login-card">
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4">Welcome Back</h3>
+                        <p class="text-center text-muted mb-4">Sign in to access your business dashboard</p>
+                        
+                        <div class="d-grid">
+                            <a href="{{ url_for('replit_auth.login') }}" class="btn btn-primary btn-lg login-btn">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Sign In with Replit
+                            </a>
+                        </div>
+                        
+                        <div class="login-divider">
+                            <span>Secure Authentication</span>
+                        </div>
+                        
+                        <div class="text-center">
+                            <small class="text-muted">
+                                New to BusinessManager? Authentication is handled securely through Replit
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.login-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.login-content {
+    padding: 2rem;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.logo-container {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.logo-icon {
+    font-size: 2rem;
+    color: white;
+}
+
+.login-title {
+    color: white;
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-btn {
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+}
+
+.login-divider {
+    text-align: center;
+    margin: 2rem 0;
+    position: relative;
+}
+
+.login-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.login-divider span {
+    background: white;
+    padding: 0 1rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 991px) {
+    .login-content {
+        padding: 1rem;
+    }
+    
+    .login-title {
+        font-size: 2rem;
+    }
+}
+</style>
 {% endblock %}
