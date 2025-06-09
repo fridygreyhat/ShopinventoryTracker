@@ -233,21 +233,52 @@ def edit_item(item_id):
 @app.route('/sales')
 @login_required
 def sales():
+    """Enhanced sales overview with payment types and installment management"""
     page = request.args.get('page', 1, type=int)
-    sales = Sale.query.order_by(desc(Sale.created_at)).paginate(
+    sales = Sale.query.filter_by(user_id=current_user.id).order_by(desc(Sale.created_at)).paginate(
         page=page, per_page=20, error_out=False
     )
-    return render_template('sales.html', sales=sales)
+    
+    # Calculate metrics by payment type
+    all_sales = Sale.query.filter_by(user_id=current_user.id).all()
+    total_sales = sum(float(sale.total_amount) for sale in all_sales)
+    cash_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'cash')
+    installment_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'installment')
+    other_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'other')
+    
+    # Get installment plans summary
+    from models import InstallmentPlan
+    active_plans = InstallmentPlan.query.join(Sale).filter(
+        Sale.user_id == current_user.id,
+        InstallmentPlan.status == 'active'
+    ).all()
+    
+    # Calculate outstanding amounts
+    total_outstanding = sum(plan.outstanding_amount for plan in active_plans)
+    overdue_count = sum(1 for plan in active_plans if plan.next_due_date and plan.next_due_date < datetime.now().date())
+    
+    return render_template('sales/list.html', 
+                         sales=sales, 
+                         total_sales=total_sales,
+                         cash_sales=cash_sales,
+                         installment_sales=installment_sales, 
+                         other_sales=other_sales,
+                         active_plans=active_plans,
+                         total_outstanding=total_outstanding,
+                         overdue_count=overdue_count)
 
-@app.route('/pos')
+@app.route('/new_sale')
 @login_required
-def pos():
-    items = Item.query.filter_by(is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
-    return render_template('pos.html', items=items)
+def new_sale():
+    """Create a new sale with payment options"""
+    items = Item.query.filter_by(user_id=current_user.id, is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    return render_template('sales/new_sale.html', items=items, customers=customers)
 
 @app.route('/process_sale', methods=['POST'])
 @login_required
 def process_sale():
+    """Process sale with cash, installment, or other payment options"""
     try:
         cart_items = session.get('cart', [])
         if not cart_items:
