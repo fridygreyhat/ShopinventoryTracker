@@ -199,5 +199,4 @@ def get_next_navigation_url(request):
         return request.url
     return request.referrer or request.url
 
-# Register blueprints
-app.register_blueprint(replit_bp, url_prefix="/auth")
+# Blueprint registration disabled - using PostgreSQL auth instead

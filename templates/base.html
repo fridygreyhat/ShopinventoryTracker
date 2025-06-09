@@ -544,14 +544,14 @@
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('profile') }}</div>
                     <div class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.profile') }}">
+                        <a class="nav-link" href="{{ url_for('postgresql_auth.profile') }}">
                             <i class="fas fa-user-circle"></i>
                             <span>{{ g.t('profile') }}</span>
                             <div class="nav-tooltip">{{ g.t('profile') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
-                        <a class="nav-link logout-link" href="{{ url_for('auth.logout') }}">
+                        <a class="nav-link logout-link" href="{{ url_for('postgresql_auth.logout') }}">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>{{ g.t('logout') }}</span>
                             <div class="nav-tooltip">{{ g.t('logout') }}</div>
