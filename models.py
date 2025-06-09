@@ -9,11 +9,15 @@ class User(UserMixin, db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(320), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    first_name = db.Column(db.String(64), nullable=True)
+    last_name = db.Column(db.String(64), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    shop_name = db.Column(db.String(128), nullable=True)
+    product_categories = db.Column(db.String(512), nullable=True)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -21,6 +25,11 @@ class User(UserMixin, db.Model):
     # Relationships
     sales = db.relationship('Sale', backref='user', lazy=True)
     financial_transactions = db.relationship('FinancialTransaction', backref='user', lazy=True)
+    locations = db.relationship('Location', backref='owner', lazy=True)
+    
+    @property
+    def is_active(self):
+        return self.active
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
