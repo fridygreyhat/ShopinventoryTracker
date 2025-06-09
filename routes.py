@@ -280,27 +280,40 @@ def new_sale():
 def process_sale():
     """Process sale with cash, installment, or other payment options"""
     try:
-        cart_items = session.get('cart', [])
-        if not cart_items:
-            flash('Cart is empty!', 'warning')
-            return redirect(url_for('pos'))
+        import json
+        from datetime import date, timedelta
         
-        # Calculate totals
-        subtotal = Decimal('0')
-        tax_rate = Decimal(request.form.get('tax_rate', '0')) / 100
-        payment_method = request.form.get('payment_method', 'cash')
+        # Get form data
+        cart_data = request.form.get('cart_data')
+        if not cart_data:
+            flash('Cart is empty!', 'warning')
+            return redirect(url_for('new_sale'))
+        
+        cart_items = json.loads(cart_data)
+        total_amount = Decimal(request.form.get('total_amount', '0'))
+        payment_type = request.form.get('payment_type', 'cash')
+        customer_id = request.form.get('customer_id') or None
+        notes = request.form.get('notes', '')
+        
+        # Validate customer for installment payments
+        if payment_type == 'installment' and not customer_id:
+            flash('Customer is required for installment payments!', 'danger')
+            return redirect(url_for('new_sale'))
         
         # Create sale
         sale_number = f"SALE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
         
+        # Determine payment status
+        payment_status = 'paid' if payment_type == 'cash' else 'pending' if payment_type == 'installment' else 'paid'
+        
         sale = Sale(
             sale_number=sale_number,
-            subtotal=Decimal('0'),  # Will be calculated
-            tax_rate=tax_rate,
-            tax_amount=Decimal('0'),  # Will be calculated
-            total_amount=Decimal('0'),  # Will be calculated
-            payment_method=payment_method,
-            user_id=current_user.id
+            total_amount=total_amount,
+            payment_type=payment_type,
+            payment_status=payment_status,
+            notes=notes,
+            user_id=current_user.id,
+            customer_id=int(customer_id) if customer_id else None
         )
         
         db.session.add(sale)
@@ -308,7 +321,7 @@ def process_sale():
         
         # Process cart items
         for cart_item in cart_items:
-            item = Item.query.get(cart_item['item_id'])
+            item = Item.query.get(cart_item['id'])
             if not item or item.stock_quantity < cart_item['quantity']:
                 raise Exception(f"Insufficient stock for {item.name if item else 'unknown item'}")
             
@@ -337,30 +350,129 @@ def process_sale():
                 item_id=item.id
             )
             db.session.add(stock_movement)
+        
+        # Handle installment payment setup
+        if payment_type == 'installment':
+            down_payment = Decimal(request.form.get('down_payment', '0'))
+            number_of_installments = int(request.form.get('number_of_installments', '12'))
+            frequency = request.form.get('frequency', 'monthly')
             
-            subtotal += total_price
-        
-        # Calculate tax and total
-        tax_amount = subtotal * tax_rate
-        total_amount = subtotal + tax_amount
-        
-        # Update sale totals
-        sale.subtotal = subtotal
-        sale.tax_amount = tax_amount
-        sale.total_amount = total_amount
+            remaining_amount = total_amount - down_payment
+            installment_amount = remaining_amount / number_of_installments
+            
+            # Calculate start date based on frequency
+            if frequency == 'weekly':
+                start_date = date.today() + timedelta(weeks=1)
+            elif frequency == 'bi-weekly':
+                start_date = date.today() + timedelta(weeks=2)
+            else:  # monthly
+                start_date = date.today() + timedelta(days=30)
+            
+            # Create installment plan
+            from models import InstallmentPlan
+            installment_plan = InstallmentPlan(
+                sale_id=sale.id,
+                customer_id=customer_id,
+                total_amount=total_amount,
+                down_payment=down_payment,
+                remaining_amount=remaining_amount,
+                number_of_installments=number_of_installments,
+                installment_amount=installment_amount,
+                frequency=frequency,
+                start_date=start_date,
+                status='active'
+            )
+            db.session.add(installment_plan)
+            
+            # Update payment status
+            if down_payment > 0:
+                sale.payment_status = 'partial'
         
         db.session.commit()
         
-        # Clear cart
-        session.pop('cart', None)
-        
         flash(f'Sale {sale_number} completed successfully! Total: ${total_amount:.2f}', 'success')
-        return redirect(url_for('pos'))
+        
+        if payment_type == 'installment':
+            flash(f'Installment plan created with {number_of_installments} payments of ${installment_amount:.2f}', 'info')
+        
+        return redirect(url_for('sales'))
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error processing sale: {str(e)}', 'danger')
-        return redirect(url_for('pos'))
+        return redirect(url_for('new_sale'))
+
+@app.route('/sale/<int:sale_id>')
+@login_required
+def sale_details(sale_id):
+    """View detailed sale information"""
+    sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
+    return render_template('sales/sale_details.html', sale=sale)
+
+@app.route('/manage_installments/<int:sale_id>')
+@login_required
+def manage_installments(sale_id):
+    """Manage installment payments for a sale"""
+    sale = Sale.query.filter_by(id=sale_id, user_id=current_user.id).first_or_404()
+    
+    if sale.payment_type != 'installment':
+        flash('This sale does not have an installment plan.', 'warning')
+        return redirect(url_for('sales'))
+    
+    from models import InstallmentPlan, InstallmentPayment
+    plan = InstallmentPlan.query.filter_by(sale_id=sale_id).first()
+    payments = InstallmentPayment.query.filter_by(plan_id=plan.id).order_by(InstallmentPayment.payment_date.desc()).all() if plan else []
+    
+    return render_template('sales/manage_installments.html', sale=sale, plan=plan, payments=payments)
+
+@app.route('/add_installment_payment', methods=['POST'])
+@login_required
+def add_installment_payment():
+    """Record an installment payment"""
+    try:
+        from models import InstallmentPlan, InstallmentPayment
+        
+        plan_id = request.form.get('plan_id')
+        amount = Decimal(request.form.get('amount'))
+        payment_method = request.form.get('payment_method', 'cash')
+        notes = request.form.get('notes', '')
+        
+        plan = InstallmentPlan.query.get_or_404(plan_id)
+        
+        # Verify user owns this plan
+        if plan.sale.user_id != current_user.id:
+            flash('Unauthorized access.', 'danger')
+            return redirect(url_for('sales'))
+        
+        # Create payment record
+        payment = InstallmentPayment(
+            plan_id=plan_id,
+            amount=amount,
+            payment_method=payment_method,
+            notes=notes,
+            payment_date=datetime.utcnow().date()
+        )
+        db.session.add(payment)
+        
+        # Update plan totals
+        plan.paid_amount += amount
+        plan.outstanding_amount = plan.remaining_amount - plan.paid_amount
+        
+        # Update sale payment status
+        if plan.outstanding_amount <= 0:
+            plan.status = 'completed'
+            plan.sale.payment_status = 'paid'
+        elif plan.paid_amount > 0:
+            plan.sale.payment_status = 'partial'
+        
+        db.session.commit()
+        flash(f'Payment of ${amount:.2f} recorded successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error recording payment: {str(e)}', 'danger')
+    
+    return redirect(url_for('manage_installments', sale_id=plan.sale_id))
 
 @app.route('/financial')
 @login_required
