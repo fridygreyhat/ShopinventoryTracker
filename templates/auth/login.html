@@ -75,6 +75,11 @@
                     </form>
 
                     <div class="text-center">
+                        <div class="mb-2">
+                            <a href="{{ url_for('postgresql_auth.forgot_password') }}" class="text-muted text-decoration-none">
+                                {{ g.t('forgot_password') }}?
+                            </a>
+                        </div>
                         <p class="mb-0">
                             {{ g.t('dont_have_account') }}
                             <a href="{{ url_for('postgresql_auth.register') }}" class="text-primary text-decoration-none">

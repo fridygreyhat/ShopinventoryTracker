@@ -1,11 +1,12 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import app, db
 from models import User
+from email_service import EmailService
 import re
 
 # Create auth blueprint
@@ -128,6 +129,9 @@ def register():
             
             db.session.add(user)
             db.session.commit()
+            
+            # Send welcome email
+            EmailService.send_welcome_email(user)
             
             flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('postgresql_auth.login'))
@@ -351,5 +355,86 @@ def admin_required(f):
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Handle password reset request"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address', 'error')
+            return render_template('auth/forgot_password.html')
+        
+        if not validate_email(email):
+            flash('Please enter a valid email address', 'error')
+            return render_template('auth/forgot_password.html')
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            # Send password reset email
+            if EmailService.send_password_reset_email(user):
+                flash('Password reset instructions have been sent to your email address', 'success')
+            else:
+                flash('Unable to send reset email. Please try again later.', 'error')
+        else:
+            # Don't reveal if email exists for security
+            flash('If an account with this email exists, password reset instructions have been sent', 'info')
+        
+        return redirect(url_for('postgresql_auth.login'))
+    
+    return render_template('auth/forgot_password.html')
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Handle password reset with token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    # Find user with valid reset token
+    user = User.query.filter_by(reset_token=token).first()
+    
+    if not user or not user.reset_token_expires or user.reset_token_expires < datetime.utcnow():
+        flash('Invalid or expired reset token. Please request a new password reset.', 'error')
+        return redirect(url_for('postgresql_auth.forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not password or not confirm_password:
+            flash('Please fill in all fields', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        # Validate password strength
+        is_valid, error_message = validate_password(password)
+        if not is_valid:
+            flash(error_message, 'error')
+            return render_template('auth/reset_password.html', token=token)
+        
+        try:
+            # Update password and clear reset token
+            user.set_password(password)
+            user.reset_token = None
+            user.reset_token_expires = None
+            db.session.commit()
+            
+            flash('Password reset successful! Please log in with your new password.', 'success')
+            return redirect(url_for('postgresql_auth.login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Password reset failed. Please try again.', 'error')
+            return render_template('auth/reset_password.html', token=token)
+    
+    return render_template('auth/reset_password.html', token=token)
 
 # Blueprint will be registered in routes.py
