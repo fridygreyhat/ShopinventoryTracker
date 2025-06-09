@@ -21,9 +21,9 @@
                         <th>Sale Number</th>
                         <th>Date</th>
                         <th>Items</th>
-                        <th>Subtotal</th>
-                        <th>Tax</th>
-                        <th>Total</th>
+                        <th>{{ g.t('subtotal') }}</th>
+                        <th>{{ g.t('tax') }}</th>
+                        <th>{{ g.t('total_tsh') }}</th>
                         <th>Payment Method</th>
                         <th>Cashier</th>
                     </tr>
@@ -47,16 +47,16 @@
                                 {% if sale.sale_items|length > 3 %}...{% endif %}
                             </div>
                         </td>
-                        <td>${{ "%.2f"|format(sale.subtotal) }}</td>
+                        <td>{{ sale.subtotal|currency }}</td>
                         <td>
                             {% if sale.tax_amount > 0 %}
-                            ${{ "%.2f"|format(sale.tax_amount) }}
+                            {{ sale.tax_amount|currency }}
                             <br><small class="text-muted">({{ "%.1f"|format(sale.tax_rate * 100) }}%)</small>
                             {% else %}
                             -
                             {% endif %}
                         </td>
-                        <td><strong>${{ "%.2f"|format(sale.total_amount) }}</strong></td>
+                        <td><strong>{{ sale.total_amount|currency }}</strong></td>
                         <td>
                             <span class="badge bg-secondary">{{ sale.payment_method|title }}</span>
                         </td>
