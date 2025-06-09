@@ -540,6 +540,34 @@
                 </li>
                 {% endif %}
 
+                <!-- Admin Section -->
+                {% if current_user.is_admin %}
+                <li class="nav-section">
+                    <div class="nav-section-title">Admin</div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Admin Dashboard</span>
+                            <div class="nav-tooltip">Admin Dashboard</div>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.manage_users') }}">
+                            <i class="fas fa-users"></i>
+                            <span>Manage Users</span>
+                            <div class="nav-tooltip">Manage Users</div>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.system_stats') }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>System Stats</span>
+                            <div class="nav-tooltip">System Statistics</div>
+                        </a>
+                    </div>
+                </li>
+                {% endif %}
+
                 <!-- Account Section -->
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('profile') }}</div>
