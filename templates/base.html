@@ -446,8 +446,10 @@
                 </li>
 
                 <!-- Inventory Section -->
+                {% if current_user.is_admin or current_user.has_permission('manage_inventory') or current_user.has_permission('manage_categories') or current_user.has_permission('manage_locations') %}
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('inventory') }}</div>
+                    {% if current_user.is_admin or current_user.has_permission('manage_inventory') %}
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('inventory') }}">
                             <i class="fas fa-boxes"></i>
@@ -455,6 +457,8 @@
                             <div class="nav-tooltip">{{ g.t('inventory') }}</div>
                         </a>
                     </div>
+                    {% endif %}
+                    {% if current_user.is_admin or current_user.has_permission('manage_categories') %}
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('categories_management') }}">
                             <i class="fas fa-tags"></i>
@@ -462,6 +466,8 @@
                             <div class="nav-tooltip">Product Categories</div>
                         </a>
                     </div>
+                    {% endif %}
+                    {% if current_user.is_admin or current_user.has_permission('manage_inventory') %}
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('on_demand_products') }}">
                             <i class="fas fa-shopping-cart"></i>
@@ -469,6 +475,8 @@
                             <div class="nav-tooltip">On-Demand Products</div>
                         </a>
                     </div>
+                    {% endif %}
+                    {% if current_user.is_admin or current_user.has_permission('manage_locations') %}
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('locations') }}">
                             <i class="fas fa-map-marker-alt"></i>
@@ -476,9 +484,12 @@
                             <div class="nav-tooltip">{{ g.t('locations') }}</div>
                         </a>
                     </div>
+                    {% endif %}
                 </li>
+                {% endif %}
 
                 <!-- Sales Section -->
+                {% if current_user.is_admin or current_user.has_permission('manage_sales') %}
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('sales') }}</div>
                     <div class="nav-item">
@@ -496,8 +507,10 @@
                         </a>
                     </div>
                 </li>
+                {% endif %}
 
                 <!-- Customer Management Section -->
+                {% if current_user.is_admin or current_user.has_permission('manage_customers') %}
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('customers') }}</div>
                     <div class="nav-item">
@@ -508,8 +521,10 @@
                         </a>
                     </div>
                 </li>
+                {% endif %}
 
                 <!-- Financial Section -->
+                {% if current_user.is_admin or current_user.has_permission('manage_finances') %}
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('financial') }}</div>
                     <div class="nav-item">
@@ -534,8 +549,10 @@
                         </a>
                     </div>
                 </li>
+                {% endif %}
 
                 <!-- Reports Section -->
+                {% if current_user.is_admin or current_user.has_permission('view_reports') %}
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('reports') }}</div>
                     <div class="nav-item">
@@ -546,9 +563,9 @@
                         </a>
                     </div>
                 </li>
+                {% endif %}
 
-                <!-- Admin Section -->
-                {% if current_user.is_admin %}
+                <!-- Settings Section -->
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('settings') }}</div>
                     <div class="nav-item">
@@ -559,7 +576,6 @@
                         </a>
                     </div>
                 </li>
-                {% endif %}
 
                 <!-- Admin Section -->
                 {% if current_user.is_admin %}
