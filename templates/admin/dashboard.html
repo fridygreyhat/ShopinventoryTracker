@@ -249,7 +249,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch dashboard data and create charts
-    fetch('{{ url_for("admin.dashboard_data") }}')
+    fetch('{{ url_for("admin_portal.dashboard_data") }}')
         .then(response => response.json())
         .then(data => {
             // Sales trend chart
