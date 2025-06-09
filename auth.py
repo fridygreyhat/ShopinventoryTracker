@@ -462,4 +462,191 @@ def reset_password(token):
     
     return render_template('auth/reset_password.html', token=token)
 
+# Subuser Management Routes
+@auth_bp.route('/settings/subusers')
+@login_required
+def manage_subusers():
+    """Manage subusers"""
+    if not current_user.can_manage_subusers():
+        flash('You do not have permission to manage subusers.', 'error')
+        return redirect(url_for('postgresql_auth.settings'))
+    
+    subusers = current_user.get_all_subusers()
+    available_permissions = [
+        'view_inventory', 'edit_inventory', 'delete_inventory',
+        'view_sales', 'create_sales', 'edit_sales', 'delete_sales',
+        'view_customers', 'edit_customers', 'delete_customers',
+        'view_reports', 'view_financial_data', 'manage_locations',
+        'view_settings', 'edit_business_settings'
+    ]
+    
+    return render_template('auth/manage_subusers.html', 
+                         subusers=subusers, 
+                         available_permissions=available_permissions)
+
+@auth_bp.route('/settings/subusers/create', methods=['GET', 'POST'])
+@login_required
+def create_subuser():
+    """Create a new subuser"""
+    if not current_user.can_manage_subusers():
+        flash('You do not have permission to manage subusers.', 'error')
+        return redirect(url_for('postgresql_auth.settings'))
+    
+    if request.method == 'POST':
+        try:
+            username = request.form.get('username', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            permissions = request.form.getlist('permissions')
+            
+            # Validation
+            errors = []
+            
+            if not username:
+                errors.append('Username is required')
+            elif len(username) < 3:
+                errors.append('Username must be at least 3 characters long')
+            
+            if not email:
+                errors.append('Email is required')
+            elif not validate_email(email):
+                errors.append('Please enter a valid email address')
+            
+            if not password:
+                errors.append('Password is required')
+            else:
+                is_valid, message = validate_password(password)
+                if not is_valid:
+                    errors.append(message)
+            
+            if password != confirm_password:
+                errors.append('Passwords do not match')
+            
+            if not first_name:
+                errors.append('First name is required')
+            
+            if not last_name:
+                errors.append('Last name is required')
+            
+            if errors:
+                for error in errors:
+                    flash(error, 'error')
+                return render_template('auth/create_subuser.html')
+            
+            # Create subuser
+            subuser = current_user.create_subuser(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                permissions=permissions
+            )
+            
+            db.session.add(subuser)
+            db.session.commit()
+            
+            flash(f'Subuser {username} created successfully!', 'success')
+            return redirect(url_for('postgresql_auth.manage_subusers'))
+            
+        except ValueError as e:
+            flash(str(e), 'error')
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.error(f"Subuser creation error: {str(e)}")
+            flash('Failed to create subuser. Please try again.', 'error')
+    
+    available_permissions = [
+        'view_inventory', 'edit_inventory', 'delete_inventory',
+        'view_sales', 'create_sales', 'edit_sales', 'delete_sales',
+        'view_customers', 'edit_customers', 'delete_customers',
+        'view_reports', 'view_financial_data', 'manage_locations',
+        'view_settings', 'edit_business_settings'
+    ]
+    
+    return render_template('auth/create_subuser.html', 
+                         available_permissions=available_permissions)
+
+@auth_bp.route('/settings/subusers/<int:subuser_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_subuser(subuser_id):
+    """Edit subuser permissions and details"""
+    if not current_user.can_manage_subusers():
+        flash('You do not have permission to manage subusers.', 'error')
+        return redirect(url_for('postgresql_auth.settings'))
+    
+    subuser = User.query.filter_by(id=subuser_id, parent_user_id=current_user.id).first()
+    if not subuser:
+        flash('Subuser not found.', 'error')
+        return redirect(url_for('postgresql_auth.manage_subusers'))
+    
+    if request.method == 'POST':
+        try:
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            active = 'active' in request.form
+            permissions = request.form.getlist('permissions')
+            
+            # Update subuser details
+            subuser.first_name = first_name
+            subuser.last_name = last_name
+            subuser.active = active
+            subuser.set_subuser_permissions(permissions)
+            subuser.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            flash(f'Subuser {subuser.username} updated successfully!', 'success')
+            return redirect(url_for('postgresql_auth.manage_subusers'))
+            
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.error(f"Subuser update error: {str(e)}")
+            flash('Failed to update subuser. Please try again.', 'error')
+    
+    available_permissions = [
+        'view_inventory', 'edit_inventory', 'delete_inventory',
+        'view_sales', 'create_sales', 'edit_sales', 'delete_sales',
+        'view_customers', 'edit_customers', 'delete_customers',
+        'view_reports', 'view_financial_data', 'manage_locations',
+        'view_settings', 'edit_business_settings'
+    ]
+    
+    return render_template('auth/edit_subuser.html', 
+                         subuser=subuser, 
+                         available_permissions=available_permissions)
+
+@auth_bp.route('/settings/subusers/<int:subuser_id>/delete', methods=['POST'])
+@login_required
+def delete_subuser(subuser_id):
+    """Delete a subuser"""
+    if not current_user.can_manage_subusers():
+        flash('You do not have permission to manage subusers.', 'error')
+        return redirect(url_for('postgresql_auth.settings'))
+    
+    subuser = User.query.filter_by(id=subuser_id, parent_user_id=current_user.id).first()
+    if not subuser:
+        flash('Subuser not found.', 'error')
+        return redirect(url_for('postgresql_auth.manage_subusers'))
+    
+    try:
+        username = subuser.username
+        db.session.delete(subuser)
+        db.session.commit()
+        
+        flash(f'Subuser {username} deleted successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f"Subuser deletion error: {str(e)}")
+        flash('Failed to delete subuser. Please try again.', 'error')
+    
+    return redirect(url_for('postgresql_auth.manage_subusers'))
+
 # Blueprint will be registered in routes.py
