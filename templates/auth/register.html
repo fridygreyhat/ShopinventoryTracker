@@ -28,7 +28,7 @@
                         {% endif %}
                     {% endwith %}
 
-                    <form method="POST" action="{{ url_for('auth.register') }}">
+                    <form method="POST" action="{{ url_for('postgresql_auth.register') }}">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="first_name" class="form-label">
@@ -139,7 +139,7 @@
                     <div class="text-center">
                         <p class="mb-0">
                             {{ g.t('already_have_account') }}
-                            <a href="{{ url_for('auth.login') }}" class="text-success text-decoration-none">
+                            <a href="{{ url_for('postgresql_auth.login') }}" class="text-success text-decoration-none">
                                 <strong>{{ g.t('sign_in_here') }}</strong>
                             </a>
                         </p>
