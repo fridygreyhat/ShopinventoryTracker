@@ -123,12 +123,12 @@
                         </td>
                         <td>
                             <strong class="{% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
-                                {% if transaction.transaction_type == 'expense' %}-{% endif %}${{ "%.2f"|format(transaction.amount) }}
+                                {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount|currency }}
                             </strong>
                         </td>
                         <td>
                             {% if transaction.tax_amount > 0 %}
-                            ${{ "%.2f"|format(transaction.tax_amount) }}
+                            {{ transaction.tax_amount|currency }}
                             {% else %}
                             -
                             {% endif %}
