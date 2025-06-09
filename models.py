@@ -143,6 +143,7 @@ class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    unit_cost = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     total_price = db.Column(db.Numeric(10, 2), nullable=False)
     sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
