@@ -251,5 +251,4 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Register blueprint
-app.register_blueprint(auth_bp)
+# Blueprint will be registered in routes.py
