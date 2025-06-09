@@ -172,6 +172,40 @@
             display: none;
         }
 
+        .sidebar.collapsed .user-actions {
+            display: none;
+        }
+
+        .user-actions .btn {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .user-actions .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #64b5f6;
+            color: #64b5f6;
+        }
+
+        .sidebar.collapsed .user-actions span {
+            display: none;
+        }
+
+        /* Logout link styling */
+        .logout-link {
+            color: #f56565 !important;
+        }
+
+        .logout-link:hover {
+            background: rgba(245, 101, 101, 0.1) !important;
+            color: #fc8181 !important;
+        }
+
+        .logout-link.active {
+            background: linear-gradient(135deg, #f56565, #e53e3e) !important;
+        }
+
         /* Toggle Button */
         .sidebar-toggle {
             position: fixed;
@@ -409,6 +443,18 @@
                     </div>
                 </li>
                 {% endif %}
+
+                <!-- Account Section -->
+                <li class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <div class="nav-item">
+                        <a class="nav-link logout-link" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                            <div class="nav-tooltip">Sign Out</div>
+                        </a>
+                    </div>
+                </li>
             </ul>
 
             <!-- User Profile -->
@@ -421,6 +467,12 @@
                         <div style="font-weight: 600;">{{ current_user.first_name or 'User' }}</div>
                         <div style="font-size: 0.85rem; opacity: 0.7;">{{ current_user.email }}</div>
                     </div>
+                </div>
+                <div class="user-actions mt-3">
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm w-100">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
                 </div>
             </div>
         </nav>
