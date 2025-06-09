@@ -20,4 +20,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "pandas>=2.2.3",
     "numpy>=2.2.6",
+    "flask-dance>=7.1.0",
+    "oauthlib>=3.2.2",
+    "pyjwt>=2.10.1",
 ]
