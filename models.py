@@ -331,7 +331,7 @@ class JournalEntry(db.Model):
     description = db.Column(db.Text)
     
     def __repr__(self):
-        return f'<JournalEntry {self.account.account_name}: D{self.debit_amount} C{self.credit_amount}>'
+        return f'<JournalEntry Account {self.account_id}: D{self.debit_amount} C{self.credit_amount}>'
 
 class GeneralLedger(db.Model):
     __tablename__ = 'general_ledger'
@@ -348,7 +348,7 @@ class GeneralLedger(db.Model):
     journal = db.relationship('Journal', backref='ledger_entries')
     
     def __repr__(self):
-        return f'<GeneralLedger {self.account.account_name}>'
+        return f'<GeneralLedger Account {self.account_id}: D{self.debit_amount} C{self.credit_amount}>'
 
 class CashFlow(db.Model):
     __tablename__ = 'cash_flow'

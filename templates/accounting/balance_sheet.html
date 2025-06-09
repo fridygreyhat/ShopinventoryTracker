@@ -8,29 +8,24 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="h3 mb-0">Balance Sheet</h1>
-                <div>
-                    <button class="btn btn-outline-secondary" onclick="window.print()">
-                        <i class="fas fa-print"></i> Print
-                    </button>
-                </div>
+                <a href="{{ url_for('accounting_dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
             </div>
         </div>
     </div>
 
     <!-- Date Filter -->
     <div class="row mb-4">
-        <div class="col-12">
+        <div class="col-md-6">
             <div class="card">
                 <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-6">
-                            <label for="as_of_date" class="form-label">As of Date</label>
-                            <input type="date" class="form-control" id="as_of_date" name="as_of_date" 
-                                   value="{{ as_of_date.strftime('%Y-%m-%d') if as_of_date else '' }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">&nbsp;</label>
-                            <div>
+                    <form method="GET" action="{{ url_for('balance_sheet_report') }}">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label for="as_of_date" class="form-label">As of Date</label>
+                                <input type="date" class="form-control" id="as_of_date" name="as_of_date" 
+                                       value="{{ as_of_date.strftime('%Y-%m-%d') }}">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary">Generate Report</button>
                             </div>
                         </div>
@@ -40,111 +35,71 @@
         </div>
     </div>
 
-    <!-- Balance Sheet -->
+    <!-- Balance Sheet Report -->
     {% if balance_sheet_data %}
     <div class="row">
-        <div class="col-md-6">
-            <!-- Assets -->
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5>ASSETS</h5>
-                    <p class="mb-0">As of {{ as_of_date.strftime('%B %d, %Y') if as_of_date else 'N/A' }}</p>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <tbody>
-                                {% if balance_sheet_data.asset_breakdown %}
-                                    {% for account_name, amount in balance_sheet_data.asset_breakdown.items() %}
-                                    <tr>
-                                        <td>{{ account_name }}</td>
-                                        <td class="text-end">${{ "%.2f"|format(amount) }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                {% endif %}
-                                <tr class="table-success border-top border-3">
-                                    <td><strong>Total Assets</strong></td>
-                                    <td class="text-end"><strong>${{ "%.2f"|format(balance_sheet_data.total_assets or 0) }}</strong></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <!-- Liabilities & Equity -->
-            <div class="card">
-                <div class="card-header bg-danger text-white">
-                    <h5>LIABILITIES & EQUITY</h5>
-                    <p class="mb-0">As of {{ as_of_date.strftime('%B %d, %Y') if as_of_date else 'N/A' }}</p>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <tbody>
-                                <!-- Liabilities -->
-                                <tr class="table-active">
-                                    <td><strong>LIABILITIES</strong></td>
-                                    <td class="text-end"></td>
-                                </tr>
-                                {% if balance_sheet_data.liability_breakdown %}
-                                    {% for account_name, amount in balance_sheet_data.liability_breakdown.items() %}
-                                    <tr>
-                                        <td class="ps-3">{{ account_name }}</td>
-                                        <td class="text-end">${{ "%.2f"|format(amount) }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                {% endif %}
-                                <tr class="border-top">
-                                    <td><strong>Total Liabilities</strong></td>
-                                    <td class="text-end"><strong>${{ "%.2f"|format(balance_sheet_data.total_liabilities or 0) }}</strong></td>
-                                </tr>
-
-                                <!-- Equity -->
-                                <tr class="table-active">
-                                    <td><strong>EQUITY</strong></td>
-                                    <td class="text-end"></td>
-                                </tr>
-                                {% if balance_sheet_data.equity_breakdown %}
-                                    {% for account_name, amount in balance_sheet_data.equity_breakdown.items() %}
-                                    <tr>
-                                        <td class="ps-3">{{ account_name }}</td>
-                                        <td class="text-end">${{ "%.2f"|format(amount) }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                {% endif %}
-                                <tr class="border-top">
-                                    <td><strong>Total Equity</strong></td>
-                                    <td class="text-end"><strong>${{ "%.2f"|format(balance_sheet_data.total_equity or 0) }}</strong></td>
-                                </tr>
-
-                                <!-- Total Liabilities & Equity -->
-                                <tr class="table-success border-top border-3">
-                                    <td><strong>Total Liabilities & Equity</strong></td>
-                                    <td class="text-end"><strong>${{ "%.2f"|format((balance_sheet_data.total_liabilities or 0) + (balance_sheet_data.total_equity or 0)) }}</strong></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Balance Check -->
-    <div class="row mt-4">
         <div class="col-12">
-            <div class="card {{ 'bg-success' if balance_sheet_data.balance_check else 'bg-warning' }} text-white">
-                <div class="card-body text-center">
-                    <h5>
-                        <i class="fas {{ 'fa-check-circle' if balance_sheet_data.balance_check else 'fa-exclamation-triangle' }}"></i>
-                        {{ 'Balance Sheet is Balanced' if balance_sheet_data.balance_check else 'Balance Sheet is Out of Balance' }}
-                    </h5>
-                    {% if not balance_sheet_data.balance_check %}
-                    <p class="mb-0">Assets should equal Liabilities + Equity. Please review your journal entries.</p>
-                    {% endif %}
+            <div class="card">
+                <div class="card-header">
+                    <h5>Balance Sheet as of {{ as_of_date.strftime('%B %d, %Y') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Assets -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Assets</h6>
+                            <table class="table table-sm">
+                                {% for asset in balance_sheet_data.assets %}
+                                <tr>
+                                    <td>{{ asset.account_name }}</td>
+                                    <td class="text-end">Tsh {{ "{:,.2f}".format(asset.balance) }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-primary">
+                                    <td><strong>Total Assets</strong></td>
+                                    <td class="text-end"><strong>Tsh {{ "{:,.2f}".format(balance_sheet_data.total_assets) }}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        <!-- Liabilities & Equity -->
+                        <div class="col-md-6">
+                            <h6 class="text-danger">Liabilities</h6>
+                            <table class="table table-sm">
+                                {% for liability in balance_sheet_data.liabilities %}
+                                <tr>
+                                    <td>{{ liability.account_name }}</td>
+                                    <td class="text-end">Tsh {{ "{:,.2f}".format(liability.balance) }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-danger">
+                                    <td><strong>Total Liabilities</strong></td>
+                                    <td class="text-end"><strong>Tsh {{ "{:,.2f}".format(balance_sheet_data.total_liabilities) }}</strong></td>
+                                </tr>
+                            </table>
+
+                            <h6 class="text-success mt-3">Equity</h6>
+                            <table class="table table-sm">
+                                {% for equity in balance_sheet_data.equity %}
+                                <tr>
+                                    <td>{{ equity.account_name }}</td>
+                                    <td class="text-end">Tsh {{ "{:,.2f}".format(equity.balance) }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-success">
+                                    <td><strong>Total Equity</strong></td>
+                                    <td class="text-end"><strong>Tsh {{ "{:,.2f}".format(balance_sheet_data.total_equity) }}</strong></td>
+                                </tr>
+                            </table>
+
+                            <table class="table table-sm table-warning">
+                                <tr>
+                                    <td><strong>Total Liabilities & Equity</strong></td>
+                                    <td class="text-end"><strong>Tsh {{ "{:,.2f}".format(balance_sheet_data.total_liabilities + balance_sheet_data.total_equity) }}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,9 +109,10 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body text-center">
-                    <i class="fas fa-balance-scale fa-4x text-muted mb-3"></i>
-                    <h4>No Financial Data Found</h4>
-                    <p class="text-muted">Select a date to generate your balance sheet.</p>
+                    <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+                    <h4>No Balance Sheet Data Available</h4>
+                    <p class="text-muted">Initialize your chart of accounts to generate balance sheet reports.</p>
+                    <a href="{{ url_for('chart_of_accounts') }}" class="btn btn-primary">Setup Chart of Accounts</a>
                 </div>
             </div>
         </div>
