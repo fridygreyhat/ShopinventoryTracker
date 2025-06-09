@@ -5,7 +5,9 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, s
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc, and_, or_
 from app import app, db
-from models import User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, Location, LocationStock, StockTransfer, StockTransferItem
+from models import (User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, 
+                    Location, LocationStock, StockTransfer, StockTransferItem, ChartOfAccounts, 
+                    Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 @app.route('/')
