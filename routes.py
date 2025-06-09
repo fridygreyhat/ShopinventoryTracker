@@ -11,6 +11,9 @@ from models import (User, Category, Item, Sale, SaleItem, StockMovement, Financi
                     Customer, CustomerPurchaseHistory, LoyaltyTransaction)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
+# Import Replit authentication
+import replit_auth
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
