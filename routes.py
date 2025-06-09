@@ -1831,6 +1831,268 @@ def profit_margin_analysis():
         end_date=end_date
     )
 
+@app.route('/categories')
+@login_required
+def categories_management():
+    """Category management dashboard"""
+    
+    # Get search parameter
+    search = request.args.get('search', '')
+    
+    # Build query
+    query = Category.query
+    
+    if search:
+        query = query.filter(Category.name.ilike(f'%{search}%'))
+    
+    categories = query.order_by(Category.name).all()
+    
+    # Calculate statistics for each category
+    category_stats = []
+    for category in categories:
+        # Count items in this category
+        item_count = Item.query.filter_by(category_id=category.id, is_active=True).count()
+        
+        # Calculate total inventory value
+        items = Item.query.filter_by(category_id=category.id, is_active=True).all()
+        total_value = sum((item.buying_price or 0) * item.stock_quantity for item in items)
+        total_retail_value = sum((item.retail_price or 0) * item.stock_quantity for item in items)
+        
+        # Count low stock items
+        low_stock_count = sum(1 for item in items if item.stock_quantity <= item.minimum_stock)
+        
+        # Calculate recent sales (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        from sqlalchemy import func
+        recent_sales = db.session.query(func.sum(SaleItem.quantity)).join(Sale).join(Item).filter(
+            Item.category_id == category.id,
+            Sale.created_at >= thirty_days_ago
+        ).scalar() or 0
+        
+        category_stats.append({
+            'category': category,
+            'item_count': item_count,
+            'total_value': total_value,
+            'total_retail_value': total_retail_value,
+            'low_stock_count': low_stock_count,
+            'recent_sales': recent_sales,
+            'potential_profit': total_retail_value - total_value
+        })
+    
+    return render_template('categories_management.html', 
+                         category_stats=category_stats,
+                         search=search)
+
+@app.route('/categories/add', methods=['GET', 'POST'])
+@login_required
+def add_category():
+    """Add a new category"""
+    
+    if request.method == 'POST':
+        try:
+            name = request.form['name'].strip()
+            description = request.form.get('description', '').strip()
+            
+            # Check if category already exists
+            existing_category = Category.query.filter_by(name=name).first()
+            if existing_category:
+                flash('Category with this name already exists!', 'danger')
+                return redirect(url_for('add_category'))
+            
+            # Create new category
+            category = Category(
+                name=name,
+                description=description if description else None
+            )
+            
+            db.session.add(category)
+            db.session.commit()
+            
+            flash(f'Category "{name}" added successfully!', 'success')
+            return redirect(url_for('categories_management'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding category: {str(e)}', 'danger')
+    
+    return render_template('add_category.html')
+
+@app.route('/categories/<int:category_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_category(category_id):
+    """Edit a category"""
+    
+    category = Category.query.get_or_404(category_id)
+    
+    if request.method == 'POST':
+        try:
+            name = request.form['name'].strip()
+            description = request.form.get('description', '').strip()
+            
+            # Check if another category with this name exists
+            existing_category = Category.query.filter(
+                Category.name == name,
+                Category.id != category_id
+            ).first()
+            
+            if existing_category:
+                flash('Another category with this name already exists!', 'danger')
+                return redirect(url_for('edit_category', category_id=category_id))
+            
+            # Update category
+            category.name = name
+            category.description = description if description else None
+            
+            db.session.commit()
+            
+            flash(f'Category "{name}" updated successfully!', 'success')
+            return redirect(url_for('categories_management'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating category: {str(e)}', 'danger')
+    
+    return render_template('edit_category.html', category=category)
+
+@app.route('/categories/<int:category_id>/delete', methods=['POST'])
+@login_required
+def delete_category(category_id):
+    """Delete a category"""
+    
+    category = Category.query.get_or_404(category_id)
+    
+    try:
+        # Check if category has items
+        item_count = Item.query.filter_by(category_id=category_id).count()
+        
+        if item_count > 0:
+            flash(f'Cannot delete category "{category.name}" because it has {item_count} items. Move or delete the items first.', 'danger')
+            return redirect(url_for('categories_management'))
+        
+        # Delete category
+        db.session.delete(category)
+        db.session.commit()
+        
+        flash(f'Category "{category.name}" deleted successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting category: {str(e)}', 'danger')
+    
+    return redirect(url_for('categories_management'))
+
+@app.route('/categories/<int:category_id>/items')
+@login_required
+def category_items(category_id):
+    """View items in a specific category"""
+    
+    category = Category.query.get_or_404(category_id)
+    
+    # Get filter parameters
+    search = request.args.get('search', '')
+    stock_filter = request.args.get('stock_filter', 'all')  # 'all', 'low_stock', 'out_of_stock'
+    sort_by = request.args.get('sort_by', 'name')
+    page = request.args.get('page', 1, type=int)
+    
+    # Build query
+    query = Item.query.filter_by(category_id=category_id, is_active=True)
+    
+    if search:
+        query = query.filter(Item.name.ilike(f'%{search}%'))
+    
+    if stock_filter == 'low_stock':
+        query = query.filter(Item.stock_quantity <= Item.minimum_stock)
+    elif stock_filter == 'out_of_stock':
+        query = query.filter(Item.stock_quantity == 0)
+    
+    # Apply sorting
+    if sort_by == 'name':
+        query = query.order_by(Item.name)
+    elif sort_by == 'stock':
+        query = query.order_by(Item.stock_quantity.desc())
+    elif sort_by == 'price':
+        query = query.order_by(Item.retail_price.desc())
+    elif sort_by == 'margin':
+        query = query.order_by((Item.retail_price - Item.buying_price).desc())
+    
+    items = query.paginate(page=page, per_page=20, error_out=False)
+    
+    # Get all categories for bulk move functionality
+    categories = Category.query.order_by(Category.name).all()
+    
+    return render_template('category_items.html',
+                         category=category,
+                         items=items,
+                         categories=categories,
+                         search=search,
+                         stock_filter=stock_filter,
+                         sort_by=sort_by)
+
+@app.route('/categories/<int:category_id>/bulk-update', methods=['POST'])
+@login_required
+def bulk_update_category_items(category_id):
+    """Bulk update items in a category"""
+    
+    category = Category.query.get_or_404(category_id)
+    
+    try:
+        action = request.form.get('action')
+        selected_items = request.form.getlist('selected_items')
+        
+        if not selected_items:
+            flash('No items selected!', 'warning')
+            return redirect(url_for('category_items', category_id=category_id))
+        
+        items = Item.query.filter(Item.id.in_(selected_items)).all()
+        
+        if action == 'update_prices':
+            # Bulk price update
+            percentage = float(request.form.get('price_percentage', 0))
+            
+            for item in items:
+                if percentage != 0:
+                    # Update retail price by percentage
+                    new_price = float(item.retail_price) * (1 + percentage / 100)
+                    item.retail_price = round(new_price, 2)
+                    
+                    # Update wholesale price proportionally
+                    if item.wholesale_price:
+                        new_wholesale = float(item.wholesale_price) * (1 + percentage / 100)
+                        item.wholesale_price = round(new_wholesale, 2)
+            
+            flash(f'Updated prices for {len(items)} items by {percentage}%', 'success')
+            
+        elif action == 'move_category':
+            # Move items to another category
+            new_category_id = int(request.form.get('new_category_id'))
+            new_category = Category.query.get(new_category_id)
+            
+            if new_category:
+                for item in items:
+                    item.category_id = new_category_id
+                
+                flash(f'Moved {len(items)} items to "{new_category.name}" category', 'success')
+            else:
+                flash('Invalid category selected!', 'danger')
+                
+        elif action == 'update_status':
+            # Bulk status update
+            new_status = request.form.get('new_status') == 'active'
+            
+            for item in items:
+                item.is_active = new_status
+            
+            status_text = 'activated' if new_status else 'deactivated'
+            flash(f'{status_text.capitalize()} {len(items)} items', 'success')
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating items: {str(e)}', 'danger')
+    
+    return redirect(url_for('category_items', category_id=category_id))
+
 # Call the function to create default data
 with app.app_context():
     create_default_data()
