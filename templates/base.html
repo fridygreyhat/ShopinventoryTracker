@@ -247,34 +247,39 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 20px;
-            border-top: 1px solid #2d3748;
-            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-primary);
         }
 
         .user-info {
             display: flex;
             align-items: center;
             gap: 12px;
-            color: #ffffff;
             padding: 12px;
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: var(--gray-100);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        .user-info:hover {
+            background: var(--gray-200);
+            box-shadow: var(--shadow-sm);
         }
 
         .user-avatar {
-            width: 45px;
-            height: 45px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #64b5f6, #42a5f5);
+            background: var(--primary-color);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             color: white;
-            box-shadow: 0 2px 8px rgba(100, 181, 246, 0.3);
+            box-shadow: var(--shadow-sm);
         }
 
         .user-details {
@@ -285,13 +290,13 @@
         .user-name {
             font-weight: 600;
             font-size: 0.95rem;
-            color: #000000;
+            color: var(--text-primary);
             margin-bottom: 2px;
         }
 
         .user-email {
             font-size: 0.8rem;
-            color: #000000;
+            color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -299,7 +304,7 @@
 
         .user-role {
             font-size: 0.75rem;
-            color: #000000;
+            color: var(--primary-color);
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -376,7 +381,7 @@
             width: calc(100% - var(--sidebar-width));
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             min-height: 100vh;
-            background: #f8fafc;
+            background: var(--bg-secondary);
             max-width: 100%;
             overflow-x: hidden;
             position: relative;
@@ -443,54 +448,88 @@
 
         /* Enhanced Card Styles */
         .card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
         }
 
         .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            border-color: #cbd5e0;
+            box-shadow: var(--shadow-lg);
+            border-color: var(--gray-300);
         }
 
         .card-header {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            border-bottom: 1px solid #e2e8f0;
+            background: var(--gray-100);
+            border-bottom: 1px solid var(--border-color);
             border-radius: 12px 12px 0 0 !important;
-            padding: 20px 25px;
+            padding: 20px 24px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .btn {
             border-radius: 8px;
             font-weight: 500;
             padding: 10px 20px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             border: 1px solid transparent;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+            box-shadow: var(--shadow-sm);
+            font-size: 0.95rem;
         }
 
         .btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-primary {
-            background: #3182ce;
-            border-color: #3182ce;
+            background: var(--primary-color);
+            border-color: var(--primary-color);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #2c5282;
-            border-color: #2c5282;
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: white;
         }
 
         .btn-secondary {
-            background: #718096;
-            border-color: #718096;
+            background: var(--gray-600);
+            border-color: var(--gray-600);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-700);
+            border-color: var(--gray-700);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            border-color: var(--warning-color);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info-color);
+            border-color: var(--info-color);
             color: white;
         }
 
@@ -535,27 +574,28 @@
 
         /* Table enhancements */
         .table {
-            background: #ffffff;
-            border-radius: 8px;
+            background: var(--bg-primary);
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            border: 1px solid #e2e8f0;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
         }
 
         .table thead th {
-            background: #f7fafc;
+            background: var(--gray-100);
             border: none;
-            color: #000000;
+            color: var(--text-primary);
             font-weight: 600;
-            padding: 15px;
-            border-bottom: 2px solid #e2e8f0;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .table tbody td {
             border: none;
-            padding: 12px 15px;
+            padding: 14px 16px;
             vertical-align: middle;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--gray-200);
+            color: var(--text-primary);
         }
 
         .table tbody tr {
@@ -563,39 +603,51 @@
         }
 
         .table tbody tr:hover {
-            background: #f8fafc;
+            background: var(--gray-100);
         }
 
         /* Dashboard metric cards */
         .metric-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 25px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
             text-align: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
         }
 
         .metric-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
-            border-color: #cbd5e0;
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
         }
 
         .metric-value {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #000000;
-            margin-bottom: 10px;
+            color: var(--primary-color);
+            margin-bottom: 8px;
         }
 
         .metric-label {
-            color: #000000;
-            font-weight: 500;
+            color: var(--text-muted);
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         /* Modal enhancements */
