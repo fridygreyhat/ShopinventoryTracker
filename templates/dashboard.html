@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Business Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    <span class="text-muted">Welcome back, {{ current_user.first_name }}!</span>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Items</h6>
+                        <h3 class="card-text">{{ total_items }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-boxes fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Low Stock Items</h6>
+                        <h3 class="card-text">{{ low_stock_items }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Today's Sales</h6>
+                        <h3 class="card-text">${{ "%.2f"|format(today_sales) }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">30-Day Sales</h6>
+                        <h3 class="card-text">${{ "%.2f"|format(recent_sales) }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-cash-register fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Point of Sale</h5>
+                <p class="card-text">Process new sales transactions</p>
+                <a href="{{ url_for('pos') }}" class="btn btn-success">
+                    <i class="fas fa-arrow-right"></i> Open POS
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-plus-circle fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Add Item</h5>
+                <p class="card-text">Add new items to inventory</p>
+                <a href="{{ url_for('add_item') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Item
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                <h5 class="card-title">View Reports</h5>
+                <p class="card-text">Check sales and financial reports</p>
+                <a href="{{ url_for('financial') }}" class="btn btn-info">
+                    <i class="fas fa-chart-bar"></i> View Reports
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-history"></i> Recent Transactions</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_transactions %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Sale #</th>
+                        <th>Total</th>
+                        <th>Payment Method</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in recent_transactions %}
+                    <tr>
+                        <td>{{ sale.sale_number }}</td>
+                        <td>${{ "%.2f"|format(sale.total_amount) }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ sale.payment_method|title }}</span>
+                        </td>
+                        <td>{{ sale.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ sale.status|title }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No recent transactions found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

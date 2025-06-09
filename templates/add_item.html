@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{% if item %}Edit Item{% else %}Add Item{% endif %} - Business Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-{% if item %}edit{% else %}plus{% endif %}"></i>
+        {% if item %}Edit Item{% else %}Add New Item{% endif %}
+    </h1>
+    <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Inventory
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="name" class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ item.name if item else '' }}" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="sku" class="form-label">SKU *</label>
+                            <input type="text" class="form-control" id="sku" name="sku" 
+                                   value="{{ item.sku if item else '' }}" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ item.description if item else '' }}</textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="category_id" class="form-label">Category *</label>
+                            <select class="form-select" id="category_id" name="category_id" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" 
+                                        {% if item and item.category_id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="price" class="form-label">Selling Price *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       step="0.01" min="0" value="{{ item.price if item else '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="cost" class="form-label">Cost Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="cost" name="cost" 
+                                       step="0.01" min="0" value="{{ item.cost if item else '0' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="stock_quantity" class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" 
+                                   min="0" value="{{ item.stock_quantity if item else '0' }}">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="minimum_stock" class="form-label">Minimum Stock Level</label>
+                            <input type="number" class="form-control" id="minimum_stock" name="minimum_stock" 
+                                   min="0" value="{{ item.minimum_stock if item else '0' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if item %}Update Item{% else %}Add Item{% endif %}
+                            </button>
+                            <a href="{{ url_for('inventory') }}" class="btn btn-secondary ms-2">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if item %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Item Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Created:</strong> {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Last Updated:</strong> {{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    {% if item.profit_margin > 0 %}
+                    <div class="col-md-6 mt-2">
+                        <strong>Profit Margin:</strong> {{ "%.1f"|format(item.profit_margin) }}%
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
