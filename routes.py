@@ -447,6 +447,7 @@ def process_sale():
         db.session.flush()  # Get the sale ID
         
         # Process cart items
+        sold_item_ids = []
         for cart_item in cart_items:
             item = Item.query.get(cart_item['id'])
             if not item or item.stock_quantity < cart_item['quantity']:
@@ -470,6 +471,7 @@ def process_sale():
             
             # Update stock
             item.stock_quantity -= quantity
+            sold_item_ids.append(item.id)
             
             # Create stock movement
             stock_movement = StockMovement(
@@ -518,6 +520,13 @@ def process_sale():
                 sale.payment_status = 'partial'
         
         db.session.commit()
+        
+        # Check for low stock alerts after successful sale
+        try:
+            from notification_service import NotificationService
+            NotificationService.check_stock_after_sale(current_user.id, sold_item_ids)
+        except Exception as e:
+            logging.error(f"Error checking post-sale notifications: {str(e)}")
         
         flash(f'Sale {sale_number} completed successfully! Total: ${total_amount:.2f}', 'success')
         
