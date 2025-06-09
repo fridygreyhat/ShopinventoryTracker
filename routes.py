@@ -1665,6 +1665,172 @@ def update_order_status(order_id):
     
     return redirect(url_for('on_demand_orders'))
 
+@app.route('/profit-margin-analysis')
+@login_required
+def profit_margin_analysis():
+    """Comprehensive profit margin analysis dashboard"""
+    
+    # Get filter parameters
+    category_id = request.args.get('category_id', type=int)
+    date_range = request.args.get('date_range', '30')  # days
+    sort_by = request.args.get('sort_by', 'profit_margin')
+    
+    # Calculate date range
+    end_date = datetime.utcnow()
+    if date_range == '7':
+        start_date = end_date - timedelta(days=7)
+    elif date_range == '30':
+        start_date = end_date - timedelta(days=30)
+    elif date_range == '90':
+        start_date = end_date - timedelta(days=90)
+    elif date_range == '365':
+        start_date = end_date - timedelta(days=365)
+    else:
+        start_date = end_date - timedelta(days=30)
+    
+    # Get inventory items with profit calculations
+    query = Item.query.filter_by(user_id=current_user.id, is_active=True)
+    
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    
+    items = query.all()
+    
+    # Calculate profit metrics for each item
+    profit_analysis = []
+    total_inventory_value = 0
+    total_potential_profit = 0
+    total_sold_profit = 0
+    total_expenses = 0
+    
+    for item in items:
+        # Basic profit calculations
+        buying_price = float(item.buying_price or 0)
+        wholesale_price = float(item.wholesale_price or 0)
+        retail_price = float(item.retail_price or 0)
+        current_stock = item.stock_quantity
+        
+        # Calculate margins
+        wholesale_margin = ((wholesale_price - buying_price) / buying_price * 100) if buying_price > 0 else 0
+        retail_margin = ((retail_price - buying_price) / buying_price * 100) if buying_price > 0 else 0
+        
+        # Get sales data for this period
+        sales_query = db.session.query(SaleItem).join(Sale).filter(
+            SaleItem.item_id == item.id,
+            Sale.user_id == current_user.id,
+            Sale.created_at >= start_date,
+            Sale.created_at <= end_date
+        )
+        
+        sales_data = sales_query.all()
+        units_sold = sum(sale_item.quantity for sale_item in sales_data)
+        revenue = sum(float(sale_item.total_price) for sale_item in sales_data)
+        cost_of_goods_sold = units_sold * buying_price
+        actual_profit = revenue - cost_of_goods_sold
+        
+        # Calculate inventory metrics
+        inventory_value = current_stock * buying_price
+        potential_retail_profit = current_stock * (retail_price - buying_price)
+        potential_wholesale_profit = current_stock * (wholesale_price - buying_price)
+        
+        # Turnover rate
+        turnover_rate = (units_sold / current_stock * 100) if current_stock > 0 else 0
+        
+        profit_analysis.append({
+            'item': item,
+            'buying_price': buying_price,
+            'wholesale_price': wholesale_price,
+            'retail_price': retail_price,
+            'wholesale_margin': wholesale_margin,
+            'retail_margin': retail_margin,
+            'current_stock': current_stock,
+            'units_sold': units_sold,
+            'revenue': revenue,
+            'cost_of_goods_sold': cost_of_goods_sold,
+            'actual_profit': actual_profit,
+            'inventory_value': inventory_value,
+            'potential_retail_profit': potential_retail_profit,
+            'potential_wholesale_profit': potential_wholesale_profit,
+            'turnover_rate': turnover_rate,
+            'profit_per_unit_retail': retail_price - buying_price,
+            'profit_per_unit_wholesale': wholesale_price - buying_price
+        })
+        
+        total_inventory_value += inventory_value
+        total_potential_profit += potential_retail_profit
+        total_sold_profit += actual_profit
+    
+    # Get expenses for the period
+    expenses_query = FinancialTransaction.query.filter_by(
+        user_id=current_user.id,
+        transaction_type='expense'
+    ).filter(
+        FinancialTransaction.created_at >= start_date,
+        FinancialTransaction.created_at <= end_date
+    )
+    
+    expenses = expenses_query.all()
+    total_expenses = sum(float(expense.amount) for expense in expenses)
+    
+    # Sort analysis based on user preference
+    if sort_by == 'profit_margin':
+        profit_analysis.sort(key=lambda x: x['retail_margin'], reverse=True)
+    elif sort_by == 'actual_profit':
+        profit_analysis.sort(key=lambda x: x['actual_profit'], reverse=True)
+    elif sort_by == 'turnover':
+        profit_analysis.sort(key=lambda x: x['turnover_rate'], reverse=True)
+    elif sort_by == 'inventory_value':
+        profit_analysis.sort(key=lambda x: x['inventory_value'], reverse=True)
+    
+    # Calculate overall metrics
+    net_profit = total_sold_profit - total_expenses
+    overall_margin = (total_sold_profit / (total_sold_profit + total_expenses) * 100) if (total_sold_profit + total_expenses) > 0 else 0
+    
+    # Top performing items
+    top_profit_items = sorted(profit_analysis, key=lambda x: x['actual_profit'], reverse=True)[:5]
+    top_margin_items = sorted(profit_analysis, key=lambda x: x['retail_margin'], reverse=True)[:5]
+    low_margin_items = sorted(profit_analysis, key=lambda x: x['retail_margin'])[:5]
+    
+    # Category breakdown
+    category_analysis = {}
+    for analysis in profit_analysis:
+        category_name = analysis['item'].category.name if analysis['item'].category else 'Uncategorized'
+        if category_name not in category_analysis:
+            category_analysis[category_name] = {
+                'total_profit': 0,
+                'total_revenue': 0,
+                'total_inventory_value': 0,
+                'item_count': 0
+            }
+        
+        category_analysis[category_name]['total_profit'] += analysis['actual_profit']
+        category_analysis[category_name]['total_revenue'] += analysis['revenue']
+        category_analysis[category_name]['total_inventory_value'] += analysis['inventory_value']
+        category_analysis[category_name]['item_count'] += 1
+    
+    # Get all categories for filter
+    categories = Category.query.order_by(Category.name).all()
+    
+    return render_template('profit_analysis.html',
+        profit_analysis=profit_analysis,
+        categories=categories,
+        category_id=category_id,
+        date_range=date_range,
+        sort_by=sort_by,
+        total_inventory_value=total_inventory_value,
+        total_potential_profit=total_potential_profit,
+        total_sold_profit=total_sold_profit,
+        total_expenses=total_expenses,
+        net_profit=net_profit,
+        overall_margin=overall_margin,
+        top_profit_items=top_profit_items,
+        top_margin_items=top_margin_items,
+        low_margin_items=low_margin_items,
+        category_analysis=category_analysis,
+        start_date=start_date,
+        end_date=end_date
+    )
+
 # Call the function to create default data
 with app.app_context():
     create_default_data()
