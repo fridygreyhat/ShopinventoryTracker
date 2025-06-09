@@ -11,8 +11,9 @@ from models import (User, Category, Item, Sale, SaleItem, StockMovement, Financi
                     Customer, CustomerPurchaseHistory, LoyaltyTransaction)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
-# Import PostgreSQL authentication
-import auth
+# Register authentication blueprint
+from auth import auth_bp
+app.register_blueprint(auth_bp)
 
 # Import language routes
 from language_routes import language_bp
@@ -24,33 +25,7 @@ def index():
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        
-        # Validate email format
-        email_valid, email_error = validate_email_format(email)
-        if not email_valid:
-            flash(email_error, 'danger')
-            return render_template('login.html')
-        
-        # Authenticate user using enhanced auth service
-        user = authenticate_user(email, password)
-        
-        if user:
-            login_user(user, remember=True)
-            next_page = request.args.get('next')
-            flash(f'Welcome back, {user.first_name or user.username}!', 'success')
-            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
-        else:
-            flash('Invalid email or password', 'danger')
-    
-    return render_template('login.html')
+# Login route handled by auth blueprint
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
