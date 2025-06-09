@@ -439,7 +439,6 @@ def clear_cart():
     return jsonify({'success': True, 'message': 'Cart cleared'})
 
 # Initialize default data
-@app.before_first_request
 def create_default_data():
     # Create default admin user if no users exist
     if User.query.count() == 0:
@@ -466,3 +465,7 @@ def create_default_data():
         
         db.session.commit()
         logging.info("Default admin user and categories created")
+
+# Call the function to create default data
+with app.app_context():
+    create_default_data()
