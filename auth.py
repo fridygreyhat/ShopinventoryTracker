@@ -48,6 +48,10 @@ def login():
                 flash('Your account has been deactivated. Please contact support.', 'error')
                 return render_template('auth/login.html')
             
+            if not user.email_verified:
+                flash('Please verify your email address before logging in. Check your email for the verification link.', 'warning')
+                return redirect(url_for('postgresql_auth.verification_sent', email=user.email))
+            
             login_user(user, remember=remember)
             next_page = request.args.get('next')
             if next_page:
@@ -126,15 +130,19 @@ def register():
                 role='user'
             )
             user.set_password(password)
+            user.email_verified = False  # Email not verified yet
+            
+            # Generate email verification token
+            verification_token = user.generate_email_verification_token()
             
             db.session.add(user)
             db.session.commit()
             
-            # Send welcome email
-            EmailService.send_welcome_email(user)
+            # Send email verification email
+            EmailService.send_verification_email(user, verification_token)
             
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('postgresql_auth.login'))
+            flash('Registration successful! Please check your email to verify your account before logging in.', 'success')
+            return redirect(url_for('postgresql_auth.verification_sent', email=email))
             
         except Exception as e:
             db.session.rollback()

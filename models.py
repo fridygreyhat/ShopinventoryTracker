@@ -44,6 +44,10 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(255), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)
     
+    # Email Verification
+    email_verification_token = db.Column(db.String(255), nullable=True)
+    email_verification_token_expires = db.Column(db.DateTime, nullable=True)
+    
     # Permissions
     permissions = db.Column(db.Text, nullable=True)  # JSON string of permissions
     last_login = db.Column(db.DateTime, nullable=True)
@@ -160,6 +164,24 @@ class User(UserMixin, db.Model):
             
         subuser_perms = self.get_subuser_permissions()
         return permission in subuser_perms
+    
+    def generate_email_verification_token(self):
+        """Generate email verification token"""
+        import secrets
+        self.email_verification_token = secrets.token_urlsafe(32)
+        self.email_verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+        return self.email_verification_token
+    
+    def verify_email_token(self, token):
+        """Verify email verification token"""
+        if (self.email_verification_token == token and 
+            self.email_verification_token_expires and 
+            datetime.utcnow() < self.email_verification_token_expires):
+            self.email_verified = True
+            self.email_verification_token = None
+            self.email_verification_token_expires = None
+            return True
+        return False
     
     def get_all_subusers(self):
         """Get all subusers for this user"""
