@@ -65,8 +65,11 @@ class Item(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     sku = db.Column(db.String(50), unique=True, nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    cost = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    buying_price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    wholesale_price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    retail_price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    price = db.Column(db.Numeric(10, 2), nullable=False)  # Default selling price
+    cost = db.Column(db.Numeric(10, 2), nullable=False, default=0)  # Legacy field
     stock_quantity = db.Column(db.Integer, nullable=False, default=0)
     minimum_stock = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)

@@ -157,6 +157,9 @@ def add_item():
                 name=request.form['name'],
                 description=request.form.get('description', ''),
                 sku=request.form['sku'],
+                buying_price=Decimal(request.form['buying_price']),
+                wholesale_price=Decimal(request.form['wholesale_price']),
+                retail_price=Decimal(request.form['retail_price']),
                 price=Decimal(request.form['price']),
                 cost=Decimal(request.form.get('cost', 0)),
                 stock_quantity=int(request.form.get('stock_quantity', 0)),
@@ -199,6 +202,9 @@ def edit_item(item_id):
             item.name = request.form['name']
             item.description = request.form.get('description', '')
             item.sku = request.form['sku']
+            item.buying_price = Decimal(request.form['buying_price'])
+            item.wholesale_price = Decimal(request.form['wholesale_price'])
+            item.retail_price = Decimal(request.form['retail_price'])
             item.price = Decimal(request.form['price'])
             item.cost = Decimal(request.form.get('cost', 0))
             item.minimum_stock = int(request.form.get('minimum_stock', 0))
