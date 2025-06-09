@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Register - Business Management{% endblock %}
+{% block title %}{{ g.t('register') }} - {{ g.t('business_management') }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -10,7 +10,7 @@
                 <div class="card-header bg-success text-white text-center py-3">
                     <h4 class="mb-0">
                         <i class="fas fa-user-plus"></i>
-                        Create Your Account
+                        {{ g.t('create_account') }}
                     </h4>
                 </div>
                 <div class="card-body p-4">
@@ -33,26 +33,26 @@
                             <div class="col-md-6 mb-3">
                                 <label for="first_name" class="form-label">
                                     <i class="fas fa-user"></i>
-                                    First Name *
+                                    {{ g.t('first_name') }} *
                                 </label>
                                 <input type="text" 
                                        class="form-control" 
                                        id="first_name" 
                                        name="first_name" 
-                                       placeholder="Enter your first name"
+                                       placeholder="{{ g.t('first_name') }}"
                                        value="{{ request.form.first_name or '' }}"
                                        required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="last_name" class="form-label">
                                     <i class="fas fa-user"></i>
-                                    Last Name *
+                                    {{ g.t('last_name') }} *
                                 </label>
                                 <input type="text" 
                                        class="form-control" 
                                        id="last_name" 
                                        name="last_name" 
-                                       placeholder="Enter your last name"
+                                       placeholder="{{ g.t('last_name') }}"
                                        value="{{ request.form.last_name or '' }}"
                                        required>
                             </div>
@@ -61,13 +61,13 @@
                         <div class="mb-3">
                             <label for="email" class="form-label">
                                 <i class="fas fa-envelope"></i>
-                                Email Address *
+                                {{ g.t('email') }} *
                             </label>
                             <input type="email" 
                                    class="form-control" 
                                    id="email" 
                                    name="email" 
-                                   placeholder="Enter your email address"
+                                   placeholder="{{ g.t('email') }}"
                                    value="{{ request.form.email or '' }}"
                                    required>
                         </div>
@@ -75,26 +75,26 @@
                         <div class="mb-3">
                             <label for="shop_name" class="form-label">
                                 <i class="fas fa-store"></i>
-                                Business/Shop Name
+                                {{ g.t('business_name') }}
                             </label>
                             <input type="text" 
                                    class="form-control" 
                                    id="shop_name" 
                                    name="shop_name" 
-                                   placeholder="Enter your business name"
+                                   placeholder="{{ g.t('business_name') }}"
                                    value="{{ request.form.shop_name or '' }}">
                         </div>
 
                         <div class="mb-3">
                             <label for="phone" class="form-label">
                                 <i class="fas fa-phone"></i>
-                                Phone Number
+                                {{ g.t('phone_number') }}
                             </label>
                             <input type="tel" 
                                    class="form-control" 
                                    id="phone" 
                                    name="phone" 
-                                   placeholder="Enter your phone number"
+                                   placeholder="{{ g.t('phone_number') }}"
                                    value="{{ request.form.phone or '' }}">
                         </div>
 
@@ -102,28 +102,28 @@
                             <div class="col-md-6 mb-3">
                                 <label for="password" class="form-label">
                                     <i class="fas fa-lock"></i>
-                                    Password *
+                                    {{ g.t('password') }} *
                                 </label>
                                 <input type="password" 
                                        class="form-control" 
                                        id="password" 
                                        name="password" 
-                                       placeholder="Create a password"
+                                       placeholder="{{ g.t('password') }}"
                                        required>
                                 <div class="form-text">
-                                    <small>Must be at least 8 characters with letters and numbers</small>
+                                    <small>{{ g.t('password_too_short') }}</small>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="confirm_password" class="form-label">
                                     <i class="fas fa-lock"></i>
-                                    Confirm Password *
+                                    {{ g.t('confirm_password') }} *
                                 </label>
                                 <input type="password" 
                                        class="form-control" 
                                        id="confirm_password" 
                                        name="confirm_password" 
-                                       placeholder="Confirm your password"
+                                       placeholder="{{ g.t('confirm_password') }}"
                                        required>
                             </div>
                         </div>
@@ -131,16 +131,16 @@
                         <div class="d-grid mb-3">
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-user-plus"></i>
-                                Create Account
+                                {{ g.t('create_account') }}
                             </button>
                         </div>
                     </form>
 
                     <div class="text-center">
                         <p class="mb-0">
-                            Already have an account? 
+                            {{ g.t('already_have_account') }}
                             <a href="{{ url_for('auth.login') }}" class="text-success text-decoration-none">
-                                <strong>Sign in here</strong>
+                                <strong>{{ g.t('sign_in_here') }}</strong>
                             </a>
                         </p>
                     </div>
@@ -162,7 +162,7 @@
         const confirmPassword = this.value;
         
         if (password !== confirmPassword) {
-            this.setCustomValidity('Passwords do not match');
+            this.setCustomValidity('{{ g.t("passwords_dont_match") }}');
         } else {
             this.setCustomValidity('');
         }

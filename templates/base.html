@@ -354,78 +354,105 @@
                     </div>
                 </li>
 
+                <!-- Language Selector -->
+                <li class="nav-section">
+                    <div class="nav-section-title">{{ g.t('language') }}</div>
+                    <div class="nav-item">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary btn-sm dropdown-toggle w-100" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-globe"></i>
+                                <span>
+                                    {% if g.current_language == 'sw' %}
+                                        Kiswahili
+                                    {% else %}
+                                        English
+                                    {% endif %}
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="languageDropdown">
+                                <li><a class="dropdown-item" href="{{ url_for('language.switch_language', language_code='en') }}">
+                                    <i class="fas fa-flag-usa"></i> English
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('language.switch_language', language_code='sw') }}">
+                                    <i class="fas fa-flag"></i> Kiswahili
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </li>
+
                 <!-- Inventory Section -->
                 <li class="nav-section">
-                    <div class="nav-section-title">Inventory</div>
+                    <div class="nav-section-title">{{ g.t('inventory') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('inventory') }}">
                             <i class="fas fa-boxes"></i>
-                            <span>Items</span>
-                            <div class="nav-tooltip">Inventory Items</div>
+                            <span>{{ g.t('inventory') }}</span>
+                            <div class="nav-tooltip">{{ g.t('inventory') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('locations') }}">
                             <i class="fas fa-map-marker-alt"></i>
-                            <span>Locations</span>
-                            <div class="nav-tooltip">Store Locations</div>
+                            <span>{{ g.t('locations') }}</span>
+                            <div class="nav-tooltip">{{ g.t('locations') }}</div>
                         </a>
                     </div>
                 </li>
 
                 <!-- Sales Section -->
                 <li class="nav-section">
-                    <div class="nav-section-title">Sales</div>
+                    <div class="nav-section-title">{{ g.t('sales') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('new_sale') }}">
                             <i class="fas fa-plus-circle"></i>
-                            <span>New Sale</span>
-                            <div class="nav-tooltip">Create New Sale</div>
+                            <span>{{ g.t('new_sale') }}</span>
+                            <div class="nav-tooltip">{{ g.t('new_sale') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('sales') }}">
                             <i class="fas fa-shopping-cart"></i>
-                            <span>Sales History</span>
-                            <div class="nav-tooltip">View Sales</div>
+                            <span>{{ g.t('sale_history') }}</span>
+                            <div class="nav-tooltip">{{ g.t('sale_history') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('customers') }}">
                             <i class="fas fa-user-friends"></i>
-                            <span>Customers</span>
-                            <div class="nav-tooltip">Manage Customers</div>
+                            <span>{{ g.t('customers') }}</span>
+                            <div class="nav-tooltip">{{ g.t('customers') }}</div>
                         </a>
                     </div>
                 </li>
 
                 <!-- Financial Section -->
                 <li class="nav-section">
-                    <div class="nav-section-title">Financial</div>
+                    <div class="nav-section-title">{{ g.t('financial') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('financial') }}">
                             <i class="fas fa-dollar-sign"></i>
-                            <span>Overview</span>
-                            <div class="nav-tooltip">Financial Overview</div>
+                            <span>{{ g.t('financial') }}</span>
+                            <div class="nav-tooltip">{{ g.t('financial') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('accounting_dashboard') }}">
                             <i class="fas fa-calculator"></i>
-                            <span>Accounting</span>
-                            <div class="nav-tooltip">Accounting Dashboard</div>
+                            <span>{{ g.t('accounts') }}</span>
+                            <div class="nav-tooltip">{{ g.t('accounts') }}</div>
                         </a>
                     </div>
                 </li>
 
-                <!-- Automation Section -->
+                <!-- Reports Section -->
                 <li class="nav-section">
-                    <div class="nav-section-title">Automation</div>
+                    <div class="nav-section-title">{{ g.t('reports') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('automation_dashboard') }}">
-                            <i class="fas fa-robot"></i>
-                            <span>Smart Tools</span>
-                            <div class="nav-tooltip">Automation Dashboard</div>
+                            <i class="fas fa-chart-bar"></i>
+                            <span>{{ g.t('reports') }}</span>
+                            <div class="nav-tooltip">{{ g.t('reports') }}</div>
                         </a>
                     </div>
                 </li>
@@ -433,12 +460,12 @@
                 <!-- Admin Section -->
                 {% if current_user.is_admin %}
                 <li class="nav-section">
-                    <div class="nav-section-title">Administration</div>
+                    <div class="nav-section-title">{{ g.t('settings') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('users') }}">
                             <i class="fas fa-users"></i>
-                            <span>User Management</span>
-                            <div class="nav-tooltip">Manage Users</div>
+                            <span>{{ g.t('settings') }}</span>
+                            <div class="nav-tooltip">{{ g.t('settings') }}</div>
                         </a>
                     </div>
                 </li>
@@ -446,19 +473,19 @@
 
                 <!-- Account Section -->
                 <li class="nav-section">
-                    <div class="nav-section-title">Account</div>
+                    <div class="nav-section-title">{{ g.t('profile') }}</div>
                     <div class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.profile') }}">
                             <i class="fas fa-user-circle"></i>
-                            <span>Profile</span>
-                            <div class="nav-tooltip">View Profile</div>
+                            <span>{{ g.t('profile') }}</span>
+                            <div class="nav-tooltip">{{ g.t('profile') }}</div>
                         </a>
                     </div>
                     <div class="nav-item">
                         <a class="nav-link logout-link" href="{{ url_for('auth.logout') }}">
                             <i class="fas fa-sign-out-alt"></i>
-                            <span>Logout</span>
-                            <div class="nav-tooltip">Sign Out</div>
+                            <span>{{ g.t('logout') }}</span>
+                            <div class="nav-tooltip">{{ g.t('logout') }}</div>
                         </a>
                     </div>
                 </li>
