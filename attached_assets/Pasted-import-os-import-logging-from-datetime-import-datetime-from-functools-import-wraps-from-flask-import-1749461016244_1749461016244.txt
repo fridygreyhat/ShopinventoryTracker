@@ -31,7 +31,7 @@ def authenticate_user(email, password):
             return None
 
         # Check if user is active
-        if not user.is_active:
+        if not getattr(user, 'active', True):
             logger.warning(f"User account is inactive: {email}")
             return None
 

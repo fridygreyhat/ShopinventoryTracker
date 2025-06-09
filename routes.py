@@ -6,6 +6,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import func, desc, and_, or_
 from app import app, db
 from models import User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, Location, LocationStock, StockTransfer, StockTransferItem
+from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 @app.route('/')
 def index():
@@ -15,21 +16,83 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
         
-        user = User.query.filter_by(username=username).first()
+        # Validate email format
+        email_valid, email_error = validate_email_format(email)
+        if not email_valid:
+            flash(email_error, 'danger')
+            return render_template('login.html')
         
-        if user and user.check_password(password) and user.is_active:
+        # Authenticate user using enhanced auth service
+        user = authenticate_user(email, password)
+        
+        if user:
             login_user(user, remember=True)
             next_page = request.args.get('next')
-            flash(f'Welcome back, {user.first_name}!', 'success')
+            flash(f'Welcome back, {user.first_name or user.username}!', 'success')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password, or account is inactive.', 'danger')
+            flash('Invalid email or password', 'danger')
     
     return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        shop_name = request.form.get('shop_name', '').strip()
+        
+        # Validate password confirmation
+        if password != confirm_password:
+            flash('Passwords do not match', 'danger')
+            return render_template('register.html')
+        
+        # Prepare user data
+        user_data = {
+            'email': email,
+            'password': password
+        }
+        
+        extra_data = {
+            'firstName': first_name,
+            'lastName': last_name,
+            'shopName': shop_name
+        }
+        
+        # Create user using enhanced auth service
+        user, error = create_or_update_user(user_data, extra_data)
+        
+        if user:
+            # Create default location for new user
+            default_location = Location(
+                name=shop_name or 'Main Store',
+                address='',
+                location_type='store',
+                user_id=user.id
+            )
+            db.session.add(default_location)
+            db.session.commit()
+            
+            login_user(user)
+            flash('Account created successfully! Welcome to your business management system.', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash(error, 'danger')
+    
+    return render_template('register.html')
 
 @app.route('/logout')
 @login_required
