@@ -75,6 +75,7 @@ class Item(db.Model):
     minimum_stock = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
