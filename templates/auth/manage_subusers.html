@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Subusers - Settings{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Manage Subusers</h2>
+                    <p class="text-muted mb-0">Create and manage user accounts with limited permissions</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('postgresql_auth.settings') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Settings
+                    </a>
+                    <a href="{{ url_for('postgresql_auth.create_subuser') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Subuser
+                    </a>
+                </div>
+            </div>
+
+            {% if subusers %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>Subusers ({{ subusers|length }})
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Permissions</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subuser in subusers %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                <span class="text-white fw-bold">
+                                                    {{ (subuser.first_name[:1] + subuser.last_name[:1])|upper if subuser.first_name and subuser.last_name else subuser.username[:2]|upper }}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <div class="fw-medium">{{ subuser.first_name }} {{ subuser.last_name }}</div>
+                                                {% if subuser.last_login %}
+                                                <small class="text-muted">Last login: {{ subuser.last_login.strftime('%Y-%m-%d %H:%M') }}</small>
+                                                {% else %}
+                                                <small class="text-muted">Never logged in</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <code>{{ subuser.username }}</code>
+                                    </td>
+                                    <td>{{ subuser.email }}</td>
+                                    <td>
+                                        {% if subuser.active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set permissions = subuser.get_subuser_permissions() %}
+                                        {% if permissions %}
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for perm in permissions[:3] %}
+                                            <span class="badge bg-info">{{ perm.replace('_', ' ').title() }}</span>
+                                            {% endfor %}
+                                            {% if permissions|length > 3 %}
+                                            <span class="badge bg-secondary">+{{ permissions|length - 3 }} more</span>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">No permissions</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ subuser.created_at.strftime('%Y-%m-%d') if subuser.created_at else 'Unknown' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('postgresql_auth.edit_subuser', subuser_id=subuser.id) }}" 
+                                               class="btn btn-outline-primary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="confirmDelete('{{ subuser.username }}', {{ subuser.id }})" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-users fa-3x text-muted"></i>
+                    </div>
+                    <h4>No Subusers Created</h4>
+                    <p class="text-muted mb-4">Create subuser accounts to give limited access to your team members</p>
+                    <a href="{{ url_for('postgresql_auth.create_subuser') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create First Subuser
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Information Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>About Subuser Management
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>What are Subusers?</h6>
+                            <p class="text-muted small mb-3">
+                                Subusers are additional user accounts with limited permissions that you can create for your team members or employees.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Permission Control</h6>
+                            <p class="text-muted small mb-3">
+                                Each subuser can be assigned specific permissions to control what features and data they can access.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Data Isolation</h6>
+                            <p class="text-muted small mb-0">
+                                Subusers operate within your business context and can only access data that belongs to your account.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Security</h6>
+                            <p class="text-muted small mb-0">
+                                All subuser activities are logged and can be monitored through the audit logs in your admin portal.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the subuser <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger small mb-0">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    This action cannot be undone. The subuser will lose access immediately.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Subuser
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(username, subuserID) {
+    document.getElementById('deleteUsername').textContent = username;
+    document.getElementById('deleteForm').action = `/auth/settings/subusers/${subuserID}/delete`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+
+<style>
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %}

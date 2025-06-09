@@ -264,7 +264,7 @@
                     {% block page_title %}Dashboard{% endblock %}
                 </h1>
             </div>
-            
+
             <!-- Top-right controls -->
             <div class="top-bar-controls">
                 {% if session.get('user_id') %}
@@ -312,7 +312,7 @@
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item text-danger" href="#" data-logout>
+                                    <a class="dropdown-item text-danger" href="#" data-logout onclick="return false;">
                                         <i class="fas fa-sign-out-alt me-2"></i> Logout
                                     </a>
                                 </li>

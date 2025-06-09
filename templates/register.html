@@ -1,326 +1,89 @@
-{% extends 'layout.html' %}
+{% extends "base.html" %}
+
+{% block title %}Register - Business Management System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
-        <div class="auth-card my-5">
+        <div class="card">
+            <div class="card-header text-center">
+                <h3><i class="fas fa-user-plus"></i> Create Account</h3>
+                <p class="text-muted mb-0">Start managing your business today</p>
+            </div>
             <div class="card-body">
-                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="auth-logo">
-                <h1 class="auth-heading">Create Account</h1>
-                <p class="auth-subheading">Set up your inventory management system</p>
-
-                <div id="register-form">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}" role="alert">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-
-                    <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
-
-                    <form id="registerForm" method="POST">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="firstName" class="form-label">First Name</label>
-                                    <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter your first name">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="lastName" class="form-label">Last Name</label>
-                                    <input type="text" class="form-control" id="lastName" name="lastName" placeholder="Enter your last name">
-                                </div>
-                            </div>
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required>
                         </div>
-
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email *</label>
-                            <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email" required>
+                        
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
                         </div>
-
-                        <div class="mb-3">
+                        
+                        <div class="col-12">
+                            <label for="email" class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="form-text">This will be your login email</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="shop_name" class="form-label">Business/Shop Name</label>
+                            <input type="text" class="form-control" id="shop_name" name="shop_name" placeholder="Optional">
+                            <div class="form-text">This will be used as your main location name</div>
+                        </div>
+                        
+                        <div class="col-md-6">
                             <label for="password" class="form-label">Password *</label>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Create a password" required minlength="6">
-                            <div class="form-text">Password must be at least 6 characters long</div>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                            <div class="form-text">Minimum 6 characters</div>
                         </div>
-
-                        <div class="mb-3">
-                            <label for="confirmPassword" class="form-label">Confirm Password *</label>
-                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" required>
+                        
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label">Confirm Password *</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6">
                         </div>
-
-                        <div class="mb-3">
-                            <label for="shopName" class="form-label">Shop/Business Name</label>
-                            <input type="text" class="form-control" id="shopName" name="shopName" placeholder="Enter your shop name">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="productCategories" class="form-label">Product Categories</label>
-                            <input type="text" class="form-control" id="productCategories" name="productCategories" placeholder="e.g., Electronics, Clothing, Food">
-                            <div class="form-text">Separate multiple categories with commas</div>
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" id="register-button" class="btn btn-primary">Create Account</button>
-                        </div>
-                    </form>
-
-                    <div class="text-center mt-3">
-                        <a href="{{ url_for('login') }}" class="auth-link">Already have an account? Sign in</a>
                     </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-4 text-center">
+                    <p class="mb-0">
+                        <a href="{{ url_for('login') }}" class="text-decoration-none">
+                            Already have an account? Login here
+                        </a>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-    // Elements
-    const registerForm = document.getElementById('registerForm');
-    const registerButton = document.getElementById('register-button');
-    const errorDiv = document.getElementById('auth-error');
-
-    // Enhanced form validation
-    function validateForm(data) {
-        const errors = [];
-        
-        // Email validation
-        if (!data.email || data.email.trim().length === 0) {
-            errors.push('Email address is required');
-        } else {
-            const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-            if (!emailRegex.test(data.email.trim())) {
-                errors.push('Please enter a valid email address');
-            } else if (data.email.length > 320) {
-                errors.push('Email address is too long');
-            }
-        }
-        
-        // Password validation
-        if (!data.password) {
-            errors.push('Password is required');
-        } else if (data.password.length < 6) {
-            errors.push('Password must be at least 6 characters long');
-        } else if (data.password.length > 128) {
-            errors.push('Password is too long (maximum 128 characters)');
-        }
-        
-        // Password confirmation validation
-        if (!data.confirmPassword) {
-            errors.push('Password confirmation is required');
-        } else if (data.password !== data.confirmPassword) {
-            errors.push('Passwords do not match');
-        }
-        
-        // Optional field length validation
-        if (data.firstName && data.firstName.length > 64) {
-            errors.push('First name is too long (maximum 64 characters)');
-        }
-        if (data.lastName && data.lastName.length > 64) {
-            errors.push('Last name is too long (maximum 64 characters)');
-        }
-        if (data.shopName && data.shopName.length > 128) {
-            errors.push('Shop name is too long (maximum 128 characters)');
-        }
-        if (data.productCategories && data.productCategories.length > 512) {
-            errors.push('Product categories is too long (maximum 512 characters)');
-        }
-        
-        return errors;
-    }
-
-    // Register form submit handler with enhanced validation
-    if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            try {
-                const formData = new FormData(registerForm);
-                const data = Object.fromEntries(formData);
-
-                // Client-side validation
-                const validationErrors = validateForm(data);
-                if (validationErrors.length > 0) {
-                    showError(validationErrors.join('; '));
-                    return;
-                }
-
-                // Show loading state
-                if (registerButton) {
-                    registerButton.disabled = true;
-                    registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating Account...';
-                }
-
-                // Submit registration request
-                const response = await fetch('/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        // Show success message briefly before redirect
-                        showSuccess(result.message || 'Registration successful! Redirecting...');
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 1000);
-                    } else {
-                        showError(result.error || 'Registration failed');
-                    }
-                } else {
-                    const errorData = await response.json();
-                    const errorMessage = errorData.error || 'Registration failed';
-                    showError(errorMessage);
-                }
-
-            } catch (error) {
-                console.error('Registration error:', error);
-                showError('Network error. Please check your connection and try again.');
-            } finally {
-                // Reset button state
-                if (registerButton) {
-                    registerButton.disabled = false;
-                    registerButton.innerHTML = 'Create Account';
-                }
-            }
-        });
+// Password confirmation validation
+document.getElementById('confirm_password').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = this.value;
+    
+    if (password !== confirmPassword) {
+        this.setCustomValidity('Passwords do not match');
     } else {
-        console.error('Register form not found');
+        this.setCustomValidity('');
     }
+});
 
-    // Enhanced error and success message functions
-    function showError(message) {
-        hideMessages();
-        if (errorDiv) {
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('d-none');
-            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            console.error('Error div not found, creating temporary alert');
-            createTemporaryAlert(message, 'danger');
-        }
+document.getElementById('password').addEventListener('input', function() {
+    const confirmPassword = document.getElementById('confirm_password');
+    if (confirmPassword.value) {
+        confirmPassword.dispatchEvent(new Event('input'));
     }
-    
-    function showSuccess(message) {
-        hideMessages();
-        // Create or find success div
-        let successDiv = document.getElementById('auth-success');
-        if (!successDiv) {
-            successDiv = document.createElement('div');
-            successDiv.id = 'auth-success';
-            successDiv.className = 'alert alert-success';
-            successDiv.setAttribute('role', 'alert');
-            if (errorDiv && errorDiv.parentNode) {
-                errorDiv.parentNode.insertBefore(successDiv, errorDiv);
-            } else {
-                const formContainer = document.getElementById('register-form');
-                if (formContainer) {
-                    formContainer.insertBefore(successDiv, formContainer.firstChild);
-                }
-            }
-        }
-        successDiv.textContent = message;
-        successDiv.classList.remove('d-none');
-        successDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    
-    function hideMessages() {
-        if (errorDiv) {
-            errorDiv.classList.add('d-none');
-        }
-        const successDiv = document.getElementById('auth-success');
-        if (successDiv) {
-            successDiv.classList.add('d-none');
-        }
-    }
-    
-    function createTemporaryAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        const container = document.querySelector('.auth-card .card-body') || document.body;
-        container.insertBefore(alertDiv, container.firstChild);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (alertDiv && alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
-    }
-
-    // Hide messages when user starts typing (with null checking)
-    if (registerForm) {
-        const inputs = registerForm.querySelectorAll('input');
-        inputs.forEach(input => {
-            if (input) {
-                input.addEventListener('input', hideMessages);
-                input.addEventListener('focus', hideMessages);
-            }
-        });
-    }
-
-    // Real-time validation feedback
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    
-    if (emailInput) {
-        emailInput.addEventListener('blur', function() {
-            const email = this.value.trim();
-            if (email) {
-                const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-                if (!emailRegex.test(email)) {
-                    this.classList.add('is-invalid');
-                    this.classList.remove('is-valid');
-                } else {
-                    this.classList.add('is-valid');
-                    this.classList.remove('is-invalid');
-                }
-            }
-        });
-    }
-    
-    if (passwordInput) {
-        passwordInput.addEventListener('input', function() {
-            const password = this.value;
-            if (password.length >= 6) {
-                this.classList.add('is-valid');
-                this.classList.remove('is-invalid');
-            } else if (password.length > 0) {
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-            }
-        });
-    }
-    
-    if (confirmPasswordInput && passwordInput) {
-        confirmPasswordInput.addEventListener('input', function() {
-            const password = passwordInput.value;
-            const confirmPassword = this.value;
-            if (confirmPassword && password === confirmPassword) {
-                this.classList.add('is-valid');
-                this.classList.remove('is-invalid');
-            } else if (confirmPassword) {
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-            }
-        });
-    }
+});
 </script>
 {% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Transfers - Business Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-exchange-alt"></i> Stock Transfers</h1>
+    <a href="{{ url_for('create_transfer') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Transfer
+    </a>
+</div>
+
+<!-- Transfers Table -->
+<div class="card">
+    <div class="card-body">
+        {% if transfers %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Transfer #</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Items</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in transfers %}
+                    <tr>
+                        <td>
+                            <strong>{{ transfer.transfer_number }}</strong>
+                            {% if transfer.notes %}
+                            <br><small class="text-muted">{{ transfer.notes[:30] }}{% if transfer.notes|length > 30 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ transfer.from_location.name }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ transfer.to_location.name }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ transfer.transfer_items|length }} items</span>
+                            <div class="small text-muted mt-1">
+                                {% for item in transfer.transfer_items[:3] %}
+                                {{ item.item.name }} ({{ item.quantity }}){% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if transfer.transfer_items|length > 3 %}...{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {% if transfer.status == 'completed' %}bg-success{% elif transfer.status == 'pending' %}bg-warning{% elif transfer.status == 'in_transit' %}bg-info{% else %}bg-danger{% endif %}">
+                                {{ transfer.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ transfer.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if transfer.status == 'pending' %}
+                            <form method="POST" action="{{ url_for('complete_transfer', transfer_id=transfer.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Complete this transfer?')">
+                                    <i class="fas fa-check"></i> Complete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+            <h5>No stock transfers found</h5>
+            <p class="text-muted">Create stock transfers to move inventory between locations</p>
+            <a href="{{ url_for('create_transfer') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Transfer
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
