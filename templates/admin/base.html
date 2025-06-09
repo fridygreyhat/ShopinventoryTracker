@@ -348,7 +348,7 @@
         <div class="admin-footer">
             <small>
                 Logged in as: <strong>{{ current_user.username }}</strong><br>
-                <i class="fas fa-clock"></i> {{ moment().format('MMM DD, YYYY HH:mm') }}
+                <i class="fas fa-clock"></i> <span id="current-time"></span>
             </small>
         </div>
     </nav>
@@ -389,7 +389,29 @@
                     link.classList.add('active');
                 }
             });
+
+            // Update current time
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
         });
+
+        // Update current time display
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric'
+            }) + ' ' + now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
 
         // Mobile sidebar toggle
         function toggleSidebar() {
