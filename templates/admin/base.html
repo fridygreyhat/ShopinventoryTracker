@@ -57,26 +57,26 @@
                 </div>
                 
                 <nav class="px-3">
-                    <a href="{{ url_for('admin.admin_dashboard') }}" 
-                       class="admin-nav-link {% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('admin_portal.admin_dashboard') }}" 
+                       class="admin-nav-link {% if request.endpoint == 'admin_portal.admin_dashboard' %}active{% endif %}">
                         <i class="fas fa-tachometer-alt me-2"></i>
                         Dashboard
                     </a>
                     
-                    <a href="{{ url_for('admin.user_management') }}" 
-                       class="admin-nav-link {% if request.endpoint == 'admin.user_management' %}active{% endif %}">
+                    <a href="{{ url_for('admin_portal.user_management') }}" 
+                       class="admin-nav-link {% if request.endpoint == 'admin_portal.user_management' %}active{% endif %}">
                         <i class="fas fa-users me-2"></i>
                         User Management
                     </a>
                     
-                    <a href="{{ url_for('admin.system_stats') }}" 
-                       class="admin-nav-link {% if request.endpoint == 'admin.system_stats' %}active{% endif %}">
+                    <a href="{{ url_for('admin_portal.system_stats') }}" 
+                       class="admin-nav-link {% if request.endpoint == 'admin_portal.system_stats' %}active{% endif %}">
                         <i class="fas fa-chart-bar me-2"></i>
                         System Statistics
                     </a>
                     
-                    <a href="{{ url_for('admin.system_cleanup') }}" 
-                       class="admin-nav-link {% if request.endpoint == 'admin.system_cleanup' %}active{% endif %}">
+                    <a href="{{ url_for('admin_portal.system_cleanup') }}" 
+                       class="admin-nav-link {% if request.endpoint == 'admin_portal.system_cleanup' %}active{% endif %}">
                         <i class="fas fa-broom me-2"></i>
                         System Cleanup
                     </a>
@@ -88,7 +88,7 @@
                         Back to Main App
                     </a>
                     
-                    <a href="{{ url_for('auth.logout') }}" class="admin-nav-link text-danger">
+                    <a href="{{ url_for('postgresql_auth.logout') }}" class="admin-nav-link text-danger">
                         <i class="fas fa-sign-out-alt me-2"></i>
                         Logout
                     </a>
