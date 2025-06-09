@@ -119,26 +119,26 @@
                                     {% if user.id != current_user.id %}
                                         <div class="btn-group" role="group">
                                             <!-- View/Edit User -->
-                                            <button class="btn btn-sm btn-outline-info dropdown-toggle" type="button" data-toggle="dropdown">
+                                            <button class="btn btn-sm btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="fas fa-cog"></i>
                                             </button>
-                                            <div class="dropdown-menu">
+                                            <ul class="dropdown-menu">
                                                 <!-- Change Password -->
-                                                <a class="dropdown-item" href="{{ url_for('admin_portal.change_user_password', user_id=user.id) }}">
+                                                <li><a class="dropdown-item" href="{{ url_for('admin_portal.change_user_password', user_id=user.id) }}">
                                                     <i class="fas fa-key text-warning"></i> Change Password
-                                                </a>
+                                                </a></li>
                                                 
                                                 <!-- Manage Permissions -->
                                                 {% if not user.is_admin %}
-                                                <a class="dropdown-item" href="{{ url_for('admin_portal.manage_user_permissions', user_id=user.id) }}">
+                                                <li><a class="dropdown-item" href="{{ url_for('admin_portal.manage_user_permissions', user_id=user.id) }}">
                                                     <i class="fas fa-user-shield text-primary"></i> Manage Permissions
-                                                </a>
+                                                </a></li>
                                                 {% endif %}
                                                 
-                                                <div class="dropdown-divider"></div>
+                                                <li><hr class="dropdown-divider"></li>
                                                 
                                                 <!-- Lock/Unlock User -->
-                                                <form method="POST" action="{{ url_for('admin_portal.lock_user', user_id=user.id) }}" class="d-inline">
+                                                <li><form method="POST" action="{{ url_for('admin_portal.lock_user', user_id=user.id) }}" class="d-inline">
                                                     <button type="submit" class="dropdown-item text-warning">
                                                         {% if user.is_locked %}
                                                             <i class="fas fa-unlock"></i> Unlock Account
@@ -146,22 +146,22 @@
                                                             <i class="fas fa-lock"></i> Lock Account
                                                         {% endif %}
                                                     </button>
-                                                </form>
+                                                </form></li>
                                                 
                                                 <!-- Toggle Status -->
-                                                <form method="POST" action="{{ url_for('admin_portal.toggle_user_status', user_id=user.id) }}" class="d-inline">
-                                                    <button type="submit" class="dropdown-item {% if user.is_active %}text-warning{% else %}text-success{% endif %}"
-                                                            onclick="return confirm('Are you sure you want to {% if user.is_active %}deactivate{% else %}activate{% endif %} {{ user.username }}?')">
-                                                        {% if user.is_active %}
+                                                <li><form method="POST" action="{{ url_for('admin_portal.toggle_user_status', user_id=user.id) }}" class="d-inline">
+                                                    <button type="submit" class="dropdown-item {% if user.active %}text-warning{% else %}text-success{% endif %}"
+                                                            onclick="return confirm('Are you sure you want to {% if user.active %}deactivate{% else %}activate{% endif %} {{ user.username }}?')">
+                                                        {% if user.active %}
                                                             <i class="fas fa-user-slash"></i> Deactivate User
                                                         {% else %}
                                                             <i class="fas fa-user-check"></i> Activate User
                                                         {% endif %}
                                                     </button>
-                                                </form>
+                                                </form></li>
                                                 
                                                 <!-- Toggle Admin -->
-                                                <form method="POST" action="{{ url_for('admin_portal.toggle_admin_status', user_id=user.id) }}" class="d-inline">
+                                                <li><form method="POST" action="{{ url_for('admin_portal.toggle_admin_status', user_id=user.id) }}" class="d-inline">
                                                     <button type="submit" class="dropdown-item {% if user.is_admin %}text-danger{% else %}text-primary{% endif %}"
                                                             onclick="return confirm('Are you sure you want to {% if user.is_admin %}remove admin privileges from{% else %}grant admin privileges to{% endif %} {{ user.username }}?')">
                                                         {% if user.is_admin %}
@@ -170,20 +170,20 @@
                                                             <i class="fas fa-user-plus"></i> Make Admin
                                                         {% endif %}
                                                     </button>
-                                                </form>
+                                                </form></li>
                                                 
                                                 {% if not user.is_admin %}
-                                                <div class="dropdown-divider"></div>
+                                                <li><hr class="dropdown-divider"></li>
                                                 
                                                 <!-- Delete User -->
-                                                <form method="POST" action="{{ url_for('admin_portal.delete_user', user_id=user.id) }}" class="d-inline">
+                                                <li><form method="POST" action="{{ url_for('admin_portal.delete_user', user_id=user.id) }}" class="d-inline">
                                                     <button type="submit" class="dropdown-item text-danger"
                                                             onclick="return confirm('Are you sure you want to DELETE {{ user.username }}? This action cannot be undone and will remove all user data including sales, transactions, and inventory records.')">
                                                         <i class="fas fa-trash"></i> Delete User
                                                     </button>
-                                                </form>
+                                                </form></li>
                                                 {% endif %}
-                                            </div>
+                                            </ul>
                                         </div>
                                     {% else %}
                                         <span class="badge bg-info">Current User</span>
