@@ -292,8 +292,29 @@ def process_sale():
         cart_items = json.loads(cart_data)
         total_amount = Decimal(request.form.get('total_amount', '0'))
         payment_type = request.form.get('payment_type', 'cash')
+        customer_type = request.form.get('customer_type', 'walk_in')
         customer_id = request.form.get('customer_id') or None
         notes = request.form.get('notes', '')
+        
+        # Handle new customer creation
+        if customer_type == 'new':
+            new_customer_name = request.form.get('new_customer_name', '').strip()
+            if not new_customer_name:
+                flash('Customer name is required for new customers!', 'danger')
+                return redirect(url_for('new_sale'))
+            
+            # Create new customer
+            new_customer = Customer(
+                name=new_customer_name,
+                email=request.form.get('new_customer_email', '').strip() or None,
+                phone=request.form.get('new_customer_phone', '').strip() or None,
+                address=request.form.get('new_customer_address', '').strip() or None,
+                user_id=current_user.id
+            )
+            db.session.add(new_customer)
+            db.session.flush()  # Get the new customer ID
+            customer_id = new_customer.id
+            flash(f'New customer "{new_customer_name}" added successfully!', 'success')
         
         # Validate customer for installment payments
         if payment_type == 'installment' and not customer_id:

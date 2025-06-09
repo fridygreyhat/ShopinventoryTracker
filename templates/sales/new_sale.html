@@ -80,17 +80,46 @@
                     <div class="card-body">
                         <!-- Customer Selection -->
                         <div class="mb-3">
-                            <label for="customerId" class="form-label">Customer</label>
-                            <select name="customer_id" id="customerId" class="form-select">
-                                <option value="">Walk-in Customer</option>
-                                {% for customer in customers %}
-                                <option value="{{ customer.id }}">{{ customer.name }} - {{ customer.phone or customer.email }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="mt-2">
-                                <a href="{{ url_for('add_customer') }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-plus"></i> Add New Customer
-                                </a>
+                            <label for="customerType" class="form-label">Customer</label>
+                            <div class="btn-group d-grid mb-2" role="group">
+                                <input type="radio" class="btn-check" name="customer_type" id="existing_customer" value="existing" checked>
+                                <label class="btn btn-outline-primary" for="existing_customer">Existing</label>
+
+                                <input type="radio" class="btn-check" name="customer_type" id="new_customer" value="new">
+                                <label class="btn btn-outline-success" for="new_customer">New Customer</label>
+
+                                <input type="radio" class="btn-check" name="customer_type" id="walk_in" value="walk_in">
+                                <label class="btn btn-outline-secondary" for="walk_in">Walk-in</label>
+                            </div>
+
+                            <!-- Existing Customer Selection -->
+                            <div id="existingCustomerDiv">
+                                <select name="customer_id" id="customerId" class="form-select">
+                                    <option value="">Select Customer</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}">{{ customer.name }} - {{ customer.phone or customer.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- New Customer Form -->
+                            <div id="newCustomerDiv" style="display: none;">
+                                <div class="border rounded p-3 bg-light">
+                                    <h6>New Customer Information</h6>
+                                    <div class="mb-2">
+                                        <input type="text" class="form-control" id="newCustomerName" name="new_customer_name" placeholder="Customer Name *" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="email" class="form-control" id="newCustomerEmail" name="new_customer_email" placeholder="Email">
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="tel" class="form-control" id="newCustomerPhone" name="new_customer_phone" placeholder="Phone">
+                                    </div>
+                                    <div class="mb-2">
+                                        <textarea class="form-control" id="newCustomerAddress" name="new_customer_address" rows="2" placeholder="Address"></textarea>
+                                    </div>
+                                    <small class="text-muted">* Required for installment payments</small>
+                                </div>
                             </div>
                         </div>
 
@@ -242,19 +271,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Customer type change handlers
+    document.querySelectorAll('input[name="customer_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const existingCustomerDiv = document.getElementById('existingCustomerDiv');
+            const newCustomerDiv = document.getElementById('newCustomerDiv');
+            
+            if (this.value === 'existing') {
+                existingCustomerDiv.style.display = 'block';
+                newCustomerDiv.style.display = 'none';
+                clearNewCustomerFields();
+            } else if (this.value === 'new') {
+                existingCustomerDiv.style.display = 'none';
+                newCustomerDiv.style.display = 'block';
+                document.getElementById('customerId').value = '';
+            } else { // walk_in
+                existingCustomerDiv.style.display = 'none';
+                newCustomerDiv.style.display = 'none';
+                document.getElementById('customerId').value = '';
+                clearNewCustomerFields();
+            }
+        });
+    });
+
     // Payment type change handlers
     document.querySelectorAll('input[name="payment_type"]').forEach(radio => {
         radio.addEventListener('change', function() {
             const installmentOptions = document.getElementById('installmentOptions');
             const otherPaymentMethod = document.getElementById('otherPaymentMethod');
-            const customerId = document.getElementById('customerId');
-
+            
             if (this.value === 'installment') {
                 installmentOptions.style.display = 'block';
                 otherPaymentMethod.style.display = 'none';
                 // Require customer for installments
-                if (!customerId.value) {
-                    alert('Please select a customer for installment payments');
+                const customerType = document.querySelector('input[name="customer_type"]:checked').value;
+                const customerId = document.getElementById('customerId').value;
+                const newCustomerName = document.getElementById('newCustomerName').value;
+                
+                if (customerType === 'walk_in' || (customerType === 'existing' && !customerId) || (customerType === 'new' && !newCustomerName)) {
+                    alert('Please select or create a customer for installment payments');
                     document.getElementById('cash').checked = true;
                     installmentOptions.style.display = 'none';
                 }
@@ -381,6 +436,13 @@ function updateInstallmentSummary() {
 function clearCart() {
     cart = [];
     updateCartDisplay();
+}
+
+function clearNewCustomerFields() {
+    document.getElementById('newCustomerName').value = '';
+    document.getElementById('newCustomerEmail').value = '';
+    document.getElementById('newCustomerPhone').value = '';
+    document.getElementById('newCustomerAddress').value = '';
 }
 
 // Form submission
