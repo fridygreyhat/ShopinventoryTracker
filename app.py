@@ -47,3 +47,14 @@ with app.app_context():
     import models  # noqa: F401
     db.create_all()
     logging.info("Database tables created successfully")
+
+# Import language utilities and set up translation system
+from language_utils import init_language_context, translate_filter
+
+@app.before_request
+def before_request():
+    """Initialize language context before each request"""
+    init_language_context()
+
+# Register translation filter for Jinja2 templates
+app.jinja_env.filters['t'] = translate_filter
