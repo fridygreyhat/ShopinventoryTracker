@@ -186,18 +186,14 @@
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    {% if user.active %}
-                                                        <span class="badge bg-success">Active</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger">Inactive</span>
-                                                    {% endif %}
+                                                    <span class="badge bg-{{ 'success' if user.active else 'danger' }}">
+                                                        {{ 'Active' if user.active else 'Inactive' }}
+                                                    </span>
                                                 </td>
                                                 <td>
-                                                    {% if user.is_admin %}
-                                                        <span class="badge bg-primary">Admin</span>
-                                                    {% else %}
-                                                        <span class="badge bg-secondary">User</span>
-                                                    {% endif %}
+                                                    <span class="badge bg-{{ 'primary' if user.is_admin else 'secondary' }}">
+                                                        {{ 'Admin' if user.is_admin else 'User' }}
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <small class="text-muted">
@@ -213,7 +209,7 @@
                                                             <i class="fas fa-edit"></i>
                                                         </button>
                                                         <button type="button" class="btn btn-outline-{% if user.active %}warning{% else %}success{% endif %} toggle-status-btn" title="{% if user.active %}Deactivate{% else %}Activate{% endif %} User" data-user-id="{{ user.id }}">
-                                                            <i class="fas fa-{% if user.active %}ban{% else %}check{% endif %}"></i>
+                                                            <i class="fas fa-{{ user.active ? 'ban' : 'check' }}"></i>
                                                         </button>
                                                         {% if user.id != session.get('user_id') %}
                                                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="{{ user.id }}">
@@ -502,9 +498,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Set current user ID for comparison
-    const currentUserId = {{ session.get('user_id', 0) }};
-    
     // Initialize admin portal
     initializeAdminPortal();
 
@@ -592,65 +585,49 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initializeRoleChart() {
-        try {
-            const ctx = document.getElementById('roleDistributionChart').getContext('2d');
-            const adminCount = {% if users %}{{ users|selectattr('is_admin')|list|length }}{% else %}0{% endif %};
-            const userCount = {% if users %}{{ users|rejectattr('is_admin')|list|length }}{% else %}0{% endif %};
-
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Admin Users', 'Regular Users'],
-                    datasets: [{
-                        data: [adminCount, userCount],
-                        backgroundColor: ['#0d6efd', '#6c757d'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
+        const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Admin Users', 'Regular Users'],
+                datasets: [{
+                    data: [{{ users|selectattr('is_admin')|list|length }}, {{ users|rejectattr('is_admin')|list|length }}],
+                    backgroundColor: ['#0d6efd', '#6c757d'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
                     }
                 }
-            });
-        } catch (error) {
-            console.error('Error initializing role chart:', error);
-        }
+            }
+        });
     }
 
     function loadUsersData() {
         fetch('/api/auth/users')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                if (Array.isArray(data)) {
-                    renderUsersTable(data);
+            .then(response => response.json())
+            .then(users => {
+                if (Array.isArray(users)) {
+                    renderUsersTable(users);
                 } else {
-                    console.error('Invalid users data:', data);
-                    showAlert('Invalid users data received', 'danger');
+                    console.error('Invalid users data:', users);
                 }
             })
             .catch(error => {
                 console.error('Error loading users:', error);
-                showAlert('Failed to load users data: ' + error.message, 'danger');
+                showAlert('Failed to load users data', 'danger');
             });
     }
 
     function renderUsersTable(users) {
         const tbody = document.getElementById('usersTableBody');
 
-        if (!users || users.length === 0) {
+        if (users.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8" class="text-center py-4">
@@ -673,8 +650,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="text-white small fw-bold">${user.username.charAt(0).toUpperCase()}</span>
                         </div>
                         <div>
-                            <div class="fw-semibold">${user.username || ''}</div>
-                            <small class="text-muted">${(user.first_name || '') + ' ' + (user.last_name || '')}</small>
+                            <div class="fw-semibold">${user.username}</div>
+                            <small class="text-muted">${user.first_name || ''} ${user.last_name || ''}</small>
                         </div>
                     </div>
                 </td>
@@ -688,16 +665,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </td>
                 <td>
-                    ${user.active ? 
-                            '<span class="badge bg-success">Active</span>' :
-                            '<span class="badge bg-danger">Inactive</span>'
-                        }
+                    <span class="badge bg-{{ 'success' if user.active else 'danger' }}">
+                        ${user.active ? 'Active' : 'Inactive'}
+                    </span>
                 </td>
                 <td>
-                    ${user.is_admin ?
-                        '<span class="badge bg-primary">Admin</span>' :
-                        '<span class="badge bg-secondary">User</span>'
-                    }
+                    <span class="badge bg-{{ 'primary' if user.is_admin else 'secondary' }}">
+                        ${user.is_admin ? 'Admin' : 'User'}
+                    </span>
                 </td>
                 <td>
                     <small class="text-muted">
@@ -715,7 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="btn btn-outline-${user.active ? 'warning' : 'success'} toggle-status-btn" title="${user.active ? 'Deactivate' : 'Activate'} User" data-user-id="${user.id}">
                             <i class="fas fa-${user.active ? 'ban' : 'check'}"></i>
                         </button>
-                        ${user.id !== currentUserId ? `
+                        ${user.id !== {{ session.get('user_id') }} ? `
                         <button type="button" class="btn btn-outline-danger delete-user-btn" title="Delete User" data-user-id="${user.id}">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -794,198 +769,3 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!userData.username || !userData.email || !userData.password) {
             showModalError('addUserError', 'addErrorMessage', 'Please fill in all required fields');
             return;
-        }
-
-        // Show loading state
-        const saveBtn = document.getElementById('saveNewUserBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
-
-        fetch('/api/auth/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userData)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                showModalError('addUserError', 'addErrorMessage', data.error);
-            } else {
-                // Success
-                const modalElement = document.getElementById('addUserModal');
-                const modal = bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                }
-                form.reset();
-                loadUsersData();
-                loadUserStatistics();
-                showAlert('User created successfully', 'success');
-            }
-        })
-        .catch(error => {
-            showModalError('addUserError', 'addErrorMessage', 'Failed to create user');
-        })
-        .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = 'Create User';
-        });
-    }
-
-    function editUser(userId) {
-        fetch(`/api/auth/users/${userId}`)
-            .then(response => response.json())
-            .then(user => {
-                document.getElementById('editUserId').value = user.id;
-                document.getElementById('editUsername').value = user.username;
-                document.getElementById('editEmail').value = user.email;
-                document.getElementById('editFirstName').value = user.first_name || '';
-                document.getElementById('editLastName').value = user.last_name || '';
-                document.getElementById('editIsActive').checked = user.active;
-                document.getElementById('editIsAdmin').checked = user.is_admin;
-
-                // Clear previous errors
-                document.getElementById('editUserError').classList.add('d-none');
-
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
-            })
-            .catch(error => {
-                showAlert('Failed to load user data', 'danger');
-            });
-    }
-
-    function saveUserChanges() {
-        const userId = document.getElementById('editUserId').value;
-        const userData = {
-            username: document.getElementById('editUsername').value,
-            firstName: document.getElementById('editFirstName').value,
-            lastName: document.getElementById('editLastName').value,
-            is_active: document.getElementById('editIsActive').checked,
-            is_admin: document.getElementById('editIsAdmin').checked
-        };
-
-        const saveBtn = document.getElementById('saveUserBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-
-        fetch(`/api/auth/users/${userId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(userData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                showModalError('editUserError', 'editErrorMessage', data.error);
-            } else {
-                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
-                loadUsersData();
-                loadUserStatistics();
-                showAlert('User updated successfully', 'success');
-            }
-        })
-        .catch(error => {
-            showModalError('editUserError', 'editErrorMessage', 'Failed to update user');
-        })
-        .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = 'Save Changes';
-        });
-    }
-
-    function toggleUserStatus(userId) {
-        if (confirm('Are you sure you want to change this user\'s status?')) {
-            fetch(`/api/auth/users/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ toggle_status: true })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showAlert(data.error, 'danger');
-                } else {
-                    loadUsersData();
-                    loadUserStatistics();
-                    showAlert('User status updated', 'success');
-                }
-            })
-            .catch(error => {
-                showAlert('Failed to update user status', 'danger');
-            });
-        }
-    }
-
-    function deleteUser(userId) {
-        if (confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
-            fetch(`/api/auth/users/${userId}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showAlert(data.error, 'danger');
-                } else {
-                    loadUsersData();
-                    loadUserStatistics();
-                    showAlert('User deleted successfully', 'success');
-                }
-            })
-            .catch(error => {
-                showAlert('Failed to delete user', 'danger');
-            });
-        }
-    }
-
-    function bulkAction(action) {
-        const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
-        const userIds = Array.from(checkedBoxes).map(cb => cb.value);
-
-        if (userIds.length === 0) return;
-
-        const actionText = action.charAt(0).toUpperCase() + action.slice(1);
-        if (confirm(`Are you sure you want to ${action} ${userIds.length} selected user(s)?`)) {
-            // Implementation for bulk actions would go here
-            showAlert(`Bulk ${action} operation completed`, 'success');
-            loadUsersData();
-            loadUserStatistics();
-        }
-    }
-
-    function showModalError(errorId, messageId, message) {
-        document.getElementById(messageId).textContent = message;
-        document.getElementById(errorId).classList.remove('d-none');
-    }
-
-    function showAlert(message, type) {
-        // Create and show bootstrap alert
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(alertDiv);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
-    }
-});
-</script>
-{% endblock %}

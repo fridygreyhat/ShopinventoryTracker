@@ -93,6 +93,13 @@ function updatePageLanguage(lang) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Language selector initializing...');
     
+    // Wait for Bootstrap to be loaded
+    setTimeout(() => {
+        initializeLanguageSelector();
+    }, 100);
+});
+
+function initializeLanguageSelector() {
     // Handle sidebar language selector (if exists)
     const languageSelector = document.getElementById('languageSelector');
     if (languageSelector) {
@@ -125,26 +132,35 @@ document.addEventListener('DOMContentLoaded', function() {
         topLanguageOptions.forEach(option => {
             option.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
+                
                 const selectedLang = this.getAttribute('data-lang');
                 console.log('Top language option clicked:', selectedLang);
-                updatePageLanguage(selectedLang);
-                updateTopLanguageDisplay(selectedLang);
                 
-                // Close the dropdown after selection
-                const dropdown = this.closest('.dropdown');
-                if (dropdown) {
-                    const dropdownToggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
-                    if (dropdownToggle) {
-                        const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownToggle);
-                        if (dropdownInstance) {
-                            dropdownInstance.hide();
+                if (selectedLang) {
+                    updatePageLanguage(selectedLang);
+                    updateTopLanguageDisplay(selectedLang);
+                    
+                    // Close the dropdown after selection
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const dropdownToggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+                        if (dropdownToggle && typeof bootstrap !== 'undefined') {
+                            try {
+                                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownToggle);
+                                if (dropdownInstance) {
+                                    dropdownInstance.hide();
+                                }
+                            } catch (error) {
+                                console.warn('Could not close dropdown:', error);
+                            }
                         }
                     }
                 }
             });
         });
     }
-});
+}
 
 // Function to update top language display
 function updateTopLanguageDisplay(lang) {
