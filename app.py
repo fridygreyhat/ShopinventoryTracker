@@ -58,6 +58,11 @@ def load_user(user_id):
 with app.app_context():
     # Import models to ensure they are registered
     import models  # noqa: F401
+    
+    # Register admin portal blueprint
+    from admin_portal import admin_bp
+    app.register_blueprint(admin_bp)
+    
     db.create_all()
     logging.info("Database tables created successfully")
 
