@@ -282,12 +282,51 @@
                     Logged out at {{ logout_time }}
                 </small>
             </div>
+            
+            <div class="mt-3">
+                <div class="progress" style="height: 4px; background: rgba(255,255,255,0.3);">
+                    <div class="progress-bar" id="redirectProgress" style="background: linear-gradient(135deg, #667eea, #764ba2); width: 0%; transition: width 0.1s linear;"></div>
+                </div>
+                <small class="text-muted d-block mt-2">
+                    <i class="fas fa-sync-alt fa-spin me-1"></i>
+                    Redirecting to home page in <span id="countdown">5</span> seconds...
+                </small>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-redirect functionality
+    let countdown = 5;
+    const countdownElement = document.getElementById('countdown');
+    const progressBar = document.getElementById('redirectProgress');
+    
+    function updateCountdown() {
+        countdownElement.textContent = countdown;
+        progressBar.style.width = ((5 - countdown) / 5 * 100) + '%';
+        
+        if (countdown <= 0) {
+            window.location.href = "{{ url_for('index') }}";
+            return;
+        }
+        
+        countdown--;
+        setTimeout(updateCountdown, 1000);
+    }
+    
+    // Start countdown after initial animations complete
+    setTimeout(updateCountdown, 1500);
+    
+    // Allow users to cancel auto-redirect by clicking anywhere on the card
+    document.querySelector('.logout-card').addEventListener('click', function() {
+        countdown = -1; // Stop countdown
+        progressBar.style.width = '0%';
+        document.querySelector('.progress').style.display = 'none';
+        document.querySelector('.mt-3').innerHTML = '<small class="text-muted"><i class="fas fa-hand-paper me-1"></i>Auto-redirect cancelled</small>';
+    });
+    
     // Add subtle particle animation
     function createParticle() {
         const particle = document.createElement('div');
