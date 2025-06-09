@@ -1,90 +1,84 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}Admin Dashboard - Business Management{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="fas fa-shield-alt"></i>
-            Admin Dashboard
+        <h1 class="h3">
+            <i class="fas fa-tachometer-alt"></i>
+            System Overview
         </h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">Admin</li>
-            </ol>
-        </nav>
+        <div class="text-muted">
+            <i class="fas fa-calendar"></i>
+            {{ moment().format('MMMM DD, YYYY') }}
+        </div>
     </div>
 
-    <!-- System Overview Cards -->
+    <!-- Key Metrics Row -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-primary text-white">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Users
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Users</h6>
+                            <h2 class="mb-0">{{ total_users }}</h2>
+                            <small>{{ active_users }} active</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-success text-white">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Active Users
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_users }}</div>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Sales</h6>
+                            <h2 class="mb-0">TSh {{ "{:,.0f}".format(total_sales_amount) }}</h2>
+                            <small>{{ recent_sales }} in last 30 days</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        <div class="align-self-center">
+                            <i class="fas fa-money-bill-wave fa-2x"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-info text-white">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Admin Users
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ admin_users }}</div>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Products</h6>
+                            <h2 class="mb-0">{{ total_items }}</h2>
+                            <small>{{ total_categories }} categories</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-shield fa-2x text-gray-300"></i>
+                        <div class="align-self-center">
+                            <i class="fas fa-boxes fa-2x"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-warning text-white">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                New Users (30 days)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ recent_registrations }}</div>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">System Health</h6>
+                            <h2 class="mb-0">{{ low_stock_items }}</h2>
+                            <small>Low stock alerts</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -92,105 +86,210 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Charts and Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Sales Trend (Last 30 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">System Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Customers:</span>
+                            <strong>{{ total_customers }}</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Locations:</span>
+                            <strong>{{ total_locations }}</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Transactions:</span>
+                            <strong>{{ total_transactions }}</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Admin Users:</span>
+                            <strong>{{ admin_users }}</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Pending Orders:</span>
+                            <strong>{{ pending_orders }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performing Users -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Performing Users</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Sales Count</th>
+                                    <th>Total Sales</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in top_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.sale_count or 0 }}</td>
+                                    <td>TSh {{ "{:,.2f}".format(user.total_sales or 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Users</h5>
+                </div>
+                <div class="card-body">
+                    {% for user in recent_users %}
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="me-3">
+                            <i class="fas fa-user-circle fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <strong>{{ user.username }}</strong>
+                            <br><small class="text-muted">{{ user.email }}</small>
+                            <br><small class="text-info">{{ user.created_at.strftime('%b %d, %Y') }}</small>
+                        </div>
+                    </div>
+                    {% if not loop.last %}<hr>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
     <div class="row">
         <div class="col-12">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-tools"></i>
-                        Quick Actions
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Sales Activity</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary btn-block">
-                                <i class="fas fa-users"></i>
-                                Manage Users
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('admin.system_stats') }}" class="btn btn-info btn-block">
-                                <i class="fas fa-chart-line"></i>
-                                System Statistics
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('admin.manage_users', status='inactive') }}" class="btn btn-warning btn-block">
-                                <i class="fas fa-user-times"></i>
-                                Inactive Users
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('admin.manage_users', status='admin') }}" class="btn btn-danger btn-block">
-                                <i class="fas fa-user-shield"></i>
-                                Admin Users
-                            </a>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in recent_sales_list %}
+                                <tr>
+                                    <td>{{ sale.created_at.strftime('%b %d, %Y %H:%M') }}</td>
+                                    <td>{{ sale.customer.name if sale.customer else 'Walk-in Customer' }}</td>
+                                    <td>{{ sale.user.username }}</td>
+                                    <td>TSh {{ "{:,.2f}".format(sale.total_amount) }}</td>
+                                    <td>
+                                        {% if sale.payment_status == 'paid' %}
+                                            <span class="badge bg-success">Paid</span>
+                                        {% elif sale.payment_status == 'partial' %}
+                                            <span class="badge bg-warning">Partial</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Users -->
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-user-clock"></i>
-                        Recent Users
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if recent_users %}
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Shop</th>
-                                        <th>Status</th>
-                                        <th>Registered</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for user in recent_users %}
-                                        <tr>
-                                            <td>{{ user.full_name }}</td>
-                                            <td>{{ user.email }}</td>
-                                            <td>{{ user.shop_name or '-' }}</td>
-                                            <td>
-                                                {% if user.is_admin %}
-                                                    <span class="badge badge-danger">Admin</span>
-                                                {% endif %}
-                                                {% if user.active %}
-                                                    <span class="badge badge-success">Active</span>
-                                                {% else %}
-                                                    <span class="badge badge-secondary">Inactive</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
-                                            <td>
-                                                <a href="{{ url_for('admin.user_details', user_id=user.id) }}" class="btn btn-sm btn-primary">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-muted">No recent users found.</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch dashboard data and create charts
+    fetch('{{ url_for("admin.dashboard_data") }}')
+        .then(response => response.json())
+        .then(data => {
+            // Sales trend chart
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: data.sales_trend.map(item => new Date(item.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Daily Sales (TSh)',
+                        data: data.sales_trend.map(item => item.total),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'TSh ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading dashboard data:', error);
+        });
+});
+</script>
 {% endblock %}
