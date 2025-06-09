@@ -33,7 +33,8 @@ def admin_dashboard():
     """Admin dashboard with system overview"""
     
     # Get date range for analytics
-    end_date = datetime.utcnow().date()
+    from datetime import datetime as dt, timedelta
+    end_date = dt.utcnow().date()
     start_date = end_date - timedelta(days=30)
     
     # System statistics
@@ -74,10 +75,8 @@ def admin_dashboard():
     recent_users = User.query.order_by(desc(User.created_at)).limit(5).all()
     recent_sales_list = Sale.query.order_by(desc(Sale.created_at)).limit(10).all()
     
-    from datetime import datetime
-    
     return render_template('admin/dashboard.html',
-                         current_date=datetime.now(),
+                         current_date=dt.now(),
                          total_users=total_users,
                          active_users=active_users,
                          admin_users=admin_users,
