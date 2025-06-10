@@ -255,10 +255,50 @@ document.getElementById('search-input').addEventListener('input', applyFilters);
 document.getElementById('blueprint-filter').addEventListener('change', applyFilters);
 document.getElementById('method-filter').addEventListener('change', applyFilters);
 
+// Fetch route data from API
+async function loadRouteData() {
+    try {
+        const response = await fetch('/api/routes');
+        const data = await response.json();
+        
+        routeData = data;
+        filteredRoutes = [...routeData.routes];
+        
+        // Update statistics
+        document.getElementById('total-routes').textContent = data.total_routes;
+        document.getElementById('total-blueprints').textContent = Object.keys(data.blueprints).length;
+        document.getElementById('total-files').textContent = data.files_analyzed;
+        document.getElementById('filtered-count').textContent = data.total_routes;
+        
+        // Update blueprint filter options
+        const blueprintFilter = document.getElementById('blueprint-filter');
+        blueprintFilter.innerHTML = '<option value="">All Blueprints</option>';
+        
+        Object.values(data.blueprints).forEach(blueprint => {
+            const option = document.createElement('option');
+            option.value = blueprint.name;
+            option.textContent = blueprint.name.charAt(0).toUpperCase() + blueprint.name.slice(1);
+            blueprintFilter.appendChild(option);
+        });
+        
+        renderRoutes();
+        renderBlueprintSummary();
+        
+    } catch (error) {
+        console.error('Error loading route data:', error);
+        // Show error message
+        document.querySelector('.content-wrapper').innerHTML = `
+            <div class="alert alert-danger">
+                <h4>Error Loading Route Data</h4>
+                <p>Failed to load application routes. Please ensure you are logged in and try again.</p>
+            </div>
+        `;
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    renderRoutes();
-    renderBlueprintSummary();
+    loadRouteData();
 });
 </script>
 {% endblock %}
