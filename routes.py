@@ -2155,3 +2155,85 @@ def bulk_update_category_items(category_id):
 # Call the function to create default data
 with app.app_context():
     create_default_data()
+
+
+@app.route('/route-map')
+@login_required
+def route_map():
+    """Display comprehensive application route mapping"""
+    return render_template('route_map.html')
+
+@app.route('/api/routes')
+@login_required
+def api_routes():
+    """API endpoint to get all application routes dynamically"""
+    import re
+    from collections import defaultdict
+    
+    # Get all registered routes from Flask app
+    routes_data = []
+    blueprints_data = defaultdict(lambda: {'name': '', 'prefix': '', 'route_count': 0, 'routes': []})
+    
+    for rule in app.url_map.iter_rules():
+        # Skip static files and internal routes
+        if rule.endpoint in ['static', '_debug_toolbar.static']:
+            continue
+            
+        # Parse blueprint and function name
+        blueprint_name = 'main'
+        function_name = rule.endpoint
+        
+        if '.' in rule.endpoint:
+            blueprint_name, function_name = rule.endpoint.split('.', 1)
+        
+        # Determine file based on blueprint
+        file_mapping = {
+            'main': 'routes.py',
+            'auth': 'auth.py', 
+            'admin_portal': 'admin_portal.py',
+            'admin': 'admin_routes.py',
+            'sms': 'routes_sms.py',
+            'language': 'language_routes.py'
+        }
+        
+        # Get blueprint prefix
+        blueprint_prefix = ''
+        for bp_name, blueprint in app.blueprints.items():
+            if bp_name == blueprint_name:
+                blueprint_prefix = blueprint.url_prefix or ''
+                break
+        
+        route_info = {
+            'path': str(rule.rule),
+            'full_path': str(rule.rule),
+            'methods': sorted(list(rule.methods - {'HEAD', 'OPTIONS'})),
+            'blueprint': blueprint_name,
+            'function': function_name,
+            'file': file_mapping.get(blueprint_name, 'unknown.py'),
+            'endpoint': rule.endpoint
+        }
+        
+        routes_data.append(route_info)
+        
+        # Update blueprint data
+        if blueprint_name not in blueprints_data:
+            blueprints_data[blueprint_name] = {
+                'name': blueprint_name,
+                'prefix': blueprint_prefix,
+                'route_count': 0,
+                'routes': [],
+                'file': file_mapping.get(blueprint_name, 'unknown.py')
+            }
+        
+        blueprints_data[blueprint_name]['route_count'] += 1
+        blueprints_data[blueprint_name]['routes'].append(route_info)
+    
+    # Sort routes by path
+    routes_data.sort(key=lambda x: x['full_path'])
+    
+    return jsonify({
+        'total_routes': len(routes_data),
+        'routes': routes_data,
+        'blueprints': dict(blueprints_data),
+        'files_analyzed': len(set(route['file'] for route in routes_data))
+    })
