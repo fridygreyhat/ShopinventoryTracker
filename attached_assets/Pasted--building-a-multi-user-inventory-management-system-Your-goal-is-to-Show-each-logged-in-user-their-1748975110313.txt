@@ -1,0 +1,103 @@
+ building a multi-user inventory management system. Your goal is to:
+
+Show each logged-in user their own dashboard and inventory, isolated from others.
+
+To link the user’s login to their own data in PostgreSQL, you do not need a separate database for each user. You simply need a user_id field on each relevant table (products, sales, reports, etc.) and ensure every query is filtered by that user_id.
+
+✅ How to Implement Secure Multi-Tenant Access with PostgreSQL
+🧱 Step 1: Database Schema
+Here’s how you should structure your PostgreSQL tables:
+
+sql
+Copy
+Edit
+-- Users table
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL
+);
+
+-- Inventory items per user
+CREATE TABLE inventory (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT,
+    stock_quantity INTEGER,
+    unit_price NUMERIC,
+    category TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sales table
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    product_id INTEGER,
+    quantity_sold INTEGER,
+    amount NUMERIC,
+    sold_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+🔐 Step 2: Backend Auth + Filtering by user_id
+When a user logs in:
+
+Authenticate using Firebase Auth or your own system.
+
+Get the user.id from their token.
+
+Use that ID in all PostgreSQL queries.
+
+✅ Example (Express + PostgreSQL):
+js
+Copy
+Edit
+// Middleware to extract user from token
+app.use(async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const user = jwt.verify(token, process.env.JWT_SECRET);
+  req.user = user;
+  next();
+});
+🧾 Example query to get dashboard data:
+js
+Copy
+Edit
+app.get('/api/dashboard', async (req, res) => {
+  const userId = req.user.id;
+
+  const totalItems = await db.query(
+    'SELECT COUNT(*) FROM inventory WHERE user_id = $1', [userId]
+  );
+
+  const totalStock = await db.query(
+    'SELECT SUM(stock_quantity) FROM inventory WHERE user_id = $1', [userId]
+  );
+
+  const inventoryValue = await db.query(
+    'SELECT SUM(stock_quantity * unit_price) FROM inventory WHERE user_id = $1', [userId]
+  );
+
+  res.json({
+    totalItems: parseInt(totalItems.rows[0].count),
+    totalStock: parseInt(totalStock.rows[0].sum),
+    inventoryValue: parseFloat(inventoryValue.rows[0].sum)
+  });
+});
+🎯 Step 3: Frontend Dashboard Logic
+Fetch dashboard data after login
+
+Use the logged-in user's token
+
+Example (React):
+
+js
+Copy
+Edit
+const token = localStorage.getItem("auth_token");
+const res = await fetch("/api/dashboard", {
+  headers: {
+    "Authorization": `Bearer ${token}`
+  }
+});
+const data = await res.json();
+setDashboard(data);
