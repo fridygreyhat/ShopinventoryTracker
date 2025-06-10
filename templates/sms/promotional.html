@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Promotional SMS - {{ current_user.shop_name or 'Mauzo TZ' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0">
+                <i class="fas fa-bullhorn text-primary"></i>
+                Promotional SMS
+            </h2>
+            <p class="text-muted">Send targeted promotional messages to selected customers</p>
+        </div>
+        <a href="{{ url_for('sms.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to SMS Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-edit"></i>
+                        Create Promotional Campaign
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Customer Selection -->
+                        <div class="mb-4">
+                            <label class="form-label">Select Customers</label>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-primary w-100" onclick="selectAllCustomers()">
+                                        <i class="fas fa-check-double"></i> Select All
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-secondary w-100" onclick="clearAllCustomers()">
+                                        <i class="fas fa-times"></i> Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="customer-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;">
+                                {% if customers %}
+                                    {% for customer in customers %}
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input customer-checkbox" type="checkbox" 
+                                               name="customer_ids" value="{{ customer.id }}" id="customer_{{ customer.id }}">
+                                        <label class="form-check-label w-100" for="customer_{{ customer.id }}">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>{{ customer.name }}</strong><br>
+                                                    <small class="text-muted">{{ customer.phone }}</small>
+                                                </div>
+                                                {% if customer.email %}
+                                                <small class="text-info">{{ customer.email }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-users fa-3x mb-3"></i>
+                                        <p>No customers with phone numbers found</p>
+                                        <a href="{{ url_for('customers') }}" class="btn btn-primary">
+                                            <i class="fas fa-plus"></i> Add Customers
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="form-text">
+                                <span id="selected-count">0</span> customers selected
+                            </div>
+                        </div>
+
+                        <!-- Promotion Content -->
+                        <div class="mb-4">
+                            <label for="promotion_text" class="form-label">Promotional Message</label>
+                            <textarea class="form-control" id="promotion_text" name="promotion_text" rows="6" 
+                                      placeholder="Enter your promotional message here..." required></textarea>
+                            <div class="form-text">
+                                <div class="d-flex justify-content-between">
+                                    <span>Business signature will be automatically added</span>
+                                    <span id="char-count" class="text-muted">0/160 characters</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Promotional Templates -->
+                        <div class="mb-4">
+                            <label class="form-label">Promotional Templates</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-success w-100 text-start" 
+                                            onclick="insertPromoTemplate('🎉 FLASH SALE! Get 20% off on all items today only! Limited time offer. Visit us now before stocks run out!')">
+                                        <i class="fas fa-flash"></i> Flash Sale
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-info w-100 text-start" 
+                                            onclick="insertPromoTemplate('🆕 NEW ARRIVALS! Fresh stock just landed! Be the first to get your hands on the latest products.')">
+                                        <i class="fas fa-sparkles"></i> New Arrivals
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-warning w-100 text-start" 
+                                            onclick="insertPromoTemplate('💰 CLEARANCE SALE! Massive discounts up to 50% off selected items. Don\'t miss out!')">
+                                        <i class="fas fa-percent"></i> Clearance Sale
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-outline-primary w-100 text-start" 
+                                            onclick="insertPromoTemplate('🎁 LOYALTY REWARD! Thank you for being a valued customer. Enjoy exclusive discounts just for you!')">
+                                        <i class="fas fa-gift"></i> Loyalty Reward
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Send Button -->
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-success btn-lg" id="send-btn" disabled>
+                                <i class="fas fa-bullhorn"></i>
+                                Send Promotional SMS
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Campaign Summary -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Campaign Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Selected Recipients:</span>
+                        <span class="badge bg-primary" id="recipient-count">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Total Customers:</span>
+                        <span class="badge bg-info">{{ customers|length }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Estimated Cost:</span>
+                        <span class="badge bg-warning" id="estimated-cost">TSh 0</span>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Cost calculated at ~TSh 100 per SMS
+                    </small>
+                </div>
+            </div>
+
+            <!-- Best Practices -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-lightbulb"></i>
+                        Promotional SMS Tips
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Use clear call-to-action
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Create urgency with time limits
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Include specific discount amounts
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Keep message concise
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Send at optimal times (9AM-6PM)
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Character counter
+document.getElementById('promotion_text').addEventListener('input', function() {
+    const charCount = this.value.length;
+    const counter = document.getElementById('char-count');
+    counter.textContent = charCount + '/160 characters';
+    
+    if (charCount > 160) {
+        counter.classList.add('text-danger');
+        counter.classList.remove('text-muted');
+    } else {
+        counter.classList.remove('text-danger');
+        counter.classList.add('text-muted');
+    }
+    
+    updateEstimatedCost();
+});
+
+// Customer selection handlers
+function selectAllCustomers() {
+    const checkboxes = document.querySelectorAll('.customer-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelectedCount();
+}
+
+function clearAllCustomers() {
+    const checkboxes = document.querySelectorAll('.customer-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const selectedCheckboxes = document.querySelectorAll('.customer-checkbox:checked');
+    const count = selectedCheckboxes.length;
+    
+    document.getElementById('selected-count').textContent = count;
+    document.getElementById('recipient-count').textContent = count;
+    
+    // Enable/disable send button
+    const sendBtn = document.getElementById('send-btn');
+    const hasMessage = document.getElementById('promotion_text').value.trim().length > 0;
+    sendBtn.disabled = count === 0 || !hasMessage;
+    
+    updateEstimatedCost();
+}
+
+function updateEstimatedCost() {
+    const selectedCount = document.querySelectorAll('.customer-checkbox:checked').length;
+    const messageLength = document.getElementById('promotion_text').value.length || 1;
+    const messagesNeeded = Math.ceil(messageLength / 160) || 1;
+    const estimatedCost = selectedCount * messagesNeeded * 100;
+    
+    document.getElementById('estimated-cost').textContent = 'TSh ' + estimatedCost.toLocaleString();
+}
+
+// Template insertion
+function insertPromoTemplate(template) {
+    const messageBox = document.getElementById('promotion_text');
+    messageBox.value = template;
+    messageBox.dispatchEvent(new Event('input'));
+    messageBox.focus();
+}
+
+// Add event listeners to checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.customer-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Check if message content changes
+    document.getElementById('promotion_text').addEventListener('input', function() {
+        const hasMessage = this.value.trim().length > 0;
+        const hasRecipients = document.querySelectorAll('.customer-checkbox:checked').length > 0;
+        document.getElementById('send-btn').disabled = !hasMessage || !hasRecipients;
+    });
+});
+</script>
+{% endblock %}
