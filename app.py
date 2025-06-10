@@ -6,48 +6,51 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from config import config
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s: %(message)s'
+)
+
+logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
     pass
 
+# Initialize extensions
 db = SQLAlchemy(model_class=Base)
-
-# Create the app
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-# Configure the database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Email configuration
-app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USE_SSL"] = False
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
-app.config["MAIL_DEFAULT_SENDER"] = "info@mauzotz.com"
-
-# Initialize the app with the extension
-db.init_app(app)
-
-# Initialize Flask-Login
 login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'postgresql_auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
+mail = Mail()
 
-# Initialize Flask-Mail
+def create_app(config_name=None):
+    """Application factory pattern for production deployment"""
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
+    
+    app = Flask(__name__)
+    
+    # Load configuration
+    app.config.from_object(config.get(config_name, config['default']))
+    
+    # Security middleware
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
+    # Initialize extensions
+    db.init_app(app)
+    login_manager.init_app(app)
+    mail.init_app(app)
+    
+    # Configure Flask-Login
+    login_manager.login_view = 'postgresql_auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+    
+    return app
+
+# Create application instance
+app = create_app()
 mail = Mail(app)
 
 @login_manager.user_loader
