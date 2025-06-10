@@ -974,6 +974,32 @@
                 </li>
                 {% endif %}
 
+                <!-- SMS Management Section -->
+                <li class="nav-section">
+                    <div class="nav-section-title">SMS Management</div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('sms.dashboard') }}">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>SMS Dashboard</span>
+                            <div class="nav-tooltip">SMS Dashboard</div>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('sms.send_bulk_sms') }}">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Bulk SMS</span>
+                            <div class="nav-tooltip">Send Bulk SMS</div>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a class="nav-link" href="{{ url_for('sms.send_promotional') }}">
+                            <i class="fas fa-bullhorn"></i>
+                            <span>Promotional SMS</span>
+                            <div class="nav-tooltip">Promotional Messages</div>
+                        </a>
+                    </div>
+                </li>
+
                 <!-- Settings Section -->
                 <li class="nav-section">
                     <div class="nav-section-title">{{ g.t('settings') }}</div>
