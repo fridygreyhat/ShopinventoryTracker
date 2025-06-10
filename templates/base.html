@@ -20,12 +20,7 @@
         }
 
         body {
-            margin: 0;
-            padding: 0;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-secondary);
-            min-height: 100vh;
-            color: var(--text-primary);
         }
 
         .wrapper {
@@ -33,71 +28,19 @@
             min-height: 100vh;
         }
 
-        /* Modern Color Palette inspired by Zoho and professional systems */
-        :root {
-            --primary-color: #2563eb;
-            --primary-dark: #1d4ed8;
-            --primary-light: #3b82f6;
-            --secondary-color: #6366f1;
-            --accent-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --success-color: #22c55e;
-            --info-color: #06b6d4;
-            --dark-color: #1f2937;
-            --light-color: #f8fafc;
-            --gray-100: #f1f5f9;
-            --gray-200: #e2e8f0;
-            --gray-300: #cbd5e1;
-            --gray-600: #475569;
-            --gray-700: #334155;
-            --gray-800: #1e293b;
-            --text-primary: #1e293b;
-            --text-secondary: #475569;
-            --text-muted: #64748b;
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --border-color: #e2e8f0;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-
-        /* Modern Typography System */
-        body, p, span, div, label {
-            color: var(--text-primary);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--text-primary);
-            font-weight: 600;
-            line-height: 1.4;
-        }
-
-        .text-primary { color: var(--primary-color) !important; }
-        .text-secondary { color: var(--text-secondary) !important; }
-        .text-muted { color: var(--text-muted) !important; }
-        .text-success { color: var(--success-color) !important; }
-        .text-danger { color: var(--danger-color) !important; }
-        .text-warning { color: var(--warning-color) !important; }
-        .text-info { color: var(--info-color) !important; }
-
-        /* Modern Sidebar Styles */
+        /* Modern Sidebar Styles using Bootstrap variables */
         .sidebar {
             position: fixed;
             top: 0;
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background: var(--bg-primary);
-            border-right: 1px solid var(--border-color);
+            background: var(--bs-body-bg);
+            border-right: 1px solid var(--bs-border-color);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
             overflow-y: auto;
-            box-shadow: var(--shadow-lg);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
         }
 
         .sidebar.collapsed {
@@ -107,12 +50,12 @@
         .sidebar-header {
             padding: 24px 20px;
             text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-primary);
+            border-bottom: 1px solid var(--bs-border-color);
+            background: var(--bs-body-bg);
         }
 
         .sidebar-header .brand {
-            color: var(--primary-color);
+            color: var(--bs-primary);
             font-size: 1.4rem;
             font-weight: 700;
             text-decoration: none;
@@ -124,9 +67,10 @@
         }
 
         .sidebar-header .brand:hover {
-            color: var(--primary-dark);
+            color: var(--bs-primary);
             text-decoration: none;
             transform: scale(1.02);
+            opacity: 0.8;
         }
 
         .brand-logo {
@@ -161,7 +105,7 @@
         }
 
         .nav-section-title {
-            color: var(--text-muted);
+            color: var(--bs-secondary-color);
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
@@ -179,7 +123,7 @@
             transform: translateY(-50%);
             width: 3px;
             height: 14px;
-            background: #000000;
+            background: var(--bs-primary);
             border-radius: 2px;
         }
 
@@ -195,7 +139,7 @@
             display: flex;
             align-items: center;
             padding: 12px 16px;
-            color: var(--text-secondary);
+            color: var(--bs-secondary-color);
             text-decoration: none;
             transition: all 0.2s ease;
             position: relative;
@@ -207,16 +151,16 @@
         }
 
         .nav-link:hover {
-            background: var(--gray-100);
-            color: var(--primary-color);
+            background: var(--bs-secondary-bg);
+            color: var(--bs-primary);
             transform: translateX(2px);
             text-decoration: none;
         }
 
         .nav-link.active {
-            background: var(--primary-color);
-            color: white;
-            box-shadow: var(--shadow-md);
+            background: var(--bs-primary);
+            color: var(--bs-white);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
             border: 1px solid rgba(255, 255, 255, 0.3);
             transform: translateX(5px);
         }
