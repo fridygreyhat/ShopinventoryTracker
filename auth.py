@@ -388,6 +388,34 @@ def update_notifications():
     
     return redirect(url_for('postgresql_auth.settings') + '#notifications')
 
+@auth_bp.route('/settings/sms/test', methods=['POST'])
+@login_required
+def test_sms():
+    """Send a test SMS to verify SMS functionality"""
+    try:
+        from sms_service import sms_service
+        
+        phone = request.form.get('phone', current_user.phone)
+        if not phone:
+            flash('Phone number is required for SMS testing', 'error')
+            return redirect(url_for('postgresql_auth.settings') + '#notifications')
+        
+        test_message = f"Test SMS from {current_user.shop_name or 'Mauzo TZ'} - SMS notifications are working correctly!"
+        
+        success = sms_service.send_sms(phone, test_message)
+        
+        if success:
+            flash(f'Test SMS sent successfully to {phone}', 'success')
+        else:
+            flash('Failed to send test SMS. Please check your phone number and try again.', 'error')
+            
+    except Exception as e:
+        import logging
+        logging.error(f"SMS test error: {str(e)}")
+        flash('SMS test failed. Please check your SMS configuration.', 'error')
+    
+    return redirect(url_for('postgresql_auth.settings') + '#notifications')
+
 @auth_bp.route('/settings/business', methods=['POST'])
 @login_required
 def update_business_settings():

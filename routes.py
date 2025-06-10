@@ -521,6 +521,31 @@ def process_sale():
         
         db.session.commit()
         
+        # Send sale notifications
+        try:
+            from sms_service import sms_service
+            
+            # Send SMS notification to business owner
+            customer_name = None
+            if customer_id:
+                customer = Customer.query.get(customer_id)
+                customer_name = customer.name if customer else None
+            
+            sms_service.send_sale_notification(current_user, sale.id, float(total_amount), customer_name)
+            
+            # Send order confirmation SMS to customer if they have a phone number
+            if customer_id and customer and customer.phone:
+                sms_service.send_order_confirmation(
+                    customer.phone, 
+                    customer.name, 
+                    sale.id, 
+                    float(total_amount), 
+                    current_user.shop_name
+                )
+                
+        except Exception as e:
+            logging.error(f"Error sending sale SMS notifications: {str(e)}")
+        
         # Check for low stock alerts after successful sale
         try:
             from notification_service import NotificationService

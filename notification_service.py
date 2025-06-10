@@ -3,6 +3,7 @@ from sqlalchemy import and_
 from app import db
 from models import User, Item
 from email_service import EmailService
+from sms_service import sms_service
 import logging
 
 class NotificationService:
@@ -31,11 +32,22 @@ class NotificationService:
                 
                 if low_stock_items:
                     # Send email notification
-                    success = EmailService.send_low_stock_notification(user, low_stock_items)
-                    if success:
-                        logging.info(f"Low stock alert sent to {user.email}")
+                    email_success = EmailService.send_low_stock_notification(user, low_stock_items)
+                    if email_success:
+                        logging.info(f"Low stock email alert sent to {user.email}")
                     else:
-                        logging.error(f"Failed to send low stock alert to {user.email}")
+                        logging.error(f"Failed to send low stock email alert to {user.email}")
+                    
+                    # Send SMS notifications for each low stock item
+                    if user.sms_notifications and user.phone:
+                        for item in low_stock_items:
+                            sms_success = sms_service.send_low_stock_alert(
+                                user, item.name, item.stock_quantity, user.low_stock_threshold
+                            )
+                            if sms_success:
+                                logging.info(f"Low stock SMS alert sent to {user.phone} for item: {item.name}")
+                            else:
+                                logging.error(f"Failed to send low stock SMS alert to {user.phone} for item: {item.name}")
                         
         except Exception as e:
             logging.error(f"Error in low stock alert check: {str(e)}")
