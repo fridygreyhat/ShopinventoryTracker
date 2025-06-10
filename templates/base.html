@@ -431,51 +431,9 @@
             box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
         }
 
-        .btn-secondary:hover {
-            background: var(--gray-700);
-            border-color: var(--gray-700);
-            color: white;
-        }
 
-        .btn-success {
-            background: var(--success-color);
-            border-color: var(--success-color);
-            color: white;
-        }
 
-        .btn-danger {
-            background: var(--danger-color);
-            border-color: var(--danger-color);
-            color: white;
-        }
 
-        .btn-warning {
-            background: var(--warning-color);
-            border-color: var(--warning-color);
-            color: white;
-        }
-
-        .btn-info {
-            background: var(--info-color);
-            border-color: var(--info-color);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #4a5568;
-            border-color: #4a5568;
-        }
-
-        .btn-success {
-            background: #38a169;
-            border-color: #38a169;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #2f855a;
-            border-color: #2f855a;
-        }
 
         /* Alert enhancements */
         .alert {
@@ -485,19 +443,19 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
         }
 
-        /* Form enhancements */
+        /* Form enhancements using Bootstrap variables */
         .form-control, .form-select {
             border-radius: 8px;
-            border: 1px solid #d1d5db;
-            background: #ffffff;
+            border: 1px solid var(--bs-border-color);
+            background: var(--bs-body-bg);
             transition: all 0.3s ease;
             padding: 10px 12px;
         }
 
         .form-control:focus, .form-select:focus {
-            border-color: #3182ce;
-            box-shadow: 0 0 0 0.2rem rgba(49, 130, 206, 0.25);
-            background: #ffffff;
+            border-color: var(--bs-primary);
+            box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+            background: var(--bs-body-bg);
         }
 
         /* Table enhancements */
