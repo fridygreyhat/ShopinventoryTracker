@@ -63,6 +63,10 @@ with app.app_context():
     from admin_portal import admin_bp
     app.register_blueprint(admin_bp)
     
+    # Register SMS routes blueprint
+    from routes_sms import sms_bp
+    app.register_blueprint(sms_bp)
+    
     db.create_all()
     logging.info("Database tables created successfully")
 

@@ -310,6 +310,79 @@
                                     </div>
                                 </div>
                                 
+                                <!-- SMS Settings Card -->
+                                <div class="card mb-4" id="sms-settings">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-mobile-alt"></i>
+                                            SMS Configuration
+                                        </h6>
+                                        <span class="badge bg-{{ 'success' if user.phone else 'warning' }}">
+                                            {{ 'Ready' if user.phone else 'Setup Required' }}
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if user.phone %}
+                                        <div class="alert alert-success">
+                                            <i class="fas fa-check-circle"></i>
+                                            <strong>SMS Ready:</strong> Your phone number is {{ user.phone }}
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <h6>SMS Test</h6>
+                                            <p class="text-muted small">Send a test SMS to verify your configuration</p>
+                                            <form action="{{ url_for('postgresql_auth.test_sms') }}" method="POST" class="d-inline">
+                                                <div class="input-group mb-2">
+                                                    <input type="tel" 
+                                                           name="phone" 
+                                                           class="form-control" 
+                                                           value="{{ user.phone }}" 
+                                                           placeholder="+255XXXXXXXXX"
+                                                           required>
+                                                    <button type="submit" class="btn btn-outline-primary">
+                                                        <i class="fas fa-paper-plane"></i> Send Test SMS
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        
+                                        <div class="sms-features">
+                                            <h6>Available SMS Notifications:</h6>
+                                            <ul class="list-unstyled">
+                                                <li class="mb-1">
+                                                    <i class="fas fa-box text-warning me-2"></i> 
+                                                    Low stock alerts
+                                                </li>
+                                                <li class="mb-1">
+                                                    <i class="fas fa-shopping-cart text-success me-2"></i> 
+                                                    Sale confirmations
+                                                </li>
+                                                <li class="mb-1">
+                                                    <i class="fas fa-chart-line text-info me-2"></i> 
+                                                    Daily sales summaries
+                                                </li>
+                                                <li class="mb-1">
+                                                    <i class="fas fa-credit-card text-primary me-2"></i> 
+                                                    Payment reminders
+                                                </li>
+                                                <li class="mb-1">
+                                                    <i class="fas fa-bell text-secondary me-2"></i> 
+                                                    System notifications
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        {% else %}
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <strong>Phone Number Required:</strong> Please add your phone number in your profile to enable SMS notifications.
+                                        </div>
+                                        <a href="{{ url_for('postgresql_auth.edit_profile') }}" class="btn btn-primary">
+                                            <i class="fas fa-user-edit"></i> Update Profile
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i> Save Notification Settings
                                 </button>
