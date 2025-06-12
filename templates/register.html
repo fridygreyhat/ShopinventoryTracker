@@ -1,89 +1,262 @@
-{% extends "base.html" %}
-
-{% block title %}Register - Business Management System{% endblock %}
+{% extends 'layout.html' %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card">
-            <div class="card-header text-center">
-                <h3><i class="fas fa-user-plus"></i> Create Account</h3>
-                <p class="text-muted mb-0">Start managing your business today</p>
-            </div>
+    <div class="col-md-7 col-lg-6">
+        <div class="auth-card">
             <div class="card-body">
-                <form method="POST">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="first_name" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="auth-logo">
+                <h1 class="auth-heading">Create a New Account</h1>
+                <p class="auth-subheading">Join our inventory management system designed for Tanzanian businesses</p>
+
+                <div id="registration-form">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}" role="alert">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user-circle"></i> Username
+                        </label>
+                        <input type="text" class="form-control" id="username" placeholder="Choose a username" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">
+                                <i class="fas fa-user"></i> First Name
+                            </label>
+                            <input type="text" class="form-control" id="first_name" placeholder="Enter your first name">
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" required>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label for="email" class="form-label">Email Address *</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                            <div class="form-text">This will be your login email</div>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label for="shop_name" class="form-label">Business/Shop Name</label>
-                            <input type="text" class="form-control" id="shop_name" name="shop_name" placeholder="Optional">
-                            <div class="form-text">This will be used as your main location name</div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label for="password" class="form-label">Password *</label>
-                            <input type="password" class="form-control" id="password" name="password" required minlength="6">
-                            <div class="form-text">Minimum 6 characters</div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label for="confirm_password" class="form-label">Confirm Password *</label>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6">
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">
+                                <i class="fas fa-user"></i> Last Name
+                            </label>
+                            <input type="text" class="form-control" id="last_name" placeholder="Enter your last name">
                         </div>
                     </div>
-                    
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-user-plus"></i> Create Account
+
+                    <div class="mb-3">
+                        <label for="shop_name" class="form-label">
+                            <i class="fas fa-store"></i> Shop Name
+                        </label>
+                        <input type="text" class="form-control" id="shop_name" placeholder="Enter your business name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">
+                            <i class="fas fa-phone"></i> Phone Number
+                        </label>
+                        <input type="tel" class="form-control" id="phone" placeholder="+255XXXXXXXXX" required>
+                        <div class="form-text">Enter phone number with country code (e.g., +255)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email address" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <input type="password" class="form-control" id="password" placeholder="Create a secure password" required>
+                        <div class="form-text mb-2">Password must be at least 6 characters long</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="confirm_password" class="form-label">
+                            <i class="fas fa-check-circle"></i> Confirm Password
+                        </label>
+                        <input type="password" class="form-control" id="confirm_password" placeholder="Confirm your password" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-tags"></i> Product Categories
+                        </label>
+                        <select class="form-select" id="product_categories" multiple>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing</option>
+                            <option value="Food">Food</option>
+                            <option value="Grocery">Grocery</option>
+                            <option value="Drinks">Drinks</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Cosmetics">Cosmetics</option>
+                            <option value="Accessories">Accessories</option>
+                            <option value="Vehicle Spare Parts">Vehicle Spare Parts</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple categories</div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" id="register-button" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
                         </button>
                     </div>
-                </form>
-                
-                <div class="mt-4 text-center">
-                    <p class="mb-0">
-                        <a href="{{ url_for('login') }}" class="text-decoration-none">
-                            Already have an account? Login here
+
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('login') }}" class="auth-link">
+                            Already have an account? Sign in <i class="fas fa-arrow-right"></i>
                         </a>
-                    </p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script>
-// Password confirmation validation
-document.getElementById('confirm_password').addEventListener('input', function() {
-    const password = document.getElementById('password').value;
-    const confirmPassword = this.value;
-    
-    if (password !== confirmPassword) {
-        this.setCustomValidity('Passwords do not match');
-    } else {
-        this.setCustomValidity('');
-    }
-});
+{% block scripts %}
+<!-- Firebase SDK -->
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
 
-document.getElementById('password').addEventListener('input', function() {
-    const confirmPassword = document.getElementById('confirm_password');
-    if (confirmPassword.value) {
-        confirmPassword.dispatchEvent(new Event('input'));
+<script type="module">
+    // Import Firebase modules and our authentication module
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { registerWithEmailPassword, createSession } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
+
+    // Firebase configuration from server
+    const firebaseConfig = {
+        apiKey: "{{ firebase_config.apiKey }}",
+        projectId: "{{ firebase_config.projectId }}",
+        appId: "{{ firebase_config.appId }}",
+        authDomain: "{{ firebase_config.authDomain }}",
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Elements
+    const registerButton = document.getElementById('register-button');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const usernameInput = document.getElementById('username');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    const shopNameInput = document.getElementById('shop_name');
+    const productCategoriesSelect = document.getElementById('product_categories');
+    const errorDiv = document.getElementById('auth-error');
+    const phoneInput = document.getElementById('phone');  // Get the phone input element
+
+
+    // Register button click handler
+    registerButton.addEventListener('click', async () => {
+        // Get form values
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const username = usernameInput.value.trim();
+        const phone = phoneInput.value.trim();  // Get the phone number
+
+
+        // Validate form
+        if (!email || !password || !confirmPassword || !username || !phone) {
+            showError('Please fill in all required fields.');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showError('Passwords do not match.');
+            return;
+        }
+
+        if (password.length < 6) {
+            showError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        try {
+            // Show loading state
+            registerButton.disabled = true;
+            registerButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
+
+            // Get selected product categories
+            const selectedCategories = Array.from(productCategoriesSelect.selectedOptions).map(option => option.value);
+
+            // User data to send to server
+            const userData = {
+                username: username,
+                firstName: firstNameInput.value.trim(),
+                lastName: lastNameInput.value.trim(),
+                shopName: shopNameInput.value.trim(),
+                productCategories: selectedCategories.join(','),
+                phone: phone
+            };
+
+            // Create user with Firebase and register with server using our helper function
+            console.log('Registering with Firebase and server...');
+            const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
+            console.log('Registration successful:', serverData);
+
+            // Get the token for creating a session
+            console.log('Getting Firebase ID token...');
+            const token = await userCredential.user.getIdToken();
+            console.log('Token received, length:', token ? token.length : 0);
+
+            // Create a session with the server
+            console.log('Creating session with server...');
+            try {
+                const sessionResult = await createSession(token, true);
+                console.log('Session created successfully:', sessionResult);
+
+                // If we got here, registration and session creation were successful - redirect to dashboard
+                console.log('Redirecting to dashboard...');
+                window.location.href = '/';
+            } catch (sessionError) {
+                console.error('Session creation failed:', sessionError);
+                showError('Account created but session creation failed. Please try logging in manually.');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 3000);
+            }
+
+        } catch (error) {
+            // Reset button and show error
+            registerButton.disabled = false;
+            registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+
+            console.error('Registration error:', error);
+
+            let errorMessage = 'Registration failed. Please try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'Email already in use. Please try a different email address.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Invalid email address. Please check and try again.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak. Please use a stronger password.';
+            }
+
+            showError(errorMessage);
+        }
+    });
+
+    // Show error message
+    function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
     }
-});
+
+    // Handle Enter key press
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
+            registerButton.click();
+        }
+    });
 </script>
 {% endblock %}

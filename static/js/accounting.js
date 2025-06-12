@@ -1,868 +1,952 @@
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Chart instances
-    let cashFlowChart = null;
+    // Initialize page
+    loadQuickStats();
+    loadChartOfAccounts();
+    loadJournalEntries();
     
-    // Initialize accounting module
-    initializeAccounting();
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    
+    document.getElementById('trial-balance-date').value = today;
+    document.getElementById('balance-sheet-date').value = today;
+    document.getElementById('income-start-date').value = firstOfMonth;
+    document.getElementById('income-end-date').value = today;
+    document.getElementById('cashflow-start-date').value = firstOfMonth;
+    document.getElementById('cashflow-end-date').value = today;
+    document.getElementById('je-date').value = today;
+    document.getElementById('recon-date').value = today;
+    
+    // Event listeners
+    document.getElementById('initialize-accounting-btn').addEventListener('click', initializeAccounting);
+    document.getElementById('save-account-btn').addEventListener('click', saveAccount);
+    document.getElementById('load-trial-balance-btn').addEventListener('click', loadTrialBalance);
+    document.getElementById('load-income-statement-btn').addEventListener('click', loadIncomeStatement);
+    document.getElementById('load-balance-sheet-btn').addEventListener('click', loadBalanceSheet);
+    document.getElementById('load-cash-flow-btn').addEventListener('click', loadCashFlowStatement);
+    document.getElementById('load-general-ledger-btn').addEventListener('click', loadGeneralLedger);
+    document.getElementById('add-journal-entry-row').addEventListener('click', addJournalEntryRow);
+    document.getElementById('save-journal-entry-btn').addEventListener('click', saveJournalEntry);
+    document.getElementById('save-reconciliation-btn').addEventListener('click', saveReconciliation);
+    
+    // Date change listeners for journal entries
+    document.getElementById('journal-start-date').addEventListener('change', loadJournalEntries);
+    document.getElementById('journal-end-date').addEventListener('change', loadJournalEntries);
+    
+    // Tab change listeners
+    document.querySelector('[data-bs-target="#reconciliation"]').addEventListener('click', loadReconciliations);
     
     function initializeAccounting() {
-        loadChartOfAccounts();
-        loadJournalEntries();
-        loadTrialBalance();
-        loadProfitLoss();
-        loadBalanceSheet();
-        loadCashFlow();
-        loadBankAccounts();
-        loadBankTransfers();
-        updateDashboardCards();
-        
-        // Set up event listeners
-        setupEventListeners();
-    }
-    
-    function setupEventListeners() {
-        // Initialize accounting button
-        document.getElementById('initializeAccountingBtn')?.addEventListener('click', initializeChartOfAccounts);
-        
-        // Add account button
-        document.getElementById('saveAccountBtn')?.addEventListener('click', saveAccount);
-        
-        // Add journal entry button
-        document.getElementById('saveJournalEntryBtn')?.addEventListener('click', saveJournalEntry);
-        document.getElementById('addJournalEntryRowBtn')?.addEventListener('click', addJournalEntryRow);
-        
-        // Bank account and transfer buttons
-        document.getElementById('saveBankAccountBtn')?.addEventListener('click', saveBankAccount);
-        document.getElementById('saveBankTransferBtn')?.addEventListener('click', saveBankTransfer);
-        
-        // Date change listeners
-        document.getElementById('trial-balance-date')?.addEventListener('change', loadTrialBalance);
-        document.getElementById('balance-sheet-date')?.addEventListener('change', loadBalanceSheet);
-        document.getElementById('pl-start-date')?.addEventListener('change', loadProfitLoss);
-        document.getElementById('pl-end-date')?.addEventListener('change', loadProfitLoss);
-        
-        // Journal entry calculations
-        document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('debit-amount') || e.target.classList.contains('credit-amount')) {
-                calculateJournalTotals();
-            }
-        });
-    }
-    
-    async function initializeChartOfAccounts() {
-        try {
-            const response = await fetch('/api/accounting/initialize', {
+        if (confirm('This will create the standard chart of accounts. Continue?')) {
+            fetch('/api/accounting/initialize', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Chart of accounts initialized successfully!');
+                    loadChartOfAccounts();
+                    loadQuickStats();
+                } else {
+                    alert('Error: ' + data.error);
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error initializing accounting system');
             });
-            
-            if (response.ok) {
-                alert('Chart of accounts initialized successfully!');
-                loadChartOfAccounts();
-            } else {
-                const error = await response.json();
-                alert('Error: ' + (error.error || 'Failed to initialize chart of accounts'));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error initializing chart of accounts');
         }
     }
     
-    async function loadChartOfAccounts() {
-        try {
-            const response = await fetch('/api/accounting/chart-of-accounts');
-            const data = await response.json();
-            
-            if (data.accounts) {
-                displayChartOfAccounts(data.accounts);
-                populateAccountSelects(data.accounts);
-            }
-        } catch (error) {
-            console.error('Error loading chart of accounts:', error);
-        }
+    function loadQuickStats() {
+        // Load balance sheet data for quick stats
+        fetch('/api/accounting/balance-sheet')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('total-assets').textContent = 'TZS ' + data.assets.total.toLocaleString();
+                document.getElementById('total-liabilities').textContent = 'TZS ' + data.liabilities.total.toLocaleString();
+                document.getElementById('total-equity').textContent = 'TZS ' + data.equity.total.toLocaleString();
+            })
+            .catch(error => console.error('Error loading quick stats:', error));
+        
+        // Load trial balance status
+        fetch('/api/accounting/trial-balance')
+            .then(response => response.json())
+            .then(data => {
+                const statusElement = document.getElementById('trial-balance-status');
+                if (data.is_balanced) {
+                    statusElement.className = 'badge bg-success';
+                    statusElement.textContent = 'Balanced';
+                } else {
+                    statusElement.className = 'badge bg-danger';
+                    statusElement.textContent = 'Out of Balance';
+                }
+            })
+            .catch(error => console.error('Error loading trial balance status:', error));
     }
     
-    function displayChartOfAccounts(accounts) {
-        const tableBody = document.getElementById('chart-accounts-table');
-        if (!tableBody) return;
+    function loadChartOfAccounts() {
+        fetch('/api/accounting/chart-of-accounts')
+            .then(response => response.json())
+            .then(accounts => {
+                const tableBody = document.getElementById('chart-of-accounts-table');
+                
+                if (accounts.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No accounts found. Click "Initialize Chart of Accounts" to get started.</td></tr>';
+                    return;
+                }
+                
+                tableBody.innerHTML = accounts.map(account => `
+                    <tr>
+                        <td>${account.code}</td>
+                        <td>${account.name}</td>
+                        <td>
+                            <span class="badge bg-${getAccountTypeBadgeColor(account.account_type)}">
+                                ${account.account_type}
+                            </span>
+                        </td>
+                        <td>${account.normal_balance}</td>
+                        <td class="text-end">TZS ${account.current_balance.toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editAccount(${account.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="viewGeneralLedger(${account.id})">
+                                <i class="fas fa-book"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                // Populate account selects
+                populateAccountSelects(accounts);
+            })
+            .catch(error => {
+                console.error('Error loading chart of accounts:', error);
+                document.getElementById('chart-of-accounts-table').innerHTML = 
+                    '<tr><td colspan="6" class="text-center text-danger">Error loading accounts</td></tr>';
+            });
+    }
+    
+    function populateAccountSelects(accounts) {
+        const selects = [
+            'ledger-account-select',
+            'recon-bank-account'
+        ];
         
-        if (accounts.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No accounts found. Click "Initialize Accounting" to set up default accounts.</td></tr>';
-            return;
-        }
-        
-        let html = '';
-        accounts.forEach(account => {
-            html += `
-                <tr>
-                    <td>${account.account_code}</td>
-                    <td>${account.account_name}</td>
-                    <td><span class="badge bg-${getAccountTypeBadgeColor(account.account_type)}">${account.account_type}</span></td>
-                    <td>${account.description || ''}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="editAccount(${account.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                select.innerHTML = '<option value="">Select Account</option>';
+                accounts.forEach(account => {
+                    if (selectId === 'recon-bank-account' && !account.code.startsWith('10')) {
+                        return; // Only show cash/bank accounts for reconciliation
+                    }
+                    select.innerHTML += `<option value="${account.id}">${account.code} - ${account.name}</option>`;
+                });
+            }
         });
-        
-        tableBody.innerHTML = html;
     }
     
     function getAccountTypeBadgeColor(type) {
         const colors = {
-            'Asset': 'success',
-            'Liability': 'warning',
+            'Asset': 'primary',
+            'Liability': 'danger',
             'Equity': 'info',
-            'Revenue': 'primary',
-            'Expense': 'danger'
+            'Income': 'success',
+            'Expense': 'warning'
         };
         return colors[type] || 'secondary';
     }
     
-    function populateAccountSelects(accounts) {
-        const selects = document.querySelectorAll('.account-select');
-        selects.forEach(select => {
-            select.innerHTML = '<option value="">Select Account</option>';
-            accounts.forEach(account => {
-                const option = document.createElement('option');
-                option.value = account.id;
-                option.textContent = `${account.account_code} - ${account.account_name}`;
-                select.appendChild(option);
-            });
-        });
+    function saveAccount() {
+        const accountData = {
+            code: document.getElementById('account-code').value,
+            name: document.getElementById('account-name').value,
+            account_type: document.getElementById('account-type').value,
+            normal_balance: document.getElementById('normal-balance').value,
+            description: document.getElementById('account-description').value
+        };
         
-        // Populate bank account selects
-        populateBankAccountSelects();
-    }
-    
-    async function loadJournalEntries() {
-        try {
-            const response = await fetch('/api/accounting/journal-entries');
-            const data = await response.json();
-            
-            if (data.journals) {
-                displayJournalEntries(data.journals);
+        fetch('/api/accounting/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(accountData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                bootstrap.Modal.getInstance(document.getElementById('accountModal')).hide();
+                loadChartOfAccounts();
+                document.getElementById('account-form').reset();
+                alert('Account created successfully!');
             }
-        } catch (error) {
-            console.error('Error loading journal entries:', error);
-        }
-    }
-    
-    function displayJournalEntries(journals) {
-        const tableBody = document.getElementById('journal-entries-table');
-        if (!tableBody) return;
-        
-        if (journals.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">No journal entries found</td></tr>';
-            return;
-        }
-        
-        let html = '';
-        journals.forEach(journal => {
-            html += `
-                <tr>
-                    <td>${journal.journal_number}</td>
-                    <td>${formatDate(journal.date)}</td>
-                    <td>${journal.description}</td>
-                    <td class="text-end">${formatCurrency(journal.total_debit)}</td>
-                    <td class="text-end">${formatCurrency(journal.total_credit)}</td>
-                    <td><span class="badge bg-${journal.status === 'posted' ? 'success' : 'warning'}">${journal.status}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewJournalEntry(${journal.id})">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error creating account');
         });
-        
-        tableBody.innerHTML = html;
     }
     
-    async function loadTrialBalance() {
-        try {
-            const dateInput = document.getElementById('trial-balance-date');
-            const asOfDate = dateInput?.value || new Date().toISOString().split('T')[0];
-            
-            const response = await fetch(`/api/accounting/trial-balance?as_of_date=${asOfDate}`);
-            const data = await response.json();
-            
-            displayTrialBalance(data);
-        } catch (error) {
-            console.error('Error loading trial balance:', error);
-        }
-    }
-    
-    function displayTrialBalance(data) {
-        const tableBody = document.getElementById('trial-balance-table');
-        const totalsFooter = document.getElementById('trial-balance-totals');
+    function loadJournalEntries() {
+        const startDate = document.getElementById('journal-start-date').value;
+        const endDate = document.getElementById('journal-end-date').value;
         
-        if (!tableBody) return;
+        let url = '/api/accounting/journal-entries';
+        const params = [];
         
-        if (!data.accounts || data.accounts.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No accounts found</td></tr>';
-            if (totalsFooter) totalsFooter.style.display = 'none';
-            return;
+        if (startDate) params.push(`start_date=${startDate}`);
+        if (endDate) params.push(`end_date=${endDate}`);
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
         }
         
-        let html = '';
-        data.accounts.forEach(account => {
-            html += `
-                <tr>
-                    <td>${account.account_code}</td>
-                    <td>${account.account_name}</td>
-                    <td><span class="badge bg-${getAccountTypeBadgeColor(account.account_type)}">${account.account_type}</span></td>
-                    <td class="text-end">${account.debit_balance > 0 ? formatCurrency(account.debit_balance) : ''}</td>
-                    <td class="text-end">${account.credit_balance > 0 ? formatCurrency(account.credit_balance) : ''}</td>
-                </tr>
-            `;
-        });
-        
-        tableBody.innerHTML = html;
-        
-        // Update totals
-        if (totalsFooter) {
-            totalsFooter.style.display = 'table-footer-group';
-            document.getElementById('total-debits').textContent = formatCurrency(data.total_debits || 0);
-            document.getElementById('total-credits').textContent = formatCurrency(data.total_credits || 0);
-        }
-    }
-    
-    async function loadProfitLoss() {
-        try {
-            const startDate = document.getElementById('pl-start-date')?.value;
-            const endDate = document.getElementById('pl-end-date')?.value;
-            
-            let url = '/api/accounting/profit-loss';
-            const params = [];
-            
-            if (startDate) params.push(`start_date=${startDate}`);
-            if (endDate) params.push(`end_date=${endDate}`);
-            
-            if (params.length > 0) {
-                url += '?' + params.join('&');
-            }
-            
-            const response = await fetch(url);
-            const data = await response.json();
-            
-            displayProfitLoss(data);
-        } catch (error) {
-            console.error('Error loading profit & loss:', error);
-        }
-    }
-    
-    function displayProfitLoss(data) {
-        // Update revenue breakdown
-        const revenueDiv = document.getElementById('revenue-breakdown');
-        const expenseDiv = document.getElementById('expense-breakdown');
-        
-        if (revenueDiv && data.revenue_breakdown) {
-            let revenueHtml = '';
-            Object.entries(data.revenue_breakdown).forEach(([account, amount]) => {
-                if (amount > 0) {
-                    revenueHtml += `
-                        <div class="d-flex justify-content-between">
-                            <span>${account}</span>
-                            <span>${formatCurrency(amount)}</span>
-                        </div>
-                    `;
+        fetch(url)
+            .then(response => response.json())
+            .then(entries => {
+                const tableBody = document.getElementById('journal-entries-table');
+                
+                if (entries.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">No journal entries found</td></tr>';
+                    return;
                 }
-            });
-            revenueDiv.innerHTML = revenueHtml || '<div class="text-muted">No revenue recorded</div>';
-        }
-        
-        if (expenseDiv && data.expense_breakdown) {
-            let expenseHtml = '';
-            Object.entries(data.expense_breakdown).forEach(([account, amount]) => {
-                if (amount > 0) {
-                    expenseHtml += `
-                        <div class="d-flex justify-content-between">
-                            <span>${account}</span>
-                            <span>${formatCurrency(amount)}</span>
-                        </div>
-                    `;
-                }
-            });
-            expenseDiv.innerHTML = expenseHtml || '<div class="text-muted">No expenses recorded</div>';
-        }
-        
-        // Update totals
-        document.getElementById('total-revenue-amount').textContent = formatCurrency(data.total_revenue || 0);
-        document.getElementById('total-expense-amount').textContent = formatCurrency(data.total_expenses || 0);
-        document.getElementById('gross-profit-amount').textContent = formatCurrency(data.gross_profit || 0);
-        document.getElementById('net-profit-amount').textContent = formatCurrency(data.net_profit || 0);
-    }
-    
-    async function loadBalanceSheet() {
-        try {
-            const dateInput = document.getElementById('balance-sheet-date');
-            const asOfDate = dateInput?.value || new Date().toISOString().split('T')[0];
-            
-            const response = await fetch(`/api/accounting/balance-sheet?as_of_date=${asOfDate}`);
-            const data = await response.json();
-            
-            displayBalanceSheet(data);
-        } catch (error) {
-            console.error('Error loading balance sheet:', error);
-        }
-    }
-    
-    function displayBalanceSheet(data) {
-        // Update assets
-        const assetsDiv = document.getElementById('assets-breakdown');
-        if (assetsDiv && data.asset_breakdown) {
-            let assetsHtml = '';
-            Object.entries(data.asset_breakdown).forEach(([account, amount]) => {
-                if (amount !== 0) {
-                    assetsHtml += `
-                        <div class="d-flex justify-content-between">
-                            <span>${account}</span>
-                            <span>${formatCurrency(Math.abs(amount))}</span>
-                        </div>
-                    `;
-                }
-            });
-            assetsDiv.innerHTML = assetsHtml || '<div class="text-muted">No assets recorded</div>';
-        }
-        
-        // Update liabilities
-        const liabilitiesDiv = document.getElementById('liabilities-breakdown');
-        if (liabilitiesDiv && data.liability_breakdown) {
-            let liabilitiesHtml = '';
-            Object.entries(data.liability_breakdown).forEach(([account, amount]) => {
-                if (amount !== 0) {
-                    liabilitiesHtml += `
-                        <div class="d-flex justify-content-between">
-                            <span>${account}</span>
-                            <span>${formatCurrency(Math.abs(amount))}</span>
-                        </div>
-                    `;
-                }
-            });
-            liabilitiesDiv.innerHTML = liabilitiesHtml || '<div class="text-muted">No liabilities recorded</div>';
-        }
-        
-        // Update equity
-        const equityDiv = document.getElementById('equity-breakdown');
-        if (equityDiv && data.equity_breakdown) {
-            let equityHtml = '';
-            Object.entries(data.equity_breakdown).forEach(([account, amount]) => {
-                if (amount !== 0) {
-                    equityHtml += `
-                        <div class="d-flex justify-content-between">
-                            <span>${account}</span>
-                            <span>${formatCurrency(Math.abs(amount))}</span>
-                        </div>
-                    `;
-                }
-            });
-            equityDiv.innerHTML = equityHtml || '<div class="text-muted">No equity recorded</div>';
-        }
-        
-        // Update totals
-        document.getElementById('balance-total-assets').textContent = formatCurrency(Math.abs(data.total_assets || 0));
-        document.getElementById('balance-total-liabilities').textContent = formatCurrency(Math.abs(data.total_liabilities || 0));
-        document.getElementById('balance-total-equity').textContent = formatCurrency(Math.abs(data.total_equity || 0));
-        
-        // Balance check
-        const balanceCheck = document.getElementById('balance-check-result');
-        if (balanceCheck) {
-            const isBalanced = data.balance_check;
-            balanceCheck.textContent = isBalanced ? '✅ BALANCED' : '❌ NOT BALANCED';
-            balanceCheck.className = isBalanced ? 'text-success' : 'text-danger';
-        }
-    }
-    
-    async function loadCashFlow() {
-        try {
-            const response = await fetch('/api/accounting/cash-flow');
-            const data = await response.json();
-            
-            displayCashFlow(data);
-        } catch (error) {
-            console.error('Error loading cash flow:', error);
-        }
-    }
-    
-    function displayCashFlow(data) {
-        // Update cash flow table
-        const tableBody = document.getElementById('cash-flow-table');
-        if (!tableBody) return;
-        
-        if (!data.cash_flows || data.cash_flows.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No cash flow data found</td></tr>';
-            return;
-        }
-        
-        let html = '';
-        data.cash_flows.forEach(cf => {
-            html += `
-                <tr>
-                    <td>${formatDate(cf.date)}</td>
-                    <td class="text-success text-end">${formatCurrency(cf.cash_in)}</td>
-                    <td class="text-danger text-end">${formatCurrency(cf.cash_out)}</td>
-                    <td class="text-end ${cf.net_cash_flow >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(cf.net_cash_flow)}</td>
-                    <td class="text-end">${formatCurrency(cf.accumulated_cash)}</td>
-                    <td>${cf.source || ''}</td>
-                </tr>
-            `;
-        });
-        
-        tableBody.innerHTML = html;
-        
-        // Create cash flow chart
-        if (data.monthly_summary) {
-            createCashFlowChart(data.monthly_summary);
-        }
-    }
-    
-    function createCashFlowChart(monthlyData) {
-        const ctx = document.getElementById('cashFlowChart');
-        if (!ctx) return;
-        
-        if (cashFlowChart) {
-            cashFlowChart.destroy();
-        }
-        
-        const labels = monthlyData.map(item => item.month);
-        const cashInData = monthlyData.map(item => item.cash_in);
-        const cashOutData = monthlyData.map(item => item.cash_out);
-        const netFlowData = monthlyData.map(item => item.net_flow);
-        
-        cashFlowChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Cash In',
-                        data: cashInData,
-                        borderColor: 'rgba(40, 167, 69, 1)',
-                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Cash Out',
-                        data: cashOutData,
-                        borderColor: 'rgba(220, 53, 69, 1)',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Net Flow',
-                        data: netFlowData,
-                        borderColor: 'rgba(23, 162, 184, 1)',
-                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
-                        tension: 0.1
+                
+                // Group entries by transaction group
+                const groupedEntries = {};
+                entries.forEach(entry => {
+                    if (!groupedEntries[entry.transaction_group]) {
+                        groupedEntries[entry.transaction_group] = [];
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
+                    groupedEntries[entry.transaction_group].push(entry);
+                });
+                
+                let html = '';
+                Object.keys(groupedEntries).forEach(group => {
+                    const groupEntries = groupedEntries[group];
+                    groupEntries.forEach((entry, index) => {
+                        html += `
+                            <tr ${index === 0 ? 'class="border-top border-3"' : ''}>
+                                <td>${index === 0 ? entry.entry_number : ''}</td>
+                                <td>${index === 0 ? formatDate(entry.date) : ''}</td>
+                                <td>${entry.account_code} - ${entry.account_name}</td>
+                                <td>${entry.description}</td>
+                                <td class="text-end">${entry.debit_amount > 0 ? 'TZS ' + entry.debit_amount.toLocaleString() : ''}</td>
+                                <td class="text-end">${entry.credit_amount > 0 ? 'TZS ' + entry.credit_amount.toLocaleString() : ''}</td>
+                                <td>
+                                    <span class="badge bg-${getEntryTypeBadgeColor(entry.reference_type)}">
+                                        ${entry.reference_type || 'manual'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                });
+                
+                tableBody.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading journal entries:', error);
+                document.getElementById('journal-entries-table').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-danger">Error loading journal entries</td></tr>';
+            });
+    }
+    
+    function getEntryTypeBadgeColor(type) {
+        const colors = {
+            'sale': 'success',
+            'purchase': 'primary',
+            'expense': 'warning',
+            'manual': 'info'
+        };
+        return colors[type] || 'secondary';
+    }
+    
+    function loadTrialBalance() {
+        const asOfDate = document.getElementById('trial-balance-date').value;
+        let url = '/api/accounting/trial-balance';
+        
+        if (asOfDate) {
+            url += '?as_of_date=' + asOfDate;
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('trial-balance-table');
+                
+                if (data.trial_balance.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No data found</td></tr>';
+                    return;
                 }
-            }
-        });
+                
+                tableBody.innerHTML = data.trial_balance.map(item => `
+                    <tr>
+                        <td>${item.account_code}</td>
+                        <td>${item.account_name}</td>
+                        <td class="text-end">${item.debit_balance > 0 ? 'TZS ' + item.debit_balance.toLocaleString() : ''}</td>
+                        <td class="text-end">${item.credit_balance > 0 ? 'TZS ' + item.credit_balance.toLocaleString() : ''}</td>
+                    </tr>
+                `).join('');
+                
+                // Update totals
+                document.getElementById('total-debits').textContent = 'TZS ' + data.total_debits.toLocaleString();
+                document.getElementById('total-credits').textContent = 'TZS ' + data.total_credits.toLocaleString();
+                
+                // Update status
+                const statusElement = document.getElementById('trial-balance-status');
+                if (data.is_balanced) {
+                    statusElement.className = 'badge bg-success';
+                    statusElement.textContent = 'Balanced';
+                } else {
+                    statusElement.className = 'badge bg-danger';
+                    statusElement.textContent = 'Out of Balance';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading trial balance:', error);
+                document.getElementById('trial-balance-table').innerHTML = 
+                    '<tr><td colspan="4" class="text-center text-danger">Error loading trial balance</td></tr>';
+            });
     }
     
-    async function loadBankAccounts() {
-        try {
-            const response = await fetch('/api/accounting/bank-accounts');
-            const data = await response.json();
-            
-            displayBankAccounts(data.accounts || []);
-        } catch (error) {
-            console.error('Error loading bank accounts:', error);
-        }
-    }
-    
-    function displayBankAccounts(accounts) {
-        const container = document.getElementById('bank-accounts-list');
-        if (!container) return;
+    function loadIncomeStatement() {
+        const startDate = document.getElementById('income-start-date').value;
+        const endDate = document.getElementById('income-end-date').value;
         
-        if (accounts.length === 0) {
-            container.innerHTML = '<div class="text-center text-muted">No bank accounts found</div>';
-            return;
+        let url = '/api/accounting/income-statement';
+        const params = [];
+        
+        if (startDate) params.push(`start_date=${startDate}`);
+        if (endDate) params.push(`end_date=${endDate}`);
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
         }
         
-        let html = '';
-        accounts.forEach(account => {
-            html += `
-                <div class="card mb-2">
-                    <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${account.account_name}</strong><br>
-                                <small class="text-muted">${account.bank_name} - ${account.account_number}</small>
-                            </div>
-                            <div class="text-end">
-                                <div class="h6 mb-0">${formatCurrency(account.current_balance)}</div>
-                                <small class="text-muted">${account.currency}</small>
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const content = document.getElementById('income-statement-content');
+                
+                let html = `
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-center">Profit & Loss Statement</h6>
+                            <p class="text-center text-muted">
+                                ${formatDate(data.period.start_date)} to ${formatDate(data.period.end_date)}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Revenue</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.revenue.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.account_name}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Total Revenue</td>
+                            <td class="text-end">TZS ${data.revenue.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                    
+                    <h6>Expenses</h6>
+                    <table class="table table-sm">
+                `;
+                
+                data.expenses.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.account_name}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Total Expenses</td>
+                            <td class="text-end">TZS ${data.expenses.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6>Net Income</h6>
+                                    <h3 class="${data.net_income >= 0 ? 'text-success' : 'text-danger'}">
+                                        TZS ${data.net_income.toLocaleString()}
+                                    </h3>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    }
-    
-    async function loadBankTransfers() {
-        try {
-            const response = await fetch('/api/accounting/bank-transfers');
-            const data = await response.json();
-            
-            displayBankTransfers(data.transfers || []);
-        } catch (error) {
-            console.error('Error loading bank transfers:', error);
-        }
-    }
-    
-    function displayBankTransfers(transfers) {
-        const tableBody = document.getElementById('bank-transfers-table');
-        if (!tableBody) return;
-        
-        if (transfers.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No transfers found</td></tr>';
-            return;
-        }
-        
-        let html = '';
-        transfers.forEach(transfer => {
-            html += `
-                <tr>
-                    <td>${transfer.transfer_number}</td>
-                    <td>${transfer.from_account_name}</td>
-                    <td>${transfer.to_account_name}</td>
-                    <td class="text-end">${formatCurrency(transfer.amount)}</td>
-                    <td>${formatDate(transfer.transfer_date)}</td>
-                </tr>
-            `;
-        });
-        
-        tableBody.innerHTML = html;
-    }
-    
-    async function updateDashboardCards() {
-        try {
-            // Load financial summary for dashboard cards
-            const response = await fetch('/api/finance/transactions');
-            const data = await response.json();
-            
-            if (data.summary) {
-                const totalAssets = data.summary.total_income || 0;
-                const totalLiabilities = data.summary.total_expenses * 0.3 || 0; // Estimate
-                const totalEquity = totalAssets - totalLiabilities;
-                const netCashFlow = data.summary.net_profit || 0;
+                `;
                 
-                document.getElementById('total-assets').querySelector('span:last-child').textContent = totalAssets.toLocaleString();
-                document.getElementById('total-liabilities').querySelector('span:last-child').textContent = totalLiabilities.toLocaleString();
-                document.getElementById('total-equity').querySelector('span:last-child').textContent = totalEquity.toLocaleString();
-                document.getElementById('net-cash-flow').querySelector('span:last-child').textContent = netCashFlow.toLocaleString();
-            }
-        } catch (error) {
-            console.error('Error updating dashboard cards:', error);
-        }
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading income statement:', error);
+                document.getElementById('income-statement-content').innerHTML = 
+                    '<p class="text-center text-danger">Error loading income statement</p>';
+            });
     }
     
-    function populateBankAccountSelects() {
-        fetch('/api/accounting/bank-accounts')
+    function loadBalanceSheet() {
+        const asOfDate = document.getElementById('balance-sheet-date').value;
+        let url = '/api/accounting/balance-sheet';
+        
+        if (asOfDate) {
+            url += '?as_of_date=' + asOfDate;
+        }
+        
+        fetch(url)
             .then(response => response.json())
             .then(data => {
-                const fromSelect = document.getElementById('fromAccount');
-                const toSelect = document.getElementById('toAccount');
+                const content = document.getElementById('balance-sheet-content');
                 
-                if (fromSelect && toSelect && data.accounts) {
-                    const options = data.accounts.map(account => 
-                        `<option value="${account.id}">${account.account_name} - ${account.bank_name}</option>`
-                    ).join('');
+                let html = `
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-center">Balance Sheet</h6>
+                            <p class="text-center text-muted">As of ${formatDate(data.as_of_date)}</p>
+                        </div>
+                    </div>
                     
-                    fromSelect.innerHTML = '<option value="">Select Account</option>' + options;
-                    toSelect.innerHTML = '<option value="">Select Account</option>' + options;
-                }
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Assets</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.assets.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.account_name}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Total Assets</td>
+                            <td class="text-end">TZS ${data.assets.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Liabilities</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.liabilities.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.account_name}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Total Liabilities</td>
+                            <td class="text-end">TZS ${data.liabilities.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                    
+                    <h6>Equity</h6>
+                    <table class="table table-sm">
+                `;
+                
+                data.equity.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.account_name}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Total Equity</td>
+                            <td class="text-end">TZS ${data.equity.total.toLocaleString()}</td>
+                        </tr>
+                        <tr class="fw-bold border-top">
+                            <td>Total Liabilities & Equity</td>
+                            <td class="text-end">TZS ${data.total_liabilities_and_equity.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading balance sheet:', error);
+                document.getElementById('balance-sheet-content').innerHTML = 
+                    '<p class="text-center text-danger">Error loading balance sheet</p>';
             });
     }
     
-    // Event handlers
-    async function saveAccount() {
-        const form = document.getElementById('accountForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
+    function loadCashFlowStatement() {
+        const startDate = document.getElementById('cashflow-start-date').value;
+        const endDate = document.getElementById('cashflow-end-date').value;
+        
+        let url = '/api/accounting/cash-flow';
+        const params = [];
+        
+        if (startDate) params.push(`start_date=${startDate}`);
+        if (endDate) params.push(`end_date=${endDate}`);
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
+        }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const content = document.getElementById('cash-flow-content');
+                
+                let html = `
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-center">Cash Flow Statement</h6>
+                            <p class="text-center text-muted">
+                                ${formatDate(data.period.start_date)} to ${formatDate(data.period.end_date)}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Operating Activities</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.operating_activities.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Net Operating Cash Flow</td>
+                            <td class="text-end">TZS ${data.operating_activities.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <h6>Investing Activities</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.investing_activities.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Net Investing Cash Flow</td>
+                            <td class="text-end">TZS ${data.investing_activities.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <h6>Financing Activities</h6>
+                            <table class="table table-sm">
+                `;
+                
+                data.financing_activities.items.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.description}</td>
+                            <td class="text-end">TZS ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr class="fw-bold border-top">
+                            <td>Net Financing Cash Flow</td>
+                            <td class="text-end">TZS ${data.financing_activities.total.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6>Net Change in Cash</h6>
+                                    <h4 class="${data.net_change_in_cash >= 0 ? 'text-success' : 'text-danger'}">
+                                        TZS ${data.net_change_in_cash.toLocaleString()}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading cash flow statement:', error);
+                document.getElementById('cash-flow-content').innerHTML = 
+                    '<p class="text-center text-danger">Error loading cash flow statement</p>';
+            });
+    }
+    
+    function loadGeneralLedger() {
+        const accountId = document.getElementById('ledger-account-select').value;
+        const startDate = document.getElementById('ledger-start-date').value;
+        const endDate = document.getElementById('ledger-end-date').value;
+        
+        if (!accountId) {
+            alert('Please select an account');
             return;
         }
         
-        const accountData = {
-            account_code: document.getElementById('accountCode').value,
-            account_name: document.getElementById('accountName').value,
-            account_type: document.getElementById('accountType').value,
-            description: document.getElementById('accountDescription').value
-        };
+        let url = `/api/accounting/general-ledger/${accountId}`;
+        const params = [];
         
-        try {
-            const response = await fetch('/api/accounting/chart-of-accounts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(accountData)
-            });
-            
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('accountModal')).hide();
-                form.reset();
-                loadChartOfAccounts();
-                alert('Account created successfully!');
-            } else {
-                const error = await response.json();
-                alert('Error: ' + (error.error || 'Failed to create account'));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error creating account');
+        if (startDate) params.push(`start_date=${startDate}`);
+        if (endDate) params.push(`end_date=${endDate}`);
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
         }
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const content = document.getElementById('general-ledger-content');
+                
+                let html = `
+                    <h6>${data.account.code} - ${data.account.name}</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Debit</th>
+                                <th>Credit</th>
+                                <th>Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.entries.forEach(entry => {
+                    html += `
+                        <tr>
+                            <td>${formatDate(entry.date)}</td>
+                            <td>${entry.description}</td>
+                            <td class="text-end">${entry.debit_amount > 0 ? 'TZS ' + entry.debit_amount.toLocaleString() : ''}</td>
+                            <td class="text-end">${entry.credit_amount > 0 ? 'TZS ' + entry.credit_amount.toLocaleString() : ''}</td>
+                            <td class="text-end">TZS ${entry.running_balance.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="4">Ending Balance</td>
+                                <td class="text-end">TZS ${data.ending_balance.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                `;
+                
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading general ledger:', error);
+                document.getElementById('general-ledger-content').innerHTML = 
+                    '<p class="text-center text-danger">Error loading general ledger</p>';
+            });
+    }
+    
+    function loadReconciliations() {
+        fetch('/api/accounting/reconciliation')
+            .then(response => response.json())
+            .then(reconciliations => {
+                const tableBody = document.getElementById('reconciliation-table');
+                
+                if (reconciliations.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center">No reconciliation records found</td></tr>';
+                    return;
+                }
+                
+                tableBody.innerHTML = reconciliations.map(recon => `
+                    <tr>
+                        <td>${formatDate(recon.reconciliation_date)}</td>
+                        <td>${recon.bank_account_name}</td>
+                        <td class="text-end">TZS ${recon.bank_statement_balance.toLocaleString()}</td>
+                        <td class="text-end">TZS ${recon.book_balance.toLocaleString()}</td>
+                        <td class="text-end">TZS ${recon.reconciled_balance.toLocaleString()}</td>
+                        <td>
+                            <span class="badge bg-${recon.is_reconciled ? 'success' : 'warning'}">
+                                ${recon.is_reconciled ? 'Reconciled' : 'Pending'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editReconciliation(${recon.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            })
+            .catch(error => {
+                console.error('Error loading reconciliations:', error);
+                document.getElementById('reconciliation-table').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-danger">Error loading reconciliation records</td></tr>';
+            });
     }
     
     function addJournalEntryRow() {
-        const container = document.getElementById('journalEntriesContainer');
-        const rowCount = container.children.length;
+        const container = document.getElementById('journal-entries-container');
+        const rowIndex = container.children.length;
         
-        const newRow = document.createElement('div');
-        newRow.className = 'row journal-entry-row mb-2';
-        newRow.innerHTML = `
-            <div class="col-md-5">
+        const row = document.createElement('div');
+        row.className = 'row mb-2 journal-entry-row';
+        row.innerHTML = `
+            <div class="col-md-4">
                 <select class="form-select account-select" required>
                     <option value="">Select Account</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <input type="number" class="form-control debit-amount" placeholder="Debit" step="0.01" min="0">
+                <input type="text" class="form-control description-input" placeholder="Description" required>
             </div>
-            <div class="col-md-3">
-                <input type="number" class="form-control credit-amount" placeholder="Credit" step="0.01" min="0">
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control debit-input" placeholder="Debit" min="0">
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="0.01" class="form-control credit-input" placeholder="Credit" min="0">
             </div>
             <div class="col-md-1">
-                <button type="button" class="btn btn-sm btn-danger remove-entry-btn">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeJournalEntryRow(this)">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
         `;
         
-        container.appendChild(newRow);
+        container.appendChild(row);
         
-        // Populate account select
-        loadChartOfAccounts();
+        // Populate account dropdown
+        populateJournalAccountSelect(row.querySelector('.account-select'));
         
-        // Add remove functionality
-        newRow.querySelector('.remove-entry-btn').addEventListener('click', function() {
-            newRow.remove();
-            calculateJournalTotals();
+        // Add event listeners for calculation
+        row.querySelector('.debit-input').addEventListener('input', calculateJournalTotals);
+        row.querySelector('.credit-input').addEventListener('input', calculateJournalTotals);
+        
+        // Ensure only debit or credit is filled
+        row.querySelector('.debit-input').addEventListener('input', function() {
+            if (this.value) {
+                row.querySelector('.credit-input').value = '';
+            }
         });
         
-        // Show remove buttons if more than one row
-        if (rowCount > 0) {
-            document.querySelectorAll('.remove-entry-btn').forEach(btn => {
-                btn.style.display = 'block';
-            });
-        }
+        row.querySelector('.credit-input').addEventListener('input', function() {
+            if (this.value) {
+                row.querySelector('.debit-input').value = '';
+            }
+        });
+    }
+    
+    function removeJournalEntryRow(button) {
+        button.closest('.journal-entry-row').remove();
+        calculateJournalTotals();
+    }
+    
+    function populateJournalAccountSelect(select) {
+        fetch('/api/accounting/chart-of-accounts')
+            .then(response => response.json())
+            .then(accounts => {
+                accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.id;
+                    option.textContent = `${account.code} - ${account.name}`;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading accounts for journal entry:', error));
     }
     
     function calculateJournalTotals() {
-        const debitInputs = document.querySelectorAll('.debit-amount');
-        const creditInputs = document.querySelectorAll('.credit-amount');
+        const debitInputs = document.querySelectorAll('.debit-input');
+        const creditInputs = document.querySelectorAll('.credit-input');
         
         let totalDebits = 0;
         let totalCredits = 0;
         
         debitInputs.forEach(input => {
-            totalDebits += parseFloat(input.value) || 0;
+            if (input.value) {
+                totalDebits += parseFloat(input.value);
+            }
         });
         
         creditInputs.forEach(input => {
-            totalCredits += parseFloat(input.value) || 0;
+            if (input.value) {
+                totalCredits += parseFloat(input.value);
+            }
         });
         
-        document.getElementById('totalDebits').textContent = totalDebits.toFixed(2);
-        document.getElementById('totalCredits').textContent = totalCredits.toFixed(2);
+        document.getElementById('total-debits-amount').textContent = totalDebits.toFixed(2);
+        document.getElementById('total-credits-amount').textContent = totalCredits.toFixed(2);
         
-        const balanceCheck = document.getElementById('balanceCheck');
-        const difference = Math.abs(totalDebits - totalCredits);
+        // Enable/disable save button based on balance
+        const saveButton = document.getElementById('save-journal-entry-btn');
+        const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01 && totalDebits > 0;
+        saveButton.disabled = !isBalanced;
         
-        if (difference < 0.01) {
-            balanceCheck.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Balanced</span>';
+        if (isBalanced) {
+            saveButton.className = 'btn btn-primary';
         } else {
-            balanceCheck.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Out of balance by ' + formatCurrency(difference) + '</span>';
+            saveButton.className = 'btn btn-secondary';
         }
     }
     
-    async function saveJournalEntry() {
-        const form = document.getElementById('journalEntryForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-        
-        // Collect entries
-        const entries = [];
+    function saveJournalEntry() {
         const rows = document.querySelectorAll('.journal-entry-row');
+        const entries = [];
         
         rows.forEach(row => {
             const accountId = row.querySelector('.account-select').value;
-            const debit = parseFloat(row.querySelector('.debit-amount').value) || 0;
-            const credit = parseFloat(row.querySelector('.credit-amount').value) || 0;
+            const description = row.querySelector('.description-input').value;
+            const debitAmount = row.querySelector('.debit-input').value;
+            const creditAmount = row.querySelector('.credit-input').value;
             
-            if (accountId && (debit > 0 || credit > 0)) {
+            if (accountId && description && (debitAmount || creditAmount)) {
                 entries.push({
                     account_id: parseInt(accountId),
-                    debit: debit,
-                    credit: credit,
-                    description: document.getElementById('journalDescription').value
+                    description: description,
+                    debit_amount: parseFloat(debitAmount) || 0,
+                    credit_amount: parseFloat(creditAmount) || 0
                 });
             }
         });
         
         if (entries.length < 2) {
-            alert('Journal entry must have at least 2 accounts');
+            alert('At least two journal entries are required for double-entry bookkeeping');
             return;
         }
         
         const journalData = {
-            description: document.getElementById('journalDescription').value,
+            date: document.getElementById('je-date').value,
             entries: entries
         };
         
-        try {
-            const response = await fetch('/api/accounting/journal-entries', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(journalData)
-            });
-            
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('journalEntryModal')).hide();
-                form.reset();
-                loadJournalEntries();
-                loadTrialBalance();
-                alert('Journal entry created successfully!');
+        fetch('/api/accounting/journal-entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(journalData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
             } else {
-                const error = await response.json();
-                alert('Error: ' + (error.error || 'Failed to create journal entry'));
+                bootstrap.Modal.getInstance(document.getElementById('journalEntryModal')).hide();
+                loadJournalEntries();
+                loadQuickStats();
+                
+                // Clear form
+                document.getElementById('journal-entries-container').innerHTML = '';
+                addJournalEntryRow();
+                addJournalEntryRow();
+                
+                alert('Journal entry created successfully!');
             }
-        } catch (error) {
+        })
+        .catch(error => {
             console.error('Error:', error);
             alert('Error creating journal entry');
-        }
+        });
     }
     
-    async function saveBankAccount() {
-        const form = document.getElementById('bankAccountForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-        
-        const accountData = {
-            account_name: document.getElementById('bankAccountName').value,
-            account_number: document.getElementById('bankAccountNumber').value,
-            bank_name: document.getElementById('bankName').value,
-            account_type: document.getElementById('bankAccountType').value,
-            current_balance: parseFloat(document.getElementById('currentBalance').value) || 0
+    function saveReconciliation() {
+        const reconData = {
+            bank_account_id: document.getElementById('recon-bank-account').value,
+            reconciliation_date: document.getElementById('recon-date').value,
+            bank_statement_balance: parseFloat(document.getElementById('recon-bank-balance').value),
+            book_balance: parseFloat(document.getElementById('recon-book-balance').value),
+            outstanding_deposits: parseFloat(document.getElementById('recon-deposits').value) || 0,
+            outstanding_checks: parseFloat(document.getElementById('recon-checks').value) || 0,
+            bank_fees: parseFloat(document.getElementById('recon-fees').value) || 0,
+            notes: document.getElementById('recon-notes').value
         };
         
-        try {
-            const response = await fetch('/api/accounting/bank-accounts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(accountData)
-            });
-            
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('bankAccountModal')).hide();
-                form.reset();
-                loadBankAccounts();
-                populateBankAccountSelects();
-                alert('Bank account created successfully!');
+        // Calculate reconciled balance
+        reconData.reconciled_balance = reconData.book_balance + reconData.outstanding_deposits - reconData.outstanding_checks - reconData.bank_fees;
+        reconData.is_reconciled = Math.abs(reconData.reconciled_balance - reconData.bank_statement_balance) < 0.01;
+        
+        fetch('/api/accounting/reconciliation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reconData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
             } else {
-                const error = await response.json();
-                alert('Error: ' + (error.error || 'Failed to create bank account'));
+                bootstrap.Modal.getInstance(document.getElementById('reconciliationModal')).hide();
+                loadReconciliations();
+                document.getElementById('reconciliation-form').reset();
+                alert('Bank reconciliation saved successfully!');
             }
-        } catch (error) {
+        })
+        .catch(error => {
             console.error('Error:', error);
-            alert('Error creating bank account');
-        }
+            alert('Error saving bank reconciliation');
+        });
     }
     
-    async function saveBankTransfer() {
-        const form = document.getElementById('bankTransferForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-        
-        const transferData = {
-            from_account_id: parseInt(document.getElementById('fromAccount').value),
-            to_account_id: parseInt(document.getElementById('toAccount').value),
-            amount: parseFloat(document.getElementById('transferAmount').value),
-            transfer_fee: parseFloat(document.getElementById('transferFee').value) || 0,
-            description: document.getElementById('transferDescription').value
-        };
-        
-        try {
-            const response = await fetch('/api/accounting/bank-transfers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(transferData)
-            });
-            
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('bankTransferModal')).hide();
-                form.reset();
-                loadBankTransfers();
-                loadBankAccounts();
-                alert('Bank transfer processed successfully!');
-            } else {
-                const error = await response.json();
-                alert('Error: ' + (error.error || 'Failed to process transfer'));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error processing transfer');
-        }
-    }
-    
-    // Utility functions
     function formatDate(dateString) {
-        if (!dateString) return '';
         const date = new Date(dateString);
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB');
     }
     
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('en-TZ', {
-            style: 'currency',
-            currency: 'TZS',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount || 0);
-    }
+    // Initialize journal entry form with two rows
+    addJournalEntryRow();
+    addJournalEntryRow();
     
     // Global functions for buttons
     window.editAccount = function(accountId) {
@@ -870,8 +954,17 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Edit account:', accountId);
     };
     
-    window.viewJournalEntry = function(journalId) {
-        // Implementation for viewing journal entries
-        console.log('View journal entry:', journalId);
+    window.viewGeneralLedger = function(accountId) {
+        // Switch to general ledger tab and load account
+        document.querySelector('[data-bs-target="#general-ledger"]').click();
+        document.getElementById('ledger-account-select').value = accountId;
+        setTimeout(() => loadGeneralLedger(), 100);
     };
+    
+    window.editReconciliation = function(reconId) {
+        // Implementation for editing reconciliation
+        console.log('Edit reconciliation:', reconId);
+    };
+    
+    window.removeJournalEntryRow = removeJournalEntryRow;
 });

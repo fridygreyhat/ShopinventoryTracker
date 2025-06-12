@@ -1,208 +1,140 @@
-// Enhanced Navigation Bar JavaScript
+
+// Vertical Sidebar Navigation JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-    // Get navbar element with multiple selectors as fallback
-    const navbar = document.querySelector('#main-navbar') || 
-                  document.querySelector('.navbar') || 
-                  document.querySelector('nav');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const notificationBtn = document.getElementById('notificationBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-    if (!navbar) {
-        console.error('Navbar element not found');
-        return;
+    // Mobile menu toggle
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', function() {
+            sidebar.classList.add('show');
+            sidebarOverlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        });
     }
+
+    // Sidebar close button
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            closeSidebar();
+        });
+    }
+
+    // Overlay click to close sidebar
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            closeSidebar();
+        });
+    }
+
+    // Close sidebar function
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // Fullscreen toggle
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    this.innerHTML = '<i class="fas fa-compress"></i>';
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    this.innerHTML = '<i class="fas fa-expand"></i>';
+                });
+            }
+        });
+    }
+
+    // Notification button (placeholder functionality)
+    if (notificationBtn) {
+        notificationBtn.addEventListener('click', function() {
+            // Toggle notification panel or show toast
+            showNotificationToast();
+        });
+    }
+
+    function showNotificationToast() {
+        // Create and show a bootstrap toast for notifications
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-info border-0 position-fixed top-0 end-0 m-3" role="alert" style="z-index: 9999;">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You have 3 new notifications
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', toastHtml);
+        const toast = new bootstrap.Toast(document.querySelector('.toast:last-child'));
+        toast.show();
+    }
+
+    // Active nav link highlighting
+    const currentPath = window.location.pathname;
     const navLinks = document.querySelectorAll('.nav-link');
-    const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
-
-    // Navbar scroll effect
-    let lastScrollTop = 0;
-    let scrollTimeout;
-
-    function handleNavbarScroll() {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-        // Add scrolled class for enhanced shadow
-        if (scrollTop > 10) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
-        }
-
-        // Optional: Hide navbar on scroll down, show on scroll up
-        if (scrollTop > lastScrollTop && scrollTop > 100) {
-            // Scrolling down
-            navbar.style.transform = 'translateY(-100%)';
-        } else {
-            // Scrolling up
-            navbar.style.transform = 'translateY(0)';
-        }
-
-        lastScrollTop = scrollTop;
-
-        // Clear timeout and set new one
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-            navbar.style.transform = 'translateY(0)';
-        }, 150);
-    }
-
-    // Throttled scroll listener
-    let ticking = false;
-    window.addEventListener('scroll', function() {
-        if (!ticking) {
-            requestAnimationFrame(function() {
-                handleNavbarScroll();
-                ticking = false;
-            });
-            ticking = true;
-        }
-    });
-
-    // Ripple effect CSS
-    const navbarRippleCSS = `
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-        .nav-link {
-            position: relative;
-            overflow: hidden;
-        }
-    `;
-
-    // Only add CSS if it doesn't exist
-    if (!document.querySelector('#navbar-ripple-styles')) {
-        const navbarRippleStyleElement = document.createElement('style');
-        navbarRippleStyleElement.id = 'navbar-ripple-styles';
-        navbarRippleStyleElement.textContent = navbarRippleCSS;
-        document.head.appendChild(navbarRippleStyleElement);
-    }
-
-    // Enhanced nav link interactions
+    
     navLinks.forEach(link => {
-        // Add ripple effect on click
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 991.98) {
+            closeSidebar();
+        }
+    });
+
+    // Smooth scroll for nav links
+    navLinks.forEach(link => {
         link.addEventListener('click', function(e) {
-            const ripple = document.createElement('span');
-            const rect = this.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            const x = e.clientX - rect.left - size / 2;
-            const y = e.clientY - rect.top - size / 2;
-
-            ripple.style.cssText = `
-                position: absolute;
-                width: ${size}px;
-                height: ${size}px;
-                left: ${x}px;
-                top: ${y}px;
-                background: rgba(76, 80, 197, 0.3);
-                border-radius: 50%;
-                transform: scale(0);
-                animation: ripple 0.6s linear;
-                pointer-events: none;
-                z-index: 1;
-            `;
-
-            this.appendChild(ripple);
-
+            // Add loading animation
+            const icon = this.querySelector('.nav-icon');
+            const originalIcon = icon.innerHTML;
+            icon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
             setTimeout(() => {
-                ripple.remove();
-            }, 600);
-        });
-
-        // Enhanced hover tracking
-        link.addEventListener('mouseenter', function() {
-            this.style.setProperty('--hover-scale', '1.02');
-        });
-
-        link.addEventListener('mouseleave', function() {
-            this.style.setProperty('--hover-scale', '1');
+                icon.innerHTML = originalIcon;
+            }, 500);
         });
     });
 
-    // Enhanced dropdown interactions
-    dropdownToggles.forEach(toggle => {
-        const dropdown = toggle.nextElementSibling;
-
-        toggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            const isOpen = dropdown.classList.contains('show');
-
-            // Close all other dropdowns first
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                if (menu !== dropdown) {
-                    menu.classList.remove('show');
-                    menu.previousElementSibling.setAttribute('aria-expanded', 'false');
-                }
-            });
-
-            // Toggle current dropdown
-            if (isOpen) {
-                dropdown.classList.remove('show');
-                this.setAttribute('aria-expanded', 'false');
-            } else {
-                dropdown.classList.add('show');
-                this.setAttribute('aria-expanded', 'true');
+    // Auto-collapse sidebar on mobile when clicking nav links
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 991.98) {
+                setTimeout(() => {
+                    closeSidebar();
+                }, 300);
             }
         });
     });
 
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.dropdown')) {
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                menu.classList.remove('show');
-                menu.previousElementSibling.setAttribute('aria-expanded', 'false');
-            });
-        }
-    });
-
-    // Keyboard navigation improvements
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
-                menu.classList.remove('show');
-                menu.previousElementSibling.setAttribute('aria-expanded', 'false');
-            });
-        }
-    });
-
-    // Logout functionality is now handled in auth.js
-    // This section is intentionally left empty to avoid conflicts
-
-    // Active page detection
-    function setActiveNavLink() {
-        const currentPath = window.location.pathname;
-        navLinks.forEach(link => {
-            const linkPath = new URL(link.href).pathname;
-            if (linkPath === currentPath) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
-    }
-
-    // Set active link on page load
-    setActiveNavLink();
-
-    // Update active link on navigation (for SPAs)
-    window.addEventListener('popstate', setActiveNavLink);
+    console.log('Vertical sidebar navigation initialized');
 });
 
-// Add ripple animation CSS
-const rippleCSS = `
-@keyframes ripple {
-    to {
-        transform: scale(4);
-        opacity: 0;
+// Escape key to close sidebar
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        if (sidebar && sidebar.classList.contains('show')) {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
     }
-}
-`;
-
-// Only add CSS if it doesn't exist
-if (!document.querySelector('#navbar-ripple-styles')) {
-    const navbarRippleStyleElement = document.createElement('style');
-    navbarRippleStyleElement.id = 'navbar-ripple-styles';
-    navbarRippleStyleElement.textContent = rippleCSS;
-    document.head.appendChild(navbarRippleStyleElement);
-}
+});

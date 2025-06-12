@@ -1,301 +1,356 @@
-{% extends "base.html" %}
-
-{% block title %}Welcome - Business Management System{% endblock %}
+{% extends "layout.html" %}
 
 {% block content %}
-<style>
-    .hero-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 80px 0;
-        margin: -30px -15px 60px -15px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hero-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.1);
-        z-index: 1;
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
-    }
-
-    .hero-title {
-        font-size: 3.5rem;
-        font-weight: 700;
-        margin-bottom: 24px;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .hero-subtitle {
-        font-size: 1.25rem;
-        font-weight: 400;
-        margin-bottom: 40px;
-        opacity: 0.95;
-    }
-
-    .feature-card {
-        background: white;
-        border: none;
-        border-radius: 16px;
-        padding: 40px 32px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-        transition: all 0.3s ease;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .feature-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 4px;
-        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-    }
-
-    .feature-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
-    }
-
-    .feature-icon {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 24px;
-        font-size: 2rem;
-        color: white;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .feature-icon.inventory {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-    }
-
-    .feature-icon.sales {
-        background: linear-gradient(135deg, #f093fb, #f5576c);
-    }
-
-    .feature-icon.financial {
-        background: linear-gradient(135deg, #4facfe, #00f2fe);
-    }
-
-    .feature-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 16px;
-    }
-
-    .feature-description {
-        color: var(--text-secondary);
-        line-height: 1.6;
-        font-size: 1rem;
-    }
-
-    .cta-section {
-        background: var(--gray-100);
-        padding: 60px 0;
-        margin: 60px -15px -30px -15px;
-        text-align: center;
-    }
-
-    .cta-buttons .btn {
-        padding: 16px 32px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        border-radius: 12px;
-        margin: 0 8px;
-        min-width: 160px;
-    }
-
-    .btn-hero {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        border: none;
-        color: white;
-        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-hero:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
-        color: white;
-    }
-
-    .stats-section {
-        padding: 60px 0;
-    }
-
-    .stat-item {
-        text-align: center;
-        padding: 24px;
-    }
-
-    .stat-number {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--primary-color);
-        display: block;
-    }
-
-    .stat-label {
-        color: var(--text-secondary);
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.9rem;
-    }
-
-    @media (max-width: 768px) {
-        .hero-title {
-            font-size: 2.5rem;
-        }
-        
-        .hero-section {
-            padding: 60px 0;
-        }
-        
-        .feature-card {
-            padding: 32px 24px;
-        }
-    }
-</style>
-
-<!-- Hero Section -->
-<div class="hero-section">
-    <div class="container hero-content">
-        <div class="row justify-content-center text-center">
-            <div class="col-lg-8">
-                <h1 class="hero-title">
-                    📊 Business Management System
-                </h1>
-                <p class="hero-subtitle">
-                    Streamline your business operations with our comprehensive management solution
-                </p>
-                <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    <a href="{{ url_for('postgresql_auth.login') }}" class="btn btn-hero">
-                        <i class="fas fa-sign-in-alt me-2"></i>Get Started
-                    </a>
-                    <a href="{{ url_for('postgresql_auth.register') }}" class="btn btn-outline-light">
-                        <i class="fas fa-user-plus me-2"></i>Register
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Features Section -->
 <div class="container">
-    <div class="row text-center mb-5">
-        <div class="col-12">
-            <h2 class="display-5 fw-bold mb-3">Powerful Features for Your Business</h2>
-            <p class="lead text-muted">Everything you need to manage your business efficiently</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1" data-translate="dashboard">Dashboard</h1>
+            <h5 class="text-muted" id="shop-name">Loading shop details...</h5>
         </div>
     </div>
-    
-    <div class="row g-4 mb-5">
-        <div class="col-lg-4 col-md-6">
-            <div class="feature-card text-center">
-                <div class="feature-icon inventory">
-                    <i class="fas fa-boxes"></i>
+
+    <div class="row g-4 mb-4">
+        <!-- Summary Cards with new design -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Items</h5>
+                    <p class="display-4 mb-0" id="total-items">0</p>
                 </div>
-                <h3 class="feature-title">Inventory Management</h3>
-                <p class="feature-description">
-                    Track stock levels, manage categories, and monitor low stock alerts with real-time updates and automated notifications.
-                </p>
             </div>
         </div>
-        
-        <div class="col-lg-4 col-md-6">
-            <div class="feature-card text-center">
-                <div class="feature-icon sales">
-                    <i class="fas fa-credit-card"></i>
+        <div class="col-md-3 mb-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Stock</h5>
+                    <p class="display-4 mb-0" id="total-stock">0</p>
                 </div>
-                <h3 class="feature-title">Sales Management</h3>
-                <p class="feature-description">
-                    Create sales with flexible payment options including installment plans, customer management, and detailed sales analytics.
-                </p>
             </div>
         </div>
-        
-        <div class="col-lg-4 col-md-6">
-            <div class="feature-card text-center">
-                <div class="feature-icon financial">
-                    <i class="fas fa-chart-line"></i>
+        <div class="col-md-3 mb-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Low Stock Items</h5>
+                    <p class="display-4 mb-0" id="low-stock-count">0</p>
                 </div>
-                <h3 class="feature-title">Financial Tracking</h3>
-                <p class="feature-description">
-                    Monitor income, expenses, and get comprehensive insights into your business performance with detailed reports.
-                </p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Inventory Value</h5>
+                    <p class="display-4 mb-0">
+                        <span id="inventory-value">0</span>
+                    </p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Section -->
-    <div class="stats-section">
-        <div class="row">
-            <div class="col-md-3 col-6">
-                <div class="stat-item">
-                    <span class="stat-number">500+</span>
-                    <span class="stat-label">Businesses</span>
+    <!-- Financial Summary Section -->
+    <div class="card financial-card compact-chart mb-4">
+        <div class="card-header py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="card-title small mb-0">Financial Summary</h6>
+                <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt"></i> View Reports
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-2">
+            <div class="row">
+                <!-- Monthly Summary Chart -->
+                <div class="col-md-8">
+                    <div class="chart-container">
+                        <canvas id="financialSummaryChart" height="180"></canvas>
+                    </div>
+                </div>
+                <!-- Financial Metrics Cards -->
+                <div class="col-md-4">
+                    <div class="card finance-card mb-3 financial-summary income-card compact-chart">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Income</h6>
+                                </div>
+                                <i class="fas fa-arrow-circle-down text-success"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-income">0</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card finance-card mb-3 financial-summary expense-card compact-chart">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Expenses</h6>
+                                </div>
+                                <i class="fas fa-arrow-circle-up text-danger"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-expenses">0</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card finance-card financial-summary profit-card compact-chart mb-3">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Net Profit</h6>
+                                </div>
+                                <i class="fas fa-chart-line text-info"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-profit">0</span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-item">
-                    <span class="stat-number">50K+</span>
-                    <span class="stat-label">Transactions</span>
+        </div>
+    </div>
+
+    <!-- Inventory Health Overview -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card inventory-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Inventory Health Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="inventory-health-container">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading inventory health data...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-item">
-                    <span class="stat-number">99.9%</span>
-                    <span class="stat-label">Uptime</span>
+        </div>
+    </div>
+
+    <!-- Dashboard Stats -->
+    <div class="row">
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card sales">
+                <div class="card-body">
+                    <div class="stat-icon sales">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h6 class="card-title">Total Sales</h6>
+                    <p class="stat-value" id="total-sales">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 12% from last month
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 col-6">
-                <div class="stat-item">
-                    <span class="stat-number">24/7</span>
-                    <span class="stat-label">Support</span>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card inventory">
+                <div class="card-body">
+                    <div class="stat-icon inventory">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h6 class="card-title">Total Items</h6>
+                    <p class="stat-value" id="total-items">0</p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 5 new items
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card profit">
+                <div class="card-body">
+                    <div class="stat-icon profit">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h6 class="card-title">Low Stock</h6>
+                    <p class="stat-value" id="low-stock-count">0</p>
+                    <div class="stat-trend stat-trend-down d-none d-sm-block">
+                        <i class="fas fa-exclamation-triangle"></i> Needs attention
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3 mb-3 mb-md-4">
+            <div class="card stat-card customers">
+                <div class="card-body">
+                    <div class="stat-icon customers">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h6 class="card-title">Total Value</h6>
+                    <p class="stat-value" id="total-value">
+                        <span class="currency-symbol">TZS</span> <span>0</span>
+                    </p>
+                    <div class="stat-trend stat-trend-up d-none d-sm-block">
+                        <i class="fas fa-arrow-up"></i> 8% increase
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Stock Level Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card chart-card compact-chart">
+                <div class="card-header py-2">
+                    <h6 class="card-title small mb-0">Stock Levels by Category</h6>
+                </div>
+                <div class="card-body p-2">
+                    <canvas id="stockChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Value by Category Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card chart-card compact-chart">
+                <div class="card-header py-2">
+                    <h6 class="card-title small mb-0">Inventory Value by Category</h6>
+                </div>
+                <div class="card-body p-2">
+                    <canvas id="valueChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Low Stock Items -->
+        <div class="col-md-12 mb-4">
+            <div class="card data-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Low Stock Items</h5>
+                    <a href="{{ url_for('inventory') }}" class="btn btn-sm btn-primary">View All Inventory</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading low stock items...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Sales Performance -->
+        <div class="col-md-6 mb-4">
+            <div class="card data-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Top Selling Items</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Units Sold</th>
+                                    <th>Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-selling-table">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading top selling items...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card data-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Slow Moving Items</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Days in Stock</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slow-moving-table">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading slow moving items...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <!-- On-Demand Products -->
+        <div class="col-md-12 mb-4">
+            <div class="card data-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">On-Demand Products</h5>
+                    <a href="{{ url_for('on_demand') }}" class="btn btn-sm btn-primary">Manage On-Demand Products</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Base Price</th>
+                                    <th>Production Time</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="on-demand-products-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading on-demand products...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- Call to Action Section -->
-<div class="cta-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center">
-                <h2 class="display-6 fw-bold mb-3">Ready to Transform Your Business?</h2>
-                <p class="lead mb-4">Join thousands of businesses already using our platform to streamline their operations.</p>
-                <div class="cta-buttons">
-                    <a href="{{ url_for('postgresql_auth.register') }}" class="btn btn-hero">
-                        <i class="fas fa-rocket me-2"></i>Start Free Trial
-                    </a>
-                    <a href="{{ url_for('postgresql_auth.login') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
