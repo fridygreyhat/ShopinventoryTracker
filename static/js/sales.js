@@ -104,10 +104,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Payment method toggle
     paymentMethod.addEventListener('change', function() {
+        // Hide all payment-specific fields first
+        mobileMoneyFields.classList.add('d-none');
+        document.getElementById('installmentFields').classList.add('d-none');
+        
         if (this.value === 'mobile_money') {
             mobileMoneyFields.classList.remove('d-none');
-        } else {
-            mobileMoneyFields.classList.add('d-none');
+        } else if (this.value === 'installment') {
+            document.getElementById('installmentFields').classList.remove('d-none');
+            // Set payment amount to down payment when installment is selected
+            const downPaymentInput = document.getElementById('downPayment');
+            const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+            const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
+            downPaymentInput.value = suggestedDownPayment;
+            paymentAmount.value = suggestedDownPayment;
         }
     });
 
@@ -456,16 +466,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const notes = document.getElementById('saleNotes').value || '';
 
         let mobileInfo = {};
+        let installmentInfo = {};
+        
         if (payment === 'mobile_money') {
             mobileInfo = {
                 provider: document.getElementById('mobileProvider').value,
                 reference: document.getElementById('transactionReference').value
             };
+        } else if (payment === 'installment') {
+            // Validate installment fields
+            const customerAddress = document.getElementById('customerAddress').value.trim();
+            if (!customerAddress) {
+                alert('Customer address is required for installment sales');
+                return;
+            }
+            if (!customerPhone) {
+                alert('Customer phone number is required for installment sales');
+                return;
+            }
+            
+            installmentInfo = {
+                down_payment: parseFloat(document.getElementById('downPayment').value) || 0,
+                number_of_installments: parseInt(document.getElementById('numberOfInstallments').value),
+                customer_address: customerAddress
+            };
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
 
-        if (amount < totalAmount) {
+        // For installment, only check if down payment is reasonable
+        if (payment === 'installment') {
+            if (amount < totalAmount * 0.1) { // Minimum 10% down payment
+                alert('Down payment should be at least 10% of the total amount');
+                return;
+            }
+        } else if (amount < totalAmount) {
             alert('Payment amount is less than the total');
             return;
         }
@@ -474,7 +509,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const transaction = {
             customer: {
                 name: customerName,
-                phone: customerPhone
+                phone: customerPhone,
+                address: payment === 'installment' ? installmentInfo.customer_address : null
             },
             items: cart.map(item => ({
                 id: item.id,
@@ -487,8 +523,9 @@ document.addEventListener('DOMContentLoaded', function() {
             payment: {
                 method: payment,
                 amount: amount,
-                change: amount - totalAmount,
-                mobile_info: payment === 'mobile_money' ? mobileInfo : null
+                change: payment === 'installment' ? 0 : amount - totalAmount,
+                mobile_info: payment === 'mobile_money' ? mobileInfo : null,
+                installment_info: payment === 'installment' ? installmentInfo : null
             },
             sale_type: saleType,
             subtotal: parseFloat(cartSubtotal.textContent.replace(/,/g, '')),

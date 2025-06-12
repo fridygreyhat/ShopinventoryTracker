@@ -1522,6 +1522,13 @@ def create_sale():
         # Generate a unique invoice number
         invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
 
+        # Prepare payment details
+        payment_details = {}
+        if data.get('payment', {}).get('mobile_info'):
+            payment_details.update(data.get('payment', {}).get('mobile_info', {}))
+        if data.get('payment', {}).get('installment_info'):
+            payment_details.update(data.get('payment', {}).get('installment_info', {}))
+
         # Create new sale record
         new_sale = Sale(invoice_number=invoice_number,
                         customer_name=data.get('customer',
@@ -1540,8 +1547,7 @@ def create_sale():
                         total=data.get('total', 0),
                         payment_method=data.get('payment',
                                                 {}).get('method', 'cash'),
-                        payment_details=json.dumps(
-                            data.get('payment', {}).get('mobile_info', {})),
+                        payment_details=json.dumps(payment_details),
                         payment_amount=data.get('payment',
                                                 {}).get('amount', 0),
                         change_amount=data.get('payment', {}).get('change', 0),
@@ -1573,6 +1579,69 @@ def create_sale():
                     0, item.quantity - item_data.get('quantity', 1))
 
         db.session.commit()
+
+        # If this is an installment sale, create the installment record
+        if data.get('payment', {}).get('method') == 'installment':
+            try:
+                # Create or get customer
+                customer_data = data.get('customer', {})
+                customer_name = customer_data.get('name', 'Walk-in Customer')
+                customer_phone = customer_data.get('phone', '')
+                customer_address = customer_data.get('address', '')
+
+                # Check if customer exists
+                existing_customer = Customer.query.filter_by(
+                    name=customer_name, 
+                    phone=customer_phone
+                ).first()
+
+                if existing_customer:
+                    customer = existing_customer
+                else:
+                    # Create new customer
+                    customer = Customer(
+                        name=customer_name,
+                        phone=customer_phone,
+                        address=customer_address
+                    )
+                    db.session.add(customer)
+                    db.session.flush()
+
+                # Get installment info
+                installment_info = data.get('payment', {}).get('installment_info', {})
+                
+                # For now, we'll use the first item in the cart for installment
+                # In a more complex system, you might want to handle multiple items differently
+                first_item = data.get('items', [])[0] if data.get('items') else None
+                if first_item:
+                    # Calculate installment amount
+                    total_amount = data.get('total', 0)
+                    down_payment = installment_info.get('down_payment', 0)
+                    remaining_amount = total_amount - down_payment
+                    number_of_installments = installment_info.get('number_of_installments', 12)
+                    installment_amount = remaining_amount / number_of_installments
+
+                    # Create installment sale
+                    installment_sale = InstallmentSale(
+                        customer_id=customer.id,
+                        item_id=first_item.get('id'),
+                        quantity=first_item.get('quantity', 1),
+                        total_amount=total_amount,
+                        down_payment=down_payment,
+                        number_of_installments=number_of_installments,
+                        installment_amount=installment_amount,
+                        start_date=datetime.now().date(),
+                        status='Active',
+                        agreement_signed=True,  # Assume signed for sales
+                        notes=f"Created from sale {new_sale.invoice_number}"
+                    )
+                    db.session.add(installment_sale)
+                    db.session.commit()
+
+            except Exception as e:
+                logger.error(f"Error creating installment sale: {str(e)}")
+                # Don't fail the main sale, just log the error
+                pass
 
         # Create accounting entries for the sale
         try:
@@ -2373,6 +2442,48 @@ def add_installment_payment():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error adding installment payment: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# Customer API Routes
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers():
+    """API endpoint to get all customers"""
+    try:
+        customers = Customer.query.order_by(Customer.name).all()
+        return jsonify([customer.to_dict() for customer in customers])
+    except Exception as e:
+        logger.error(f"Error getting customers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/customers', methods=['POST'])
+@login_required
+def create_customer():
+    """API endpoint to create a new customer"""
+    try:
+        data = request.json
+
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Customer name is required'}), 400
+
+        # Create new customer
+        new_customer = Customer(
+            name=data['name'],
+            phone=data.get('phone', ''),
+            email=data.get('email', ''),
+            address=data.get('address', '')
+        )
+
+        db.session.add(new_customer)
+        db.session.commit()
+
+        return jsonify(new_customer.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating customer: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
