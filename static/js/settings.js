@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const input = document.getElementById(setting.key);
                         if (input) {
                             if (input.type === 'checkbox') {
-                                input.checked = setting.value === 'true';
+                                input.checked = setting.value === 'true' || setting.value === true;
                             } else if (input.type === 'radio') {
                                 const radio = document.querySelector(`input[name="${input.name}"][value="${setting.value}"]`);
                                 if (radio) {
@@ -547,7 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadSubusers();
             loadPermissions();
         });
-        
+
         // Also load if the tab is already active on page load
         if (userPermissionsTab.classList.contains('active')) {
             loadSubusers();
@@ -706,14 +706,14 @@ async function loadPermissions() {
 
         const data = await response.json();
         console.log('Permissions loaded successfully:', data);
-        
+
         currentPermissions = data.permissions || [];
         renderPermissions(data.permissions || [], data.descriptions || {});
 
     } catch (error) {
         console.error('Error loading permissions:', error);
         showAlert('Failed to load permissions', 'danger');
-        
+
         // Fallback: render empty permissions container
         const container = document.getElementById('permissions-container');
         if (container) {
@@ -796,9 +796,9 @@ async function handleSubuserSubmit(event) {
         // Close modal and refresh list
         const modal = bootstrap.Modal.getInstance(document.getElementById('addSubuserModal'));
         modal.hide();
-        
+
         showAlert(editingSubuserId ? 'User updated successfully' : 'User added successfully', 'success');
-        
+
         // Reload subusers to show the updated list
         await loadSubusers();
 
@@ -813,7 +813,7 @@ async function handleSubuserSubmit(event) {
         // Reset button state
         const submitBtn = document.querySelector('#submit-btn-text');
         const submitSpinner = document.getElementById('submit-spinner');
-        
+
         if (submitBtn) {
             submitBtn.textContent = editingSubuserId ? 'Update User' : 'Add User';
         }
@@ -934,7 +934,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset button text
             const submitBtn = document.querySelector('#submit-btn-text');
             const submitSpinner = document.getElementById('submit-spinner');
-            
+
             if (submitBtn) {
                 submitBtn.textContent = 'Add User';
             }
@@ -965,4 +965,75 @@ function showAlert(message, type) {
             alertDiv.remove();
         }
     }, 5000);
+}// Load all settings when page loads
+    loadAllSettings();
+});
+
+// Test SMS function
+function testSMS() {
+    const phoneNumber = document.getElementById('notification_phone').value;
+
+    if (!phoneNumber) {
+        showAlert('Please enter a phone number first', 'warning');
+        return;
+    }
+
+    // Show loading state
+    const testButton = event.target;
+    const originalText = testButton.innerHTML;
+    testButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    testButton.disabled = true;
+
+    fetch('/api/notifications/test-sms', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            phone_number: phoneNumber,
+            message: 'Test SMS from your Inventory Management System. SMS notifications are working correctly!'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Test SMS sent successfully!', 'success');
+        } else {
+            showAlert(data.error || 'Failed to send test SMS', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending test SMS:', error);
+        showAlert('Error sending test SMS', 'danger');
+    })
+    .finally(() => {
+        // Restore button state
+        testButton.innerHTML = originalText;
+        testButton.disabled = false;
+    });
+}
+
+// Send low stock alert function
+function sendLowStockAlert() {
+    fetch('/api/notifications/send-low-stock-alert', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Low stock alert sent! Found ${data.low_stock_count} low stock items.`;
+            if (data.sms_sent) message += ' SMS sent.';
+            if (data.email_sent) message += ' Email sent.';
+            showAlert(message, 'success');
+        } else {
+            showAlert(`Failed to send alert: ${data.errors.join(', ')}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending low stock alert:', error);
+        showAlert('Error sending low stock alert', 'danger');
+    });
 }

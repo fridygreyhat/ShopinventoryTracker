@@ -173,6 +173,38 @@ with app.app_context():
                               'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
             add_column_safely('item', 'category_id', 'INTEGER')
 
+        # Initialize SMS notification settings if they don't exist
+        try:
+            from models import Setting
+            
+            # Default SMS settings
+            default_sms_settings = [
+                ('sms_notifications_enabled', 'false', 'Enable SMS notifications for low stock alerts', 'notifications'),
+                ('notification_phone', '', 'Phone number to receive SMS notifications (include country code)', 'notifications'),
+                ('low_stock_threshold', '10', 'Quantity threshold for low stock alerts', 'notifications'),
+                ('email_notifications_enabled', 'false', 'Enable email notifications for low stock alerts', 'notifications'),
+                ('notification_email', '', 'Email address to receive notifications', 'notifications'),
+                ('sender_email', 'inventory@yourbusiness.com', 'Email address to send notifications from', 'notifications')
+            ]
+            
+            for key, value, description, category in default_sms_settings:
+                existing_setting = Setting.query.filter_by(key=key).first()
+                if not existing_setting:
+                    new_setting = Setting(
+                        key=key,
+                        value=value,
+                        description=description,
+                        category=category
+                    )
+                    db.session.add(new_setting)
+            
+            db.session.commit()
+            logger.info("SMS notification settings initialized")
+            
+        except Exception as e:
+            logger.warning(f"Could not initialize SMS settings: {str(e)}")
+            db.session.rollback()
+
     except Exception as e:
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
@@ -2788,10 +2820,36 @@ def test_sms():
         from notifications.sms_service import send_sms
         result = send_sms(phone_number, message)
 
-        return jsonify({'success': result})
+        if result:
+            return jsonify({'success': True, 'message': 'SMS sent successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to send SMS'})
 
     except Exception as e:
         logger.error(f"Error sending test SMS: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/notifications/send-low-stock-alert', methods=['POST'])
+def send_low_stock_alert():
+    """API endpoint to manually trigger low stock SMS alerts"""
+    try:
+        from notifications.notification_manager import check_low_stock_and_notify
+        from models import Item, Setting
+
+        # Trigger the notification check
+        result = check_low_stock_and_notify(db, Item, Setting)
+
+        return jsonify({
+            'success': result.get('success', False),
+            'sms_sent': result.get('sms_sent', False),
+            'email_sent': result.get('email_sent', False),
+            'low_stock_count': result.get('low_stock_count', 0),
+            'errors': result.get('errors', [])
+        })
+
+    except Exception as e:
+        logger.error(f"Error sending low stock alert: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
