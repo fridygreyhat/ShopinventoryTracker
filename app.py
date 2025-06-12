@@ -105,10 +105,15 @@ with app.app_context():
     # Helper function to check if column exists
     def column_exists(table_name, column_name):
         try:
+            # PostgreSQL query to check if column exists
             result = db.session.execute(
-                db.text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result.fetchall()]
-            return column_name in columns
+                db.text(f"""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = '{table_name}' 
+                    AND column_name = '{column_name}'
+                """))
+            return result.fetchone() is not None
         except Exception:
             return False
 
@@ -151,26 +156,26 @@ with app.app_context():
         # Check if user table exists
         result = db.session.execute(
             db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='user';"
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'user' AND table_schema = 'public';"
             ))
         if result.fetchone():
             # Add is_active column if missing
-            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT 1', '1')
+            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT true', 'true')
             # Add phone column if missing
             add_column_safely('user', 'phone', 'VARCHAR(20)')
 
         # Check if item table exists
         result = db.session.execute(
             db.text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='item';"
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'item' AND table_schema = 'public';"
             ))
         if result.fetchone():
             # Add missing item columns
             add_column_safely('item', 'subcategory', 'VARCHAR(100)')
             add_column_safely('item', 'unit_type',
-                              'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+                              "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
             add_column_safely('item', 'sell_by',
-                              'VARCHAR(20) DEFAULT "quantity"', '"quantity"')
+                              "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
             add_column_safely('item', 'category_id', 'INTEGER')
 
         # Initialize SMS notification settings if they don't exist
