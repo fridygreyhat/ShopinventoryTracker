@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -19,177 +20,207 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}">
 </head>
 <body data-theme-value="sunset">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="brand-logo">
-                <span class="fw-bold">Inventory Tracker</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    {% if session.get('user_id') %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('index') %}active{% endif %}" 
-                           href="{{ url_for('index') }}">
-                            <i class="fas fa-chart-line me-1"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('inventory') %}active{% endif %}" 
-                           href="{{ url_for('inventory') }}">
-                            <i class="fas fa-boxes me-1"></i> Inventory
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('margin') %}active{% endif %}" 
-                           href="{{ url_for('margin') }}">
-                            <i class="fas fa-percentage me-1"></i> Margin
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('on_demand') %}active{% endif %}" 
-                           href="{{ url_for('on_demand') }}">
-                            <i class="fas fa-magic me-1"></i> On-Demand Products
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('categories') %}active{% endif %}" 
-                           href="{{ url_for('categories') }}">
-                            <i class="fas fa-folder-open me-2"></i>Categories
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('sales') %}active{% endif %}" 
-                           href="{{ url_for('sales') }}">
-                            <i class="fas fa-cash-register me-1"></i> Sales
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('reports') %}active{% endif %}" 
-                           href="{{ url_for('reports') }}">
-                            <i class="fas fa-file-alt me-1"></i> Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('finance') %}active{% endif %}" 
-                           href="{{ url_for('finance') }}">
-                            <i class="fas fa-money-bill-wave me-1"></i> Finance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == url_for('settings') %}active{% endif %}" 
-                           href="{{ url_for('settings') }}">
-                            <i class="fas fa-cog me-2"></i>Settings
-                        </a>
-                    </li>
-                    {% if session.get('user_id') %}
-                        {% set current_user = get_current_user() %}
-                        {% if current_user and current_user.is_admin %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-shield me-2"></i>Admin
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">
-                                <i class="fas fa-users me-2"></i>User Management
-                            </a></li>
-                        </ul>
-                    </li>
-                        {% endif %}
-                    {% endif %}
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-info-circle me-1"></i> About
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-                <ul class="navbar-nav me-3">
-                    <li class="nav-item">
-                        <select id="languageSelector" class="form-select form-select-sm">
-                            <option value="en">English</option>
-                            <option value="sw">Kiswahili</option>
-                        </select>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    {% if session.get('user_id') %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle me-1"></i>
-                                {{ session.get('email', 'Account') }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('account') }}">
-                                        <i class="fas fa-user me-2"></i> My Account
-                                    </a>
-                                </li>
-                                {% if session.get('is_admin') %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('admin_users') }}">
-                                        <i class="fas fa-users-cog me-2"></i> User Management
-                                    </a>
-                                </li>
-                                {% endif %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('login') %}active{% endif %}" 
-                               href="{{ url_for('login') }}">
-                                <i class="fas fa-sign-in-alt me-1"></i> Login
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('register') %}active{% endif %}" 
-                               href="{{ url_for('register') }}">
-                                <i class="fas fa-user-plus me-1"></i> Register
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container mt-4">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div class="app-container">
+        <!-- Vertical Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-section">
+                    <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Logo" class="brand-logo">
+                    <div class="brand-text">
+                        <h5 class="brand-title">Inventory</h5>
+                        <small class="brand-subtitle">Tracker</small>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+                </div>
+                <button class="sidebar-toggle d-lg-none" id="sidebarToggle">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
 
-        <!-- Page Content -->
-        {% block content %}{% endblock %}
-    </div>
+            <div class="sidebar-body">
+                {% if session.get('user_id') %}
+                <!-- User Profile Section -->
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ session.get('email', 'User').split('@')[0] }}</div>
+                        <div class="user-role">{% if session.get('is_admin') %}Administrator{% else %}User{% endif %}</div>
+                    </div>
+                    <div class="user-dropdown">
+                        <div class="dropdown">
+                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('account') }}">
+                                    <i class="fas fa-user me-2"></i> My Account
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Footer -->
-    <footer class="bg-light mt-5 py-3 border-top">
-        <div class="container text-center">
-            <p class="text-muted mb-0">&copy; 2025 Shop Inventory Management System</p>
+                <!-- Navigation Menu -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="nav-icon fas fa-chart-line"></i>
+                                <span class="nav-text">Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('inventory') %}active{% endif %}" href="{{ url_for('inventory') }}">
+                                <i class="nav-icon fas fa-boxes"></i>
+                                <span class="nav-text">Inventory</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('categories') %}active{% endif %}" href="{{ url_for('categories') }}">
+                                <i class="nav-icon fas fa-folder-open"></i>
+                                <span class="nav-text">Categories</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Sales & Finance</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('sales') %}active{% endif %}" href="{{ url_for('sales') }}">
+                                <i class="nav-icon fas fa-cash-register"></i>
+                                <span class="nav-text">Sales</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('margin') %}active{% endif %}" href="{{ url_for('margin') }}">
+                                <i class="nav-icon fas fa-percentage"></i>
+                                <span class="nav-text">Margin Analysis</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('finance') %}active{% endif %}" href="{{ url_for('finance') }}">
+                                <i class="nav-icon fas fa-money-bill-wave"></i>
+                                <span class="nav-text">Finance</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Reports & Analytics</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('reports') %}active{% endif %}" href="{{ url_for('reports') }}">
+                                <i class="nav-icon fas fa-file-alt"></i>
+                                <span class="nav-text">Reports</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('on_demand') %}active{% endif %}" href="{{ url_for('on_demand') }}">
+                                <i class="nav-icon fas fa-magic"></i>
+                                <span class="nav-text">On-Demand</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                {% if session.get('user_id') %}
+                    {% set current_user = get_current_user() %}
+                    {% if current_user and current_user.is_admin %}
+                <div class="nav-section">
+                    <div class="nav-section-title">Administration</div>
+                    <ul class="nav-menu">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_users') }}">
+                                <i class="nav-icon fas fa-users-cog"></i>
+                                <span class="nav-text">User Management</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('settings') %}active{% endif %}" href="{{ url_for('settings') }}">
+                                <i class="nav-icon fas fa-cog"></i>
+                                <span class="nav-text">Settings</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                    {% endif %}
+                {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="language-selector">
+                    <select id="languageSelector" class="form-select form-select-sm">
+                        <option value="en">English</option>
+                        <option value="sw">Kiswahili</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Overlay -->
+        <div class="sidebar-overlay d-lg-none" id="sidebarOverlay"></div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn d-lg-none" id="mobileMenuBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="page-title">
+                        {% block page_title %}Dashboard{% endblock %}
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="header-actions">
+                        <button class="btn btn-sm btn-outline-primary" id="notificationBtn">
+                            <i class="fas fa-bell"></i>
+                            <span class="badge bg-danger notification-badge">3</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="fullscreenBtn">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="content-wrapper">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Footer -->
+            <footer class="content-footer">
+                <div class="footer-content">
+                    <p class="text-muted mb-0">&copy; 2025 Shop Inventory Management System</p>
+                </div>
+            </footer>
         </div>
-    </footer>
+    </div>
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -201,6 +232,8 @@
     <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
     <!-- Mobile Optimizations -->
     <script src="{{ url_for('static', filename='js/mobile-optimizations.js') }}"></script>
+    <!-- Navbar Enhancements -->
+    <script src="{{ url_for('static', filename='js/navbar-enhancements.js') }}"></script>
 
     <!-- Page-specific JS -->
     {% block scripts %}{% endblock %}
