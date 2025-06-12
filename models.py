@@ -551,3 +551,190 @@ class Subcategory(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+# Accounting System Models
+
+class AccountType(Enum):
+    """Enum for account types in double-entry bookkeeping"""
+    ASSET = "Asset"
+    LIABILITY = "Liability"
+    EQUITY = "Equity"
+    INCOME = "Income"
+    EXPENSE = "Expense"
+
+
+class Account(db.Model):
+    """Chart of Accounts model for double-entry accounting"""
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)  # Account code (e.g., 1000, 2000)
+    name = db.Column(db.String(100), nullable=False)
+    account_type = db.Column(db.String(20), nullable=False)  # Asset, Liability, Equity, Income, Expense
+    parent_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True)  # For sub-accounts
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    normal_balance = db.Column(db.String(10), nullable=False)  # 'Debit' or 'Credit'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    children = db.relationship('Account', backref=db.backref('parent', remote_side=[id]), lazy=True)
+    journal_entries = db.relationship('JournalEntry', backref='account', lazy=True)
+
+    def __repr__(self):
+        return f'<Account {self.code} - {self.name}>'
+
+    def get_balance(self, as_of_date=None):
+        """Calculate account balance up to a specific date"""
+        query = JournalEntry.query.filter_by(account_id=self.id)
+        
+        if as_of_date:
+            query = query.filter(JournalEntry.date <= as_of_date)
+        
+        entries = query.all()
+        
+        balance = 0
+        for entry in entries:
+            if entry.debit_amount:
+                balance += entry.debit_amount if self.normal_balance == 'Debit' else -entry.debit_amount
+            if entry.credit_amount:
+                balance += entry.credit_amount if self.normal_balance == 'Credit' else -entry.credit_amount
+        
+        return balance
+
+    def to_dict(self):
+        """Convert account to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'code': self.code,
+            'name': self.name,
+            'account_type': self.account_type,
+            'parent_id': self.parent_id,
+            'parent_name': self.parent.name if self.parent else None,
+            'description': self.description,
+            'is_active': self.is_active,
+            'normal_balance': self.normal_balance,
+            'current_balance': self.get_balance(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class JournalEntry(db.Model):
+    """Journal entries for double-entry bookkeeping"""
+    id = db.Column(db.Integer, primary_key=True)
+    entry_number = db.Column(db.String(50), unique=True, nullable=False)  # JE-2024-001
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    debit_amount = db.Column(db.Float, default=0.0)
+    credit_amount = db.Column(db.Float, default=0.0)
+    description = db.Column(db.String(255), nullable=False)
+    reference_type = db.Column(db.String(50))  # 'sale', 'purchase', 'manual', etc.
+    reference_id = db.Column(db.String(100))  # ID of related transaction
+    transaction_group = db.Column(db.String(50))  # Groups related journal entries
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    creator = db.relationship('User', backref='journal_entries')
+
+    def __repr__(self):
+        return f'<JournalEntry {self.entry_number}>'
+
+    def to_dict(self):
+        """Convert journal entry to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'entry_number': self.entry_number,
+            'date': self.date.isoformat() if self.date else None,
+            'account_id': self.account_id,
+            'account_code': self.account.code if self.account else None,
+            'account_name': self.account.name if self.account else None,
+            'debit_amount': self.debit_amount,
+            'credit_amount': self.credit_amount,
+            'description': self.description,
+            'reference_type': self.reference_type,
+            'reference_id': self.reference_id,
+            'transaction_group': self.transaction_group,
+            'created_by': self.created_by,
+            'creator_name': self.creator.username if self.creator else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class AccountingPeriod(db.Model):
+    """Accounting periods for financial reporting"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)  # "January 2024", "Q1 2024"
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    is_closed = db.Column(db.Boolean, default=False)
+    fiscal_year = db.Column(db.Integer, nullable=False)
+    period_type = db.Column(db.String(20), default='monthly')  # 'monthly', 'quarterly', 'yearly'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AccountingPeriod {self.name}>'
+
+    def to_dict(self):
+        """Convert accounting period to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'is_closed': self.is_closed,
+            'fiscal_year': self.fiscal_year,
+            'period_type': self.period_type,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class BankReconciliation(db.Model):
+    """Bank reconciliation records"""
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    reconciliation_date = db.Column(db.Date, nullable=False)
+    bank_statement_balance = db.Column(db.Float, nullable=False)
+    book_balance = db.Column(db.Float, nullable=False)
+    outstanding_deposits = db.Column(db.Float, default=0.0)
+    outstanding_checks = db.Column(db.Float, default=0.0)
+    bank_fees = db.Column(db.Float, default=0.0)
+    reconciled_balance = db.Column(db.Float, nullable=False)
+    is_reconciled = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    bank_account = db.relationship('Account', backref='reconciliations')
+    creator = db.relationship('User', backref='bank_reconciliations')
+
+    def __repr__(self):
+        return f'<BankReconciliation {self.reconciliation_date}>'
+
+    def to_dict(self):
+        """Convert bank reconciliation to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'bank_account_id': self.bank_account_id,
+            'bank_account_name': self.bank_account.name if self.bank_account else None,
+            'reconciliation_date': self.reconciliation_date.isoformat() if self.reconciliation_date else None,
+            'bank_statement_balance': self.bank_statement_balance,
+            'book_balance': self.book_balance,
+            'outstanding_deposits': self.outstanding_deposits,
+            'outstanding_checks': self.outstanding_checks,
+            'bank_fees': self.bank_fees,
+            'reconciled_balance': self.reconciled_balance,
+            'is_reconciled': self.is_reconciled,
+            'notes': self.notes,
+            'created_by': self.created_by,
+            'creator_name': self.creator.username if self.creator else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

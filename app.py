@@ -1567,6 +1567,13 @@ def create_sale():
 
         db.session.commit()
 
+        # Create accounting entries for the sale
+        try:
+            from accounting_service import AccountingService
+            AccountingService.record_sale_transaction(new_sale)
+        except Exception as e:
+            logger.warning(f"Could not create accounting entries for sale: {str(e)}")
+
         return jsonify({
             'success': True,
             'message': 'Sale created successfully',
@@ -1846,6 +1853,430 @@ def get_available_permissions():
             'permissions': [],
             'descriptions': {}
         }), 500
+
+
+# Accounting Routes
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Render the accounting page"""
+    return render_template('accounting.html')
+
+
+# Accounting API Routes
+@app.route('/api/accounting/initialize', methods=['POST'])
+@login_required
+def initialize_accounting():
+    """Initialize chart of accounts"""
+    try:
+        from accounting_service import AccountingService
+        AccountingService.initialize_chart_of_accounts()
+        return jsonify({'success': True, 'message': 'Chart of accounts initialized successfully'})
+    except Exception as e:
+        logger.error(f"Error initializing accounting: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/chart-of-accounts', methods=['GET'])
+@login_required
+def get_chart_of_accounts():
+    """Get chart of accounts"""
+    try:
+        from models import Account
+        accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
+        return jsonify([account.to_dict() for account in accounts])
+    except Exception as e:
+        logger.error(f"Error getting chart of accounts: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/accounts', methods=['POST'])
+@login_required
+def create_account():
+    """Create new account"""
+    try:
+        from models import Account
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['code', 'name', 'account_type', 'normal_balance']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Check if account code already exists
+        existing = Account.query.filter_by(code=data['code']).first()
+        if existing:
+            return jsonify({'error': 'Account code already exists'}), 400
+        
+        account = Account(
+            code=data['code'],
+            name=data['name'],
+            account_type=data['account_type'],
+            normal_balance=data['normal_balance'],
+            parent_id=data.get('parent_id'),
+            description=data.get('description', '')
+        )
+        
+        db.session.add(account)
+        db.session.commit()
+        
+        return jsonify(account.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating account: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/accounts/<int:account_id>', methods=['PUT'])
+@login_required
+def update_account(account_id):
+    """Update account"""
+    try:
+        from models import Account
+        account = Account.query.get_or_404(account_id)
+        data = request.json
+        
+        # Update fields
+        for field in ['name', 'description', 'is_active']:
+            if field in data:
+                setattr(account, field, data[field])
+        
+        account.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify(account.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating account: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/journal-entries', methods=['GET'])
+@login_required
+def get_journal_entries():
+    """Get journal entries with optional filtering"""
+    try:
+        from models import JournalEntry
+        
+        # Get query parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        account_id = request.args.get('account_id')
+        reference_type = request.args.get('reference_type')
+        
+        # Build query
+        query = JournalEntry.query
+        
+        if start_date:
+            query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(JournalEntry.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        if account_id:
+            query = query.filter(JournalEntry.account_id == account_id)
+        if reference_type:
+            query = query.filter(JournalEntry.reference_type == reference_type)
+        
+        entries = query.order_by(JournalEntry.date.desc(), JournalEntry.entry_number.desc()).all()
+        return jsonify([entry.to_dict() for entry in entries])
+    except Exception as e:
+        logger.error(f"Error getting journal entries: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/journal-entries', methods=['POST'])
+@login_required
+def create_manual_journal_entry():
+    """Create manual journal entry"""
+    try:
+        from accounting_service import AccountingService
+        data = request.json
+        
+        # Validate data
+        if not data.get('entries') or len(data['entries']) < 2:
+            return jsonify({'error': 'At least two journal entries required for double-entry'}), 400
+        
+        # Validate that debits equal credits
+        total_debits = sum(entry.get('debit_amount', 0) for entry in data['entries'])
+        total_credits = sum(entry.get('credit_amount', 0) for entry in data['entries'])
+        
+        if abs(total_debits - total_credits) > 0.01:
+            return jsonify({'error': 'Debits must equal credits'}), 400
+        
+        # Create journal entries
+        transaction_group = f"MANUAL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        for entry_data in data['entries']:
+            AccountingService.create_journal_entry(
+                account_id=entry_data['account_id'],
+                debit_amount=entry_data.get('debit_amount', 0),
+                credit_amount=entry_data.get('credit_amount', 0),
+                description=entry_data.get('description', ''),
+                reference_type='manual',
+                transaction_group=transaction_group,
+                entry_date=datetime.strptime(data.get('date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
+                created_by=session.get('user_id')
+            )
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Journal entries created successfully'})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating manual journal entry: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/trial-balance', methods=['GET'])
+@login_required
+def get_trial_balance():
+    """Get trial balance"""
+    try:
+        from accounting_service import AccountingService
+        as_of_date = request.args.get('as_of_date')
+        
+        if as_of_date:
+            as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
+        
+        trial_balance = AccountingService.get_trial_balance(as_of_date)
+        return jsonify(trial_balance)
+    except Exception as e:
+        logger.error(f"Error getting trial balance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/income-statement', methods=['GET'])
+@login_required
+def get_income_statement():
+    """Get profit & loss statement"""
+    try:
+        from accounting_service import AccountingService
+        
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            # Default to current month
+            today = datetime.now().date()
+            start_date = datetime(today.year, today.month, 1).date()
+            end_date = today
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        income_statement = AccountingService.get_income_statement(start_date, end_date)
+        return jsonify(income_statement)
+    except Exception as e:
+        logger.error(f"Error getting income statement: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/balance-sheet', methods=['GET'])
+@login_required
+def get_balance_sheet():
+    """Get balance sheet"""
+    try:
+        from accounting_service import AccountingService
+        as_of_date = request.args.get('as_of_date')
+        
+        if as_of_date:
+            as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
+        
+        balance_sheet = AccountingService.get_balance_sheet(as_of_date)
+        return jsonify(balance_sheet)
+    except Exception as e:
+        logger.error(f"Error getting balance sheet: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/general-ledger/<int:account_id>', methods=['GET'])
+@login_required
+def get_general_ledger(account_id):
+    """Get general ledger for specific account"""
+    try:
+        from models import Account, JournalEntry
+        
+        account = Account.query.get_or_404(account_id)
+        
+        # Get date filters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        query = JournalEntry.query.filter_by(account_id=account_id)
+        
+        if start_date:
+            query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(JournalEntry.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        
+        entries = query.order_by(JournalEntry.date, JournalEntry.entry_number).all()
+        
+        # Calculate running balance
+        running_balance = 0
+        ledger_entries = []
+        
+        for entry in entries:
+            if account.normal_balance == 'Debit':
+                running_balance += entry.debit_amount - entry.credit_amount
+            else:
+                running_balance += entry.credit_amount - entry.debit_amount
+            
+            entry_dict = entry.to_dict()
+            entry_dict['running_balance'] = running_balance
+            ledger_entries.append(entry_dict)
+        
+        return jsonify({
+            'account': account.to_dict(),
+            'entries': ledger_entries,
+            'ending_balance': running_balance
+        })
+    except Exception as e:
+        logger.error(f"Error getting general ledger: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/cash-flow', methods=['GET'])
+@login_required
+def get_cash_flow_statement():
+    """Get cash flow statement"""
+    try:
+        from models import Account, JournalEntry
+        
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            # Default to current month
+            today = datetime.now().date()
+            start_date = datetime(today.year, today.month, 1).date()
+            end_date = today
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Get cash accounts
+        cash_accounts = Account.query.filter(
+            Account.code.in_(['1000', '1010', '1020']),
+            Account.is_active == True
+        ).all()
+        
+        # Calculate cash flows
+        operating_activities = []
+        investing_activities = []
+        financing_activities = []
+        
+        total_operating = 0
+        total_investing = 0
+        total_financing = 0
+        
+        for account in cash_accounts:
+            entries = JournalEntry.query.filter(
+                JournalEntry.account_id == account.id,
+                JournalEntry.date >= start_date,
+                JournalEntry.date <= end_date
+            ).all()
+            
+            for entry in entries:
+                cash_flow = entry.debit_amount - entry.credit_amount
+                
+                # Categorize based on reference type
+                if entry.reference_type in ['sale', 'expense']:
+                    operating_activities.append({
+                        'description': entry.description,
+                        'amount': cash_flow,
+                        'date': entry.date.isoformat()
+                    })
+                    total_operating += cash_flow
+                elif entry.reference_type in ['purchase']:
+                    investing_activities.append({
+                        'description': entry.description,
+                        'amount': cash_flow,
+                        'date': entry.date.isoformat()
+                    })
+                    total_investing += cash_flow
+                else:
+                    financing_activities.append({
+                        'description': entry.description,
+                        'amount': cash_flow,
+                        'date': entry.date.isoformat()
+                    })
+                    total_financing += cash_flow
+        
+        net_change_in_cash = total_operating + total_investing + total_financing
+        
+        return jsonify({
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'operating_activities': {
+                'items': operating_activities,
+                'total': total_operating
+            },
+            'investing_activities': {
+                'items': investing_activities,
+                'total': total_investing
+            },
+            'financing_activities': {
+                'items': financing_activities,
+                'total': total_financing
+            },
+            'net_change_in_cash': net_change_in_cash
+        })
+    except Exception as e:
+        logger.error(f"Error getting cash flow statement: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/reconciliation', methods=['GET'])
+@login_required
+def get_bank_reconciliations():
+    """Get bank reconciliation records"""
+    try:
+        from models import BankReconciliation
+        
+        bank_account_id = request.args.get('bank_account_id')
+        
+        query = BankReconciliation.query
+        if bank_account_id:
+            query = query.filter_by(bank_account_id=bank_account_id)
+        
+        reconciliations = query.order_by(BankReconciliation.reconciliation_date.desc()).all()
+        return jsonify([rec.to_dict() for rec in reconciliations])
+    except Exception as e:
+        logger.error(f"Error getting bank reconciliations: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/accounting/reconciliation', methods=['POST'])
+@login_required
+def create_bank_reconciliation():
+    """Create bank reconciliation"""
+    try:
+        from models import BankReconciliation
+        data = request.json
+        
+        reconciliation = BankReconciliation(
+            bank_account_id=data['bank_account_id'],
+            reconciliation_date=datetime.strptime(data['reconciliation_date'], '%Y-%m-%d').date(),
+            bank_statement_balance=data['bank_statement_balance'],
+            book_balance=data['book_balance'],
+            outstanding_deposits=data.get('outstanding_deposits', 0),
+            outstanding_checks=data.get('outstanding_checks', 0),
+            bank_fees=data.get('bank_fees', 0),
+            reconciled_balance=data['reconciled_balance'],
+            is_reconciled=data.get('is_reconciled', False),
+            notes=data.get('notes', ''),
+            created_by=session.get('user_id')
+        )
+        
+        db.session.add(reconciliation)
+        db.session.commit()
+        
+        return jsonify(reconciliation.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating bank reconciliation: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 # Categories API Routes

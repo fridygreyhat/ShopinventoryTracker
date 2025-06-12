@@ -1,0 +1,506 @@
+
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Accounting System</h1>
+        <div>
+            <button class="btn btn-primary" id="initialize-accounting-btn">
+                <i class="fas fa-cog"></i> Initialize Chart of Accounts
+            </button>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#journalEntryModal">
+                <i class="fas fa-plus"></i> Manual Journal Entry
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-dollar-sign fa-2x mb-2 text-success"></i>
+                    <h6>Total Assets</h6>
+                    <h4 id="total-assets">TZS 0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-credit-card fa-2x mb-2 text-danger"></i>
+                    <h6>Total Liabilities</h6>
+                    <h4 id="total-liabilities">TZS 0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2 text-info"></i>
+                    <h6>Owner's Equity</h6>
+                    <h4 id="total-equity">TZS 0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-balance-scale fa-2x mb-2 text-primary"></i>
+                    <h6>Trial Balance</h6>
+                    <span id="trial-balance-status" class="badge bg-success">Balanced</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabbed Interface -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#chart-of-accounts" role="tab">
+                        <i class="fas fa-list"></i> Chart of Accounts
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#journal-entries" role="tab">
+                        <i class="fas fa-book"></i> Journal Entries
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#trial-balance" role="tab">
+                        <i class="fas fa-balance-scale"></i> Trial Balance
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#income-statement" role="tab">
+                        <i class="fas fa-chart-bar"></i> P&L Statement
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#balance-sheet" role="tab">
+                        <i class="fas fa-file-invoice"></i> Balance Sheet
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#cash-flow" role="tab">
+                        <i class="fas fa-money-bill-wave"></i> Cash Flow
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#general-ledger" role="tab">
+                        <i class="fas fa-book-open"></i> General Ledger
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reconciliation" role="tab">
+                        <i class="fas fa-check-double"></i> Reconciliation
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Chart of Accounts Tab -->
+                <div class="tab-pane fade show active" id="chart-of-accounts" role="tabpanel">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5>Chart of Accounts</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#accountModal">
+                            <i class="fas fa-plus"></i> Add Account
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Account Name</th>
+                                    <th>Type</th>
+                                    <th>Normal Balance</th>
+                                    <th>Current Balance</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chart-of-accounts-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading chart of accounts...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Journal Entries Tab -->
+                <div class="tab-pane fade" id="journal-entries" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>Journal Entries</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="date" id="journal-start-date" class="form-control" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="date" id="journal-end-date" class="form-control" placeholder="End Date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Entry #</th>
+                                    <th>Date</th>
+                                    <th>Account</th>
+                                    <th>Description</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-entries-table">
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading journal entries...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Trial Balance Tab -->
+                <div class="tab-pane fade" id="trial-balance" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>Trial Balance</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label>As of Date:</label>
+                                    <input type="date" id="trial-balance-date" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label>&nbsp;</label>
+                                    <button class="btn btn-primary form-control" id="load-trial-balance-btn">Load</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Account Code</th>
+                                    <th>Account Name</th>
+                                    <th>Debit Balance</th>
+                                    <th>Credit Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trial-balance-table">
+                                <tr>
+                                    <td colspan="4" class="text-center">Click "Load" to generate trial balance</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="2">TOTALS</td>
+                                    <td id="total-debits">0.00</td>
+                                    <td id="total-credits">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Income Statement Tab -->
+                <div class="tab-pane fade" id="income-statement" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>Profit & Loss Statement</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <input type="date" id="income-start-date" class="form-control" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="date" id="income-end-date" class="form-control" placeholder="End Date">
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-primary form-control" id="load-income-statement-btn">Load</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="income-statement-content">
+                        <p class="text-center">Select date range and click "Load" to generate statement</p>
+                    </div>
+                </div>
+
+                <!-- Balance Sheet Tab -->
+                <div class="tab-pane fade" id="balance-sheet" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>Balance Sheet</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label>As of Date:</label>
+                                    <input type="date" id="balance-sheet-date" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label>&nbsp;</label>
+                                    <button class="btn btn-primary form-control" id="load-balance-sheet-btn">Load</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="balance-sheet-content">
+                        <p class="text-center">Click "Load" to generate balance sheet</p>
+                    </div>
+                </div>
+
+                <!-- Cash Flow Tab -->
+                <div class="tab-pane fade" id="cash-flow" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>Cash Flow Statement</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <input type="date" id="cashflow-start-date" class="form-control" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="date" id="cashflow-end-date" class="form-control" placeholder="End Date">
+                                </div>
+                                <div class="col-md-4">
+                                    <button class="btn btn-primary form-control" id="load-cash-flow-btn">Load</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cash-flow-content">
+                        <p class="text-center">Select date range and click "Load" to generate statement</p>
+                    </div>
+                </div>
+
+                <!-- General Ledger Tab -->
+                <div class="tab-pane fade" id="general-ledger" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5>General Ledger</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <select id="ledger-account-select" class="form-select">
+                                        <option value="">Select Account</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" id="ledger-start-date" class="form-control" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" id="ledger-end-date" class="form-control" placeholder="End Date">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-primary form-control" id="load-general-ledger-btn">Load</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="general-ledger-content">
+                        <p class="text-center">Select account and click "Load" to view ledger</p>
+                    </div>
+                </div>
+
+                <!-- Reconciliation Tab -->
+                <div class="tab-pane fade" id="reconciliation" role="tabpanel">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5>Bank Reconciliation</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#reconciliationModal">
+                            <i class="fas fa-plus"></i> New Reconciliation
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Bank Account</th>
+                                    <th>Bank Balance</th>
+                                    <th>Book Balance</th>
+                                    <th>Reconciled Balance</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reconciliation-table">
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading reconciliation records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Modal -->
+<div class="modal fade" id="accountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="account-form">
+                    <div class="mb-3">
+                        <label class="form-label">Account Code</label>
+                        <input type="text" class="form-control" id="account-code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account Name</label>
+                        <input type="text" class="form-control" id="account-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account Type</label>
+                        <select class="form-select" id="account-type" required>
+                            <option value="">Select Type</option>
+                            <option value="Asset">Asset</option>
+                            <option value="Liability">Liability</option>
+                            <option value="Equity">Equity</option>
+                            <option value="Income">Income</option>
+                            <option value="Expense">Expense</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Normal Balance</label>
+                        <select class="form-select" id="normal-balance" required>
+                            <option value="">Select Balance</option>
+                            <option value="Debit">Debit</option>
+                            <option value="Credit">Credit</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="account-description" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-account-btn">Save Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Journal Entry Modal -->
+<div class="modal fade" id="journalEntryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manual Journal Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="journal-entry-form">
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" id="je-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Journal Entries</label>
+                        <div id="journal-entries-container">
+                            <!-- Journal entry rows will be added here -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" id="add-journal-entry-row">
+                            <i class="fas fa-plus"></i> Add Row
+                        </button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Total Debits: <span id="total-debits-amount">0.00</span></strong>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Total Credits: <span id="total-credits-amount">0.00</span></strong>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-journal-entry-btn">Save Entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reconciliation Modal -->
+<div class="modal fade" id="reconciliationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bank Reconciliation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reconciliation-form">
+                    <div class="mb-3">
+                        <label class="form-label">Bank Account</label>
+                        <select class="form-select" id="recon-bank-account" required>
+                            <option value="">Select Bank Account</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reconciliation Date</label>
+                        <input type="date" class="form-control" id="recon-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bank Statement Balance</label>
+                        <input type="number" step="0.01" class="form-control" id="recon-bank-balance" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Book Balance</label>
+                        <input type="number" step="0.01" class="form-control" id="recon-book-balance" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Outstanding Deposits</label>
+                        <input type="number" step="0.01" class="form-control" id="recon-deposits" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Outstanding Checks</label>
+                        <input type="number" step="0.01" class="form-control" id="recon-checks" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bank Fees</label>
+                        <input type="number" step="0.01" class="form-control" id="recon-fees" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="recon-notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-reconciliation-btn">Save Reconciliation</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/accounting.js') }}"></script>
+{% endblock %}
