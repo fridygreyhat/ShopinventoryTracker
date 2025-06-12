@@ -245,6 +245,13 @@ def categories():
     return render_template('categories.html')
 
 
+@app.route('/installments')
+@login_required
+def installments():
+    """Render the installments management page"""
+    return render_template('installments.html')
+
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 def get_inventory():
@@ -2276,6 +2283,96 @@ def create_bank_reconciliation():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating bank reconciliation: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# Installments API Routes
+@app.route('/api/installments', methods=['GET'])
+@login_required
+def get_installments():
+    """API endpoint to get all installment sales"""
+    try:
+        installments = InstallmentSale.query.order_by(InstallmentSale.created_at.desc()).all()
+        return jsonify([installment.to_dict() for installment in installments])
+    except Exception as e:
+        logger.error(f"Error getting installments: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/installments', methods=['POST'])
+@login_required
+def create_installment():
+    """API endpoint to create a new installment sale"""
+    try:
+        data = request.json
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Validate required fields
+        required_fields = ['customer_id', 'product_id', 'total_amount', 'down_payment', 'number_of_installments']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Calculate installment amount
+        remaining_amount = float(data['total_amount']) - float(data['down_payment'])
+        installment_amount = remaining_amount / int(data['number_of_installments'])
+
+        # Create new installment sale
+        new_installment = InstallmentSale(
+            customer_id=data['customer_id'],
+            product_id=data['product_id'],
+            total_amount=data['total_amount'],
+            down_payment=data['down_payment'],
+            number_of_installments=data['number_of_installments'],
+            installment_amount=installment_amount,
+            start_date=datetime.strptime(data.get('start_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
+            status=data.get('status', 'Active')
+        )
+
+        db.session.add(new_installment)
+        db.session.commit()
+
+        return jsonify(new_installment.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating installment: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/installments/<int:installment_id>/payments', methods=['POST'])
+@login_required
+def add_installment_payment():
+    """API endpoint to add a payment to an installment"""
+    try:
+        data = request.json
+        installment_id = request.view_args['installment_id']
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Validate installment exists
+        installment = InstallmentSale.query.get_or_404(installment_id)
+
+        # Create new payment
+        new_payment = InstallmentPayment(
+            installment_sale_id=installment_id,
+            payment_date=datetime.strptime(data.get('payment_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
+            amount_paid=data['amount_paid'],
+            payment_method=data.get('payment_method', 'cash'),
+            remarks=data.get('remarks', '')
+        )
+
+        db.session.add(new_payment)
+        db.session.commit()
+
+        return jsonify(new_payment.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding installment payment: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
