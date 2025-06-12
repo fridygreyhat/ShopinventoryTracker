@@ -237,18 +237,13 @@ function loadDashboardData() {
         // Load stock status report
         fetch('/api/reports/stock-status')
             .then(response => {
-                console.log('Stock status response status:', response.status);
                 if (!response.ok) {
-                    throw new Error(`Network response was not ok: ${response.status}`);
+                    throw new Error('Network response was not ok');
                 }
                 return response.json();
             })
             .then(data => {
                 console.log('Stock status data loaded:', data);
-                console.log('Total items:', data.total_items);
-                console.log('Total stock:', data.total_stock);
-                console.log('Low stock count:', data.low_stock_items_count);
-                console.log('Inventory value:', data.total_inventory_value);
                 updateDashboardSummary(data);
                 updateLowStockTable(data.low_stock_items);
             })
@@ -290,15 +285,6 @@ function loadDashboardData() {
         if (inventoryValueElement) {
             const value = data.total_inventory_value || 0;
             inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + value.toLocaleString();
-        }
-
-        // Also update the total-value element if it exists
-        const totalValueElement = document.getElementById('total-value');
-        if (totalValueElement) {
-            const valueSpan = totalValueElement.querySelector('span:last-child');
-            if (valueSpan) {
-                valueSpan.textContent = (data.total_inventory_value || 0).toLocaleString();
-            }
         }
 
         // Create inventory health overview if container exists
@@ -936,14 +922,13 @@ function loadDashboardData() {
         fetch('/api/shop/details')
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    const user = data.user;
+                if (data.success){
+                const user = data.user;
 
-                    // Update DOM elements
-                    const shopNameElement = document.getElementById('shop-name');
-                    if (shopNameElement) {
-                        shopNameElement.textContent = user.shop_name || 'Your Shop';
-                    }
+                // Update DOM elements
+                const shopNameElement = document.getElementById('shop-name');
+                if (shopNameElement) {
+                    shopNameElement.textContent = user.shop_name || 'Your Shop';
                 }
             })
             .catch(error => {

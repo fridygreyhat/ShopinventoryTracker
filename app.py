@@ -2261,45 +2261,6 @@ def update_appearance_settings():
         return jsonify({"error": "Failed to update appearance settings"}), 500
 
 
-# Debug endpoint to check database
-@app.route('/api/debug/database', methods=['GET'])
-@login_required
-def debug_database():
-    """Debug endpoint to check database status"""
-    try:
-        from models import Item
-        
-        # Count total items
-        total_items = Item.query.count()
-        
-        # Get sample items
-        sample_items = Item.query.limit(5).all()
-        
-        # Calculate total stock
-        total_stock = db.session.query(db.func.sum(Item.quantity)).scalar() or 0
-        
-        # Calculate inventory value
-        total_value = db.session.query(
-            db.func.sum(Item.quantity * db.func.coalesce(Item.selling_price_retail, Item.price, 0))
-        ).scalar() or 0
-        
-        return jsonify({
-            'success': True,
-            'database_status': 'connected',
-            'total_items': total_items,
-            'total_stock': total_stock,
-            'total_value': float(total_value),
-            'sample_items': [item.to_dict() for item in sample_items]
-        })
-    
-    except Exception as e:
-        logger.error(f"Database debug error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2594,17 +2555,17 @@ def get_shop_details():
         shop_name = user.shop_name or f"{user.username}'s Shop"
 
         return jsonify({
-            'success': True,
-            'user': {
-                'shop_name': shop_name,
-                'owner_name': f"{user.first_name} {user.last_name}".strip() or user.username,
-                'product_categories': user.product_categories or ""
-            }
+            'shop_name':
+            shop_name,
+            'owner_name':
+            f"{user.first_name} {user.last_name}".strip() or user.username,
+            'product_categories':
+            user.product_categories or ""
         })
 
     except Exception as e:
         logger.error(f"Error getting shop details: {str(e)}")
-        return jsonify({"success": False, "error": "Failed to get shop details"}), 500
+        return jsonify({"error": "Failed to get shop details"}), 500
 
 
 @app.route('/api/auth/users/stats', methods=['GET'])
