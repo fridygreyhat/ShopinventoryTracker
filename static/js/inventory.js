@@ -482,21 +482,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const category = document.getElementById('itemCategory').value.trim();
         const quantityStr = document.getElementById('itemQuantity').value.trim();
 
-        // Get unit type
-        const unitType = document.getElementById('itemUnitType').value;
-
         // Get price fields
         const buyingPriceStr = document.getElementById('itemBuyingPrice').value.trim();
         const sellingPriceRetailStr = document.getElementById('itemSellingPriceRetail').value.trim();
         const sellingPriceWholesaleStr = document.getElementById('itemSellingPriceWholesale').value.trim();
 
         // Get sales type
-        const salesTypeEl = document.querySelector('input[name="salesType"]:checked');
-        if (!salesTypeEl) {
-            alert('Please select a sales type');
-            return;
-        }
-        const salesType = salesTypeEl.value;
+        const salesType = document.querySelector('input[name="salesType"]:checked').value;
 
         // Validate required fields
         if (!name) {
@@ -504,20 +496,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Validate quantity based on unit type
-        let quantity;
-        if (unitType === 'weight') {
-            quantity = parseFloat(quantityStr);
-            if (isNaN(quantity) || quantity < 0) {
-                alert('Weight must be a non-negative number');
-                return;
-            }
-        } else {
-            quantity = parseInt(quantityStr);
-            if (isNaN(quantity) || quantity < 0) {
-                alert('Quantity must be a non-negative number');
-                return;
-            }
+        const quantity = parseInt(quantityStr);
+        if (isNaN(quantity) || quantity < 0) {
+            alert('Quantity must be a non-negative number');
+            return;
         }
 
         // Validate price fields
@@ -546,18 +528,12 @@ document.addEventListener('DOMContentLoaded', function() {
             description,
             category,
             quantity,
-            unit_type: unitType,
-            sell_by: unitType === 'weight' ? 'kilogram' : 'quantity',
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
             selling_price_wholesale: sellingPriceWholesale,
             price: sellingPriceRetail, // For backward compatibility
             sales_type: salesType
         };
-
-        // Disable save button to prevent double submission
-        saveItemBtn.disabled = true;
-        saveItemBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
         // Send POST request to API
         fetch('/api/inventory', {
@@ -569,28 +545,17 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(errorData.error || 'Failed to add item');
-                });
+                throw new Error('Failed to add item');
             }
             return response.json();
         })
         .then(data => {
-            console.log('Item added successfully:', data);
-            
             // Reset form
             addItemForm.reset();
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
             modal.hide();
-
-            // Show success message
-            if (typeof showToast === 'function') {
-                showToast('Item added successfully!', 'success');
-            } else {
-                alert('Item added successfully!');
-            }
 
             // Reload inventory
             loadInventory();
@@ -604,13 +569,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error adding item:', error);
+            console.error('Error:', error);
             alert('Failed to add item: ' + error.message);
-        })
-        .finally(() => {
-            // Re-enable save button
-            saveItemBtn.disabled = false;
-            saveItemBtn.innerHTML = 'Save Item';
         });
     }
 
