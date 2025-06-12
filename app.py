@@ -943,6 +943,7 @@ def get_settings():
 
     # Filter by category if provided
     if category:
+        ```python
         query = query.filter(Setting.category == category)
 
     # Execute query
@@ -950,7 +951,7 @@ def get_settings():
 
     # Group settings by category for easier UI rendering
     if not request.args.get('format') == 'flat':
-        grouped_settings = {}```python
+        grouped_settings = {}
         for setting in settings:
             cat = setting['category']
             if cat not in grouped_settings:
@@ -1864,7 +1865,7 @@ def accounting():
 
 
 # Accounting API Routes
-@app.route('/api/accounting/initialize', methods=['POST'])
+@app.route('/api/accounting/initialize', methods=['POST')
 @login_required
 def initialize_accounting():
     """Initialize chart of accounts"""
@@ -2342,7 +2343,7 @@ def update_category(category_id):
             existing_category = Category.query.filter_by(
                 name=data['name']).filter(Category.id != category_id).first()
             if existing_category:
-                return jsonify({'error': 'Category name already exists'}), 400
+                return jsonify({"error": "Category name already exists"}), 400
             category.name = data['name']
 
         if 'description' in data:
@@ -2750,7 +2751,7 @@ def create_session():
             return jsonify({"error": "Invalid or expired token"}), 401
 
         logger.info(
-            f"Firebase token verified successfully for email: {user_data.get('email')}"
+            f"Firebase token verified successfully for email: {useruser_data.get('email')}"
         )
 
         # Create or update user in database
@@ -3266,4 +3267,71 @@ def send_verification():
             <h2>Email Verification</h2>
             <p>Hello {user.first_name or user.username},</p>
             <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
-            <p><a href="{verification_url}" style
+            <p><a href="{verification_url}" style="background-color:#4CAF50;border:none;color:white;padding:10px 20px;text-align:center;text-decoration:none;display:inline-block;font-size:16px;margin:4px 2px;cursor:pointer;border-radius:5px;">Verify Email</a></p>
+            <p>If you did not request this verification, please ignore this email.</p>
+            <p>Sincerely,</p>
+            <p>The {shop_name} Team</p>
+            """
+
+            # Send email
+            subject = "Verify Your Email Address"
+            send_email(user.email, subject, html_content)
+
+            return jsonify({
+                "success": True,
+                "message": "Verification email sent successfully"
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error sending verification email: {str(e)}")
+            return jsonify({"error":
+                            f"Failed to send verification email: {str(e)}"}), 500
+
+    return protected_send_verification()
+
+
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    """Verify email address using token"""
+    from models import User
+
+    try:
+        user = User.query.filter_by(verification_token=token).first()
+
+        if not user:
+            flash('Invalid verification token', 'danger')
+            return redirect(url_for('login'))
+
+        if user.verification_token_expires < datetime.datetime.utcnow():
+            flash('Verification token has expired', 'danger')
+            return redirect(url_for('login'))
+
+        # Mark email as verified
+        user.email_verified = True
+        user.verification_token = None
+        user.verification_token_expires = None
+        db.session.commit()
+
+        flash('Email verified successfully!', 'success')
+        return redirect(url_for('login'))
+
+    except Exception as e:
+        logger.error(f"Error verifying email: {str(e)}")
+        flash('An error occurred during email verification', 'danger')
+        return redirect(url_for('login'))
+
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5000, debug=True)
