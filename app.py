@@ -91,7 +91,7 @@ def inject_current_user():
 # Initialize database tables
 with app.app_context():
     # Import models to ensure they are registered with SQLAlchemy
-    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory
+    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, InstallmentPayment
     import json
 
     # When we have schema changes, we need to reset the database
@@ -1897,18 +1897,18 @@ def create_account():
     try:
         from models import Account
         data = request.json
-        
+
         # Validate required fields
         required_fields = ['code', 'name', 'account_type', 'normal_balance']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
-        
+
         # Check if account code already exists
         existing = Account.query.filter_by(code=data['code']).first()
         if existing:
             return jsonify({'error': 'Account code already exists'}), 400
-        
+
         account = Account(
             code=data['code'],
             name=data['name'],
@@ -1917,10 +1917,10 @@ def create_account():
             parent_id=data.get('parent_id'),
             description=data.get('description', '')
         )
-        
+
         db.session.add(account)
         db.session.commit()
-        
+
         return jsonify(account.to_dict()), 201
     except Exception as e:
         db.session.rollback()
@@ -1936,15 +1936,15 @@ def update_account(account_id):
         from models import Account
         account = Account.query.get_or_404(account_id)
         data = request.json
-        
+
         # Update fields
         for field in ['name', 'description', 'is_active']:
             if field in data:
                 setattr(account, field, data[field])
-        
+
         account.updated_at = datetime.utcnow()
         db.session.commit()
-        
+
         return jsonify(account.to_dict())
     except Exception as e:
         db.session.rollback()
@@ -1958,16 +1958,16 @@ def get_journal_entries():
     """Get journal entries with optional filtering"""
     try:
         from models import JournalEntry
-        
+
         # Get query parameters
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         account_id = request.args.get('account_id')
         reference_type = request.args.get('reference_type')
-        
+
         # Build query
         query = JournalEntry.query
-        
+
         if start_date:
             query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
         if end_date:
@@ -1976,7 +1976,7 @@ def get_journal_entries():
             query = query.filter(JournalEntry.account_id == account_id)
         if reference_type:
             query = query.filter(JournalEntry.reference_type == reference_type)
-        
+
         entries = query.order_by(JournalEntry.date.desc(), JournalEntry.entry_number.desc()).all()
         return jsonify([entry.to_dict() for entry in entries])
     except Exception as e:
@@ -1991,21 +1991,21 @@ def create_manual_journal_entry():
     try:
         from accounting_service import AccountingService
         data = request.json
-        
+
         # Validate data
         if not data.get('entries') or len(data['entries']) < 2:
             return jsonify({'error': 'At least two journal entries required for double-entry'}), 400
-        
+
         # Validate that debits equal credits
         total_debits = sum(entry.get('debit_amount', 0) for entry in data['entries'])
         total_credits = sum(entry.get('credit_amount', 0) for entry in data['entries'])
-        
+
         if abs(total_debits - total_credits) > 0.01:
             return jsonify({'error': 'Debits must equal credits'}), 400
-        
+
         # Create journal entries
         transaction_group = f"MANUAL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        
+
         for entry_data in data['entries']:
             AccountingService.create_journal_entry(
                 account_id=entry_data['account_id'],
@@ -2017,7 +2017,7 @@ def create_manual_journal_entry():
                 entry_date=datetime.strptime(data.get('date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
                 created_by=session.get('user_id')
             )
-        
+
         db.session.commit()
         return jsonify({'success': True, 'message': 'Journal entries created successfully'})
     except Exception as e:
@@ -2033,10 +2033,10 @@ def get_trial_balance():
     try:
         from accounting_service import AccountingService
         as_of_date = request.args.get('as_of_date')
-        
+
         if as_of_date:
             as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
-        
+
         trial_balance = AccountingService.get_trial_balance(as_of_date)
         return jsonify(trial_balance)
     except Exception as e:
@@ -2050,10 +2050,10 @@ def get_income_statement():
     """Get profit & loss statement"""
     try:
         from accounting_service import AccountingService
-        
+
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         if not start_date or not end_date:
             # Default to current month
             today = datetime.now().date()
@@ -2062,7 +2062,7 @@ def get_income_statement():
         else:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
+
         income_statement = AccountingService.get_income_statement(start_date, end_date)
         return jsonify(income_statement)
     except Exception as e:
@@ -2077,10 +2077,10 @@ def get_balance_sheet():
     try:
         from accounting_service import AccountingService
         as_of_date = request.args.get('as_of_date')
-        
+
         if as_of_date:
             as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
-        
+
         balance_sheet = AccountingService.get_balance_sheet(as_of_date)
         return jsonify(balance_sheet)
     except Exception as e:
@@ -2094,36 +2094,36 @@ def get_general_ledger(account_id):
     """Get general ledger for specific account"""
     try:
         from models import Account, JournalEntry
-        
+
         account = Account.query.get_or_404(account_id)
-        
+
         # Get date filters
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         query = JournalEntry.query.filter_by(account_id=account_id)
-        
+
         if start_date:
             query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
         if end_date:
             query = query.filter(JournalEntry.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
-        
+
         entries = query.order_by(JournalEntry.date, JournalEntry.entry_number).all()
-        
+
         # Calculate running balance
         running_balance = 0
         ledger_entries = []
-        
+
         for entry in entries:
             if account.normal_balance == 'Debit':
                 running_balance += entry.debit_amount - entry.credit_amount
             else:
                 running_balance += entry.credit_amount - entry.debit_amount
-            
+
             entry_dict = entry.to_dict()
             entry_dict['running_balance'] = running_balance
             ledger_entries.append(entry_dict)
-        
+
         return jsonify({
             'account': account.to_dict(),
             'entries': ledger_entries,
@@ -2140,10 +2140,10 @@ def get_cash_flow_statement():
     """Get cash flow statement"""
     try:
         from models import Account, JournalEntry
-        
+
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         if not start_date or not end_date:
             # Default to current month
             today = datetime.now().date()
@@ -2152,32 +2152,32 @@ def get_cash_flow_statement():
         else:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
+
         # Get cash accounts
         cash_accounts = Account.query.filter(
             Account.code.in_(['1000', '1010', '1020']),
             Account.is_active == True
         ).all()
-        
+
         # Calculate cash flows
         operating_activities = []
         investing_activities = []
         financing_activities = []
-        
+
         total_operating = 0
         total_investing = 0
         total_financing = 0
-        
+
         for account in cash_accounts:
             entries = JournalEntry.query.filter(
                 JournalEntry.account_id == account.id,
                 JournalEntry.date >= start_date,
                 JournalEntry.date <= end_date
             ).all()
-            
+
             for entry in entries:
                 cash_flow = entry.debit_amount - entry.credit_amount
-                
+
                 # Categorize based on reference type
                 if entry.reference_type in ['sale', 'expense']:
                     operating_activities.append({
@@ -2200,9 +2200,9 @@ def get_cash_flow_statement():
                         'date': entry.date.isoformat()
                     })
                     total_financing += cash_flow
-        
+
         net_change_in_cash = total_operating + total_investing + total_financing
-        
+
         return jsonify({
             'period': {
                 'start_date': start_date.isoformat(),
@@ -2233,13 +2233,13 @@ def get_bank_reconciliations():
     """Get bank reconciliation records"""
     try:
         from models import BankReconciliation
-        
+
         bank_account_id = request.args.get('bank_account_id')
-        
+
         query = BankReconciliation.query
         if bank_account_id:
             query = query.filter_by(bank_account_id=bank_account_id)
-        
+
         reconciliations = query.order_by(BankReconciliation.reconciliation_date.desc()).all()
         return jsonify([rec.to_dict() for rec in reconciliations])
     except Exception as e:
@@ -2254,7 +2254,7 @@ def create_bank_reconciliation():
     try:
         from models import BankReconciliation
         data = request.json
-        
+
         reconciliation = BankReconciliation(
             bank_account_id=data['bank_account_id'],
             reconciliation_date=datetime.strptime(data['reconciliation_date'], '%Y-%m-%d').date(),
@@ -2268,10 +2268,10 @@ def create_bank_reconciliation():
             notes=data.get('notes', ''),
             created_by=session.get('user_id')
         )
-        
+
         db.session.add(reconciliation)
         db.session.commit()
-        
+
         return jsonify(reconciliation.to_dict()), 201
     except Exception as e:
         db.session.rollback()
@@ -2342,7 +2342,7 @@ def update_category(category_id):
             existing_category = Category.query.filter_by(
                 name=data['name']).filter(Category.id != category_id).first()
             if existing_category:
-                return jsonify({'error': 'Category name already exists'}), 400
+                return jsonify({"error": "Category name already exists"}), 400
             category.name = data['name']
 
         if 'description' in data:
@@ -3266,62 +3266,45 @@ def send_verification():
             <h2>Email Verification</h2>
             <p>Hello {user.first_name or user.username},</p>
             <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
-            <p><a href="{verification_url}" style```python
-="display: inline-block; background-color: #4B0082; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email Address</a></p>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you did not create an account, please ignore this email.</p>
+            <p><a href="{verification_url}" style="background-color:#4CAF50;border:none;color:white;padding:10px 20px;text-align:center;text-decoration:none;display:inline-block;font-size:16px;margin:4px 2px;cursor:pointer;border-radius:5px;">Verify Email</a></p>
+            <p>If you did not request this verification, please ignore this email.</p>
+            <p>Sincerely,</p>
+            <p>The {shop_name} Team</p>
             """
 
-            # Get sender email from settings
-            from_email = get_setting_value('email_sender',
-                                           "noreply@example.com")
-
             # Send email
-            success = send_email(to_email=user.email,
-                                 from_email=from_email,
-                                 subject=f"Verify your email for {shop_name}",
-                                 html_content=html_content)
-
-            if not success:
-                return jsonify({"error":
-                                "Failed to send verification email"}), 500
+            subject = "Verify Your Email Address"
+            send_email(user.email, subject, html_content)
 
             return jsonify({
                 "success": True,
-                "message": "Verification email sent"
+                "message": "Verification email sent successfully"
             })
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error sending verification email: {str(e)}")
-            return jsonify({"error": "Failed to send verification email"}), 500
+            return jsonify({"error":
+                            f"Failed to send verification email: {str(e)}"}), 500
 
     return protected_send_verification()
 
 
-@app.route('/verify-email/<token>', methods=['GET'])
+@app.route('/verify-email/<token>')
 def verify_email(token):
-    """Route to verify email from token"""
+    """Verify email address using token"""
     from models import User
-    import datetime
 
     try:
-        if not token:
-            flash('Invalid verification link.', 'danger')
-            return redirect(url_for('index'))
-
         user = User.query.filter_by(verification_token=token).first()
 
         if not user:
-            flash('Invalid verification link.', 'danger')
-            return redirect(url_for('index'))
+            flash('Invalid verification token', 'danger')
+            return redirect(url_for('login'))
 
-        # Check if token is expired
-        if user.verification_token_expires and user.verification_token_expires < datetime.datetime.utcnow(
-        ):
-            flash('Verification link has expired. Please request a new one.',
-                  'danger')
-            return redirect(url_for('account'))
+        if user.verification_token_expires < datetime.datetime.utcnow():
+            flash('Verification token has expired', 'danger')
+            return redirect(url_for('login'))
 
         # Mark email as verified
         user.email_verified = True
@@ -3329,15 +3312,25 @@ def verify_email(token):
         user.verification_token_expires = None
         db.session.commit()
 
-        flash('Your email has been successfully verified!', 'success')
-        return redirect(url_for('account'))
+        flash('Email verified successfully!', 'success')
+        return redirect(url_for('login'))
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error verifying email: {str(e)}")
-        flash('An error occurred while verifying your email.', 'danger')
-        return redirect(url_for('index'))
+        flash('An error occurred during email verification', 'danger')
+        return redirect(url_for('login'))
 
 
-if __name__ == "__main__":
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+
+if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000, debug=True)

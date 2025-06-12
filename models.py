@@ -694,6 +694,155 @@ class AccountingPeriod(db.Model):
         }
 
 
+class Customer(db.Model):
+    """Customer model for installment sales"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(255))
+    address = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    installment_sales = db.relationship('InstallmentSale', backref='customer', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Customer {self.name}>'
+
+    def to_dict(self):
+        """Convert customer to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'phone': self.phone,
+            'email': self.email,
+            'address': self.address,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class InstallmentSale(db.Model):
+    """Installment sales model"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    down_payment = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    number_of_installments = db.Column(db.Integer, nullable=False)
+    installment_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(50), default='Active')  # Active, Completed, Overdue, Cancelled
+    agreement_signed = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    item = db.relationship('Item', backref='installment_sales')
+    payments = db.relationship('InstallmentPayment', backref='installment_sale', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<InstallmentSale {self.id}>'
+
+    def get_total_paid(self):
+        """Calculate total amount paid including down payment"""
+        payment_total = sum(float(payment.amount_paid) for payment in self.payments)
+        return float(self.down_payment) + payment_total
+
+    def get_remaining_balance(self):
+        """Calculate remaining balance"""
+        return float(self.total_amount) - self.get_total_paid()
+
+    def get_next_due_date(self):
+        """Calculate next payment due date"""
+        from dateutil.relativedelta import relativedelta
+        
+        payment_count = self.payments.count()
+        next_payment_number = payment_count + 1
+        
+        if next_payment_number > self.number_of_installments:
+            return None
+        
+        return self.start_date + relativedelta(months=next_payment_number)
+
+    def get_payment_schedule(self):
+        """Generate complete payment schedule"""
+        from dateutil.relativedelta import relativedelta
+        
+        schedule = []
+        for i in range(1, self.number_of_installments + 1):
+            due_date = self.start_date + relativedelta(months=i)
+            payment = self.payments.filter_by(installment_number=i).first()
+            
+            schedule.append({
+                'installment_number': i,
+                'due_date': due_date.isoformat(),
+                'amount_due': float(self.installment_amount),
+                'amount_paid': float(payment.amount_paid) if payment else 0,
+                'payment_date': payment.payment_date.isoformat() if payment and payment.payment_date else None,
+                'status': 'Paid' if payment else ('Overdue' if due_date < datetime.now().date() else 'Pending')
+            })
+        
+        return schedule
+
+    def to_dict(self):
+        """Convert installment sale to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'customer_id': self.customer_id,
+            'customer_name': self.customer.name if self.customer else None,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else None,
+            'quantity': self.quantity,
+            'total_amount': float(self.total_amount),
+            'down_payment': float(self.down_payment),
+            'number_of_installments': self.number_of_installments,
+            'installment_amount': float(self.installment_amount),
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'status': self.status,
+            'agreement_signed': self.agreement_signed,
+            'notes': self.notes,
+            'total_paid': self.get_total_paid(),
+            'remaining_balance': self.get_remaining_balance(),
+            'next_due_date': self.get_next_due_date().isoformat() if self.get_next_due_date() else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class InstallmentPayment(db.Model):
+    """Installment payment tracking model"""
+    id = db.Column(db.Integer, primary_key=True)
+    installment_sale_id = db.Column(db.Integer, db.ForeignKey('installment_sale.id'), nullable=False)
+    installment_number = db.Column(db.Integer, nullable=False)
+    payment_date = db.Column(db.Date, nullable=False)
+    amount_paid = db.Column(db.Numeric(10, 2), nullable=False)
+    payment_method = db.Column(db.String(50), default='cash')
+    remarks = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<InstallmentPayment {self.id}>'
+
+    def to_dict(self):
+        """Convert installment payment to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'installment_sale_id': self.installment_sale_id,
+            'installment_number': self.installment_number,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'amount_paid': float(self.amount_paid),
+            'payment_method': self.payment_method,
+            'remarks': self.remarks,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class BankReconciliation(db.Model):
     """Bank reconciliation records"""
     id = db.Column(db.Integer, primary_key=True)

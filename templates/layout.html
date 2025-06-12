@@ -116,6 +116,12 @@
                                 <span class="nav-text">Accounting</span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('installments') %}active{% endif %}" href="{{ url_for('installments') }}">
+                                <i class="nav-icon fas fa-calendar-check"></i>
+                                <span class="nav-text">Installments</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
