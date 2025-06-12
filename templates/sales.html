@@ -179,6 +179,7 @@
                             <option value="mobile_money">Mobile Money</option>
                             <option value="card">Debit/Credit Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
+                            <option value="installment">Installment</option>
                         </select>
                     </div>
                     <div id="mobileMoneyFields" class="d-none">
@@ -194,6 +195,29 @@
                         <div class="mb-3">
                             <label for="transactionReference" class="form-label">Transaction Reference</label>
                             <input type="text" class="form-control" id="transactionReference">
+                        </div>
+                    </div>
+                    <div id="installmentFields" class="d-none">
+                        <div class="mb-3">
+                            <label for="downPayment" class="form-label">Down Payment</label>
+                            <div class="input-group">
+                                <span class="input-group-text">TZS</span>
+                                <input type="number" class="form-control" id="downPayment" min="0">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="numberOfInstallments" class="form-label">Number of Installments</label>
+                            <select class="form-select" id="numberOfInstallments">
+                                <option value="3">3 Months</option>
+                                <option value="6">6 Months</option>
+                                <option value="12">12 Months</option>
+                                <option value="18">18 Months</option>
+                                <option value="24">24 Months</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customerAddress" class="form-label">Customer Address</label>
+                            <textarea class="form-control" id="customerAddress" rows="2" placeholder="Required for installment sales"></textarea>
                         </div>
                     </div>
                     <div class="mb-3">
