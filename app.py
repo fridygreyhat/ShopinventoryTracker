@@ -943,7 +943,6 @@ def get_settings():
 
     # Filter by category if provided
     if category:
-        ```python
         query = query.filter(Setting.category == category)
 
     # Execute query
@@ -1865,7 +1864,7 @@ def accounting():
 
 
 # Accounting API Routes
-@app.route('/api/accounting/initialize', methods=['POST')
+@app.route('/api/accounting/initialize', methods=['POST'])
 @login_required
 def initialize_accounting():
     """Initialize chart of accounts"""
@@ -2751,7 +2750,7 @@ def create_session():
             return jsonify({"error": "Invalid or expired token"}), 401
 
         logger.info(
-            f"Firebase token verified successfully for email: {useruser_data.get('email')}"
+            f"Firebase token verified successfully for email: {user_data.get('email')}"
         )
 
         # Create or update user in database
@@ -2760,7 +2759,7 @@ def create_session():
 
         if not user:
             logger.error("Failed to create or update user record")
-            returnjsonify({"error": "Failed to create user record"}), 500
+            return jsonify({"error": "Failed to create user record"}), 500
 
         logger.info(
             f"User record updated/created successfully for ID: {user.id}")
