@@ -1,130 +1,277 @@
 import os
 import logging
-import json
 from datetime import datetime
 from functools import wraps
 from flask import request, redirect, url_for, session, jsonify
 from models import User, db
-
-# Import Firebase Admin SDK
-import firebase_admin
-from firebase_admin import credentials, auth
+from werkzeug.security import check_password_hash
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase Admin SDK if not already initialized
-try:
-    # Check if the app is already initialized
-    firebase_admin.get_app()
-    logger.info("Firebase Admin SDK already initialized")
-except ValueError:
-    # We don't need to fully initialize the Admin SDK
-    # since we'll be using the REST API for token verification
-    try:
-        # Initialize with minimal configuration
-        firebase_admin.initialize_app()
-        logger.info("Firebase Admin SDK initialized with minimal configuration")
-    except Exception as e:
-        logger.warning(f"Could not initialize Firebase Admin: {str(e)}")
-
-    # Log API configuration status
-    has_api_key = bool(os.environ.get("FIREBASE_API_KEY"))
-    has_project_id = bool(os.environ.get("FIREBASE_PROJECT_ID"))
-    has_app_id = bool(os.environ.get("FIREBASE_APP_ID"))
-
-    logger.info(f"Firebase configuration status - API Key: {'✓' if has_api_key else '✗'}, " + 
-                f"Project ID: {'✓' if has_project_id else '✗'}, " + 
-                f"App ID: {'✓' if has_app_id else '✗'}")
-
-    # Check if we have all required keys
-    if not (has_api_key and has_project_id and has_app_id):
-        logger.warning("Missing one or more Firebase configuration values")
-
-def verify_firebase_token(id_token):
+def authenticate_user(email, password):
     """
-    Verify Firebase ID token and return user info
+    Authenticate user with email and password against PostgreSQL database
 
     Args:
-        id_token (str): Firebase ID token
+        email (str): User email
+        password (str): User password
 
     Returns:
-        dict: User information if token is valid, None otherwise
+        User: User object if authentication successful, None otherwise
     """
-    import requests
-
-    if not id_token:
-        logger.error("Empty or null ID token provided")
-        return None
-
-    logger.info(f"Verifying Firebase token (length: {len(id_token)})")
-
     try:
-        # Try to use Firebase Admin SDK if available
-        try:
-            logger.info("Attempting to verify token with Firebase Admin SDK...")
-            # Verify the Firebase token using Admin SDK
-            decoded_token = auth.verify_id_token(id_token)
+        logger.info(f"Attempting to authenticate user: {email}")
 
-            # Log token details for debugging (careful with PII)
-            logger.info(f"Token contains uid: {bool(decoded_token.get('uid'))}, " +
-                      f"email: {bool(decoded_token.get('email'))}, " +
-                      f"email_verified: {bool(decoded_token.get('email_verified'))}")
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
 
-            # Extract user data
-            user_data = {
-                "localId": decoded_token.get("uid"),
-                "email": decoded_token.get("email"),
-                "emailVerified": decoded_token.get("email_verified", False),
-                "displayName": decoded_token.get("name", ""),
-            }
+        if not user:
+            logger.warning(f"User not found: {email}")
+            return None
 
-            logger.info(f"Token verified with Firebase Admin SDK for user: {user_data.get('email')}")
-            return user_data
+        # Check if user is active
+        if not user.is_active:
+            logger.warning(f"User account is inactive: {email}")
+            return None
 
-        except Exception as admin_error:
-            logger.warning(f"Failed to verify token with Admin SDK: {str(admin_error)}")
-            logger.info("Falling back to Firebase REST API verification...")
+        # Verify password
+        if not user.check_password(password):
+            logger.warning(f"Invalid password for user: {email}")
+            return None
 
-            # Fall back to REST API
-            firebase_api_key = os.environ.get("FIREBASE_API_KEY")
-            if not firebase_api_key:
-                logger.error("FIREBASE_API_KEY environment variable not set")
-                raise ValueError("Firebase API key not available")
-
-            # Verify token with REST API
-            url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={firebase_api_key}"
-            logger.info(f"Making request to Firebase REST API at {url[:50]}...")
-
-            response = requests.post(url, json={"idToken": id_token})
-
-            if response.status_code != 200:
-                logger.error(f"Failed to verify token with REST API: Status code {response.status_code}")
-                logger.error(f"Response body: {response.text}")
-                return None
-
-            # Extract user data
-            response_data = response.json()
-            logger.info(f"REST API response received: {json.dumps(response_data)[:100]}...")
-
-            if "users" not in response_data or not response_data["users"]:
-                logger.error("No user found in Firebase response")
-                return None
-
-            logger.info(f"Token verified with Firebase REST API for user: {response_data['users'][0].get('email')}")
-            return response_data["users"][0]
+        logger.info(f"Authentication successful for user: {email}")
+        return user
 
     except Exception as e:
-        logger.error(f"Error verifying Firebase token: {str(e)}")
-        logger.error(f"Token verification failed. Token starts with: {id_token[:10] if id_token and len(id_token) >= 10 else 'INVALID_TOKEN'}...")
-        logger.error(f"Token length: {len(id_token) if id_token else 0}")
-
-        # Log more details about the error
-        if hasattr(e, 'response'):
-            logger.error(f"Response status: {getattr(e.response, 'status_code', 'unknown')}")
-            logger.error(f"Response text: {getattr(e.response, 'text', 'no response text')}")
-
+        logger.error(f"Error authenticating user {email}: {str(e)}")
         return None
+
+def validate_email_format(email):
+    """
+    Validate email format with enhanced regex
+    
+    Args:
+        email (str): Email address to validate
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not email or not isinstance(email, str):
+        return False, "Email is required"
+    
+    email = email.strip()
+    
+    if len(email) == 0:
+        return False, "Email cannot be empty"
+    
+    if len(email) > 320:  # RFC 5321 limit
+        return False, "Email address is too long"
+    
+    # Enhanced email regex with better validation
+    import re
+    email_regex = r'^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+    
+    if not re.match(email_regex, email):
+        return False, "Please enter a valid email address"
+    
+    # Check for common invalid patterns
+    if email.startswith('.') or email.endswith('.'):
+        return False, "Email cannot start or end with a period"
+    
+    if '..' in email:
+        return False, "Email cannot contain consecutive periods"
+    
+    local_part, domain = email.rsplit('@', 1)
+    
+    if len(local_part) > 64:  # RFC 5321 limit for local part
+        return False, "Email local part is too long"
+    
+    if len(domain) > 255:  # RFC 5321 limit for domain
+        return False, "Email domain is too long"
+    
+    return True, ""
+
+def validate_password_strength(password):
+    """
+    Validate password strength requirements
+    
+    Args:
+        password (str): Password to validate
+        
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    if not password or not isinstance(password, str):
+        return False, "Password is required"
+    
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters long"
+    
+    if len(password) > 128:
+        return False, "Password is too long (maximum 128 characters)"
+    
+    # Check for at least one letter and one number (optional but recommended)
+    import re
+    if not re.search(r'[a-zA-Z]', password):
+        return False, "Password should contain at least one letter"
+    
+    # Check for common weak passwords
+    weak_passwords = ['password', '123456', 'qwerty', 'abc123', 'password123']
+    if password.lower() in weak_passwords:
+        return False, "Password is too weak. Please choose a stronger password"
+    
+    return True, ""
+
+def clean_and_validate_username(email):
+    """
+    Generate and validate username from email
+    
+    Args:
+        email (str): Email address
+        
+    Returns:
+        str: Clean username
+    """
+    import re
+    
+    # Create username from email local part
+    username = email.split("@")[0] if email else "user"
+    
+    # Clean username (keep only alphanumeric and underscore)
+    username = re.sub(r'[^a-zA-Z0-9_]', '', username)
+    
+    # Ensure username is not empty and has minimum length
+    if not username or len(username) < 3:
+        username = "user"
+    
+    # Limit username length
+    if len(username) > 20:
+        username = username[:20]
+    
+    return username
+
+def create_or_update_user(user_data, extra_data=None):
+    """
+    Create or update user in the database with enhanced validation
+
+    Args:
+        user_data (dict): User data including email, password
+        extra_data (dict, optional): Additional user data from registration form
+
+    Returns:
+        tuple: (User object or None, error_message)
+    """
+    try:
+        # Get and validate email
+        email = user_data.get("email", "").strip().lower()
+        password = user_data.get("password", "")
+
+        # Validate email format
+        email_valid, email_error = validate_email_format(email)
+        if not email_valid:
+            logger.error(f"Email validation failed: {email_error}")
+            return None, email_error
+
+        # Validate password strength
+        password_valid, password_error = validate_password_strength(password)
+        if not password_valid:
+            logger.error(f"Password validation failed: {password_error}")
+            return None, password_error
+
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            logger.info(f"User already exists: {email}")
+            return None, "An account with this email already exists"
+
+        # Generate and validate username
+        username = clean_and_validate_username(email)
+        
+        # Ensure username is unique
+        counter = 1
+        original_username = username
+        while User.query.filter_by(username=username).first():
+            username = f"{original_username}{counter}"
+            counter += 1
+            # Prevent infinite loop
+            if counter > 1000:
+                username = f"user{int(datetime.utcnow().timestamp())}"
+                break
+
+        # Validate and clean extra data
+        validated_extra_data = {}
+        if extra_data:
+            # Clean and validate first name
+            if extra_data.get('firstName'):
+                first_name = str(extra_data.get('firstName')).strip()
+                if len(first_name) <= 64:
+                    validated_extra_data['first_name'] = first_name
+            
+            # Clean and validate last name  
+            if extra_data.get('lastName'):
+                last_name = str(extra_data.get('lastName')).strip()
+                if len(last_name) <= 64:
+                    validated_extra_data['last_name'] = last_name
+            
+            # Clean and validate phone
+            if extra_data.get('phone'):
+                phone = str(extra_data.get('phone')).strip()
+                if len(phone) <= 20:
+                    validated_extra_data['phone'] = phone
+            
+            # Clean and validate shop name
+            if extra_data.get('shopName'):
+                shop_name = str(extra_data.get('shopName')).strip()
+                if len(shop_name) <= 128:
+                    validated_extra_data['shop_name'] = shop_name
+            
+            # Clean and validate product categories
+            if extra_data.get('productCategories'):
+                product_categories = str(extra_data.get('productCategories')).strip()
+                if len(product_categories) <= 512:
+                    validated_extra_data['product_categories'] = product_categories
+
+        # Create new user within transaction
+        try:
+            new_user = User(
+                email=email,
+                username=username,
+                email_verified=True,
+                active=True,
+                is_active=True,
+                is_admin=False,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                **validated_extra_data
+            )
+
+            # Set password hash
+            new_user.set_password(password)
+
+            # Add to session and flush to get ID
+            db.session.add(new_user)
+            db.session.flush()
+            
+            logger.info(f"Created new user with ID {new_user.id}: {email}")
+            
+            # Commit transaction
+            db.session.commit()
+            return new_user, None
+
+        except Exception as db_error:
+            db.session.rollback()
+            logger.error(f"Database error creating user: {str(db_error)}")
+            return None, "Failed to create account due to database error"
+
+    except Exception as e:
+        # Ensure rollback on any unexpected error
+        try:
+            db.session.rollback()
+        except:
+            pass
+        logger.error(f"Unexpected error creating user: {str(e)}")
+        return None, "An unexpected error occurred during registration"
 
 def update_user_profile(user_id, profile_data):
     """
@@ -175,84 +322,6 @@ def update_user_profile(user_id, profile_data):
         db.session.rollback()
         logger.error(f"Error updating user profile: {str(e)}")
         return None
-
-def create_or_update_user(user_data, extra_data=None):
-    """
-    Create or update user in the database based on Firebase user data
-
-    Args:
-        user_data (dict): Firebase user data
-        extra_data (dict, optional): Additional user data from registration form
-
-    Returns:
-        User: User model instance
-    """
-    try:
-        # Get email from Firebase user data
-        email = user_data.get("email")
-        firebase_uid = user_data.get("localId")
-
-        if not email or not firebase_uid:
-            logger.error("Missing email or Firebase UID in user data")
-            return None
-
-        # Check if user exists
-        user = User.query.filter_by(email=email).first()
-
-        if user:
-            # Update existing user
-            user.firebase_uid = firebase_uid
-            user.email_verified = user_data.get("emailVerified", False)
-
-            # Update additional fields if provided
-            if extra_data:
-                if 'firstName' in extra_data:
-                    user.first_name = extra_data.get('firstName')
-                if 'lastName' in extra_data:
-                    user.last_name = extra_data.get('lastName')
-                if 'phone' in extra_data:
-                    user.phone = extra_data.get('phone')
-                if 'shopName' in extra_data:
-                    user.shop_name = extra_data.get('shopName')
-                if 'productCategories' in extra_data:
-                    user.product_categories = extra_data.get('productCategories')
-
-            db.session.commit()
-            return user
-
-        # Create new user with username from email (default behavior)
-        username = email.split("@")[0] if email else "user"
-
-        # Create new user
-        new_user = User(
-            email=email,
-            username=username,
-            firebase_uid=firebase_uid,
-            email_verified=user_data.get("emailVerified", False)
-        )
-
-        # Set a placeholder password hash for Firebase users
-        from werkzeug.security import generate_password_hash
-        new_user.password_hash = generate_password_hash('firebase-auth-user')
-
-        # Add additional fields if provided
-        if extra_data:
-            new_user.first_name = extra_data.get('firstName')
-            new_user.last_name = extra_data.get('lastName')
-            new_user.phone = extra_data.get('phone')
-            new_user.shop_name = extra_data.get('shopName')
-            new_user.product_categories = extra_data.get('productCategories')
-
-        db.session.add(new_user)
-        db.session.commit()
-        return new_user
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating/updating user: {str(e)}")
-        return None
-
-# This function was moved above to avoid duplication
 
 def login_required(f):
     """
@@ -310,10 +379,12 @@ def inventory_manager_required(f):
     """
     Decorator for routes that require inventory management privileges
     """
+    from models import UserRole
     return role_required([UserRole.ADMIN, UserRole.INVENTORY_MANAGER])(f)
 
 def sales_required(f):
     """
     Decorator for routes that require sales privileges
     """
+    from models import UserRole
     return role_required([UserRole.ADMIN, UserRole.SALESPERSON])(f)

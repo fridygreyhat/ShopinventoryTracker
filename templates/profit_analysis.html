@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}Profit Margin Analysis - {{ g.t('business_management') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fas fa-percentage"></i>
+                    Profit Margin Analysis
+                </h1>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="exportToCSV()">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-info" onclick="window.print()">
+                        <i class="fas fa-print"></i> Print Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="date_range" class="form-label">Time Period</label>
+                            <select class="form-select" id="date_range" name="date_range">
+                                <option value="7" {% if date_range == '7' %}selected{% endif %}>Last 7 Days</option>
+                                <option value="30" {% if date_range == '30' %}selected{% endif %}>Last 30 Days</option>
+                                <option value="90" {% if date_range == '90' %}selected{% endif %}>Last 90 Days</option>
+                                <option value="365" {% if date_range == '365' %}selected{% endif %}>Last Year</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="category_id" class="form-label">Category</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if category.id == category_id %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sort_by" class="form-label">Sort By</label>
+                            <select class="form-select" id="sort_by" name="sort_by">
+                                <option value="profit_margin" {% if sort_by == 'profit_margin' %}selected{% endif %}>Profit Margin %</option>
+                                <option value="actual_profit" {% if sort_by == 'actual_profit' %}selected{% endif %}>Actual Profit</option>
+                                <option value="turnover" {% if sort_by == 'turnover' %}selected{% endif %}>Turnover Rate</option>
+                                <option value="inventory_value" {% if sort_by == 'inventory_value' %}selected{% endif %}>Inventory Value</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Key Metrics Overview -->
+            <div class="row mb-4">
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Inventory Value</h6>
+                                    <h4 class="mb-0">TSh {{ "{:,.2f}".format(total_inventory_value) }}</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-boxes fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Actual Profit ({{ date_range }} days)</h6>
+                                    <h4 class="mb-0">TSh {{ "{:,.2f}".format(total_sold_profit) }}</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Potential Profit</h6>
+                                    <h4 class="mb-0">TSh {{ "{:,.2f}".format(total_potential_profit) }}</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-piggy-bank fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card {% if net_profit >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Net Profit</h6>
+                                    <h4 class="mb-0">TSh {{ "{:,.2f}".format(net_profit) }}</h4>
+                                    <small>After expenses: TSh {{ "{:,.2f}".format(total_expenses) }}</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-calculator fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Insights -->
+            <div class="row mb-4">
+                <div class="col-lg-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Top Profitable Items</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if top_profit_items %}
+                                {% for item in top_profit_items %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong>{{ item.item.name }}</strong>
+                                            <br><small class="text-muted">{{ item.units_sold }} sold</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <strong class="text-success">TSh {{ "{:,.0f}".format(item.actual_profit) }}</strong>
+                                            <br><small class="text-muted">{{ "{:.1f}".format(item.retail_margin) }}%</small>
+                                        </div>
+                                    </div>
+                                    {% if not loop.last %}<hr class="my-2">{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No sales data for this period</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Highest Margin Items</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if top_margin_items %}
+                                {% for item in top_margin_items %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong>{{ item.item.name }}</strong>
+                                            <br><small class="text-muted">Stock: {{ item.current_stock }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <strong class="text-primary">{{ "{:.1f}".format(item.retail_margin) }}%</strong>
+                                            <br><small class="text-muted">TSh {{ "{:,.0f}".format(item.profit_per_unit_retail) }}/unit</small>
+                                        </div>
+                                    </div>
+                                    {% if not loop.last %}<hr class="my-2">{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No inventory items found</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Low Margin Items (Needs Attention)</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if low_margin_items %}
+                                {% for item in low_margin_items %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong>{{ item.item.name }}</strong>
+                                            <br><small class="text-muted">Stock: {{ item.current_stock }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <strong class="{% if item.retail_margin < 10 %}text-danger{% elif item.retail_margin < 20 %}text-warning{% else %}text-success{% endif %}">
+                                                {{ "{:.1f}".format(item.retail_margin) }}%
+                                            </strong>
+                                            <br><small class="text-muted">TSh {{ "{:,.0f}".format(item.profit_per_unit_retail) }}/unit</small>
+                                        </div>
+                                    </div>
+                                    {% if not loop.last %}<hr class="my-2">{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No inventory items found</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Analysis -->
+            {% if category_analysis %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Category Performance Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Items</th>
+                                    <th>Inventory Value</th>
+                                    <th>Revenue</th>
+                                    <th>Profit</th>
+                                    <th>Margin %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category_name, data in category_analysis.items() %}
+                                    {% set margin = (data.total_profit / data.total_revenue * 100) if data.total_revenue > 0 else 0 %}
+                                    <tr>
+                                        <td><strong>{{ category_name }}</strong></td>
+                                        <td>{{ data.item_count }}</td>
+                                        <td>TSh {{ "{:,.2f}".format(data.total_inventory_value) }}</td>
+                                        <td>TSh {{ "{:,.2f}".format(data.total_revenue) }}</td>
+                                        <td class="{% if data.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            TSh {{ "{:,.2f}".format(data.total_profit) }}
+                                        </td>
+                                        <td>
+                                            <span class="{% if margin >= 25 %}text-success{% elif margin >= 15 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ "{:.1f}".format(margin) }}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Detailed Item Analysis -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Detailed Item Analysis</h5>
+                    <small class="text-muted">Analysis period: {{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</small>
+                </div>
+                <div class="card-body">
+                    {% if profit_analysis %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="profitAnalysisTable">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Category</th>
+                                        <th>Stock</th>
+                                        <th>Buying Price</th>
+                                        <th>Retail Price</th>
+                                        <th>Margin %</th>
+                                        <th>Units Sold</th>
+                                        <th>Revenue</th>
+                                        <th>Actual Profit</th>
+                                        <th>Turnover %</th>
+                                        <th>Inventory Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for analysis in profit_analysis %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ analysis.item.name }}</strong>
+                                                {% if analysis.item.sku %}
+                                                    <br><small class="text-muted">{{ analysis.item.sku }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ analysis.item.category.name if analysis.item.category else 'Uncategorized' }}</td>
+                                            <td>
+                                                {{ analysis.current_stock }}
+                                                {% if analysis.current_stock <= analysis.item.minimum_stock %}
+                                                    <i class="fas fa-exclamation-triangle text-warning" title="Low stock"></i>
+                                                {% endif %}
+                                            </td>
+                                            <td>TSh {{ "{:,.2f}".format(analysis.buying_price) }}</td>
+                                            <td>TSh {{ "{:,.2f}".format(analysis.retail_price) }}</td>
+                                            <td>
+                                                <span class="{% if analysis.retail_margin >= 30 %}text-success{% elif analysis.retail_margin >= 15 %}text-warning{% else %}text-danger{% endif %}">
+                                                    {{ "{:.1f}".format(analysis.retail_margin) }}%
+                                                </span>
+                                            </td>
+                                            <td>{{ analysis.units_sold }}</td>
+                                            <td>TSh {{ "{:,.2f}".format(analysis.revenue) }}</td>
+                                            <td class="{% if analysis.actual_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                TSh {{ "{:,.2f}".format(analysis.actual_profit) }}
+                                            </td>
+                                            <td>
+                                                <span class="{% if analysis.turnover_rate >= 50 %}text-success{% elif analysis.turnover_rate >= 25 %}text-warning{% else %}text-danger{% endif %}">
+                                                    {{ "{:.1f}".format(analysis.turnover_rate) }}%
+                                                </span>
+                                            </td>
+                                            <td>TSh {{ "{:,.2f}".format(analysis.inventory_value) }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Data Available</h5>
+                            <p class="text-muted">Add inventory items and record sales to see profit analysis.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('profitAnalysisTable');
+    let csv = [];
+    
+    // Get headers
+    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+    csv.push(headers.join(','));
+    
+    // Get data rows
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td')).map(td => {
+            // Clean the text content and remove line breaks
+            return '"' + td.textContent.replace(/\s+/g, ' ').trim().replace(/"/g, '""') + '"';
+        });
+        csv.push(cells.join(','));
+    });
+    
+    // Download CSV
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'profit_analysis_' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+// Auto-refresh data every 5 minutes
+setInterval(function() {
+    if (document.visibilityState === 'visible') {
+        location.reload();
+    }
+}, 300000);
+
+// Add sorting functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('profitAnalysisTable');
+    if (table) {
+        // Add click handlers to sortable headers
+        const headers = table.querySelectorAll('thead th');
+        headers.forEach((header, index) => {
+            if (index > 2) { // Only numeric columns
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', function() {
+                    sortTable(table, index);
+                });
+            }
+        });
+    }
+});
+
+function sortTable(table, columnIndex) {
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Determine sort direction
+    const isAscending = !table.dataset.sortAsc || table.dataset.sortAsc === 'false';
+    table.dataset.sortAsc = isAscending;
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        const aValue = parseFloat(a.cells[columnIndex].textContent.replace(/[^\d.-]/g, '')) || 0;
+        const bValue = parseFloat(b.cells[columnIndex].textContent.replace(/[^\d.-]/g, '')) || 0;
+        
+        return isAscending ? aValue - bValue : bValue - aValue;
+    });
+    
+    // Update table
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Update header indicators
+    table.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
+    table.querySelectorAll('thead th')[columnIndex].classList.add(isAscending ? 'sorted-asc' : 'sorted-desc');
+}
+</script>
+
+<style>
+@media print {
+    .btn-group, .card-header .btn, .nav-sidebar, .navbar {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+}
+
+.sorted-asc::after {
+    content: ' ↑';
+}
+
+.sorted-desc::after {
+    content: ' ↓';
+}
+
+thead th[style*="cursor: pointer"]:hover {
+    background-color: var(--bs-gray-100);
+}
+</style>
+{% endblock %}

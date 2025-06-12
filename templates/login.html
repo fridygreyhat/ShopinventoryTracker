@@ -1,279 +1,145 @@
-{% extends 'layout.html' %}
+{% extends "base.html" %}
+
+{% block title %}Login - Business Management System{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-        <div class="auth-card my-5">
-            <div class="card-body">
-                <img src="{{ url_for('static', filename='images/inventory-logo.svg') }}" alt="Inventory Tracker Logo" class="auth-logo">
-                <h1 class="auth-heading">Welcome Back</h1>
-                <p class="auth-subheading">Sign in to access your inventory management system</p>
-
-                <div id="login-form">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}" role="alert">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-                    
-                    <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" placeholder="Enter your email" required autofocus>
+<div class="login-hero">
+    <div class="row min-vh-100 align-items-center">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="login-content w-100">
+                <div class="text-center mb-5">
+                    <div class="logo-container mb-4">
+                        <i class="fas fa-chart-line logo-icon"></i>
                     </div>
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between">
-                            <label for="password" class="form-label">Password</label>
-                            <a href="#" id="forgot-password-link" class="form-text text-primary">Forgot password?</a>
-                        </div>
-                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
-                    </div>
-                    
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember">
-                        <label class="form-check-label" for="remember">Remember me</label>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="button" id="login-button" class="btn btn-primary">Login</button>
-                    </div>
-                    <div class="text-center mt-3">
-                        <a href="{{ url_for('register') }}" class="auth-link">Create an account</a>
-                    </div>
+                    <h1 class="login-title">BusinessManager</h1>
+                    <p class="login-subtitle">Comprehensive business management solution</p>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Registration page is now separate at register.html -->
-
-<!-- Password Reset Modal -->
-<div class="modal fade" id="passwordResetModal" tabindex="-1" aria-labelledby="passwordResetModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="passwordResetModalLabel">Reset Password</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Enter your email address and we'll send you a link to reset your password.</p>
-                <div class="mb-3">
-                    <label for="resetEmail" class="form-label">Email address</label>
-                    <input type="email" class="form-control" id="resetEmail" placeholder="Enter your email">
-                </div>
-                <div class="alert alert-danger d-none" id="resetError" role="alert"></div>
-                <div class="alert alert-success d-none" id="resetSuccess" role="alert"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="sendResetBtn">Send Reset Link</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<!-- Firebase SDK -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-
-<script type="module">
-    // Import Firebase modules and our authentication module
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { loginWithEmailPassword, createSession, sendPasswordReset } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
-
-    // Firebase configuration from server
-    const firebaseConfig = {
-        apiKey: "{{ firebase_config.apiKey }}",
-        projectId: "{{ firebase_config.projectId }}",
-        appId: "{{ firebase_config.appId }}",
-        authDomain: "{{ firebase_config.authDomain }}",
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // Elements
-    const loginButton = document.getElementById('login-button');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const rememberCheck = document.getElementById('remember');
-    const errorDiv = document.getElementById('auth-error');
-
-    // Login button click handler
-    loginButton.addEventListener('click', async () => {
-        const email = emailInput.value;
-        const password = passwordInput.value;
-        const remember = rememberCheck.checked;
-
-        // Validate inputs
-        if (!email || !password) {
-            showError('Please enter both email and password.');
-            return;
-        }
-
-        try {
-            // Show loading state
-            loginButton.disabled = true;
-            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
-            
-            // Sign in with Firebase using our helper function
-            console.log('Attempting to login with Firebase...');
-            const userCredential = await loginWithEmailPassword(auth, email, password);
-            console.log('Firebase login successful, getting token...');
-            
-            const token = await userCredential.user.getIdToken();
-            console.log('Token received, length:', token ? token.length : 0);
-            
-            // Create session with server
-            console.log('Creating session with server...');
-            try {
-                const sessionResult = await createSession(token, remember);
-                console.log('Session created successfully:', sessionResult);
                 
-                // On success, redirect to dashboard
-                console.log('Redirecting to dashboard...');
-                window.location.href = '/';
-            } catch (sessionError) {
-                console.error('Session creation failed:', sessionError);
-                loginButton.disabled = false;
-                loginButton.innerHTML = 'Login';
-                showError('Authentication succeeded but session creation failed. Please try again.');
-                throw sessionError;
-            }
-            
-        } catch (error) {
-            // Reset button and show error
-            loginButton.disabled = false;
-            loginButton.innerHTML = 'Login';
-            
-            console.error('Login error:', error);
-            
-            let errorMessage = 'Authentication failed. Please check your credentials.';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                errorMessage = 'Invalid email or password. Please try again.';
-            } else if (error.code === 'auth/too-many-requests') {
-                errorMessage = 'Too many failed login attempts. Please try again later.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'Please enter a valid email address.';
-            } else if (error.code === 'auth/user-disabled') {
-                errorMessage = 'This account has been disabled. Please contact support.';
-            } else if (error.code === 'auth/network-request-failed') {
-                errorMessage = 'Network error. Please check your connection and try again.';
-            }
-            
-            // Log specific error details for debugging
-            console.log('Firebase error code:', error.code);
-            console.log('Firebase error message:', error.message);
-            
-            showError(errorMessage);
-        }
-    });
+                <div class="login-card">
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4">Welcome Back</h3>
+                        <p class="text-center text-muted mb-4">Sign in to access your business dashboard</p>
+                        
+                        <div class="d-grid">
+                            <a href="{{ url_for('postgresql_auth.login') }}" class="btn btn-primary btn-lg login-btn">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Sign In to Your Account
+                            </a>
+                        </div>
+                        
+                        <div class="login-divider">
+                            <span>Secure Authentication</span>
+                        </div>
+                        
+                        <div class="text-center">
+                            <small class="text-muted">
+                                New to BusinessManager? Authentication is handled securely through Replit
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-    // Show error message
-    function showError(message) {
-        errorDiv.textContent = message;
-        errorDiv.classList.remove('d-none');
-    }
+<style>
+.login-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
 
-    // Handle Enter key press
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
-            loginButton.click();
-        }
-    });
-    
-    // Password Reset Functionality
-    const forgotPasswordLink = document.getElementById('forgot-password-link');
-    const passwordResetModal = new bootstrap.Modal(document.getElementById('passwordResetModal'));
-    const resetEmailInput = document.getElementById('resetEmail');
-    const sendResetBtn = document.getElementById('sendResetBtn');
-    const resetError = document.getElementById('resetError');
-    const resetSuccess = document.getElementById('resetSuccess');
-    
-    // Show reset password modal
-    forgotPasswordLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Pre-fill with email if already entered
-        const loginEmail = document.getElementById('email').value;
-        if (loginEmail) {
-            resetEmailInput.value = loginEmail;
-        }
-        
-        // Reset state
-        resetError.classList.add('d-none');
-        resetSuccess.classList.add('d-none');
-        
-        // Show modal
-        passwordResetModal.show();
-    });
-    
-    // Send password reset email
-    sendResetBtn.addEventListener('click', async function() {
-        const email = resetEmailInput.value.trim();
-        
-        // Validate email
-        if (!email) {
-            resetError.textContent = 'Please enter your email address';
-            resetError.classList.remove('d-none');
-            resetSuccess.classList.add('d-none');
-            return;
-        }
-        
-        // Show loading state
-        sendResetBtn.disabled = true;
-        sendResetBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
-        
-        try {
-            // Send password reset email using our helper function
-            await sendPasswordReset(auth, email);
-            
-            // Show success message
-            resetSuccess.textContent = 'Password reset email sent! Check your inbox.';
-            resetSuccess.classList.remove('d-none');
-            resetError.classList.add('d-none');
-            
-            // Reset form after 3 seconds and close modal
-            setTimeout(() => {
-                passwordResetModal.hide();
-                resetEmailInput.value = '';
-            }, 3000);
-            
-        } catch (error) {
-            // Show error message
-            resetError.textContent = getResetErrorMessage(error);
-            resetError.classList.remove('d-none');
-            resetSuccess.classList.add('d-none');
-            
-            console.error('Password reset error:', error);
-        } finally {
-            // Reset button state
-            sendResetBtn.disabled = false;
-            sendResetBtn.innerHTML = 'Send Reset Link';
-        }
-    });
-    
-    // Get user-friendly error message for password reset
-    function getResetErrorMessage(error) {
-        if (error.code === 'auth/user-not-found') {
-            return 'No account found with this email address.';
-        } else if (error.code === 'auth/invalid-email') {
-            return 'Please enter a valid email address.';
-        } else if (error.code === 'auth/too-many-requests') {
-            return 'Too many requests. Please try again later.';
-        } else {
-            return 'Error sending password reset email. Please try again.';
-        }
+.login-content {
+    padding: 2rem;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.logo-container {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.logo-icon {
+    font-size: 2rem;
+    color: white;
+}
+
+.login-title {
+    color: white;
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-btn {
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+}
+
+.login-divider {
+    text-align: center;
+    margin: 2rem 0;
+    position: relative;
+}
+
+.login-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.login-divider span {
+    background: white;
+    padding: 0 1rem;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 991px) {
+    .login-content {
+        padding: 1rem;
     }
-</script>
+    
+    .login-title {
+        font-size: 2rem;
+    }
+}
+</style>
 {% endblock %}

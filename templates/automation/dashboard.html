@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Automation Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Smart Automation Dashboard</h1>
+                <form method="POST" action="{{ url_for('run_automation_analysis') }}" class="d-inline">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Run Analysis
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Items Analyzed</h5>
+                            <h2>{{ summary.total_items_analyzed }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Purchase Orders</h5>
+                            <h2>{{ summary.purchase_orders_needed }}</h2>
+                            <small>{{ summary.high_priority_orders }} high priority</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-shopping-cart fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Smart Notifications</h5>
+                            <h2>{{ summary.notifications_count }}</h2>
+                            <small>{{ summary.critical_notifications }} critical</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-bell fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Last Analysis</h5>
+                            <h6>{{ summary.last_analysis.strftime('%H:%M') }}</h6>
+                            <small>{{ summary.last_analysis.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Purchase Orders Section -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Auto Purchase Orders</h5>
+                    <a href="{{ url_for('automation_purchase_orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if purchase_orders %}
+                        {% for order in purchase_orders[:5] %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                            <div>
+                                <strong>{{ order.item_name }}</strong>
+                                <div class="text-muted small">
+                                    Current: {{ order.current_stock }} | Recommended: {{ order.recommended_quantity }}
+                                </div>
+                                <div class="text-muted small">{{ order.reason }}</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ 'danger' if order.urgency_level == 'critical' else 'warning' if order.urgency_level == 'high' else 'info' }}">
+                                    {{ order.urgency_level.title() }}
+                                </span>
+                                <div class="text-muted small">${{ "%.2f"|format(order.estimated_cost) }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if purchase_orders|length > 5 %}
+                        <div class="text-center">
+                            <small class="text-muted">{{ purchase_orders|length - 5 }} more orders available</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>No purchase orders needed at this time</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Notifications Section -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Smart Notifications</h5>
+                    <a href="{{ url_for('automation_notifications') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        {% for notification in notifications[:5] %}
+                        <div class="alert alert-{{ 'danger' if notification.priority == 'critical' else 'warning' if notification.priority == 'high' else 'info' }} mb-2" role="alert">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ notification.title }}</strong>
+                                    <div class="small">{{ notification.message }}</div>
+                                </div>
+                                {% if notification.action_required %}
+                                <span class="badge bg-danger">Action Required</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if notifications|length > 5 %}
+                        <div class="text-center">
+                            <small class="text-muted">{{ notifications|length - 5 }} more notifications available</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>No critical notifications at this time</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Patterns Analysis -->
+    {% if patterns %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Inventory Patterns Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Daily Velocity</th>
+                                    <th>Trend</th>
+                                    <th>Total Sold (90d)</th>
+                                    <th>Last Sale</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item_id, pattern in patterns.items() %}
+                                {% if loop.index <= 10 %}
+                                <tr>
+                                    <td>{{ pattern.name }}</td>
+                                    <td>{{ "%.1f"|format(pattern.daily_velocity) }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if pattern.trend == 'trending_up' else 'danger' if pattern.trend == 'trending_down' else 'secondary' }}">
+                                            {{ pattern.trend.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ pattern.total_sold }}</td>
+                                    <td>
+                                        {% if pattern.days_since_last_sale < 999 %}
+                                            {{ pattern.days_since_last_sale }} days ago
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if patterns|length > 10 %}
+                    <div class="text-center">
+                        <small class="text-muted">Showing top 10 of {{ patterns|length }} analyzed items</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

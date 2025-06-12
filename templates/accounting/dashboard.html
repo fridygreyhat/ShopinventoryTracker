@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-3">Accounting Dashboard</h1>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Chart of Accounts</h5>
+                            <p class="card-text">{{ accounts|length }} accounts</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-list-alt fa-2x"></i>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('chart_of_accounts') }}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Journal Entries</h5>
+                            <p class="card-text">{{ recent_journals|length }} recent</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-book fa-2x"></i>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('journal_entries') }}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Bank Accounts</h5>
+                            <p class="card-text">Manage accounts</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-university fa-2x"></i>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('bank_accounts') }}" class="btn btn-light btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Reports</h5>
+                            <p class="card-text">Financial reports</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Reports
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('profit_loss_report') }}">P&L Statement</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('balance_sheet_report') }}">Balance Sheet</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('trial_balance_report') }}">Trial Balance</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Period P&L Summary -->
+    {% if pl_data %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Current Month P&L Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Total Revenue</h6>
+                            <h4 class="text-success">Tsh {{ "{:,.2f}".format(pl_data.total_revenue or 0) }}</h4>
+                        </div>
+                        <div class="col-6">
+                            <h6>Total Expenses</h6>
+                            <h4 class="text-danger">Tsh {{ "{:,.2f}".format(pl_data.total_expenses or 0) }}</h4>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Net Profit</h6>
+                            <h3 class="{{ 'text-success' if (pl_data.net_profit or 0) >= 0 else 'text-danger' }}">
+                                Tsh {{ "{:,.2f}".format(pl_data.net_profit or 0) }}
+                            </h3>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('profit_loss_report') }}" class="btn btn-primary btn-sm">View Full Report</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Setup & Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    {% if not accounts %}
+                    <div class="alert alert-info">
+                        <h6>Get Started with Accounting</h6>
+                        <p>Initialize your chart of accounts to begin professional accounting.</p>
+                        <form method="POST" action="{{ url_for('initialize_chart_of_accounts') }}">
+                            <button type="submit" class="btn btn-primary">Initialize Chart of Accounts</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="list-group">
+                        <a href="{{ url_for('add_bank_account') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-plus"></i> Add Bank Account
+                        </a>
+                        <a href="{{ url_for('journal_entries') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-book"></i> View Journal Entries
+                        </a>
+                        <a href="{{ url_for('chart_of_accounts') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-list"></i> Manage Chart of Accounts
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Journal Entries -->
+    {% if recent_journals %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Recent Journal Entries</h5>
+                    <a href="{{ url_for('journal_entries') }}" class="btn btn-outline-primary btn-sm">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Journal #</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for journal in recent_journals %}
+                                <tr>
+                                    <td>{{ journal.journal_number }}</td>
+                                    <td>{{ journal.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ journal.description[:50] }}{% if journal.description|length > 50 %}...{% endif %}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ journal.reference_type or 'manual' }}</span>
+                                    </td>
+                                    <td>Tsh {{ "{:,.2f}".format(journal.total_debit) }}</td>
+                                    <td>
+                                        <a href="{{ url_for('view_journal_entry', journal_id=journal.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
