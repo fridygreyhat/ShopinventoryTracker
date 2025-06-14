@@ -584,168 +584,50 @@ def delete_item(item_id):
 @app.route('/api/inventory/bulk-import', methods=['POST'])
 def bulk_import_inventory():
     """API endpoint to handle bulk import of inventory items from CSV"""
+    from services.csv_import_service import CSVImportService
+    
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
-
-    if not file.filename.lower().endswith('.csv'):
-        return jsonify({"error": "Only CSV files are supported"}), 400
-
-    # Check file size (5MB limit)
-    if len(file.read()) > 5 * 1024 * 1024:
-        return jsonify({"error": "File too large. Maximum size is 5MB"}), 400
     
-    # Reset file pointer
-    file.seek(0)
-
     try:
-        # Read CSV file with proper encoding handling
-        try:
-            content = file.stream.read().decode("UTF8")
-        except UnicodeDecodeError:
-            try:
-                file.stream.seek(0)
-                content = file.stream.read().decode("ISO-8859-1")
-            except UnicodeDecodeError:
-                return jsonify({"error": "Unable to decode file. Please ensure it's a valid CSV file with UTF-8 or ISO-8859-1 encoding."}), 400
-
-        stream = io.StringIO(content, newline=None)
+        # Initialize import service
+        import_service = CSVImportService(db.session, Item)
         
-        # Check if file has data
-        first_line = stream.readline()
-        if not first_line.strip():
-            return jsonify({"error": "CSV file appears to be empty"}), 400
+        # Process the import
+        result = import_service.process_csv_import(file)
         
-        # Reset stream and create CSV reader
-        stream.seek(0)
-        csv_data = csv.DictReader(stream)
+        # Return appropriate status code
+        if result.get("success"):
+
+@app.route('/api/inventory/csv-template', methods=['GET'])
+def get_csv_template():
+    """API endpoint to get CSV template and format information"""
+    from services.csv_import_service import CSVTemplateGenerator
+    
+    template_type = request.args.get('type', 'info')
+    
+    if template_type == 'download':
+        # Return sample CSV data for download
+        sample_data = CSVTemplateGenerator.get_sample_csv_data()
         
-        # Validate CSV headers
-        if not csv_data.fieldnames:
-            return jsonify({"error": "CSV file has no headers"}), 400
-        
-        required_headers = ['name']
-        missing_headers = [header for header in required_headers if header not in csv_data.fieldnames]
-        if missing_headers:
-            return jsonify({"error": f"Missing required CSV headers: {', '.join(missing_headers)}"}), 400
+        return send_file(
+            io.BytesIO(sample_data.encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'inventory_import_template_{datetime.now().strftime("%Y%m%d")}.csv'
+        )
+    else:
+        # Return format information
+        format_info = CSVTemplateGenerator.get_format_instructions()
+        return jsonify(format_info)
 
-        imported_count = 0
-        errors = []
-        row_number = 0
-        skipped_count = 0
 
-        for row in csv_data:
-            row_number += 1
-            try:
-                # Skip empty rows
-                if not any(value.strip() for value in row.values() if value):
-                    skipped_count += 1
-                    continue
-
-                # Validate required fields
-                name = row.get('name', '').strip()
-                if not name:
-                    errors.append(f"Row {row_number}: Product name is required")
-                    continue
-
-                # Clean and validate data
-                sku = row.get('sku', '').strip()
-                description = row.get('description', '').strip()
-                category = row.get('category', 'Uncategorized').strip()
-                
-                # Parse numeric fields with better validation
-                try:
-                    quantity_str = str(row.get('quantity', '0')).strip()
-                    if not quantity_str or quantity_str.lower() in ['', 'null', 'none']:
-                        quantity = 0
-                    else:
-                        quantity = int(float(quantity_str))
-                        if quantity < 0:
-                            errors.append(f"Row {row_number}: Quantity cannot be negative, setting to 0")
-                            quantity = 0
-                except (ValueError, TypeError):
-                    quantity = 0
-                    errors.append(f"Row {row_number}: Invalid quantity '{row.get('quantity', '')}', defaulting to 0")
-
-                # Parse price fields
-                def parse_price(price_str, field_name):
-                    try:
-                        if not price_str or str(price_str).strip().lower() in ['', 'null', 'none']:
-                            return 0.0
-                        price = float(str(price_str).strip())
-                        if price < 0:
-                            errors.append(f"Row {row_number}: {field_name} cannot be negative, setting to 0")
-                            return 0.0
-                        return price
-                    except (ValueError, TypeError):
-                        errors.append(f"Row {row_number}: Invalid {field_name} '{price_str}', defaulting to 0")
-                        return 0.0
-
-                buying_price = parse_price(row.get('buying_price', 0), 'buying price')
-                selling_price_retail = parse_price(row.get('selling_price_retail', 0), 'retail price')
-                selling_price_wholesale = parse_price(row.get('selling_price_wholesale', 0), 'wholesale price')
-
-                # Validate sales type
-                sales_type = str(row.get('sales_type', 'both')).strip().lower()
-                if sales_type not in ['retail', 'wholesale', 'both']:
-                    sales_type = 'both'
-                    errors.append(f"Row {row_number}: Invalid sales type, defaulting to 'both'")
-
-                # Generate SKU if not provided
-                if not sku:
-                    sku = Item.generate_sku(name, category)
-                
-                # Ensure SKU uniqueness
-                original_sku = sku
-                counter = 1
-                while Item.query.filter_by(sku=sku).first():
-                    sku = f"{original_sku}-{counter}"
-                    counter += 1
-                
-                if sku != original_sku:
-                    errors.append(f"Row {row_number}: SKU '{original_sku}' already exists, using '{sku}' instead")
-
-                # Create new item
-                new_item = Item(
-                    name=name,
-                    sku=sku,
-                    description=description,
-                    category=category,
-                    quantity=quantity,
-                    buying_price=buying_price,
-                    selling_price_retail=selling_price_retail,
-                    selling_price_wholesale=selling_price_wholesale,
-                    price=selling_price_retail,  # For backward compatibility
-                    sales_type=sales_type
-                )
-
-                db.session.add(new_item)
-                imported_count += 1
-
-            except Exception as e:
-                errors.append(f"Row {row_number}: Unexpected error - {str(e)}")
-                continue
-
-        # Commit all changes
-        if imported_count > 0:
-            db.session.commit()
-            logger.info(f"Bulk import completed: {imported_count} items imported from {row_number} rows")
+            return jsonify(result), 200
         else:
-            db.session.rollback()
-            if not errors:
-                errors.append("No valid data found to import")
-
-        return jsonify({
-            "success": imported_count > 0,
-            "imported_count": imported_count,
-            "errors": errors,
-            "total_rows": row_number,
-            "skipped_rows": skipped_count
-        })
-
+            return jsonify(result), 400
+            
     except Exception as e:
         db.session.rollback()
         logger.error(f"Bulk import failed: {str(e)}")

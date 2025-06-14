@@ -172,19 +172,41 @@
                     <div class="alert alert-info">
                         <strong>CSV Format Requirements:</strong>
                         <ul class="mb-2 mt-2">
-                            <li><strong>Required:</strong> name, quantity</li>
-                            <li><strong>Optional:</strong> sku, description, category, buying_price, selling_price_retail, selling_price_wholesale, sales_type</li>
+                            <li><strong>Required:</strong> name</li>
+                            <li><strong>Optional:</strong> sku, description, category, quantity, buying_price, selling_price_retail, selling_price_wholesale, sales_type</li>
                         </ul>
-                        <strong>Example CSV header:</strong><br>
-                        <code>name,sku,description,category,quantity,buying_price,selling_price_retail,selling_price_wholesale,sales_type</code>
-                        <br><br>
-                        <strong>Example CSV row:</strong><br>
-                        <code>iPhone 14,IPHONE14,Latest iPhone model,Electronics,10,800000,1000000,950000,both</code>
-                        <br><br>
-                        <strong>Sample CSV Download:</strong><br>
-                        <a href="data:text/csv;charset=utf-8,name%2Csku%2Cdescription%2Ccategory%2Cquantity%2Cbuying_price%2Cselling_price_retail%2Cselling_price_wholesale%2Csales_type%0AiPhone%2014%2CIPHONE14%2CLatest%20iPhone%20model%2CElectronics%2C10%2C800000%2C1000000%2C950000%2Cboth%0ASamsung%20Galaxy%2CGALAXY%2CLatest%20Samsung%20phone%2CElectronics%2C15%2C700000%2C900000%2C850000%2Cboth" download="sample_import.csv" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-download"></i> Download Sample CSV
-                        </a>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <strong>Example CSV header:</strong><br>
+                                <code class="small">name,sku,description,category,quantity,buying_price,selling_price_retail,selling_price_wholesale,sales_type</code>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Field Notes:</strong>
+                                <ul class="small mb-0">
+                                    <li>quantity: defaults to 0 if empty</li>
+                                    <li>prices: defaults to 0 if empty</li>
+                                    <li>sales_type: retail, wholesale, or both</li>
+                                    <li>sku: auto-generated if empty</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-3 d-flex gap-2">
+                            <a href="/api/inventory/csv-template?type=download" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> Download Template
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="showFormatDetails">
+                                <i class="fas fa-info-circle"></i> Format Details
+                            </button>
+                        </div>
+                    </div>
+                    <div id="formatDetailsPanel" class="alert alert-light d-none mt-2">
+                        <div id="formatDetailsContent">
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="importResult" class="alert d-none"></div>
                 </form>

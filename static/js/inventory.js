@@ -4,6 +4,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const importButton = document.getElementById('importButton');
     const importResult = document.getElementById('importResult');
 
+    // Format details handler
+    const showFormatDetailsBtn = document.getElementById('showFormatDetails');
+    const formatDetailsPanel = document.getElementById('formatDetailsPanel');
+    const formatDetailsContent = document.getElementById('formatDetailsContent');
+    
+    if (showFormatDetailsBtn) {
+        showFormatDetailsBtn.addEventListener('click', function() {
+            if (formatDetailsPanel.classList.contains('d-none')) {
+                // Show and load format details
+                formatDetailsPanel.classList.remove('d-none');
+                loadFormatDetails();
+            } else {
+                // Hide format details
+                formatDetailsPanel.classList.add('d-none');
+            }
+        });
+    }
+    
+    function loadFormatDetails() {
+        fetch('/api/inventory/csv-template')
+            .then(response => response.json())
+            .then(data => {
+                let detailsHTML = '<div class="row">';
+                
+                // Required fields
+                detailsHTML += '<div class="col-md-6"><h6 class="text-success">Required Fields:</h6><ul>';
+                data.required_fields.forEach(field => {
+                    detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
+                });
+                detailsHTML += '</ul></div>';
+                
+                // Optional fields
+                detailsHTML += '<div class="col-md-6"><h6 class="text-info">Optional Fields:</h6><ul class="small">';
+                data.optional_fields.forEach(field => {
+                    detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
+                });
+                detailsHTML += '</ul></div>';
+                
+                detailsHTML += '</div>';
+                
+                // Example
+                detailsHTML += '<div class="mt-3"><h6>Example Row:</h6>';
+                detailsHTML += `<code class="small">${data.example_row}</code></div>`;
+                
+                formatDetailsContent.innerHTML = detailsHTML;
+            })
+            .catch(error => {
+                formatDetailsContent.innerHTML = '<div class="text-danger">Failed to load format details</div>';
+            });
+    }
+
     // Bulk Import Handler
     importButton.addEventListener('click', function() {
         const fileInput = document.getElementById('csvFile');
