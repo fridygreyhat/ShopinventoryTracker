@@ -422,21 +422,65 @@ footer {
     flex: 1;
     padding: 1.5rem 0;
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) transparent;
+    scroll-behavior: smooth;
+    position: relative;
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+    overscroll-behavior: contain; /* Prevent scroll chaining */
 }
 
 .sidebar-body::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
 }
 
 .sidebar-body::-webkit-scrollbar-track {
     background: transparent;
+    border-radius: 3px;
 }
 
 .sidebar-body::-webkit-scrollbar-thumb {
     background: var(--primary-color);
-    border-radius: 2px;
+    border-radius: 3px;
+    transition: background 0.3s ease;
+}
+
+.sidebar-body::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* Scroll indicators */
+.sidebar-body::before,
+.sidebar-body::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 6px;
+    height: 20px;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-body::before {
+    top: 0;
+    background: linear-gradient(to bottom, var(--card-bg), transparent);
+    opacity: 0;
+}
+
+.sidebar-body::after {
+    bottom: 0;
+    background: linear-gradient(to top, var(--card-bg), transparent);
+    opacity: 0;
+}
+
+.sidebar-body.can-scroll-up::before {
+    opacity: 1;
+}
+
+.sidebar-body.can-scroll-down::after {
+    opacity: 1;
 }
 
 /* User Profile Section */
@@ -491,6 +535,11 @@ footer {
     margin-bottom: 2rem;
 }
 
+.nav-section:last-child {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
 .nav-section-title {
     font-family: var(--accent-font);
     font-size: 0.8rem;
@@ -500,6 +549,12 @@ footer {
     color: var(--text-muted);
     padding: 0 1.5rem;
     margin-bottom: 0.75rem;
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    z-index: 5;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
 }
 
 .nav-menu {

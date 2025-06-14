@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const notificationBtn = document.getElementById('notificationBtn');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const sidebarBody = document.querySelector('.sidebar-body');
 
     // Mobile menu toggle
     if (mobileMenuBtn) {
@@ -121,6 +122,78 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Sidebar scroll position management
+    function saveScrollPosition() {
+        if (sidebarBody) {
+            localStorage.setItem('sidebarScrollPosition', sidebarBody.scrollTop);
+        }
+    }
+
+    function restoreScrollPosition() {
+        if (sidebarBody) {
+            const savedPosition = localStorage.getItem('sidebarScrollPosition');
+            if (savedPosition) {
+                sidebarBody.scrollTop = parseInt(savedPosition);
+            }
+        }
+    }
+
+    // Save scroll position when navigating away
+    window.addEventListener('beforeunload', saveScrollPosition);
+
+    // Restore scroll position on load
+    restoreScrollPosition();
+
+    // Add scroll position saving on scroll
+    if (sidebarBody) {
+        let scrollTimeout;
+        
+        function updateScrollIndicators() {
+            const scrollTop = sidebarBody.scrollTop;
+            const scrollHeight = sidebarBody.scrollHeight;
+            const clientHeight = sidebarBody.clientHeight;
+            
+            // Show top indicator if scrolled down
+            if (scrollTop > 10) {
+                sidebarBody.classList.add('can-scroll-up');
+            } else {
+                sidebarBody.classList.remove('can-scroll-up');
+            }
+            
+            // Show bottom indicator if can scroll down
+            if (scrollTop < scrollHeight - clientHeight - 10) {
+                sidebarBody.classList.add('can-scroll-down');
+            } else {
+                sidebarBody.classList.remove('can-scroll-down');
+            }
+        }
+        
+        sidebarBody.addEventListener('scroll', function() {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(saveScrollPosition, 150);
+            updateScrollIndicators();
+        });
+
+        // Initial scroll indicator check
+        updateScrollIndicators();
+
+        // Smooth scroll to active nav item
+        const activeNavLink = document.querySelector('.nav-link.active');
+        if (activeNavLink) {
+            setTimeout(() => {
+                activeNavLink.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest'
+                });
+                // Update indicators after scrolling to active item
+                setTimeout(updateScrollIndicators, 300);
+            }, 100);
+        }
+        
+        // Update scroll indicators on resize
+        window.addEventListener('resize', updateScrollIndicators);
+    }
 
     console.log('Vertical sidebar navigation initialized');
 });
