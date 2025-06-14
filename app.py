@@ -181,7 +181,7 @@ with app.app_context():
         # Initialize SMS notification settings if they don't exist
         try:
             from models import Setting
-            
+
             # Default SMS settings
             default_sms_settings = [
                 ('sms_notifications_enabled', 'false', 'Enable SMS notifications for low stock alerts', 'notifications'),
@@ -191,7 +191,7 @@ with app.app_context():
                 ('notification_email', '', 'Email address to receive notifications', 'notifications'),
                 ('sender_email', 'inventory@yourbusiness.com', 'Email address to send notifications from', 'notifications')
             ]
-            
+
             for key, value, description, category in default_sms_settings:
                 existing_setting = Setting.query.filter_by(key=key).first()
                 if not existing_setting:
@@ -202,10 +202,10 @@ with app.app_context():
                         category=category
                     )
                     db.session.add(new_setting)
-            
+
             db.session.commit()
             logger.info("SMS notification settings initialized")
-            
+
         except Exception as e:
             logger.warning(f"Could not initialize SMS settings: {str(e)}")
             db.session.rollback()
@@ -585,33 +585,42 @@ def delete_item(item_id):
 def bulk_import_inventory():
     """API endpoint to handle bulk import of inventory items from CSV"""
     from services.csv_import_service import CSVImportService
-    
+
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
-    
+
     try:
         # Initialize import service
         import_service = CSVImportService(db.session, Item)
-        
+
         # Process the import
         result = import_service.process_csv_import(file)
-        
+
         # Return appropriate status code
         if result.get("success"):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Bulk import failed: {str(e)}")
+        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+
 
 @app.route('/api/inventory/csv-template', methods=['GET'])
 def get_csv_template():
     """API endpoint to get CSV template and format information"""
     from services.csv_import_service import CSVTemplateGenerator
-    
+
     template_type = request.args.get('type', 'info')
-    
+
     if template_type == 'download':
         # Return sample CSV data for download
         sample_data = CSVTemplateGenerator.get_sample_csv_data()
-        
+
         return send_file(
             io.BytesIO(sample_data.encode('utf-8')),
             mimetype='text/csv',
@@ -622,16 +631,6 @@ def get_csv_template():
         # Return format information
         format_info = CSVTemplateGenerator.get_format_instructions()
         return jsonify(format_info)
-
-
-            return jsonify(result), 200
-        else:
-            return jsonify(result), 400
-            
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Bulk import failed: {str(e)}")
-        return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
 
 @app.route('/api/inventory/categories', methods=['GET'])
@@ -1639,7 +1638,7 @@ def create_sale():
 
                 # Get installment info
                 installment_info = data.get('payment', {}).get('installment_info', {})
-                
+
                 # For now, we'll use the first item in the cart for installment
                 # In a more complex system, you might want to handle multiple items differently
                 first_item = data.get('items', [])[0] if data.get('items') else None
