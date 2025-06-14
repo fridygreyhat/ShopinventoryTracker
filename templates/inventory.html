@@ -8,7 +8,7 @@
             <i class="fas fa-plus"></i> Add New Item
         </button>
     </div>
-    
+
     <!-- Search and Filter -->
     <div class="card mb-4">
         <div class="card-body">
@@ -39,7 +39,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Inventory Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -156,17 +156,17 @@
                             </div>
 
 <!-- Bulk Import Modal -->
-<div class="modal fade" id="bulkImportModal" tabindex="-1">
+<div class="modal fade" id="bulkImportModal" tabindex="-1" aria-labelledby="bulkImportModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Bulk Import Products</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="bulkImportModalLabel">Bulk Import Products</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="bulkImportForm">
                     <div class="mb-3">
-                        <label class="form-label">Upload CSV File</label>
+                        <label for="csvFile" class="form-label">Upload CSV File</label>
                         <input type="file" class="form-control" id="csvFile" accept=".csv" required>
                     </div>
                     <div class="alert alert-info">
@@ -180,13 +180,20 @@
                         <br><br>
                         <strong>Example CSV row:</strong><br>
                         <code>iPhone 14,IPHONE14,Latest iPhone model,Electronics,10,800000,1000000,950000,both</code>
+                        <br><br>
+                        <strong>Sample CSV Download:</strong><br>
+                        <a href="data:text/csv;charset=utf-8,name%2Csku%2Cdescription%2Ccategory%2Cquantity%2Cbuying_price%2Cselling_price_retail%2Cselling_price_wholesale%2Csales_type%0AiPhone%2014%2CIPHONE14%2CLatest%20iPhone%20model%2CElectronics%2C10%2C800000%2C1000000%2C950000%2Cboth%0ASamsung%20Galaxy%2CGALAXY%2CLatest%20Samsung%20phone%2CElectronics%2C15%2C700000%2C900000%2C850000%2Cboth" download="sample_import.csv" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i> Download Sample CSV
+                        </a>
                     </div>
                     <div id="importResult" class="alert d-none"></div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="importButton">Import</button>
+                <button type="button" class="btn btn-primary" id="importButton">
+                    <i class="fas fa-upload"></i> Import
+                </button>
             </div>
         </div>
     </div>

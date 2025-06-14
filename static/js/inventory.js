@@ -14,17 +14,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (!file.name.endsWith('.csv')) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
             showImportError('Please select a CSV file');
+            return;
+        }
+
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            showImportError('File size too large. Please select a file smaller than 5MB.');
             return;
         }
 
         const formData = new FormData();
         formData.append('file', file);
 
+        // Update button state
         importButton.disabled = true;
+        const originalButtonText = importButton.innerHTML;
+        importButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+        
         importResult.className = 'alert alert-info';
-        importResult.textContent = 'Importing...';
+        importResult.innerHTML = '<i class="fas fa-info-circle"></i> Processing your CSV file...';
         importResult.classList.remove('d-none');
 
         fetch('/api/inventory/bulk-import', {
@@ -36,25 +46,37 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                });
             }
             return response.json();
         })
         .then(data => {
             if (data.success) {
                 importResult.className = 'alert alert-success';
-                importResult.innerHTML = `<strong>Success!</strong> Imported ${data.imported_count} items`;
+                importResult.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <div>
+                            <strong>Success!</strong> Imported ${data.imported_count} out of ${data.total_rows} items
+                        </div>
+                    </div>
+                `;
                 
                 if (data.errors && data.errors.length > 0) {
-                    importResult.innerHTML += '<br><br><strong>Warnings:</strong>';
-                    const errorList = document.createElement('ul');
-                    errorList.className = 'mb-0 mt-2';
+                    importResult.innerHTML += `
+                        <hr class="my-2">
+                        <div class="mt-2">
+                            <strong><i class="fas fa-exclamation-triangle text-warning"></i> Warnings (${data.errors.length}):</strong>
+                            <div class="mt-1" style="max-height: 200px; overflow-y: auto;">
+                    `;
+                    
                     data.errors.forEach(error => {
-                        const li = document.createElement('li');
-                        li.textContent = error;
-                        errorList.appendChild(li);
+                        importResult.innerHTML += `<div class="small text-muted">• ${error}</div>`;
                     });
-                    importResult.appendChild(errorList);
+                    
+                    importResult.innerHTML += '</div></div>';
                 }
 
                 // Reset file input and reload inventory
@@ -62,10 +84,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadInventory();
                 loadCategories();
                 
-                // Hide success message after 5 seconds
+                // Hide success message after 8 seconds
                 setTimeout(() => {
                     importResult.classList.add('d-none');
-                }, 5000);
+                }, 8000);
             } else {
                 showImportError(data.error || 'Import failed');
             }
@@ -76,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .finally(() => {
             importButton.disabled = false;
+            importButton.innerHTML = originalButtonText;
         });
     });
 
