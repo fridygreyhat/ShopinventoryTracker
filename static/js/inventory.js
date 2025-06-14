@@ -34,13 +34,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Accept': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 importResult.className = 'alert alert-success';
-                importResult.textContent = `Successfully imported ${data.imported_count} items`;
-                if (data.errors.length > 0) {
+                importResult.innerHTML = `<strong>Success!</strong> Imported ${data.imported_count} items`;
+                
+                if (data.errors && data.errors.length > 0) {
+                    importResult.innerHTML += '<br><br><strong>Warnings:</strong>';
                     const errorList = document.createElement('ul');
+                    errorList.className = 'mb-0 mt-2';
                     data.errors.forEach(error => {
                         const li = document.createElement('li');
                         li.textContent = error;
@@ -53,11 +61,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileInput.value = '';
                 loadInventory();
                 loadCategories();
+                
+                // Hide success message after 5 seconds
+                setTimeout(() => {
+                    importResult.classList.add('d-none');
+                }, 5000);
             } else {
-                showImportError(data.error);
+                showImportError(data.error || 'Import failed');
             }
         })
         .catch(error => {
+            console.error('Import error:', error);
             showImportError('Import failed: ' + error.message);
         })
         .finally(() => {

@@ -601,43 +601,96 @@ def bulk_import_inventory():
 
         imported_count = 0
         errors = []
+        row_number = 0
 
         for row in csv_data:
+            row_number += 1
             try:
+                # Validate required fields
+                if not row.get('name'):
+                    errors.append(f"Row {row_number}: Product name is required")
+                    continue
+
+                # Clean and validate data
+                name = row.get('name', '').strip()
+                sku = row.get('sku', '').strip()
+                description = row.get('description', '').strip()
+                category = row.get('category', 'Uncategorized').strip()
+                
+                # Parse numeric fields with validation
+                try:
+                    quantity = int(float(row.get('quantity', 0)))
+                except (ValueError, TypeError):
+                    quantity = 0
+                    errors.append(f"Row {row_number}: Invalid quantity, defaulting to 0")
+
+                try:
+                    buying_price = float(row.get('buying_price', 0))
+                except (ValueError, TypeError):
+                    buying_price = 0.0
+                    errors.append(f"Row {row_number}: Invalid buying price, defaulting to 0")
+
+                try:
+                    selling_price_retail = float(row.get('selling_price_retail', 0))
+                except (ValueError, TypeError):
+                    selling_price_retail = 0.0
+                    errors.append(f"Row {row_number}: Invalid retail price, defaulting to 0")
+
+                try:
+                    selling_price_wholesale = float(row.get('selling_price_wholesale', 0))
+                except (ValueError, TypeError):
+                    selling_price_wholesale = 0.0
+                    errors.append(f"Row {row_number}: Invalid wholesale price, defaulting to 0")
+
+                sales_type = row.get('sales_type', 'both').strip().lower()
+                if sales_type not in ['retail', 'wholesale', 'both']:
+                    sales_type = 'both'
+
                 # Generate SKU if not provided
-                if not row.get('sku'):
-                    row['sku'] = Item.generate_sku(row.get('name', ''),
-                                                   row.get('category', ''))
+                if not sku:
+                    sku = Item.generate_sku(name, category)
+
+                # Check if SKU already exists
+                existing_item = Item.query.filter_by(sku=sku).first()
+                if existing_item:
+                    errors.append(f"Row {row_number}: SKU '{sku}' already exists, skipping")
+                    continue
 
                 # Create new item
-                new_item = Item(name=row.get('name'),
-                                sku=row.get('sku'),
-                                description=row.get('description', ''),
-                                category=row.get('category', 'Uncategorized'),
-                                quantity=int(row.get('quantity', 0)),
-                                buying_price=float(row.get('buying_price', 0)),
-                                selling_price_retail=float(
-                                    row.get('selling_price_retail', 0)),
-                                selling_price_wholesale=float(
-                                    row.get('selling_price_wholesale', 0)),
-                                sales_type=row.get('sales_type', 'both'))
+                new_item = Item(
+                    name=name,
+                    sku=sku,
+                    description=description,
+                    category=category,
+                    quantity=quantity,
+                    buying_price=buying_price,
+                    selling_price_retail=selling_price_retail,
+                    selling_price_wholesale=selling_price_wholesale,
+                    price=selling_price_retail,  # For backward compatibility
+                    sales_type=sales_type
+                )
 
                 db.session.add(new_item)
                 imported_count += 1
 
             except Exception as e:
-                errors.append(f"Error in row {imported_count + 1}: {str(e)}")
+                errors.append(f"Row {row_number}: {str(e)}")
+                continue
 
+        # Commit all changes
         db.session.commit()
+        logger.info(f"Bulk import completed: {imported_count} items imported")
 
         return jsonify({
             "success": True,
             "imported_count": imported_count,
-            "errors": errors
+            "errors": errors,
+            "total_rows": row_number
         })
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Bulk import failed: {str(e)}")
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
 

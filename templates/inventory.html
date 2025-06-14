@@ -170,7 +170,16 @@
                         <input type="file" class="form-control" id="csvFile" accept=".csv" required>
                     </div>
                     <div class="alert alert-info">
-                        <small>CSV should include columns: name, sku (optional), description, category, quantity, buying_price, selling_price_retail, selling_price_wholesale, sales_type</small>
+                        <strong>CSV Format Requirements:</strong>
+                        <ul class="mb-2 mt-2">
+                            <li><strong>Required:</strong> name, quantity</li>
+                            <li><strong>Optional:</strong> sku, description, category, buying_price, selling_price_retail, selling_price_wholesale, sales_type</li>
+                        </ul>
+                        <strong>Example CSV header:</strong><br>
+                        <code>name,sku,description,category,quantity,buying_price,selling_price_retail,selling_price_wholesale,sales_type</code>
+                        <br><br>
+                        <strong>Example CSV row:</strong><br>
+                        <code>iPhone 14,IPHONE14,Latest iPhone model,Electronics,10,800000,1000000,950000,both</code>
                     </div>
                     <div id="importResult" class="alert d-none"></div>
                 </form>
