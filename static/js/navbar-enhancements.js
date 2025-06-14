@@ -145,54 +145,132 @@ document.addEventListener('DOMContentLoaded', function() {
     // Restore scroll position on load
     restoreScrollPosition();
 
-    // Add scroll position saving on scroll
+    // Enhanced scroll management with improved feedback
     if (sidebarBody) {
         let scrollTimeout;
+        let isScrolling = false;
         
         function updateScrollIndicators() {
             const scrollTop = sidebarBody.scrollTop;
             const scrollHeight = sidebarBody.scrollHeight;
             const clientHeight = sidebarBody.clientHeight;
+            const isScrollable = scrollHeight > clientHeight;
+            
+            // Only show indicators if content is scrollable
+            if (!isScrollable) {
+                sidebarBody.classList.remove('can-scroll-up', 'can-scroll-down');
+                return;
+            }
             
             // Show top indicator if scrolled down
-            if (scrollTop > 10) {
+            if (scrollTop > 20) {
                 sidebarBody.classList.add('can-scroll-up');
             } else {
                 sidebarBody.classList.remove('can-scroll-up');
             }
             
             // Show bottom indicator if can scroll down
-            if (scrollTop < scrollHeight - clientHeight - 10) {
+            if (scrollTop < scrollHeight - clientHeight - 20) {
                 sidebarBody.classList.add('can-scroll-down');
             } else {
                 sidebarBody.classList.remove('can-scroll-down');
             }
+            
+            // Add scrolling class for visual feedback
+            if (isScrolling) {
+                sidebarBody.classList.add('is-scrolling');
+            }
+        }
+        
+        function handleScrollStart() {
+            isScrolling = true;
+            sidebarBody.classList.add('is-scrolling');
+        }
+        
+        function handleScrollEnd() {
+            isScrolling = false;
+            sidebarBody.classList.remove('is-scrolling');
         }
         
         sidebarBody.addEventListener('scroll', function() {
+            handleScrollStart();
             clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(saveScrollPosition, 150);
+            
+            scrollTimeout = setTimeout(() => {
+                saveScrollPosition();
+                handleScrollEnd();
+            }, 150);
+            
             updateScrollIndicators();
         });
 
-        // Initial scroll indicator check
-        updateScrollIndicators();
+        // Handle touch scrolling for mobile
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        sidebarBody.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+            handleScrollStart();
+        });
+        
+        sidebarBody.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            setTimeout(handleScrollEnd, 100);
+        });
 
-        // Smooth scroll to active nav item
-        const activeNavLink = document.querySelector('.nav-link.active');
-        if (activeNavLink) {
-            setTimeout(() => {
+        // Initial setup
+        setTimeout(() => {
+            updateScrollIndicators();
+            
+            // Smooth scroll to active nav item
+            const activeNavLink = document.querySelector('.nav-link.active');
+            if (activeNavLink) {
                 activeNavLink.scrollIntoView({
                     behavior: 'smooth',
-                    block: 'nearest'
+                    block: 'center'
                 });
                 // Update indicators after scrolling to active item
-                setTimeout(updateScrollIndicators, 300);
-            }, 100);
-        }
+                setTimeout(updateScrollIndicators, 500);
+            }
+        }, 200);
         
-        // Update scroll indicators on resize
-        window.addEventListener('resize', updateScrollIndicators);
+        // Update scroll indicators on resize and orientation change
+        window.addEventListener('resize', () => {
+            setTimeout(updateScrollIndicators, 100);
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateScrollIndicators, 300);
+        });
+        
+        // Keyboard navigation support
+        sidebarBody.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const currentActive = document.querySelector('.nav-link.active');
+                const allNavLinks = Array.from(document.querySelectorAll('.nav-link'));
+                
+                if (currentActive) {
+                    const currentIndex = allNavLinks.indexOf(currentActive);
+                    let nextIndex;
+                    
+                    if (e.key === 'ArrowUp') {
+                        nextIndex = currentIndex > 0 ? currentIndex - 1 : allNavLinks.length - 1;
+                    } else {
+                        nextIndex = currentIndex < allNavLinks.length - 1 ? currentIndex + 1 : 0;
+                    }
+                    
+                    const nextLink = allNavLinks[nextIndex];
+                    if (nextLink) {
+                        nextLink.focus();
+                        nextLink.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest'
+                        });
+                    }
+                }
+            }
+        });
     }
 
     console.log('Vertical sidebar navigation initialized');
