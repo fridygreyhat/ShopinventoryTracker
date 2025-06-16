@@ -5,41 +5,18 @@ import json
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
-<<<<<<< HEAD
-from flask_login import LoginManager
-from flask_mail import Mail
-from werkzeug.middleware.proxy_fix import ProxyFix
-from dotenv import load_dotenv
-
-from extensions import db, Base
-
-load_dotenv()
-=======
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
 import requests
 from dotenv import load_dotenv
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982
 
 load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-# Create Flask app
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-from manage import register_commands
-register_commands(app)
-
-# Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-=======
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET",
@@ -60,47 +37,16 @@ class Base(DeclarativeBase):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///inventory.db")
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-<<<<<<< HEAD
-
-# Configure mail
-app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USE_SSL"] = False
-app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
-app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
-app.config["MAIL_DEFAULT_SENDER"] = "info@mauzotz.com"
-
-# Initialize extensions
-=======
 db = SQLAlchemy(model_class=Base)
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982
 db.init_app(app)
 mail = Mail(app)
 
 
-<<<<<<< HEAD
-@login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
-
-# App context setup
-with app.app_context():
-    import models  # Ensure models are loaded
-    from admin_portal import admin_bp
-    from auth import auth_bp
-
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(auth_bp)
-
-=======
 # Helper function to get settings
 def get_setting_value(key, default=None):
     """
@@ -154,32 +100,8 @@ with app.app_context():
     # db.drop_all()  # Commented out to prevent data loss
 
     # First, create all tables
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982
     db.create_all()
 
-<<<<<<< HEAD
-# Filters & pre-request hooks
-from language_utils import init_language_context, translate_filter
-from currency_utils import format_currency, format_currency_input, format_profit_margin
-
-@app.before_request
-def before_request():
-    init_language_context()
-
-app.jinja_env.filters['t'] = translate_filter
-app.jinja_env.filters['currency'] = format_currency
-app.jinja_env.filters['currency_input'] = format_currency_input
-app.jinja_env.filters['profit_margin'] = lambda cost, selling: format_profit_margin(cost, selling)
-
-@app.route('/routes')
-def list_routes():
-    output = []
-    for rule in app.url_map.iter_rules():
-        methods = ','.join(rule.methods)
-        line = f"{rule.endpoint}: {rule.rule} [{methods}]"
-        output.append(line)
-    return '<br>'.join(output)
-=======
     # Then, handle migrations for existing databases
     # Helper function to check if column exists
     def column_exists(table_name, column_name):
@@ -3676,4 +3598,3 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000, debug=True)
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982

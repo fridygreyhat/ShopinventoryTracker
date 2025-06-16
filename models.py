@@ -4,15 +4,6 @@ from enum import Enum
 import random
 import string
 from app import db
-<<<<<<< HEAD
-from extensions import db
-
-
-class User(UserMixin, db.Model):
-  
-    __tablename__ = 'users'
-    
-=======
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
@@ -92,7 +83,6 @@ class UserRole(Enum):
 
 class User(UserMixin, db.Model):
     """User model for authentication"""
->>>>>>> 5a69d8af6a75b1ee2f77b14e0e68c0b1555b4982
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
