@@ -10,6 +10,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
 import requests
+from flask_mail import Mail
 from dotenv import load_dotenv
 
 load_dotenv()
