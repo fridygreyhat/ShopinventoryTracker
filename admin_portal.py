@@ -468,7 +468,8 @@ def system_cleanup():
                          failed_logins=failed_logins,
                          last_cleanup=last_cleanup)
 
-@admin_bp.route('/api/dashboard-data')
+#@admin_bp.route('/api/dashboard-data')
+@admin_bp.route('/dashboard')
 @login_required
 @admin_required
 def dashboard_data():

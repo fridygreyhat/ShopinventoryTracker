@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from flask import url_for, render_template_string
 from flask_mail import Message
-from app import app, db, mail
+# from app import app, db, mail
 from models import User
 
 class EmailService:
@@ -12,6 +12,7 @@ class EmailService:
     
     @staticmethod
     def send_email(to: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
+        from app import mail,app,db
         """Send email using Flask-Mail"""
         try:
             msg = Message(
@@ -31,6 +32,7 @@ class EmailService:
     
     @staticmethod
     def send_password_reset_email(user: User) -> bool:
+        from app import mail,app,db
         """Send password reset email"""
         try:
             # Generate reset token
@@ -273,6 +275,7 @@ info@mauzotz.com
             return EmailService.send_email(user.email, subject, body, html_body)
             
         except Exception as e:
+            from app import mail,app,db
             app.logger.error(f"Failed to send welcome email to {user.email}: {str(e)}")
             return False
     
@@ -347,6 +350,7 @@ info@mauzotz.com
             return EmailService.send_email(user.email, subject, body, html_body)
             
         except Exception as e:
+            from app import mail,app,db
             app.logger.error(f"Failed to send low stock notification to {user.email}: {str(e)}")
             return False
     
@@ -431,5 +435,6 @@ info@mauzotz.com
             return EmailService.send_email(user.email, subject, body, html_body)
             
         except Exception as e:
+            from app import mail,app,db
             app.logger.error(f"Failed to send sales summary email to {user.email}: {str(e)}")
             return False

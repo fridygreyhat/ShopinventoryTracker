@@ -4,7 +4,7 @@ from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from app import app, db
+from app import db
 from models import User
 from email_service import EmailService
 import re
@@ -29,6 +29,7 @@ def validate_password(password):
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    from app import db 
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
