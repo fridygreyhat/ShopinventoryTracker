@@ -19,11 +19,30 @@ def migrate_database():
             
             # Add the track_by_location column to existing items table if it doesn't exist
             try:
-                # This will fail if the column already exists, which is fine
-                db.engine.execute('ALTER TABLE item ADD COLUMN track_by_location BOOLEAN DEFAULT 0')
-                print("Added track_by_location column to items table")
+                # Check if column exists first
+                if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                    # PostgreSQL syntax
+                    result = db.session.execute(
+                        db.text("SELECT column_name FROM information_schema.columns WHERE table_name = 'item' AND column_name = 'track_by_location'")
+                    ).fetchone()
+                    column_exists = result is not None
+                else:
+                    # SQLite syntax
+                    result = db.session.execute(db.text("PRAGMA table_info(item)"))
+                    columns = [row[1] for row in result.fetchall()]
+                    column_exists = 'track_by_location' in columns
+                
+                if not column_exists:
+                    if 'postgresql' in app.config["SQLALCHEMY_DATABASE_URI"]:
+                        db.session.execute(db.text('ALTER TABLE item ADD COLUMN track_by_location BOOLEAN DEFAULT FALSE'))
+                    else:
+                        db.session.execute(db.text('ALTER TABLE item ADD COLUMN track_by_location BOOLEAN DEFAULT 0'))
+                    db.session.commit()
+                    print("Added track_by_location column to items table")
+                else:
+                    print("Column track_by_location already exists")
             except Exception as e:
-                print(f"Column track_by_location may already exist: {e}")
+                print(f"Error adding track_by_location column: {e}")
             
             # Create a default location for existing users who don't have any
             users_without_locations = db.session.query(User).outerjoin(Location).filter(Location.id == None).all()

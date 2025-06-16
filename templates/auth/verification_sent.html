@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Email Verification Sent{% endblock %}
+
+{% block content %}
+<style>
+    .verification-container {
+        max-width: 600px;
+        margin: 80px auto;
+        padding: 40px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        text-align: center;
+    }
+
+    .verification-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 24px;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .verification-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+
+    .verification-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        margin-bottom: 32px;
+        line-height: 1.6;
+    }
+
+    .email-display {
+        background: var(--gray-100);
+        padding: 16px;
+        border-radius: 8px;
+        font-family: monospace;
+        color: var(--primary-color);
+        font-weight: 600;
+        margin: 24px 0;
+    }
+
+    .resend-form {
+        background: var(--gray-50);
+        padding: 24px;
+        border-radius: 12px;
+        margin-top: 32px;
+    }
+
+    .resend-form h5 {
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+
+    .btn-verification {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        color: white;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-verification:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .help-text {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-top: 24px;
+    }
+
+    .login-link {
+        margin-top: 32px;
+        padding-top: 32px;
+        border-top: 1px solid var(--gray-200);
+    }
+</style>
+
+<div class="container">
+    <div class="verification-container">
+        <div class="verification-icon">
+            <i class="fas fa-envelope"></i>
+        </div>
+        
+        <h1 class="verification-title">Check Your Email</h1>
+        
+        <p class="verification-subtitle">
+            We've sent a verification link to your email address. Please click the link in the email to verify your account and complete your registration.
+        </p>
+        
+        {% if email %}
+        <div class="email-display">
+            {{ email }}
+        </div>
+        {% endif %}
+        
+        <div class="help-text">
+            <p><strong>Didn't receive the email?</strong></p>
+            <ul class="list-unstyled">
+                <li>• Check your spam or junk folder</li>
+                <li>• Make sure you entered the correct email address</li>
+                <li>• The verification link expires in 24 hours</li>
+            </ul>
+        </div>
+        
+        <div class="resend-form">
+            <h5>Need to resend verification email?</h5>
+            <form method="POST" action="{{ url_for('postgresql_auth.resend_verification') }}">
+                <div class="mb-3">
+                    <input type="email" 
+                           class="form-control" 
+                           name="email" 
+                           placeholder="Enter your email address"
+                           value="{{ email or '' }}"
+                           required>
+                </div>
+                <button type="submit" class="btn btn-verification">
+                    <i class="fas fa-paper-plane me-2"></i>Resend Verification Email
+                </button>
+            </form>
+        </div>
+        
+        <div class="login-link">
+            <p class="text-muted">Already verified your email?</p>
+            <a href="{{ url_for('postgresql_auth.login') }}" class="btn btn-outline-primary">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

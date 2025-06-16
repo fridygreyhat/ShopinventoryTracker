@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Management - Business Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-line"></i> {{ g.t('financial') }}</h1>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+        <i class="fas fa-plus"></i> Add Transaction
+    </button>
+</div>
+
+<!-- Period Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="period" class="form-label">Time Period</label>
+                <select name="period" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if selected_period == 'all' %}selected{% endif %}>All Time</option>
+                    <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
+                    <option value="week" {% if selected_period == 'week' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="month" {% if selected_period == 'month' %}selected{% endif %}>Last 30 Days</option>
+                    <option value="year" {% if selected_period == 'year' %}selected{% endif %}>Last Year</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="type" class="form-label">Transaction Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All Transactions</option>
+                    <option value="income" {% if selected_type == 'income' %}selected{% endif %}>Income Only</option>
+                    <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Expenses Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Financial Overview Cards -->
+<div class="row g-4 mb-4">
+    <!-- Revenue Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Revenue
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.total_revenue) }}
+                        </div>
+                        <small class="text-muted">{{ metrics.total_sales_count }} sales</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost of Goods Sold Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Cost of Goods Sold
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.total_cogs) }}
+                        </div>
+                        <small class="text-muted">Direct costs</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gross Profit Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Gross Profit
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.gross_profit) }}
+                        </div>
+                        <small class="text-muted">{{ "{:.1f}".format(metrics.gross_profit_margin) }}% margin</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Net Profit Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-{{ 'success' if metrics.net_profit >= 0 else 'danger' }} shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-{{ 'success' if metrics.net_profit >= 0 else 'danger' }} text-uppercase mb-1">
+                            Net Profit
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.net_profit) }}
+                        </div>
+                        <small class="text-muted">{{ "{:.1f}".format(metrics.net_profit_margin) }}% margin</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-{{ 'arrow-up' if metrics.net_profit >= 0 else 'arrow-down' }} fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Metrics Row -->
+<div class="row g-4 mb-4">
+    <!-- Operating Expenses -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Operating Expenses
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.total_expenses) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Transaction -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Avg Transaction
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.avg_transaction_value) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calculator fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Value -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-secondary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                            Inventory Value
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.inventory_value) }}
+                        </div>
+                        <small class="text-muted">{{ "{:.1f}".format(metrics.inventory_turnover) }}x turnover</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-warehouse fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tax Collected -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-dark shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
+                            Tax Collected
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            Tsh {{ "{:,.2f}".format(metrics.total_tax_collected) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Charts and Tables -->
+<div class="row mb-4">
+    <!-- Payment Methods Breakdown -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Payment Methods Breakdown</h6>
+            </div>
+            <div class="card-body">
+                {% if metrics.payment_breakdown %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Count</th>
+                                    <th>Total</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in metrics.payment_breakdown %}
+                                    <tr>
+                                        <td>
+                                            <i class="fas fa-{{ 'money-bill' if payment.payment_method == 'cash' else 'credit-card' }}"></i>
+                                            {{ payment.payment_method.title() }}
+                                        </td>
+                                        <td>{{ payment.count }}</td>
+                                        <td>Tsh {{ "{:,.2f}".format(payment.total) }}</td>
+                                        <td>{{ "{:.1f}".format((payment.total / metrics.total_revenue * 100) if metrics.total_revenue > 0 else 0) }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No payment data available for selected period.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Selling Items -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Top Selling Items</h6>
+            </div>
+            <div class="card-body">
+                {% if metrics.top_items %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Sold</th>
+                                    <th>Revenue</th>
+                                    <th>Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in metrics.top_items %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td>{{ item.total_sold }}</td>
+                                        <td>Tsh {{ "{:,.2f}".format(item.total_revenue) }}</td>
+                                        <td class="{{ 'text-success' if item.total_profit > 0 else 'text-danger' }}">
+                                            Tsh {{ "{:,.2f}".format(item.total_profit) }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No sales data available for selected period.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <select name="type" class="form-select">
+                    <option value="">All Transactions</option>
+                    <option value="income" {% if selected_type == 'income' %}selected{% endif %}>Income Only</option>
+                    <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Expenses Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card">
+    <div class="card-body">
+        {% if transactions.items %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Transaction #</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Tax</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions.items %}
+                    <tr>
+                        <td>
+                            <strong>{{ transaction.transaction_number }}</strong>
+                            {% if transaction.reference_number %}
+                            <br><small class="text-muted">Ref: {{ transaction.reference_number }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ transaction.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span class="badge {% if transaction.transaction_type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ transaction.transaction_type|title }}
+                            </span>
+                        </td>
+                        <td>{{ transaction.category }}</td>
+                        <td>
+                            {{ transaction.description }}
+                            {% if transaction.notes %}
+                            <br><small class="text-muted">{{ transaction.notes[:50] }}{% if transaction.notes|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong class="{% if transaction.transaction_type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount|currency }}
+                            </strong>
+                        </td>
+                        <td>
+                            {% if transaction.tax_amount > 0 %}
+                            {{ transaction.tax_amount|currency }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ transaction.user.first_name }} {{ transaction.user.last_name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if transactions.pages > 1 %}
+        <nav aria-label="Transactions pagination">
+            <ul class="pagination justify-content-center">
+                {% if transactions.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('financial', page=transactions.prev_num, type=selected_type) }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in transactions.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != transactions.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('financial', page=page_num, type=selected_type) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if transactions.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('financial', page=transactions.next_num, type=selected_type) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-dollar-sign fa-3x text-muted mb-3"></i>
+            <h5>No transactions found</h5>
+            <p class="text-muted">Start by adding some financial transactions</p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                <i class="fas fa-plus"></i> Add First Transaction
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Transaction Modal -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Financial Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_transaction') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="transactionType" class="form-label">Transaction Type *</label>
+                        <select class="form-select" id="transactionType" name="transaction_type" required>
+                            <option value="">Select Type</option>
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <input type="text" class="form-control" id="category" name="category" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="amount" name="amount" 
+                                   step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="taxAmount" class="form-label">Tax Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="taxAmount" name="tax_amount" 
+                                   step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="description" name="description" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="referenceNumber" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="referenceNumber" name="reference_number">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "admin/base.html" %}
+
+{% block title %}System Cleanup{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="admin-header">
+        <h1>
+            <i class="fas fa-broom"></i>
+            System Cleanup & Maintenance
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin_portal.admin_dashboard') }}">Admin</a></li>
+                <li class="breadcrumb-item active">System Cleanup</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Cleanup Options -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="admin-card">
+                <div class="card-header">
+                    <i class="fas fa-tools"></i>
+                    System Maintenance Tools
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Clear Session Data -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-info">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-user-clock fa-3x text-info mb-3"></i>
+                                    <h5 class="card-title">Clear Session Data</h5>
+                                    <p class="card-text">Remove expired user sessions and temporary data.</p>
+                                    <form method="POST" action="{{ url_for('admin_portal.system_cleanup') }}">
+                                        <input type="hidden" name="action" value="clear_sessions">
+                                        <button type="submit" class="btn btn-info">
+                                            <i class="fas fa-trash-alt"></i> Clear Sessions
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Clear Old Logs -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-warning">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-alt fa-3x text-warning mb-3"></i>
+                                    <h5 class="card-title">Clear Old Logs</h5>
+                                    <p class="card-text">Remove log files older than 30 days.</p>
+                                    <form method="POST" action="{{ url_for('admin_portal.system_cleanup') }}">
+                                        <input type="hidden" name="action" value="clear_logs">
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="fas fa-broom"></i> Clear Logs
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reset Failed Logins -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-unlock-alt fa-3x text-success mb-3"></i>
+                                    <h5 class="card-title">Reset Failed Logins</h5>
+                                    <p class="card-text">Reset failed login attempts for all users.</p>
+                                    <form method="POST" action="{{ url_for('admin_portal.system_cleanup') }}">
+                                        <input type="hidden" name="action" value="reset_failed_logins">
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-refresh"></i> Reset Attempts
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Optimize Database -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-database fa-3x text-primary mb-3"></i>
+                                    <h5 class="card-title">Optimize Database</h5>
+                                    <p class="card-text">Analyze and optimize database tables.</p>
+                                    <form method="POST" action="{{ url_for('admin_portal.system_cleanup') }}">
+                                        <input type="hidden" name="action" value="optimize_database">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-cogs"></i> Optimize DB
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Cleanup Status -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle"></i>
+                    System Status
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Database Size</small>
+                        <div class="progress mt-1">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: 25%"></div>
+                        </div>
+                        <small class="text-muted">~25% capacity used</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Active Sessions</small>
+                        <h5 class="text-primary">{{ active_sessions or 0 }}</h5>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Failed Login Attempts</small>
+                        <h5 class="text-warning">{{ failed_logins or 0 }}</h5>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Last Cleanup</small>
+                        <h6 class="text-muted">{{ last_cleanup or 'Never' }}</h6>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="admin-card">
+                <div class="card-header bg-danger text-white">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Danger Zone
+                </div>
+                <div class="card-body">
+                    <h6 class="text-danger">Complete System Reset</h6>
+                    <p class="text-muted small">
+                        This will clear all temporary data, reset counters, and optimize the system.
+                        <strong>Use with caution.</strong>
+                    </p>
+                    <form method="POST" action="{{ url_for('admin_portal.system_cleanup') }}">
+                        <input type="hidden" name="action" value="full_cleanup">
+                        <button type="submit" class="btn btn-danger btn-sm" 
+                                onclick="return confirm('Are you sure you want to perform a complete system cleanup? This will clear all temporary data.')">
+                            <i class="fas fa-nuclear"></i> Full Cleanup
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Automated Cleanup -->
+            <div class="admin-card">
+                <div class="card-header">
+                    <i class="fas fa-robot"></i>
+                    Automated Cleanup
+                </div>
+                <div class="card-body">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="autoCleanup" checked>
+                        <label class="form-check-label" for="autoCleanup">
+                            Enable automatic weekly cleanup
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        Automatically performs maintenance tasks every Sunday at 2 AM.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

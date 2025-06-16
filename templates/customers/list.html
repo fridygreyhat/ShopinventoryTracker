@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Customer Management</h1>
+                <a href="{{ url_for('add_customer') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Customer
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if customers %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Type</th>
+                                    <th>Loyalty Points</th>
+                                    <th>Credit Limit</th>
+                                    <th>Last Purchase</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for customer in customers %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('customer_profile', customer_id=customer.id) }}" class="text-decoration-none">
+                                            <strong>{{ customer.name }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>{{ customer.email or '-' }}</td>
+                                    <td>{{ customer.phone or '-' }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-warning' if customer.customer_type == 'wholesale' else 'bg-success' if customer.customer_type == 'vip' else 'bg-info' }}">
+                                            {{ customer.customer_type.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ customer.loyalty_points }} pts</span>
+                                        <small class="text-muted d-block">{{ customer.loyalty_tier.title() }}</small>
+                                    </td>
+                                    <td>${{ "%.2f"|format(customer.credit_limit) }}</td>
+                                    <td>
+                                        {% if customer.last_purchase_date %}
+                                            {{ customer.last_purchase_date.strftime('%Y-%m-%d') }}
+                                        {% else %}
+                                            <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('customer_profile', customer_id=customer.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                            <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-friends fa-4x text-muted mb-3"></i>
+                    <h4>No Customers Found</h4>
+                    <p class="text-muted">Start building your customer base by adding your first customer.</p>
+                    <a href="{{ url_for('add_customer') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i> Add Your First Customer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

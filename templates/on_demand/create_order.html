@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Create Order - {{ product.name }} - {{ g.t('business_management') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fas fa-plus-circle"></i>
+                    Create Order: {{ product.name }}
+                </h1>
+                <a href="{{ url_for('on_demand_products') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Products
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Order Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="quantity" class="form-label">Quantity *</label>
+                                            <input type="number" class="form-control" id="quantity" name="quantity" 
+                                                   min="{{ product.minimum_order_quantity }}" 
+                                                   value="{{ product.minimum_order_quantity }}" required>
+                                            <div class="form-text">Minimum order: {{ product.minimum_order_quantity }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="unit_price" class="form-label">Unit Price (TSh) *</label>
+                                            <input type="number" class="form-control" id="unit_price" name="unit_price" 
+                                                   step="0.01" min="0" value="{{ product.selling_price }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="customer_id" class="form-label">Existing Customer</label>
+                                            <select class="form-select" id="customer_id" name="customer_id">
+                                                <option value="">Select Customer (Optional)</option>
+                                                {% for customer in customers %}
+                                                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="customer_name" class="form-label">Customer Name</label>
+                                            <input type="text" class="form-control" id="customer_name" name="customer_name" 
+                                                   placeholder="Walk-in customer name">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="customer_phone" class="form-label">Customer Phone</label>
+                                            <input type="tel" class="form-control" id="customer_phone" name="customer_phone" 
+                                                   placeholder="Customer contact number">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="customer_email" class="form-label">Customer Email</label>
+                                            <input type="email" class="form-control" id="customer_email" name="customer_email" 
+                                                   placeholder="Customer email address">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="payment_method" class="form-label">Payment Method</label>
+                                            <select class="form-select" id="payment_method" name="payment_method">
+                                                <option value="cash">Cash</option>
+                                                <option value="mobile_money">Mobile Money</option>
+                                                <option value="bank_transfer">Bank Transfer</option>
+                                                <option value="card">Card Payment</option>
+                                                <option value="credit">Credit</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="advance_payment" class="form-label">Advance Payment (TSh)</label>
+                                            <input type="number" class="form-control" id="advance_payment" name="advance_payment" 
+                                                   step="0.01" min="0" value="0">
+                                            <div class="form-text">Amount paid upfront</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Order Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Special instructions, delivery requirements, etc."></textarea>
+                                </div>
+
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <a href="{{ url_for('on_demand_products') }}" class="btn btn-outline-secondary me-md-2">
+                                        Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        Create Order
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Product Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <strong>Product:</strong>
+                                <div>{{ product.name }}</div>
+                            </div>
+                            
+                            {% if product.description %}
+                                <div class="mb-3">
+                                    <strong>Description:</strong>
+                                    <div class="text-muted">{{ product.description }}</div>
+                                </div>
+                            {% endif %}
+
+                            {% if product.category %}
+                                <div class="mb-3">
+                                    <strong>Category:</strong>
+                                    <div>{{ product.category.name }}</div>
+                                </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <strong>Selling Price:</strong>
+                                <div class="text-primary">TSh {{ "{:,.2f}".format(product.selling_price) }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <strong>Estimated Delivery:</strong>
+                                <div>{{ product.estimated_delivery_days }} days</div>
+                            </div>
+
+                            {% if product.supplier_name %}
+                                <div class="mb-3">
+                                    <strong>Supplier:</strong>
+                                    <div>{{ product.supplier_name }}</div>
+                                    {% if product.supplier_contact %}
+                                        <small class="text-muted">{{ product.supplier_contact }}</small>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Order Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">Quantity:</div>
+                                <div class="col-6 text-end" id="summary-quantity">1</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">Unit Price:</div>
+                                <div class="col-6 text-end" id="summary-unit-price">TSh {{ "{:,.2f}".format(product.selling_price) }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-6"><strong>Total Amount:</strong></div>
+                                <div class="col-6 text-end"><strong id="summary-total">TSh {{ "{:,.2f}".format(product.selling_price) }}</strong></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">Advance Payment:</div>
+                                <div class="col-6 text-end" id="summary-advance">TSh 0.00</div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6"><strong>Balance Due:</strong></div>
+                                <div class="col-6 text-end"><strong id="summary-balance">TSh {{ "{:,.2f}".format(product.selling_price) }}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.getElementById('quantity');
+    const unitPriceInput = document.getElementById('unit_price');
+    const advanceInput = document.getElementById('advance_payment');
+    
+    const summaryQuantity = document.getElementById('summary-quantity');
+    const summaryUnitPrice = document.getElementById('summary-unit-price');
+    const summaryTotal = document.getElementById('summary-total');
+    const summaryAdvance = document.getElementById('summary-advance');
+    const summaryBalance = document.getElementById('summary-balance');
+
+    function updateSummary() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const advance = parseFloat(advanceInput.value) || 0;
+        
+        const total = quantity * unitPrice;
+        const balance = total - advance;
+        
+        summaryQuantity.textContent = quantity;
+        summaryUnitPrice.textContent = `TSh ${unitPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        summaryTotal.textContent = `TSh ${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        summaryAdvance.textContent = `TSh ${advance.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        summaryBalance.textContent = `TSh ${balance.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    }
+
+    quantityInput.addEventListener('input', updateSummary);
+    unitPriceInput.addEventListener('input', updateSummary);
+    advanceInput.addEventListener('input', updateSummary);
+
+    // Customer selection handling
+    const customerSelect = document.getElementById('customer_id');
+    const customerNameInput = document.getElementById('customer_name');
+    const customerPhoneInput = document.getElementById('customer_phone');
+    const customerEmailInput = document.getElementById('customer_email');
+
+    customerSelect.addEventListener('change', function() {
+        if (this.value) {
+            // If customer is selected, disable manual inputs
+            customerNameInput.setAttribute('readonly', true);
+            customerPhoneInput.setAttribute('readonly', true);
+            customerEmailInput.setAttribute('readonly', true);
+            
+            // You could populate these fields from customer data if available
+            // For now, just clear them
+            customerNameInput.value = '';
+            customerPhoneInput.value = '';
+            customerEmailInput.value = '';
+        } else {
+            // Enable manual inputs
+            customerNameInput.removeAttribute('readonly');
+            customerPhoneInput.removeAttribute('readonly');
+            customerEmailInput.removeAttribute('readonly');
+        }
+    });
+
+    // Initial summary update
+    updateSummary();
+});
+</script>
+{% endblock %}

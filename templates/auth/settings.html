@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+
+{% block title %}Account Settings - Business Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-cog"></i>
+            Account Settings
+        </h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('postgresql_auth.profile') }}">Profile</a></li>
+                <li class="breadcrumb-item active">Settings</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="settingsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link active" id="account-tab" data-toggle="tab" href="#account" role="tab" aria-controls="account" aria-selected="true">
+                                <i class="fas fa-user"></i> Account Info
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="security-tab" data-toggle="tab" href="#security" role="tab" aria-controls="security" aria-selected="false">
+                                <i class="fas fa-shield-alt"></i> Security
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="preferences-tab" data-toggle="tab" href="#preferences" role="tab" aria-controls="preferences" aria-selected="false">
+                                <i class="fas fa-sliders-h"></i> Preferences
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="notifications-tab" data-toggle="tab" href="#notifications" role="tab" aria-controls="notifications" aria-selected="false">
+                                <i class="fas fa-bell"></i> Notifications
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="business-tab" data-toggle="tab" href="#business" role="tab" aria-controls="business" aria-selected="false">
+                                <i class="fas fa-store"></i> Business
+                            </a>
+                        </li>
+                        {% if current_user.can_manage_subusers() %}
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="subusers-tab" data-toggle="tab" href="#subusers" role="tab" aria-controls="subusers" aria-selected="false">
+                                <i class="fas fa-users"></i> Team Management
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="settingsTabContent">
+                        <!-- Account Information Tab -->
+                        <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-user-circle"></i>
+                                        Account Information
+                                    </h5>
+                                    <form action="{{ url_for('postgresql_auth.edit_profile') }}" method="POST">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="first_name" class="form-label">First Name *</label>
+                                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                                       value="{{ user.first_name }}" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="last_name" class="form-label">Last Name *</label>
+                                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                                       value="{{ user.last_name }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Email Address</label>
+                                            <input type="email" class="form-control" id="email" name="email" 
+                                                   value="{{ user.email }}" readonly>
+                                            <small class="form-text text-muted">Email cannot be changed after registration.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="username" class="form-label">Username</label>
+                                            <input type="text" class="form-control" id="username" name="username" 
+                                                   value="{{ user.username }}" readonly>
+                                            <small class="form-text text-muted">Username cannot be changed.</small>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="phone" class="form-label">Phone Number</label>
+                                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                                       value="{{ user.phone or '' }}" placeholder="+255 XXX XXX XXX">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="shop_name" class="form-label">Shop/Business Name</label>
+                                                <input type="text" class="form-control" id="shop_name" name="shop_name" 
+                                                       value="{{ user.shop_name or '' }}" placeholder="Your business name">
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="product_categories" class="form-label">Product Categories</label>
+                                            <input type="text" class="form-control" id="product_categories" name="product_categories" 
+                                                   value="{{ user.product_categories or '' }}" placeholder="e.g., Electronics, Clothing, Food">
+                                            <small class="form-text text-muted">Separate multiple categories with commas.</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Update Profile
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-user-circle fa-4x text-gray-400 mb-3"></i>
+                                            <h6>{{ user.full_name }}</h6>
+                                            <p class="text-muted mb-2">@{{ user.username }}</p>
+                                            <span class="badge badge-{{ 'success' if user.active else 'secondary' }}">
+                                                {{ 'Active' if user.active else 'Inactive' }}
+                                            </span>
+                                            {% if user.is_admin %}
+                                                <span class="badge badge-danger ml-1">Admin</span>
+                                            {% endif %}
+                                            <hr>
+                                            <small class="text-muted">
+                                                Member since {{ user.created_at.strftime('%B %Y') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Security Tab -->
+                        <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                            <h5 class="mb-3">
+                                <i class="fas fa-shield-alt"></i>
+                                Security Settings
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Change Password</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <form action="{{ url_for('postgresql_auth.change_password') }}" method="POST">
+                                                <div class="mb-3">
+                                                    <label for="current_password" class="form-label">Current Password *</label>
+                                                    <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="new_password" class="form-label">New Password *</label>
+                                                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                                    <small class="form-text text-muted">
+                                                        Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.
+                                                    </small>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="confirm_password" class="form-label">Confirm New Password *</label>
+                                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                                </div>
+                                                <button type="submit" class="btn btn-warning">
+                                                    <i class="fas fa-key"></i> Change Password
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-warning">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                Security Tips
+                                            </h6>
+                                            <ul class="list-unstyled mb-0">
+                                                <li><i class="fas fa-check text-success"></i> Use a strong password</li>
+                                                <li><i class="fas fa-check text-success"></i> Don't share your login details</li>
+                                                <li><i class="fas fa-check text-success"></i> Log out from shared computers</li>
+                                                <li><i class="fas fa-check text-success"></i> Update password regularly</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preferences Tab -->
+                        <div class="tab-pane fade" id="preferences" role="tabpanel" aria-labelledby="preferences-tab">
+                            <h5 class="mb-3">
+                                <i class="fas fa-sliders-h"></i>
+                                Application Preferences
+                            </h5>
+                            <form action="{{ url_for('postgresql_auth.update_preferences') }}" method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="language" class="form-label">Language</label>
+                                        <select class="form-control" id="language" name="language">
+                                            <option value="en" {{ 'selected' if user.language == 'en' else '' }}>English</option>
+                                            <option value="sw" {{ 'selected' if user.language == 'sw' else '' }}>Kiswahili</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="currency_format" class="form-label">Currency Format</label>
+                                        <select class="form-control" id="currency_format" name="currency_format">
+                                            <option value="TSh" {{ 'selected' if user.currency_format == 'TSh' else '' }}>TSh (Tanzanian Shilling)</option>
+                                            <option value="USD" {{ 'selected' if user.currency_format == 'USD' else '' }}>USD (US Dollar)</option>
+                                            <option value="EUR" {{ 'selected' if user.currency_format == 'EUR' else '' }}>EUR (Euro)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="date_format" class="form-label">Date Format</label>
+                                        <select class="form-control" id="date_format" name="date_format">
+                                            <option value="DD/MM/YYYY" {{ 'selected' if user.date_format == 'DD/MM/YYYY' else '' }}>DD/MM/YYYY</option>
+                                            <option value="MM/DD/YYYY" {{ 'selected' if user.date_format == 'MM/DD/YYYY' else '' }}>MM/DD/YYYY</option>
+                                            <option value="YYYY-MM-DD" {{ 'selected' if user.date_format == 'YYYY-MM-DD' else '' }}>YYYY-MM-DD</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="timezone" class="form-label">Timezone</label>
+                                        <select class="form-control" id="timezone" name="timezone">
+                                            <option value="Africa/Dar_es_Salaam" {{ 'selected' if user.timezone == 'Africa/Dar_es_Salaam' else '' }}>East Africa Time (UTC+3)</option>
+                                            <option value="UTC" {{ 'selected' if user.timezone == 'UTC' else '' }}>UTC</option>
+                                            <option value="Europe/London" {{ 'selected' if user.timezone == 'Europe/London' else '' }}>London (UTC+0/+1)</option>
+                                            <option value="America/New_York" {{ 'selected' if user.timezone == 'America/New_York' else '' }}>New York (UTC-5/-4)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Preferences
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Notifications Tab -->
+                        <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+                            <h5 class="mb-3">
+                                <i class="fas fa-bell"></i>
+                                Notification Settings
+                            </h5>
+                            <form action="{{ url_for('postgresql_auth.update_notifications') }}" method="POST">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Communication Preferences</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="email_notifications" 
+                                                   name="email_notifications" {{ 'checked' if user.email_notifications else '' }}>
+                                            <label class="form-check-label" for="email_notifications">
+                                                <strong>Email Notifications</strong><br>
+                                                <small class="text-muted">Receive notifications via email</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="sms_notifications" 
+                                                   name="sms_notifications" {{ 'checked' if user.sms_notifications else '' }}>
+                                            <label class="form-check-label" for="sms_notifications">
+                                                <strong>SMS Notifications</strong><br>
+                                                <small class="text-muted">Receive notifications via SMS (charges may apply)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Business Alerts</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="low_stock_alerts" 
+                                                   name="low_stock_alerts" {{ 'checked' if user.low_stock_alerts else '' }}>
+                                            <label class="form-check-label" for="low_stock_alerts">
+                                                <strong>Low Stock Alerts</strong><br>
+                                                <small class="text-muted">Get notified when items are running low</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="sales_reports" 
+                                                   name="sales_reports" {{ 'checked' if user.sales_reports else '' }}>
+                                            <label class="form-check-label" for="sales_reports">
+                                                <strong>Sales Reports</strong><br>
+                                                <small class="text-muted">Receive daily/weekly sales summaries</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Notification Settings
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Business Settings Tab -->
+                        <div class="tab-pane fade" id="business" role="tabpanel" aria-labelledby="business-tab">
+                            <h5 class="mb-3">
+                                <i class="fas fa-store"></i>
+                                Business Configuration
+                            </h5>
+                            <form action="{{ url_for('postgresql_auth.update_business_settings') }}" method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="business_type" class="form-label">Business Type</label>
+                                        <select class="form-control" id="business_type" name="business_type">
+                                            <option value="retail" {{ 'selected' if user.business_type == 'retail' else '' }}>Retail Store</option>
+                                            <option value="wholesale" {{ 'selected' if user.business_type == 'wholesale' else '' }}>Wholesale</option>
+                                            <option value="restaurant" {{ 'selected' if user.business_type == 'restaurant' else '' }}>Restaurant/Cafe</option>
+                                            <option value="pharmacy" {{ 'selected' if user.business_type == 'pharmacy' else '' }}>Pharmacy</option>
+                                            <option value="electronics" {{ 'selected' if user.business_type == 'electronics' else '' }}>Electronics Store</option>
+                                            <option value="grocery" {{ 'selected' if user.business_type == 'grocery' else '' }}>Grocery Store</option>
+                                            <option value="other" {{ 'selected' if user.business_type == 'other' else '' }}>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="default_tax_rate" class="form-label">Default Tax Rate (%)</label>
+                                        <input type="number" class="form-control" id="default_tax_rate" name="default_tax_rate" 
+                                               value="{{ user.default_tax_rate or 0 }}" min="0" max="100" step="0.01">
+                                        <small class="form-text text-muted">VAT/GST rate for your business</small>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="low_stock_threshold" class="form-label">Low Stock Threshold</label>
+                                        <input type="number" class="form-control" id="low_stock_threshold" name="low_stock_threshold" 
+                                               value="{{ user.low_stock_threshold or 10 }}" min="1" max="1000">
+                                        <small class="form-text text-muted">Alert when stock falls below this number</small>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Business Settings
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Management Tab -->
+                {% if current_user.can_manage_subusers() %}
+                <div class="tab-pane fade" id="subusers" role="tabpanel" aria-labelledby="subusers-tab">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5 class="mb-3">
+                                <i class="fas fa-users"></i>
+                                Team Management
+                            </h5>
+                            <p class="text-muted mb-4">Manage subuser accounts and permissions for your team members</p>
+                            
+                            {% set subusers = current_user.get_all_subusers() %}
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <h6>Current Subusers ({{ subusers|length }})</h6>
+                                </div>
+                                <a href="{{ url_for('postgresql_auth.create_subuser') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus"></i> Add New Subuser
+                                </a>
+                            </div>
+
+                            {% if subusers %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Username</th>
+                                            <th>Status</th>
+                                            <th>Last Login</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for subuser in subusers %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px;">
+                                                        <span class="text-white small fw-bold">
+                                                            {{ (subuser.first_name[:1] + subuser.last_name[:1])|upper if subuser.first_name and subuser.last_name else subuser.username[:2]|upper }}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ subuser.first_name }} {{ subuser.last_name }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td><code>{{ subuser.username }}</code></td>
+                                            <td>
+                                                {% if subuser.active %}
+                                                <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if subuser.last_login %}
+                                                <small>{{ subuser.last_login.strftime('%Y-%m-%d') }}</small>
+                                                {% else %}
+                                                <small class="text-muted">Never</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('postgresql_auth.edit_subuser', subuser_id=subuser.id) }}" 
+                                                       class="btn btn-outline-primary btn-sm" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <a href="{{ url_for('postgresql_auth.manage_subusers') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-users-cog"></i> Manage All Subusers
+                                </a>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-users fa-2x text-muted"></i>
+                                </div>
+                                <h6>No Subusers Created</h6>
+                                <p class="text-muted mb-3">Create subuser accounts to give limited access to your team members</p>
+                                <a href="{{ url_for('postgresql_auth.create_subuser') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Create First Subuser
+                                </a>
+                            </div>
+                            {% endif %}
+
+                            <div class="alert alert-info mt-4">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle me-2"></i>About Subuser Management
+                                </h6>
+                                <p class="mb-2">Subusers are additional user accounts with limited permissions that you can create for your team members or employees.</p>
+                                <ul class="mb-0 small">
+                                    <li>Each subuser can be assigned specific permissions to control access</li>
+                                    <li>Subusers operate within your business context and data</li>
+                                    <li>All subuser activities are logged for security</li>
+                                    <li>You can enable/disable subuser accounts at any time</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize tabs without jQuery dependency
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle tab switching
+    const tabLinks = document.querySelectorAll('#settingsTabs a[data-toggle="tab"]');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    
+    function activateTab(targetId) {
+        // Remove active class from all tabs and panes
+        tabLinks.forEach(function(tab) {
+            tab.classList.remove('active');
+        });
+        tabPanes.forEach(function(pane) {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Find and activate the target tab
+        const targetLink = document.querySelector('#settingsTabs a[href="#' + targetId + '"]');
+        const targetPane = document.getElementById(targetId);
+        
+        if (targetLink && targetPane) {
+            targetLink.classList.add('active');
+            targetPane.classList.add('show', 'active');
+        }
+    }
+    
+    // Handle tab clicks
+    tabLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            activateTab(targetId);
+            
+            // Update URL fragment
+            window.location.hash = targetId;
+        });
+    });
+    
+    // Check URL fragment on page load
+    const hash = window.location.hash.substring(1);
+    if (hash && document.getElementById(hash)) {
+        activateTab(hash);
+    }
+    
+    // Password strength indicator
+    const newPasswordInput = document.getElementById('new_password');
+    if (newPasswordInput) {
+        newPasswordInput.addEventListener('input', function() {
+            const password = this.value;
+            const strength = checkPasswordStrength(password);
+            // Add visual feedback here if needed
+        });
+    }
+    
+    function checkPasswordStrength(password) {
+        let strength = 0;
+        if (password.length >= 8) strength++;
+        if (/[a-z]/.test(password)) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^A-Za-z0-9]/.test(password)) strength++;
+        return strength;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Auto Purchase Orders{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Auto Purchase Orders</h1>
+                <a href="{{ url_for('automation_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if total_orders > 0 %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <strong>{{ total_orders }}</strong> purchase order recommendations generated based on inventory analysis.
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Orders -->
+    {% if orders_by_urgency.critical %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Critical Orders ({{ orders_by_urgency.critical|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders_by_urgency.critical %}
+                    <div class="row border-bottom pb-3 mb-3">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ order.item_name }}</h6>
+                            <p class="text-muted mb-1">{{ order.reason }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Current Stock: <strong>{{ order.current_stock }}</strong></small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Recommended: <strong>{{ order.recommended_quantity }}</strong></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <span class="badge bg-danger">{{ order.urgency_level.title() }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>${{ "%.2f"|format(order.estimated_cost) }}</strong>
+                            </div>
+                            {% if order.supplier_info %}
+                            <small class="text-muted">{{ order.supplier_info.supplier_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- High Priority Orders -->
+    {% if orders_by_urgency.high %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation"></i> High Priority Orders ({{ orders_by_urgency.high|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders_by_urgency.high %}
+                    <div class="row border-bottom pb-3 mb-3">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ order.item_name }}</h6>
+                            <p class="text-muted mb-1">{{ order.reason }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Current Stock: <strong>{{ order.current_stock }}</strong></small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Recommended: <strong>{{ order.recommended_quantity }}</strong></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <span class="badge bg-warning">{{ order.urgency_level.title() }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>${{ "%.2f"|format(order.estimated_cost) }}</strong>
+                            </div>
+                            {% if order.supplier_info %}
+                            <small class="text-muted">{{ order.supplier_info.supplier_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Medium Priority Orders -->
+    {% if orders_by_urgency.medium %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Medium Priority Orders ({{ orders_by_urgency.medium|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders_by_urgency.medium %}
+                    <div class="row border-bottom pb-3 mb-3">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ order.item_name }}</h6>
+                            <p class="text-muted mb-1">{{ order.reason }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Current Stock: <strong>{{ order.current_stock }}</strong></small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Recommended: <strong>{{ order.recommended_quantity }}</strong></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <span class="badge bg-info">{{ order.urgency_level.title() }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>${{ "%.2f"|format(order.estimated_cost) }}</strong>
+                            </div>
+                            {% if order.supplier_info %}
+                            <small class="text-muted">{{ order.supplier_info.supplier_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Low Priority Orders -->
+    {% if orders_by_urgency.low %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock"></i> Low Priority Orders ({{ orders_by_urgency.low|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders_by_urgency.low %}
+                    <div class="row border-bottom pb-3 mb-3">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ order.item_name }}</h6>
+                            <p class="text-muted mb-1">{{ order.reason }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Current Stock: <strong>{{ order.current_stock }}</strong></small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <small class="text-muted">Recommended: <strong>{{ order.recommended_quantity }}</strong></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <span class="badge bg-secondary">{{ order.urgency_level.title() }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>${{ "%.2f"|format(order.estimated_cost) }}</strong>
+                            </div>
+                            {% if order.supplier_info %}
+                            <small class="text-muted">{{ order.supplier_info.supplier_name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-5x text-success mb-4"></i>
+                <h3>No Purchase Orders Needed</h3>
+                <p class="text-muted">Your inventory levels are currently optimal. All items are adequately stocked.</p>
+                <a href="{{ url_for('automation_dashboard') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{
+  "item": [
+    {
+      "id": 1,
+      "name": "product",
+      "sku": "PROD-BEA-BIV1GE",
+      "unit_type": "quantity",
+      "description": "",
+      "category": "bearing",
+      "quantity": 5000,
+      "buying_price": 4000.0,
+      "selling_price_retail": 4500.0,
+      "selling_price_wholesale": 5000.0,
+      "price": 4500.0,
+      "sales_type": "both",
+      "created_at": "2025-06-03 12:54:47.188033",
+      "updated_at": "2025-06-03 12:54:47.188035",
+      "subcategory": "",
+      "sell_by": "quantity",
+      "category_id": null,
+      "user_id": 1,
+      "track_by_location": 0
+    }
+  ],
+  "user": [
+    {
+      "id": 1,
+      "username": "byer2311",
+      "email": "byer2311@gmail.com",
+      "password_hash": "scrypt:32768:8:1$7aYwRAbTMHpXoKJk$ffdd6ed19bdf4fb41c54451ed53706e9c48b81f5316d245f77d97cd38669131728b55926f743b8bb2c0fc9cdeac8531717326bb805c1b46e9677eabef8edc019",
+      "role": "viewer",
+      "firebase_uid": "FkSPJZz2nbXGt07r2kYIT8juJwh1",
+      "email_verified": 0,
+      "verification_token": null,
+      "verification_token_expires": null,
+      "phone_number": null,
+      "phone_verified": null,
+      "otp_code": null,
+      "otp_expires": null,
+      "first_name": null,
+      "last_name": null,
+      "shop_name": null,
+      "product_categories": null,
+      "active": 1,
+      "is_admin": 0,
+      "created_at": "2025-05-23 17:09:16.257325",
+      "updated_at": "2025-06-03 17:38:05.992102",
+      "last_login": "2025-06-03 17:38:05.990409",
+      "is_active": 1,
+      "phone": null
+    },
+    {
+      "id": 2,
+      "username": "fridruronona",
+      "email": "fridruronona@gmail.com",
+      "password_hash": "scrypt:32768:8:1$CujUNuekwyq0Lkvs$43810052d87881de5c144fdfb0543cbba804e4097cfec6f7013299b8610c77c9233d454c58ab702cfd82041799bef163823fe25c8c6cb7ca2e2c5060295f85e8",
+      "role": "viewer",
+      "firebase_uid": "xX4AyiQ6U3gHbm8ZnH0Aeetxyh82",
+      "email_verified": 0,
+      "verification_token": null,
+      "verification_token_expires": null,
+      "phone_number": null,
+      "phone_verified": null,
+      "otp_code": null,
+      "otp_expires": null,
+      "first_name": null,
+      "last_name": null,
+      "shop_name": null,
+      "product_categories": null,
+      "active": 1,
+      "is_admin": 0,
+      "created_at": "2025-05-29 21:40:08.614755",
+      "updated_at": "2025-05-29 21:44:04.556186",
+      "last_login": "2025-05-29 21:44:04.551632",
+      "is_active": 1,
+      "phone": null
+    }
+  ],
+  "on_demand_product": [],
+  "setting": [
+    {
+      "id": 1,
+      "key": "company_name",
+      "value": "kitwe",
+      "description": "",
+      "category": "general",
+      "created_at": "2025-05-23 17:10:07.978883",
+      "updated_at": "2025-05-23 17:10:07.978885"
+    },
+    {
+      "id": 2,
+      "key": "currency_code",
+      "value": "tsh",
+      "description": "",
+      "category": "general",
+      "created_at": "2025-05-23 17:10:08.404214",
+      "updated_at": "2025-05-23 17:10:19.757550"
+    },
+    {
+      "id": 3,
+      "key": "timezone",
+      "value": "Africa/Dar_es_Salaam",
+      "description": "",
+      "category": "general",
+      "created_at": "2025-05-23 17:10:08.790622",
+      "updated_at": "2025-05-23 17:10:08.790624"
+    },
+    {
+      "id": 4,
+      "key": "default_language",
+      "value": "sw",
+      "description": "",
+      "category": "general",
+      "created_at": "2025-05-23 17:10:09.115995",
+      "updated_at": "2025-05-23 17:10:09.115997"
+    },
+    {
+      "id": 5,
+      "key": "user_1_theme",
+      "value": "tanzanite",
+      "description": "Theme preference for user 1",
+      "category": "appearance",
+      "created_at": "2025-05-23 17:20:39.835498",
+      "updated_at": "2025-05-23 17:25:10.639903"
+    },
+    {
+      "id": 6,
+      "key": "user_1_items_per_page",
+      "value": "25",
+      "description": "Items per page preference for user 1",
+      "category": "appearance",
+      "created_at": "2025-05-23 17:20:39.836909",
+      "updated_at": "2025-05-23 17:25:10.641480"
+    },
+    {
+      "id": 7,
+      "key": "user_1_date_format",
+      "value": "YYYY-MM-DD",
+      "description": "Date format preference for user 1",
+      "category": "appearance",
+      "created_at": "2025-05-23 17:20:39.837433",
+      "updated_at": "2025-05-23 17:20:39.837435"
+    }
+  ],
+  "sale": [
+    {
+      "id": 1,
+      "invoice_number": "INV-20250529-39D97955",
+      "customer_name": "john",
+      "customer_phone": "",
+      "sale_type": "wholesale",
+      "subtotal": 40500.0,
+      "discount_type": "none",
+      "discount_value": 0.0,
+      "discount_amount": 0.0,
+      "total": 40500.0,
+      "payment_method": "cash",
+      "payment_details": "null",
+      "payment_amount": 40500.0,
+      "change_amount": 0.0,
+      "notes": "",
+      "created_at": "2025-05-29 18:37:28.532800",
+      "updated_at": "2025-05-29 18:37:28.532802",
+      "user_id": 1
+    }
+  ],
+  "financial_transaction": [
+    {
+      "id": 1,
+      "date": "2025-05-29",
+      "description": "Sale - Invoice INV-20250529-39D97955",
+      "amount": 40500.0,
+      "transaction_type": "Income",
+      "category": "Sales",
+      "reference_id": "INV-20250529-39D97955",
+      "payment_method": "cash",
+      "notes": null,
+      "created_at": "2025-05-29 18:37:28.595216",
+      "updated_at": "2025-05-29 18:37:28.595218",
+      "tax_rate": 0.0,
+      "tax_amount": 0.0,
+      "cost_of_goods_sold": 0.0,
+      "gross_amount": 0.0,
+      "user_id": 1
+    }
+  ],
+  "financial_summary": [],
+  "sale_item": [
+    {
+      "id": 1,
+      "sale_id": 1,
+      "item_id": null,
+      "product_name": "product",
+      "product_sku": "PROD-BEA-L3AHZB",
+      "price": 900.0,
+      "quantity": 45,
+      "total": 40500.0,
+      "created_at": "2025-05-29 18:37:28.547426"
+    }
+  ],
+  "category": [
+    {
+      "id": 1,
+      "name": "bearing",
+      "description": "",
+      "icon": "fas fa-car",
+      "color": "#007bff",
+      "is_active": 1,
+      "created_at": "2025-05-26 12:26:38.137042",
+      "updated_at": "2025-05-26 12:26:38.137045"
+    }
+  ],
+  "subcategory": [
+    {
+      "id": 1,
+      "name": "ford",
+      "description": "",
+      "category_id": 1,
+      "is_active": 1,
+      "created_at": "2025-05-26 12:29:48.723425",
+      "updated_at": "2025-05-26 12:29:48.723430"
+    },
+    {
+      "id": 2,
+      "name": "toyota",
+      "description": "",
+      "category_id": 1,
+      "is_active": 1,
+      "created_at": "2025-05-26 12:29:58.614474",
+      "updated_at": "2025-05-26 12:29:58.614475"
+    }
+  ],
+  "subuser": [],
+  "subuser_permission": [],
+  "layaway_plan": [],
+  "pricing_rule": [],
+  "layaway_payment": [],
+  "location": [],
+  "location_stock": [],
+  "stock_transfer": [],
+  "stock_transfer_item": []
+}

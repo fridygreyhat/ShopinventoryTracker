@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Categories - Business Management System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('inventory_index') }}" class="btn btn-outline-secondary me-3">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1 class="h3 mb-0">
+            <i class="fas fa-tags me-2"></i>Inventory Categories
+        </h1>
+    </div>
+    
+    <div class="row">
+        <!-- Add Category Form -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-plus me-2"></i>Add New Category
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.is_manager() %}
+                        <form method="POST" action="{{ url_for('add_category') }}">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Category Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       required placeholder="Enter category name">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" 
+                                          rows="3" placeholder="Optional description"></textarea>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Add Category
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-lock fa-2x text-muted mb-3"></i>
+                            <p class="text-muted">Manager privileges required to add categories</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Categories List -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Categories List
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if categories %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Items Count</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for category in categories %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ category.name }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if category.description %}
+                                                {{ category.description[:50] }}{% if category.description|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">No description</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ category.items.count() }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if category.is_active else 'secondary' }}">
+                                                {{ 'Active' if category.is_active else 'Inactive' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>{{ category.created_at.strftime('%m/%d/%Y') }}</small>
+                                        </td>
+                                        <td>
+                                            {% if current_user.is_manager() %}
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    {% if category.items.count() == 0 %}
+                                                        <button class="btn btn-outline-danger" title="Delete">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-tags fa-4x text-muted mb-3"></i>
+                            <h4>No categories found</h4>
+                            <p class="text-muted">Start by creating your first inventory category</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
