@@ -4,6 +4,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const importButton = document.getElementById('importButton');
     const importResult = document.getElementById('importResult');
 
+    // Format details handler
+    const showFormatDetailsBtn = document.getElementById('showFormatDetails');
+    const formatDetailsPanel = document.getElementById('formatDetailsPanel');
+    const formatDetailsContent = document.getElementById('formatDetailsContent');
+    
+    if (showFormatDetailsBtn) {
+        showFormatDetailsBtn.addEventListener('click', function() {
+            if (formatDetailsPanel.classList.contains('d-none')) {
+                // Show and load format details
+                formatDetailsPanel.classList.remove('d-none');
+                loadFormatDetails();
+            } else {
+                // Hide format details
+                formatDetailsPanel.classList.add('d-none');
+            }
+        });
+    }
+    
+    function loadFormatDetails() {
+        fetch('/api/inventory/csv-template')
+            .then(response => response.json())
+            .then(data => {
+                let detailsHTML = '<div class="row">';
+                
+                // Required fields
+                detailsHTML += '<div class="col-md-6"><h6 class="text-success">Required Fields:</h6><ul>';
+                data.required_fields.forEach(field => {
+                    detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
+                });
+                detailsHTML += '</ul></div>';
+                
+                // Optional fields
+                detailsHTML += '<div class="col-md-6"><h6 class="text-info">Optional Fields:</h6><ul class="small">';
+                data.optional_fields.forEach(field => {
+                    detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
+                });
+                detailsHTML += '</ul></div>';
+                
+                detailsHTML += '</div>';
+                
+                // Example
+                detailsHTML += '<div class="mt-3"><h6>Example Row:</h6>';
+                detailsHTML += `<code class="small">${data.example_row}</code></div>`;
+                
+                formatDetailsContent.innerHTML = detailsHTML;
+            })
+            .catch(error => {
+                formatDetailsContent.innerHTML = '<div class="text-danger">Failed to load format details</div>';
+            });
+    }
+
     // Bulk Import Handler
     importButton.addEventListener('click', function() {
         const fileInput = document.getElementById('csvFile');
@@ -14,17 +65,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (!file.name.endsWith('.csv')) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
             showImportError('Please select a CSV file');
+            return;
+        }
+
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            showImportError('File size too large. Please select a file smaller than 5MB.');
             return;
         }
 
         const formData = new FormData();
         formData.append('file', file);
 
+        // Update button state
         importButton.disabled = true;
+        const originalButtonText = importButton.innerHTML;
+        importButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+        
         importResult.className = 'alert alert-info';
-        importResult.textContent = 'Importing...';
+        importResult.innerHTML = '<i class="fas fa-info-circle"></i> Processing your CSV file...';
         importResult.classList.remove('d-none');
 
         fetch('/api/inventory/bulk-import', {
@@ -34,34 +95,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Accept': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 importResult.className = 'alert alert-success';
-                importResult.textContent = `Successfully imported ${data.imported_count} items`;
-                if (data.errors.length > 0) {
-                    const errorList = document.createElement('ul');
+                importResult.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <div>
+                            <strong>Success!</strong> Imported ${data.imported_count} out of ${data.total_rows} items
+                        </div>
+                    </div>
+                `;
+                
+                if (data.errors && data.errors.length > 0) {
+                    importResult.innerHTML += `
+                        <hr class="my-2">
+                        <div class="mt-2">
+                            <strong><i class="fas fa-exclamation-triangle text-warning"></i> Warnings (${data.errors.length}):</strong>
+                            <div class="mt-1" style="max-height: 200px; overflow-y: auto;">
+                    `;
+                    
                     data.errors.forEach(error => {
-                        const li = document.createElement('li');
-                        li.textContent = error;
-                        errorList.appendChild(li);
+                        importResult.innerHTML += `<div class="small text-muted">• ${error}</div>`;
                     });
-                    importResult.appendChild(errorList);
+                    
+                    importResult.innerHTML += '</div></div>';
                 }
 
                 // Reset file input and reload inventory
                 fileInput.value = '';
                 loadInventory();
                 loadCategories();
+                
+                // Hide success message after 8 seconds
+                setTimeout(() => {
+                    importResult.classList.add('d-none');
+                }, 8000);
             } else {
-                showImportError(data.error);
+                showImportError(data.error || 'Import failed');
             }
         })
         .catch(error => {
+            console.error('Import error:', error);
             showImportError('Import failed: ' + error.message);
         })
         .finally(() => {
             importButton.disabled = false;
+            importButton.innerHTML = originalButtonText;
         });
     });
 
@@ -482,21 +570,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const category = document.getElementById('itemCategory').value.trim();
         const quantityStr = document.getElementById('itemQuantity').value.trim();
 
-        // Get unit type
-        const unitType = document.getElementById('itemUnitType').value;
-
         // Get price fields
         const buyingPriceStr = document.getElementById('itemBuyingPrice').value.trim();
         const sellingPriceRetailStr = document.getElementById('itemSellingPriceRetail').value.trim();
         const sellingPriceWholesaleStr = document.getElementById('itemSellingPriceWholesale').value.trim();
 
         // Get sales type
-        const salesTypeEl = document.querySelector('input[name="salesType"]:checked');
-        if (!salesTypeEl) {
-            alert('Please select a sales type');
-            return;
-        }
-        const salesType = salesTypeEl.value;
+        const salesType = document.querySelector('input[name="salesType"]:checked').value;
 
         // Validate required fields
         if (!name) {
@@ -504,20 +584,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Validate quantity based on unit type
-        let quantity;
-        if (unitType === 'weight') {
-            quantity = parseFloat(quantityStr);
-            if (isNaN(quantity) || quantity < 0) {
-                alert('Weight must be a non-negative number');
-                return;
-            }
-        } else {
-            quantity = parseInt(quantityStr);
-            if (isNaN(quantity) || quantity < 0) {
-                alert('Quantity must be a non-negative number');
-                return;
-            }
+        const quantity = parseInt(quantityStr);
+        if (isNaN(quantity) || quantity < 0) {
+            alert('Quantity must be a non-negative number');
+            return;
         }
 
         // Validate price fields
@@ -546,18 +616,12 @@ document.addEventListener('DOMContentLoaded', function() {
             description,
             category,
             quantity,
-            unit_type: unitType,
-            sell_by: unitType === 'weight' ? 'kilogram' : 'quantity',
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
             selling_price_wholesale: sellingPriceWholesale,
             price: sellingPriceRetail, // For backward compatibility
             sales_type: salesType
         };
-
-        // Disable save button to prevent double submission
-        saveItemBtn.disabled = true;
-        saveItemBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
         // Send POST request to API
         fetch('/api/inventory', {
@@ -569,28 +633,17 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(errorData => {
-                    throw new Error(errorData.error || 'Failed to add item');
-                });
+                throw new Error('Failed to add item');
             }
             return response.json();
         })
         .then(data => {
-            console.log('Item added successfully:', data);
-            
             // Reset form
             addItemForm.reset();
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
             modal.hide();
-
-            // Show success message
-            if (typeof showToast === 'function') {
-                showToast('Item added successfully!', 'success');
-            } else {
-                alert('Item added successfully!');
-            }
 
             // Reload inventory
             loadInventory();
@@ -604,13 +657,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error adding item:', error);
+            console.error('Error:', error);
             alert('Failed to add item: ' + error.message);
-        })
-        .finally(() => {
-            // Re-enable save button
-            saveItemBtn.disabled = false;
-            saveItemBtn.innerHTML = 'Save Item';
         });
     }
 
