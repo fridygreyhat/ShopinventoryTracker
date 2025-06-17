@@ -945,8 +945,7 @@ def delete_on_demand_product(product_id):
 
         return jsonify({
             "message": f"Deleted {product_name}",
-            ```tool_code
-"product": product_dict
+            "product": product_dict
         })
 
     except Exception as e:
