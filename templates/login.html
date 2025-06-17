@@ -34,7 +34,6 @@
                         <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
                     </div>
 
-
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="remember">
                         <label class="form-check-label" for="remember">Remember me</label>
@@ -50,8 +49,6 @@
         </div>
     </div>
 </div>
-
-<!-- Registration page is now separate at register.html -->
 
 <!-- Password Reset Modal -->
 <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-labelledby="passwordResetModalLabel" aria-hidden="true">
@@ -80,27 +77,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Firebase SDK -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-
 <script type="module">
-    // Import Firebase modules and our authentication module
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    // Import our PostgreSQL authentication module
     import { loginWithEmailPassword, sendPasswordReset } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
-
-    // Firebase configuration from server
-    const firebaseConfig = {
-        apiKey: "{{ firebase_config.apiKey }}",
-        projectId: "{{ firebase_config.projectId }}",
-        appId: "{{ firebase_config.appId }}",
-        authDomain: "{{ firebase_config.authDomain }}",
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
 
     // Elements
     const loginButton = document.getElementById('login-button');
@@ -145,7 +124,7 @@
             showError(error.message);
         } finally {
             // Reset button state
-            loginButton.textContent = 'Sign In';
+            loginButton.textContent = 'Login';
             loginButton.disabled = false;
         }
     });
@@ -207,7 +186,7 @@
 
         try {
             // Send password reset email using our helper function
-            await sendPasswordReset(auth, email);
+            await sendPasswordReset(email);
 
             // Show success message
             resetSuccess.textContent = 'Password reset email sent! Check your inbox.';
@@ -222,7 +201,7 @@
 
         } catch (error) {
             // Show error message
-            resetError.textContent = getResetErrorMessage(error);
+            resetError.textContent = error.message || 'Error sending password reset email. Please try again.';
             resetError.classList.remove('d-none');
             resetSuccess.classList.add('d-none');
 
@@ -233,18 +212,5 @@
             sendResetBtn.innerHTML = 'Send Reset Link';
         }
     });
-
-    // Get user-friendly error message for password reset
-    function getResetErrorMessage(error) {
-        if (error.code === 'auth/user-not-found') {
-            return 'No account found with this email address.';
-        } else if (error.code === 'auth/invalid-email') {
-            return 'Please enter a valid email address.';
-        } else if (error.code === 'auth/too-many-requests') {
-            return 'Too many requests. Please try again later.';
-        } else {
-            return 'Error sending password reset email. Please try again.';
-        }
-    }
 </script>
 {% endblock %}
