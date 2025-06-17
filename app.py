@@ -945,7 +945,8 @@ def delete_on_demand_product(product_id):
 
         return jsonify({
             "message": f"Deleted {product_name}",
-            "product": product_dict
+            ```tool_code
+"product": product_dict
         })
 
     except Exception as e:
@@ -2993,6 +2994,51 @@ def register():
 
     return render_template('register.html', firebase_config=firebase_config)
 
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """API endpoint for user login"""
+    try:
+        data = request.json
+
+        if not data or 'email' not in data or 'password' not in data:
+            return jsonify({"error": "Email and password are required"}), 400
+
+        email = data['email'].strip().lower()
+        password = data['password']
+
+        # Find user by email
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not user.check_password(password):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        if not user.is_active:
+            return jsonify({"error": "Account is deactivated"}), 401
+
+        # Create session
+        session['user_id'] = user.id
+        session['email'] = user.email
+        session['is_admin'] = user.is_admin
+        session.permanent = data.get('remember', False)
+
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+
+        # Load user theme preference
+        from models import Setting
+        theme_key = f"user_{user.id}_theme"
+        theme_setting = Setting.query.filter_by(key=theme_key).first()
+        if theme_setting:
+            session['user_theme'] = theme_setting.value
+        else:
+            session['user_theme'] = 'tanzanite'
+
+        return jsonify({"success": True, "user": user.to_dict()})
+
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({"error": "Login failed"}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
 def create_session():

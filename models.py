@@ -103,6 +103,10 @@ class User(UserMixin, db.Model):
     email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
     verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
     verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
+    
+    # Password reset
+    reset_token = db.Column(db.String(100), nullable=True)  # Token for password reset
+    reset_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for reset token
 
 
 

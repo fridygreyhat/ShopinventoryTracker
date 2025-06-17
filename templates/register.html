@@ -201,7 +201,15 @@
 
             // Create user with Firebase and register with server using our helper function
             console.log('Registering with Firebase and server...');
-            const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
+            // Use the PostgreSQL registration function
+            const response = await registerWithEmailPassword(email, password, {
+                username: username,
+                first_name: firstNameInput.value.trim(),
+                last_name: lastNameInput.value.trim(),
+                shop_name: shopNameInput.value.trim(),
+                product_categories: selectedCategories.join(','),
+                phone: phone
+            });
             console.log('Registration successful:', serverData);
 
             // Get the token for creating a session

@@ -1,26 +1,38 @@
+
 /**
- * Firebase Authentication Module
- * This module provides functions for handling authentication with Firebase
- * Updated to use the modular API structure of Firebase Web SDK v9+
+ * PostgreSQL Authentication Module
+ * This module provides functions for handling authentication with PostgreSQL backend
  */
 
 /**
  * Login with email and password
- * @param {Object} auth - Firebase Auth instance
  * @param {string} email - User email
  * @param {string} password - User password
- * @returns {Promise} Firebase user credential
+ * @returns {Promise} User data and session info
  */
-export async function loginWithEmailPassword(auth, email, password) {
+export async function loginWithEmailPassword(email, password) {
     try {
-        // Import directly to avoid naming conflict
-        const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
-
-        // Use the auth instance passed from the login page
         console.log('Attempting to sign in with:', email);
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log('Sign in successful, user:', userCredential.user.email);
-        return userCredential;
+        
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Login failed');
+        }
+
+        const userData = await response.json();
+        console.log('Sign in successful, user:', userData.user.email);
+        return userData;
     } catch (error) {
         console.error('Login error:', error);
         throw error;
@@ -29,44 +41,38 @@ export async function loginWithEmailPassword(auth, email, password) {
 
 /**
  * Register with email and password
- * @param {Object} auth - Firebase Auth instance
  * @param {string} email - User email
  * @param {string} password - User password
  * @param {Object} userData - Additional user data
- * @returns {Promise} Object with userCredential and serverData
+ * @returns {Promise} Object with user data
  */
-export async function registerWithEmailPassword(auth, email, password, userData) {
+export async function registerWithEmailPassword(email, password, userData) {
     try {
-        // Import directly to avoid naming conflict
-        const { createUserWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
-
         console.log('Attempting to register with:', email);
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log('Registration successful, user:', userCredential.user.email);
+        
+        const registrationData = {
+            email: email,
+            password: password,
+            ...userData
+        };
 
-        // Get the ID token for server registration
-        const token = await userCredential.user.getIdToken();
-
-        // Register with server
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch('/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                idToken: token,
-                ...userData
-            })
+            body: JSON.stringify(registrationData)
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Server registration failed');
+            throw new Error(errorData.error || 'Registration failed');
         }
 
         const serverData = await response.json();
+        console.log('Registration successful, user:', serverData.user.email);
 
-        return { userCredential, serverData };
+        return { userCredential: serverData, serverData };
     } catch (error) {
         console.error('Registration error:', error);
         throw error;
@@ -75,17 +81,26 @@ export async function registerWithEmailPassword(auth, email, password, userData)
 
 /**
  * Send password reset email
- * @param {Object} auth - Firebase Auth instance 
  * @param {string} email - User email
  * @returns {Promise} Promise that resolves when reset email is sent
  */
-export async function sendPasswordReset(auth, email) {
+export async function sendPasswordReset(email) {
     try {
-        // Import directly to avoid naming conflict
-        const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js');
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email
+            })
+        });
 
-        // Use the Firebase function with the auth instance passed from the login page
-        await sendPasswordResetEmail(auth, email);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Password reset failed');
+        }
+
         return { success: true };
     } catch (error) {
         console.error('Password reset error:', error);
@@ -95,11 +110,12 @@ export async function sendPasswordReset(auth, email) {
 
 /**
  * Create session with server
- * @param {string} token - Firebase ID token
+ * @param {string} email - User email
+ * @param {string} password - User password
  * @param {boolean} remember - Whether to remember the session
  * @returns {Promise} Server response
  */
-export async function createSession(token, remember = false) {
+export async function createSession(email, password, remember = false) {
     try {
         console.log('Creating session with server...');
 
@@ -109,7 +125,8 @@ export async function createSession(token, remember = false) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                idToken: token,
+                email: email,
+                password: password,
                 remember: remember
             })
         });
@@ -124,6 +141,142 @@ export async function createSession(token, remember = false) {
         return sessionData;
     } catch (error) {
         console.error('Session creation error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Logout user
+ * @returns {Promise} Logout response
+ */
+export async function logoutUser() {
+    try {
+        const response = await fetch('/logout', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Logout failed');
+        }
+
+        console.log('Logout successful');
+        return { success: true };
+    } catch (error) {
+        console.error('Logout error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get current user profile
+ * @returns {Promise} User profile data
+ */
+export async function getCurrentUser() {
+    try {
+        const response = await fetch('/api/auth/profile', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to get user profile');
+        }
+
+        const userData = await response.json();
+        return userData.user;
+    } catch (error) {
+        console.error('Get user error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update user profile
+ * @param {Object} profileData - Profile data to update
+ * @returns {Promise} Updated user data
+ */
+export async function updateUserProfile(profileData) {
+    try {
+        const response = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(profileData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Profile update failed');
+        }
+
+        const userData = await response.json();
+        return userData.user;
+    } catch (error) {
+        console.error('Profile update error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Change user password
+ * @param {string} currentPassword - Current password
+ * @param {string} newPassword - New password
+ * @returns {Promise} Success response
+ */
+export async function changePassword(currentPassword, newPassword) {
+    try {
+        const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Password change failed');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Password change error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Send email verification
+ * @returns {Promise} Success response
+ */
+export async function sendEmailVerification() {
+    try {
+        const response = await fetch('/api/auth/send-verification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to send verification email');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Send verification error:', error);
         throw error;
     }
 }
