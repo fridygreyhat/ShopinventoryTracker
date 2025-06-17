@@ -93,7 +93,12 @@ def inject_current_user():
 # Initialize database tables
 with app.app_context():
     # Import models to ensure they are registered with SQLAlchemy
-    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, InstallmentPayment
+    try:
+        from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, InstallmentPayment, OnDemandProduct, Account, JournalEntry, BankReconciliation
+    except ImportError as e:
+        logger.warning(f"Some models not available: {e}")
+        # Import only essential models
+        from models import Item, User, Setting
     import json
 
     # When we have schema changes, we need to reset the database
