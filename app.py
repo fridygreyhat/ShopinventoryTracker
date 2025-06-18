@@ -1590,6 +1590,7 @@ def create_sale():
                     customer = Customer(
                         name=customer_name,
                         phone=customer_phone,
+                        national_id=customer_data.get('national_id', ''),
                         address=customer_address
                     )
                     db.session.add(customer)

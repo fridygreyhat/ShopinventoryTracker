@@ -294,6 +294,7 @@ function saveInstallmentSale() {
         customerData = {
             name: document.getElementById('new-customer-name').value,
             phone: document.getElementById('new-customer-phone').value,
+            national_id: document.getElementById('new-customer-national-id').value,
             email: document.getElementById('new-customer-email').value,
             address: document.getElementById('new-customer-address').value
         };

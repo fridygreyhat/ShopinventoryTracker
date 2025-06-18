@@ -256,6 +256,7 @@ class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20))
+    national_id = db.Column(db.String(50))
     email = db.Column(db.String(120))
     address = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -265,6 +266,7 @@ class Customer(db.Model):
             'id': self.id,
             'name': self.name,
             'phone': self.phone,
+            'national_id': self.national_id,
             'email': self.email,
             'address': self.address
         }
