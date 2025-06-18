@@ -129,11 +129,39 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadCategories() {
         const categorySelect = document.getElementById('transaction-category');
 
-        // Default categories
-        const defaultCategories = [
-            { income: ['Sales Revenue', 'Service Income', 'Interest Income', 'Other Income'] },
-            { expense: ['Rent', 'Utilities', 'Supplies', 'Marketing', 'Transportation', 'Equipment', 'Professional Services', 'Insurance', 'Other Expenses'] }
-        ];
+        // Enhanced categories with more options
+        const defaultCategories = {
+            income: [
+                'Sales Revenue',
+                'Service Income', 
+                'Interest Income',
+                'Investment Income',
+                'Rental Income',
+                'Commission Income',
+                'Consulting Income',
+                'Freelance Income',
+                'Royalty Income',
+                'Other Income'
+            ],
+            expense: [
+                'Rent & Utilities',
+                'Office Supplies',
+                'Marketing & Advertising',
+                'Transportation',
+                'Equipment & Machinery',
+                'Professional Services',
+                'Insurance',
+                'Telecommunications',
+                'Training & Development',
+                'Travel & Accommodation',
+                'Maintenance & Repairs',
+                'Bank Charges',
+                'Taxes & Licenses',
+                'Raw Materials',
+                'Employee Salaries',
+                'Other Expenses'
+            ]
+        };
 
         // Clear existing options
         categorySelect.innerHTML = '<option value="">Select Category</option>';
@@ -141,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add income categories
         const incomeGroup = document.createElement('optgroup');
         incomeGroup.label = 'Income Categories';
-        defaultCategories[0].income.forEach(category => {
+        defaultCategories.income.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
@@ -153,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add expense categories
         const expenseGroup = document.createElement('optgroup');
         expenseGroup.label = 'Expense Categories';
-        defaultCategories[1].expense.forEach(category => {
+        defaultCategories.expense.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
             option.textContent = category;
@@ -164,32 +192,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Load and add saved custom categories
         const savedCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
-        savedCategories.forEach(category => {
-            const targetGroup = category.type === 'Income' ? incomeGroup : expenseGroup;
-            const option = document.createElement('option');
-            option.value = category.name;
-            option.textContent = category.name + ' (Custom)';
-            option.setAttribute('data-type', category.type);
-            targetGroup.appendChild(option);
-        });
-
-        // Add custom category option
-        const customOption = document.createElement('option');
-        customOption.value = 'custom';
-        customOption.textContent = '+ Add Custom Category';
-        categorySelect.appendChild(customOption);
+        if (savedCategories.length > 0) {
+            const customGroup = document.createElement('optgroup');
+            customGroup.label = 'Custom Categories';
+            savedCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name;
+                option.textContent = category.name;
+                option.setAttribute('data-type', category.type);
+                customGroup.appendChild(option);
+            });
+            categorySelect.appendChild(customGroup);
+        }
 
         // Handle category selection
         categorySelect.addEventListener('change', function() {
             const customCategoryInput = document.getElementById('custom-category-input');
-            if (this.value === 'custom') {
-                if (!customCategoryInput) {
-                    createCustomCategoryInput();
-                }
+            const selectedValue = this.value;
+            
+            // Remove existing custom input
+            if (customCategoryInput) {
+                customCategoryInput.remove();
+            }
+            
+            // Check if "Other" category is selected
+            if (selectedValue === 'Other Income' || selectedValue === 'Other Expenses') {
+                createCustomCategoryInput(selectedValue);
             } else {
-                if (customCategoryInput) {
-                    customCategoryInput.remove();
-                }
                 // Auto-select transaction type based on category
                 const selectedOption = this.options[this.selectedIndex];
                 const categoryType = selectedOption.getAttribute('data-type');
@@ -201,27 +230,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Create custom category input
-    function createCustomCategoryInput() {
+    function createCustomCategoryInput(selectedCategory = null) {
         const categoryGroup = document.getElementById('transaction-category').closest('.form-group');
         const customDiv = document.createElement('div');
         customDiv.id = 'custom-category-input';
         customDiv.className = 'mt-2';
+        
+        // Determine the type based on selected category
+        let categoryType = '';
+        let placeholder = 'Specify the category';
+        
+        if (selectedCategory === 'Other Income') {
+            categoryType = 'Income';
+            placeholder = 'Specify the income category (e.g., Grants, Donations, etc.)';
+        } else if (selectedCategory === 'Other Expenses') {
+            categoryType = 'Expense';
+            placeholder = 'Specify the expense category (e.g., Miscellaneous, Legal Fees, etc.)';
+        }
+        
         customDiv.innerHTML = `
+            <div class="mb-2">
+                <label class="form-label small text-muted">Specify Category Details:</label>
+            </div>
             <div class="row">
-                <div class="col-md-8">
-                    <input type="text" class="form-control" id="custom-category-name" placeholder="Enter custom category name">
-                </div>
-                <div class="col-md-4">
-                    <select class="form-select" id="custom-category-type">
-                        <option value="">Type</option>
-                        <option value="Income">Income</option>
-                        <option value="Expense">Expense</option>
-                    </select>
+                <div class="col-md-12">
+                    <input type="text" class="form-control" id="custom-category-name" 
+                           placeholder="${placeholder}" 
+                           data-category-type="${categoryType}">
                 </div>
             </div>
             <div class="mt-2">
-                <button type="button" class="btn btn-sm btn-success" onclick="addCustomCategory()">
-                    <i class="fas fa-plus"></i> Add Category
+                <button type="button" class="btn btn-sm btn-success" onclick="saveCustomCategory()">
+                    <i class="fas fa-check"></i> Save Category
                 </button>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCustomCategory()">
                     Cancel
@@ -229,34 +269,51 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         categoryGroup.appendChild(customDiv);
+        
+        // Auto-select the transaction type
+        if (categoryType) {
+            document.getElementById('transaction-type').value = categoryType;
+        }
+        
+        // Focus on the input field
+        setTimeout(() => {
+            document.getElementById('custom-category-name').focus();
+        }, 100);
     }
 
-    // Add custom category
-    window.addCustomCategory = function() {
-        const categoryName = document.getElementById('custom-category-name').value.trim();
-        const categoryType = document.getElementById('custom-category-type').value;
+    // Save custom category
+    window.saveCustomCategory = function() {
+        const categoryNameInput = document.getElementById('custom-category-name');
+        const categoryName = categoryNameInput.value.trim();
+        const categoryType = categoryNameInput.getAttribute('data-category-type');
 
-        if (!categoryName || !categoryType) {
-            alert('Please enter both category name and type');
+        if (!categoryName) {
+            alert('Please enter a category name');
+            categoryNameInput.focus();
+            return;
+        }
+
+        if (!categoryType) {
+            alert('Category type not specified');
             return;
         }
 
         const categorySelect = document.getElementById('transaction-category');
 
-        // Find the appropriate optgroup
-        let targetGroup;
-        if (categoryType === 'Income') {
-            targetGroup = categorySelect.querySelector('optgroup[label="Income Categories"]');
-        } else {
-            targetGroup = categorySelect.querySelector('optgroup[label="Expense Categories"]');
+        // Find or create the custom categories group
+        let customGroup = categorySelect.querySelector('optgroup[label="Custom Categories"]');
+        if (!customGroup) {
+            customGroup = document.createElement('optgroup');
+            customGroup.label = 'Custom Categories';
+            categorySelect.appendChild(customGroup);
         }
 
-        // Add new option to the group
+        // Add new option to the custom group
         const newOption = document.createElement('option');
         newOption.value = categoryName;
         newOption.textContent = categoryName;
         newOption.setAttribute('data-type', categoryType);
-        targetGroup.appendChild(newOption);
+        customGroup.appendChild(newOption);
 
         // Select the new category
         categorySelect.value = categoryName;
@@ -267,8 +324,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Save custom category to localStorage for persistence
         const savedCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
-        savedCategories.push({ name: categoryName, type: categoryType });
-        localStorage.setItem('customCategories', JSON.stringify(savedCategories));
+        
+        // Check if category already exists
+        const existingCategory = savedCategories.find(cat => cat.name === categoryName && cat.type === categoryType);
+        if (!existingCategory) {
+            savedCategories.push({ name: categoryName, type: categoryType });
+            localStorage.setItem('customCategories', JSON.stringify(savedCategories));
+        }
+
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'alert alert-success alert-dismissible fade show mt-2';
+        successMsg.innerHTML = `
+            <i class="fas fa-check-circle"></i> Custom category "${categoryName}" saved successfully!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        categorySelect.closest('.form-group').appendChild(successMsg);
+
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            if (successMsg.parentNode) {
+                successMsg.remove();
+            }
+        }, 3000);
     };
 
     // Cancel custom category
@@ -277,8 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('custom-category-input').remove();
     };
 
-    // Load financial summary data
-    function loadFinancialSummary() {
+    // Update financial summary
+    function updateFinancialSummary(summary) {
         incomeValue.textContent = summary.total_income.toLocaleString();
         expensesValue.textContent = summary.total_expenses.toLocaleString();
         profitValue.textContent = summary.net_profit.toLocaleString();
@@ -296,6 +374,94 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Display transactions in tables
+    function displayTransactions(transactions) {
+        // Clear existing table content
+        allTransactionsTable.innerHTML = '';
+        incomeTransactionsTable.innerHTML = '';
+        expenseTransactionsTable.innerHTML = '';
+
+        if (transactions.length === 0) {
+            allTransactionsTable.innerHTML = '<tr><td colspan="6" class="text-center">No transactions found</td></tr>';
+            incomeTransactionsTable.innerHTML = '<tr><td colspan="5" class="text-center">No income transactions found</td></tr>';
+            expenseTransactionsTable.innerHTML = '<tr><td colspan="5" class="text-center">No expense transactions found</td></tr>';
+            return;
+        }
+
+        // Filter transactions
+        const incomeTransactions = transactions.filter(t => t.transaction_type === 'Income');
+        const expenseTransactions = transactions.filter(t => t.transaction_type === 'Expense');
+
+        // Display all transactions
+        transactions.forEach(transaction => {
+            const row = createTransactionRow(transaction, true);
+            allTransactionsTable.appendChild(row);
+        });
+
+        // Display income transactions
+        if (incomeTransactions.length === 0) {
+            incomeTransactionsTable.innerHTML = '<tr><td colspan="5" class="text-center">No income transactions found</td></tr>';
+        } else {
+            incomeTransactions.forEach(transaction => {
+                const row = createTransactionRow(transaction, false);
+                incomeTransactionsTable.appendChild(row);
+            });
+        }
+
+        // Display expense transactions
+        if (expenseTransactions.length === 0) {
+            expenseTransactionsTable.innerHTML = '<tr><td colspan="5" class="text-center">No expense transactions found</td></tr>';
+        } else {
+            expenseTransactions.forEach(transaction => {
+                const row = createTransactionRow(transaction, false);
+                expenseTransactionsTable.appendChild(row);
+            });
+        }
+    }
+
+    // Create transaction row
+    function createTransactionRow(transaction, showType) {
+        const row = document.createElement('tr');
+        
+        const typeClass = transaction.transaction_type === 'Income' ? 'text-success' : 'text-danger';
+        const typeIcon = transaction.transaction_type === 'Income' ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
+        
+        const cols = showType ? 6 : 5;
+        
+        row.innerHTML = `
+            <td>${formatDate(transaction.date)}</td>
+            <td>
+                <div class="fw-bold">${transaction.description}</div>
+                ${transaction.reference_id ? `<small class="text-muted">Ref: ${transaction.reference_id}</small>` : ''}
+            </td>
+            <td>
+                <span class="badge bg-light text-dark">${transaction.category}</span>
+            </td>
+            <td class="${typeClass}">
+                <i class="${typeIcon}"></i> TZS ${transaction.amount.toLocaleString()}
+            </td>
+            ${showType ? `<td><span class="badge ${transaction.transaction_type === 'Income' ? 'bg-success' : 'bg-danger'}">${transaction.transaction_type}</span></td>` : ''}
+            <td>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editTransaction(${transaction.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteTransactionConfirm(${transaction.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        return row;
+    }
+
+    // Delete transaction with confirmation
+    window.deleteTransactionConfirm = function(id) {
+        transactionId.value = id;
+        deleteConfirmModal.show();
+    };
+
     // Create monthly chart
     function createMonthlyChart(data) {
         const ctx = document.getElementById('monthlyChart').getContext('2d');
@@ -306,58 +472,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const expenseData = data.monthly_data.map(item => item.expenses);
         const profitData = data.monthly_data.map(item => item.profit);
 
+        // Destroy existing chart if it exists
         if (window.monthlyChart) {
             window.monthlyChart.destroy();
         }
 
-        window.monthlyChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: months,
-                datasets: [{
-                    label: 'Income',
-                    data: incomeData,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1
-                }, {
-                    label: 'Expenses',
-                    data: expenseData,
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    tension: 0.1
-                }, {
-                    label: 'Profit',
-                    data: profitData,
-                    borderColor: 'rgb(54, 162, 235)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `Financial Performance - ${data.year}`
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-        // Destroy existing chart if it exists
-        if (monthlyChart) {
-            monthlyChart.destroy();
-        }
-
         // Create new chart
-        monthlyChart = new Chart(ctx, {
+        window.monthlyChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: months,

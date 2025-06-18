@@ -1374,3 +1374,57 @@ def add_transaction_category():
     except Exception as e:
         logger.error(f"Error adding category: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/finance/summaries/monthly', methods=['GET'])
+def get_monthly_summaries():
+    """API endpoint to get monthly financial summaries for charts"""
+    try:
+        from models import FinancialTransaction
+        from sqlalchemy import extract, func
+        from datetime import datetime
+        
+        year = request.args.get('year', datetime.now().year)
+        
+        try:
+            year = int(year)
+        except ValueError:
+            return jsonify({'error': 'Invalid year format'}), 400
+        
+        # Query monthly summaries
+        monthly_data = []
+        months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+        
+        for month_num in range(1, 13):
+            # Get income for this month
+            income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                extract('year', FinancialTransaction.date) == year,
+                extract('month', FinancialTransaction.date) == month_num,
+                FinancialTransaction.transaction_type == 'Income'
+            ).scalar() or 0
+            
+            # Get expenses for this month
+            expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                extract('year', FinancialTransaction.date) == year,
+                extract('month', FinancialTransaction.date) == month_num,
+                FinancialTransaction.transaction_type == 'Expense'
+            ).scalar() or 0
+            
+            monthly_data.append({
+                'month': month_num,
+                'month_name': months[month_num - 1],
+                'income': float(income),
+                'expenses': float(expenses),
+                'profit': float(income - expenses)
+            })
+        
+        return jsonify({
+            'year': year,
+            'monthly_data': monthly_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting monthly summaries: {e}")
+        return jsonify({'error': str(e)}), 500
