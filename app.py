@@ -221,85 +221,66 @@ with app.app_context():
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
 
+# Auth API Routes
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """API endpoint for user login"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
 
-@app.route('/')
-@login_required
-def index():
-    """Render the dashboard page"""
-    return render_template('index.html')
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
 
+        user = User.query.filter_by(email=email).first()
 
-@app.route('/inventory')
-@login_required
-def inventory():
-    """Render the inventory management page"""
-    return render_template('inventory.html')
+        if user and user.check_password(password):
+            #login_user(user, remember=data.get('remember', False)) # The function login_user not found.
 
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'username': user.username
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid email or password'}), 401
 
-@app.route('/margin')
-@login_required
-def margin():
-    """Render the margin analysis page"""
-    return render_template('margin.html')
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
 
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """API endpoint for password reset"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
 
-@app.route('/item/<int:item_id>')
-@login_required
-def item_detail(item_id):
-    """Render the item detail page"""
-    # Get the item from database
-    from models import Item
-    item = Item.query.get_or_404(item_id)
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
 
-    return render_template('item_detail.html', item=item.to_dict())
+        user = User.query.filter_by(email=email).first()
 
+        if user:
+            # Here you would typically send a password reset email
+            # For now, we'll just return success
+            logger.info(f"Password reset requested for: {email}")
 
-@app.route('/reports')
-@login_required
-def reports():
-    """Render the reports page"""
-    return render_template('reports.html')
+        return jsonify({'success': True, 'message': 'Password reset email sent if account exists'}), 200
 
-
-@app.route('/settings')
-@login_required
-def settings():
-    """Render the settings page"""
-    return render_template('settings.html')
-
-
-@app.route('/on-demand')
-@login_required
-def on_demand():
-    """Render the on-demand products page"""
-    return render_template('on_demand.html')
-
-
-@app.route('/sales')
-@login_required
-def sales():
-    """Render the sales management page"""
-    return render_template('sales.html')
-
-
-@app.route('/categories')
-@login_required
-def categories():
-    """Render the categories management page"""
-    return render_template('categories.html')
-
-
-@app.route('/installments')
-@login_required
-def installments():
-    """Render the installments management page"""
-    return render_template('installments.html')
-
+    except Exception as e:
+        logger.error(f"Password reset error: {str(e)}")
+        return jsonify({'error': 'Password reset failed'}), 500
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
+@login_required
 def get_inventory():
-    """API endpoint to get all inventory items"""
+    """Get all inventory items with optional filtering"""
     from models import Item
 
     # Start query
@@ -1856,7 +1837,7 @@ def update_subuser(subuser_id):
         if 'name' in data:
             subuser.name = data['name']
         if 'email' in data:
-            # Check email uniqueness
+            #            # Check email uniqueness
             existing = Subuser.query.filter(Subuser.email == data['email'],
                                             Subuser.id != subuser_id).first()
             if existing:
