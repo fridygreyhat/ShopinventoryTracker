@@ -19,7 +19,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     shop_name = db.Column(db.String(128))
     product_categories = db.Column(db.String(512))
-    is_is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     email_verified = db.Column(db.Boolean, default=False)
     firebase_uid = db.Column(db.String(128))

@@ -25,9 +25,6 @@ app.secret_key = os.environ.get("SESSION_SECRET",
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Database configuration
-class Base(DeclarativeBase):
-    pass
-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "postgresql://inventory:password@localhost:5432/inventory_db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -35,7 +32,9 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(model_class=Base)
+
+# Initialize database with app
+from models import db
 db.init_app(app)
 
 # Mail configuration
@@ -75,6 +74,7 @@ def inject_current_user():
     def get_current_user():
         if 'user_id' in session:
             try:
+                from models import User
                 user = User.query.get(session['user_id'])
                 return user
             except Exception as e:
@@ -2994,15 +2994,72 @@ def register():
     if 'user_id' in session:
         return redirect(url_for('index'))
 
-    # Render registration template with Firebase config
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
+    if request.method == 'POST':
+        # Handle form submission
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        username = request.form.get('username', '').strip()
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        shop_name = request.form.get('shop_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        
+        # Validate required fields
+        if not email or not password or not username:
+            flash('Email, password, and username are required', 'error')
+            return render_template('register.html')
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return render_template('register.html')
+        
+        # Check if email or username already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered', 'error')
+            return render_template('register.html')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already taken', 'error')
+            return render_template('register.html')
+        
+        try:
+            # Create new user
+            user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                shop_name=shop_name,
+                phone=phone,
+                is_active=True,
+                is_admin=False,
+                email_verified=True  # Auto-verify for PostgreSQL setup
+            )
+            user.set_password(password)
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            # Create session
+            session['user_id'] = user.id
+            session['email'] = user.email
+            session['is_admin'] = user.is_admin
+            
+            flash('Registration successful! Welcome to your business management system.', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Registration error: {str(e)}")
+            flash('Registration failed. Please try again.', 'error')
+            return render_template('register.html')
 
-    return render_template('register.html', firebase_config=firebase_config)
+    return render_template('register.html')
 
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
@@ -3106,52 +3163,64 @@ def create_session():
         return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
 
-@app.route('/api/auth/register', methods=['POST'])
+@app.route('/api/register', methods=['POST'])
 def register_user():
-    """Register a new user via Firebase API"""
+    """Register a new user via API"""
     try:
         data = request.json
 
-        if not data or 'idToken' not in data:
-            return jsonify({"error": "Firebase ID token is required"}), 400
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
-        # Additional user data from registration form
-        extra_data = {}
-        if 'username' in data:
-            extra_data['username'] = data['username']
-        if 'firstName' in data:
-            extra_data['first_name'] = data['firstName']
-        if 'lastName' in data:
-            extra_data['last_name'] = data['lastName']
-        if 'shopName' in data:
-            extra_data['shop_name'] = data['shopName']
-        if 'productCategories' in data:
-            extra_data['product_categories'] = data['productCategories']
+        # Validate required fields
+        required_fields = ['email', 'password', 'username']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
 
-        # Verify the Firebase token
-        user_data = verify_firebase_token(data['idToken'])
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
+        email = data['email'].strip().lower()
+        password = data['password']
+        username = data['username'].strip()
 
-        # Create or update user in database with extra profile data
-        user = create_or_update_user(user_data, extra_data)
+        # Validate password length
+        if len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
-        if not user:
-            return jsonify({"error": "Failed to create user record"}), 500
+        # Check if email or username already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({"error": "Email already registered"}), 400
 
-        # Set session data
+        if User.query.filter_by(username=username).first():
+            return jsonify({"error": "Username already taken"}), 400
+
+        # Create new user
+        user = User(
+            username=username,
+            email=email,
+            first_name=data.get('first_name', ''),
+            last_name=data.get('last_name', ''),
+            shop_name=data.get('shop_name', ''),
+            phone=data.get('phone', ''),
+            product_categories=data.get('product_categories', ''),
+            is_active=True,
+            is_admin=False,
+            email_verified=True
+        )
+        user.set_password(password)
+
+        db.session.add(user)
+        db.session.commit()
+
+        # Create session
         session['user_id'] = user.id
         session['email'] = user.email
         session['is_admin'] = user.is_admin
         session.permanent = data.get('remember', False)
 
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-
         return jsonify({"success": True, "user": user.to_dict()})
 
     except Exception as e:
+        db.session.rollback()
         logger.error(f"Error registering user: {str(e)}")
         return jsonify({"error": "Failed to register user"}), 500
 

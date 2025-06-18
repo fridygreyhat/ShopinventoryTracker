@@ -119,28 +119,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Firebase SDK -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-
-<script type="module">
-    // Import Firebase modules and our authentication module
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { registerWithEmailPassword, createSession } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
-
-    // Firebase configuration from server
-    const firebaseConfig = {
-        apiKey: "{{ firebase_config.apiKey }}",
-        projectId: "{{ firebase_config.projectId }}",
-        appId: "{{ firebase_config.appId }}",
-        authDomain: "{{ firebase_config.authDomain }}",
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
+<script>
     // Elements
     const registerButton = document.getElementById('register-button');
     const emailInput = document.getElementById('email');
@@ -152,8 +131,7 @@
     const shopNameInput = document.getElementById('shop_name');
     const productCategoriesSelect = document.getElementById('product_categories');
     const errorDiv = document.getElementById('auth-error');
-    const phoneInput = document.getElementById('phone');  // Get the phone input element
-
+    const phoneInput = document.getElementById('phone');
 
     // Register button click handler
     registerButton.addEventListener('click', async () => {
@@ -162,11 +140,10 @@
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
         const username = usernameInput.value.trim();
-        const phone = phoneInput.value.trim();  // Get the phone number
-
+        const phone = phoneInput.value.trim();
 
         // Validate form
-        if (!email || !password || !confirmPassword || !username || !phone) {
+        if (!email || !password || !confirmPassword || !username) {
             showError('Please fill in all required fields.');
             return;
         }
@@ -189,68 +166,40 @@
             // Get selected product categories
             const selectedCategories = Array.from(productCategoriesSelect.selectedOptions).map(option => option.value);
 
-            // User data to send to server
-            const userData = {
-                username: username,
-                firstName: firstNameInput.value.trim(),
-                lastName: lastNameInput.value.trim(),
-                shopName: shopNameInput.value.trim(),
-                productCategories: selectedCategories.join(','),
-                phone: phone
-            };
-
-            // Create user with Firebase and register with server using our helper function
-            console.log('Registering with Firebase and server...');
-            // Use the PostgreSQL registration function
-            const response = await registerWithEmailPassword(email, password, {
-                username: username,
-                first_name: firstNameInput.value.trim(),
-                last_name: lastNameInput.value.trim(),
-                shop_name: shopNameInput.value.trim(),
-                product_categories: selectedCategories.join(','),
-                phone: phone
+            // Register with PostgreSQL backend
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    username: username,
+                    first_name: firstNameInput.value.trim(),
+                    last_name: lastNameInput.value.trim(),
+                    shop_name: shopNameInput.value.trim(),
+                    product_categories: selectedCategories.join(','),
+                    phone: phone
+                })
             });
-            console.log('Registration successful:', serverData);
 
-            // Get the token for creating a session
-            console.log('Getting Firebase ID token...');
-            const token = await userCredential.user.getIdToken();
-            console.log('Token received, length:', token ? token.length : 0);
+            const result = await response.json();
 
-            // Create a session with the server
-            console.log('Creating session with server...');
-            try {
-                const sessionResult = await createSession(token, true);
-                console.log('Session created successfully:', sessionResult);
-
-                // If we got here, registration and session creation were successful - redirect to dashboard
-                console.log('Redirecting to dashboard...');
+            if (response.ok && result.success) {
+                // Registration successful - redirect to dashboard
                 window.location.href = '/';
-            } catch (sessionError) {
-                console.error('Session creation failed:', sessionError);
-                showError('Account created but session creation failed. Please try logging in manually.');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 3000);
+            } else {
+                showError(result.error || 'Registration failed. Please try again.');
             }
 
         } catch (error) {
-            // Reset button and show error
+            console.error('Registration error:', error);
+            showError('Registration failed. Please try again.');
+        } finally {
+            // Reset button
             registerButton.disabled = false;
             registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
-
-            console.error('Registration error:', error);
-
-            let errorMessage = 'Registration failed. Please try again.';
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'Email already in use. Please try a different email address.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'Invalid email address. Please check and try again.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'Password is too weak. Please use a stronger password.';
-            }
-
-            showError(errorMessage);
         }
     });
 
