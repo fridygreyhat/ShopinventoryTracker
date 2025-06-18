@@ -209,12 +209,12 @@ document.addEventListener('DOMContentLoaded', function() {
         categorySelect.addEventListener('change', function() {
             const customCategoryInput = document.getElementById('custom-category-input');
             const selectedValue = this.value;
-            
+
             // Remove existing custom input
             if (customCategoryInput) {
                 customCategoryInput.remove();
             }
-            
+
             // Check if "Other" category is selected
             if (selectedValue === 'Other Income' || selectedValue === 'Other Expenses') {
                 createCustomCategoryInput(selectedValue);
@@ -235,11 +235,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const customDiv = document.createElement('div');
         customDiv.id = 'custom-category-input';
         customDiv.className = 'mt-2';
-        
+
         // Determine the type based on selected category
         let categoryType = '';
         let placeholder = 'Specify the category';
-        
+
         if (selectedCategory === 'Other Income') {
             categoryType = 'Income';
             placeholder = 'Specify the income category (e.g., Grants, Donations, etc.)';
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryType = 'Expense';
             placeholder = 'Specify the expense category (e.g., Miscellaneous, Legal Fees, etc.)';
         }
-        
+
         customDiv.innerHTML = `
             <div class="mb-2">
                 <label class="form-label small text-muted">Specify Category Details:</label>
@@ -269,12 +269,12 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         categoryGroup.appendChild(customDiv);
-        
+
         // Auto-select the transaction type
         if (categoryType) {
             document.getElementById('transaction-type').value = categoryType;
         }
-        
+
         // Focus on the input field
         setTimeout(() => {
             document.getElementById('custom-category-name').focus();
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Save custom category to localStorage for persistence
         const savedCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
-        
+
         // Check if category already exists
         const existingCategory = savedCategories.find(cat => cat.name === categoryName && cat.type === categoryType);
         if (!existingCategory) {
@@ -422,12 +422,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Create transaction row
     function createTransactionRow(transaction, showType) {
         const row = document.createElement('tr');
-        
+
         const typeClass = transaction.transaction_type === 'Income' ? 'text-success' : 'text-danger';
         const typeIcon = transaction.transaction_type === 'Income' ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
-        
+
         const cols = showType ? 6 : 5;
-        
+
         row.innerHTML = `
             <td>${formatDate(transaction.date)}</td>
             <td>
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </td>
         `;
-        
+
         return row;
     }
 
@@ -467,7 +467,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('monthlyChart').getContext('2d');
 
         // Extract data for chart
-        const months = data.monthly_data.map(item => item.month_name);
         const incomeData = data.monthly_data.map(item => item.income);
         const expenseData = data.monthly_data.map(item => item.expenses);
         const profitData = data.monthly_data.map(item => item.profit);

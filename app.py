@@ -1314,14 +1314,32 @@ def update_transaction(transaction_id):
 @app.route('/api/finance/transactions/<int:transaction_id>',
            methods=['DELETE'])
 def delete_transaction(transaction_id):
+    """API endpoint to delete a financial transaction"""
+    from models import FinancialTransaction
+
     try:
-        transaction = FinancialTransaction.query.get_or_404(transaction_id)
+        transaction = FinancialTransaction.query.get(transaction_id)
+
+        if transaction is None:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        # Store transaction details before deletion
+        transaction_dict = transaction.to_dict()
+        transaction_description = transaction.description
+
+        # Remove transaction from database
         db.session.delete(transaction)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Transaction deleted successfully'})
+
+        return jsonify({
+            "message": f"Deleted transaction: {transaction_description}",
+            "transaction": transaction_dict
+        })
+
     except Exception as e:
-        logger.error(f"Error deleting transaction: {e}")
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        logger.error(f"Error deleting transaction: {str(e)}")
+        return jsonify({"error": "Failed to delete transaction"}), 500
 
 @app.route('/api/finance/categories', methods=['GET'])
 def get_transaction_categories():
