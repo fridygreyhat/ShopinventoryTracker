@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
@@ -51,18 +52,26 @@ class AccountingService:
         try:
             from models import JournalEntry, db
 
+            if entry_date is None:
+                entry_date = datetime.now().date()
+
+            # Generate entry number
+            entry_number = f"JE-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+
             entry = JournalEntry(
+                entry_number=entry_number,
                 account_id=account_id,
                 debit_amount=debit_amount,
                 credit_amount=credit_amount,
                 description=description,
                 reference_type=reference_type,
                 transaction_group=transaction_group,
-                date=entry_date or date.today(),
+                date=entry_date,
                 created_by=created_by
             )
 
             db.session.add(entry)
+            db.session.commit()
             return entry
 
         except Exception as e:

@@ -277,6 +277,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const expenseData = data.monthly_data.map(item => item.expenses);
         const profitData = data.monthly_data.map(item => item.profit);
         
+        if (window.monthlyChart) {
+            window.monthlyChart.destroy();
+        }
+        
+        window.monthlyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Income',
+                    data: incomeData,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.1
+                }, {
+                    label: 'Expenses',
+                    data: expenseData,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    tension: 0.1
+                }, {
+                    label: 'Profit',
+                    data: profitData,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Financial Performance - ${data.year}`
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+        
         // Destroy existing chart if it exists
         if (monthlyChart) {
             monthlyChart.destroy();
