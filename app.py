@@ -2947,6 +2947,36 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page"""
+    return render_template('on_demand.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments page"""
+    return render_template('installments.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
