@@ -24,20 +24,12 @@ app.secret_key = os.environ.get("SESSION_SECRET",
                                 "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Firebase configuration
-app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
-app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
-app.config["FIREBASE_APP_ID"] = os.environ.get("FIREBASE_APP_ID")
-print(os.environ.get("FIREBASE_API_KEY"))
-
-
 # Database configuration
 class Base(DeclarativeBase):
     pass
 
-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db")
+    "DATABASE_URL", "postgresql://inventory:password@localhost:5432/inventory_db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -45,6 +37,13 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
+
+# Mail configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
 
@@ -65,8 +64,7 @@ def get_setting_value(key, default=None):
     return setting.value if setting else default
 
 
-# Import auth service
-from auth_service import login_required, verify_firebase_token, create_or_update_user
+# Import auth service after models are imported
 
 
 # Template helper function
@@ -90,16 +88,18 @@ def inject_current_user():
     return dict(get_current_user=get_current_user)
 
 
+# Import models first
+from models import (
+    Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, 
+    FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, 
+    InstallmentPayment, OnDemandProduct, Account, JournalEntry, BankReconciliation
+)
+
+# Import auth service after models
+from auth_service import login_required
+
 # Initialize database tables
 with app.app_context():
-    # Import models to ensure they are registered with SQLAlchemy
-    try:
-        from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, InstallmentPayment, OnDemandProduct, Account, JournalEntry, BankReconciliation
-    except ImportError as e:
-        logger.warning(f"Some models not available: {e}")
-        # Import only essential models
-        from models import Item, User, Setting
-    import json
 
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production
@@ -222,36 +222,7 @@ with app.app_context():
         db.session.rollback()
 
 # Auth API Routes
-@app.route('/api/auth/login', methods=['POST'])
-def api_login():
-    """API endpoint for user login"""
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-
-        if not email or not password:
-            return jsonify({'error': 'Email and password are required'}), 400
-
-        user = User.query.filter_by(email=email).first()
-
-        if user and user.check_password(password):
-            #login_user(user, remember=data.get('remember', False)) # The function login_user not found.
-
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'username': user.username
-                }
-            }), 200
-        else:
-            return jsonify({'error': 'Invalid email or password'}), 401
-
-    except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
+# Remove duplicate route - it's defined later in the file
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def api_forgot_password():
@@ -2943,6 +2914,39 @@ def update_appearance_settings():
         return jsonify({"error": "Failed to update appearance settings"}), 500
 
 
+# Basic page routes
+@app.route('/')
+def index():
+    """Home page - redirect to login if not authenticated, otherwise show dashboard"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Get basic stats for dashboard
+    total_items = Item.query.count()
+    low_stock_items = Item.query.filter(Item.quantity <= 10).count()
+    
+    return render_template('index.html', 
+                         total_items=total_items,
+                         low_stock_items=low_stock_items)
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
+
+@app.route('/sales')
+@login_required  
+def sales():
+    """Sales page"""
+    return render_template('sales.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2951,15 +2955,36 @@ def login():
     if 'user_id' in session:
         return redirect(url_for('index'))
 
-    # Render login template
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
+    if request.method == 'POST':
+        # Handle form submission
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        
+        if not email or not password:
+            flash('Please fill in all fields', 'error')
+            return render_template('login.html')
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            if not user.is_active:
+                flash('Your account has been deactivated', 'error')
+                return render_template('login.html')
+            
+            # Create session
+            session['user_id'] = user.id
+            session['email'] = user.email
+            session['is_admin'] = user.is_admin
+            
+            # Update last login
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid email or password', 'error')
 
-    return render_template('login.html', firebase_config=firebase_config)
+    return render_template('login.html')
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -3009,15 +3034,6 @@ def api_login():
         # Update last login
         user.last_login = datetime.utcnow()
         db.session.commit()
-
-        # Load user theme preference
-        from models import Setting
-        theme_key = f"user_{user.id}_theme"
-        theme_setting = Setting.query.filter_by(key=theme_key).first()
-        if theme_setting:
-            session['user_theme'] = theme_setting.value
-        else:
-            session['user_theme'] = 'tanzanite'
 
         return jsonify({"success": True, "user": user.to_dict()})
 
