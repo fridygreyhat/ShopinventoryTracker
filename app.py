@@ -919,7 +919,8 @@ def get_on_demand_product_categories():
 
     # Query distinct categories
     categories = db.session.query(
-        func.coalesce(OnDemandProduct.category,
+        func.coalesce(```text
+OnDemandProduct.category,
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
@@ -1400,21 +1401,21 @@ def get_monthly_summaries():
         from models import FinancialTransaction
         from sqlalchemy import extract, func
         from datetime import datetime
-        
+
         year = request.args.get('year', datetime.now().year)
-        
+
         try:
             year = int(year)
         except ValueError:
             return jsonify({'error': 'Invalid year format'}), 400
-        
+
         # Query monthly summaries
         monthly_data = []
         months = [
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
         ]
-        
+
         for month_num in range(1, 13):
             # Get income for this month
             income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
@@ -1422,14 +1423,14 @@ def get_monthly_summaries():
                 extract('month', FinancialTransaction.date) == month_num,
                 FinancialTransaction.transaction_type == 'Income'
             ).scalar() or 0
-            
+
             # Get expenses for this month
             expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
                 extract('year', FinancialTransaction.date) == year,
                 extract('month', FinancialTransaction.date) == month_num,
                 FinancialTransaction.transaction_type == 'Expense'
             ).scalar() or 0
-            
+
             monthly_data.append({
                 'month': month_num,
                 'month_name': months[month_num - 1],
@@ -1437,12 +1438,265 @@ def get_monthly_summaries():
                 'expenses': float(expenses),
                 'profit': float(income - expenses)
             })
-        
+
         return jsonify({
             'year': year,
             'monthly_data': monthly_data
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting monthly summaries: {e}")
         return jsonify({'error': str(e)}), 500
+
+# Main routes
+@app.route('/')
+def index():
+    """Main index route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+
+            if not email or not password:
+                flash('Please enter both email and password', 'danger')
+                return render_template('login.html')
+
+            # Check user credentials
+            from models import User
+            user = User.query.filter_by(email=email).first()
+
+            if user and user.check_password(password):
+                # Create session
+                session['user_id'] = user.id
+                session['user_email'] = user.email
+                session['user_name'] = f"{user.first_name} {user.last_name}"
+
+                flash(f'Welcome back, {user.first_name}!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid email or password', 'danger')
+
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            flash('Login failed. Please try again.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard route"""
+    try:
+        from models import Item, Sale, FinancialTransaction
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+
+        # Get user's items
+        total_items = Item.query.count()
+
+        # Get recent sales (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_sales_total = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.created_at >= thirty_days_ago
+        ).scalar() or 0
+
+        # Get today's sales
+        today = datetime.utcnow().date()
+        today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
+            func.date(Sale.created_at) == today
+        ).scalar() or 0
+
+        # Get low stock items
+        low_stock_items = Item.query.filter(
+            Item.quantity <= 10
+        ).count()
+
+        # Recent transactions
+        recent_transactions = Sale.query.order_by(
+            Sale.created_at.desc()
+        ).limit(5).all()
+
+        return render_template('dashboard.html',
+                             total_items=total_items,
+                             recent_sales=recent_sales_total,
+                             today_sales=today_sales,
+                             low_stock_items=low_stock_items,
+                             recent_transactions=recent_transactions)
+
+    except Exception as e:
+        logger.error(f"Dashboard error: {str(e)}")
+        flash('Error loading dashboard', 'danger')
+        return render_template('dashboard.html',
+                             total_items=0,
+                             recent_sales=0,
+                             today_sales=0,
+                             low_stock_items=0,
+                             recent_transactions=[])
+
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory page route"""
+    return render_template('inventory.html')
+
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales page route"""
+    return render_template('sales.html')
+
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments page route"""
+    return render_template('installments.html')
+
+
+@app.route('/on-demand')
+@login_required
+def on_demand():
+    """On-demand products page route"""
+    return render_template('on_demand.html')
+
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories page route"""
+    return render_template('categories.html')
+
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page route"""
+    return render_template('reports.html')
+
+
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page route"""
+    return render_template('margin.html')
+
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page route"""
+    return render_template('settings.html')
+
+
+@app.route('/account')
+@login_required
+def account():
+    """Account page route"""
+    return render_template('account.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Registration route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            # Get form data
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+
+            # Validate form data
+            if not all([email, password, confirm_password, first_name, last_name]):
+                flash('All fields are required', 'danger')
+                return render_template('register.html')
+
+            if password != confirm_password:
+                flash('Passwords do not match', 'danger')
+                return render_template('register.html')
+
+            if len(password) < 6:
+                flash('Password must be at least 6 characters long', 'danger')
+                return render_template('register.html')
+
+            # Check if user already exists
+            from models import User
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                flash('Email already registered', 'danger')
+                return render_template('register.html')
+
+            # Create new user
+            new_user = User(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                is_active=True
+            )
+            new_user.set_password(password)
+
+            db.session.add(new_user)
+            db.session.commit()
+
+            # Create session
+            session['user_id'] = new_user.id
+            session['user_email'] = new_user.email
+            session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
+
+            flash('Registration successful! Welcome to your inventory system.', 'success')
+            return redirect(url_for('dashboard'))
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Registration error: {str(e)}")
+            flash('Registration failed. Please try again.', 'danger')
+
+    return render_template('register.html')
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    logger.error(f"404 error: {request.url}")
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"500 error: {str(error)}")
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle general exceptions"""
+    logger.error(f"Unhandled exception: {str(e)}")
+    # Pass through HTTP errors
+    if hasattr(e, 'code'):
+        return e
+    # Handle non-HTTP exceptions
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
