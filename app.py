@@ -1567,7 +1567,7 @@ def installments():
     return render_template('installments.html')
 
 
-@app.route('/on-demand')
+@app.route('/on_demand')
 @login_required
 def on_demand():
     """On-demand products page route"""
@@ -1579,6 +1579,21 @@ def on_demand():
 def categories():
     """Categories page route"""
     return render_template('categories.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting page"""
+    return render_template('accounting.html')
+
+@app.route('/admin_users')
+@login_required
+def admin_users():
+    """Admin users management page"""
+    if not session.get('user_id'):
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('admin_users.html')
 
 
 @app.route('/reports')
