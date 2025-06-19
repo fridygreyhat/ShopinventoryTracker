@@ -919,8 +919,7 @@ def get_on_demand_product_categories():
 
     # Query distinct categories
     categories = db.session.query(
-        func.coalesce(```text
-OnDemandProduct.category,
+        func.coalesce(OnDemandProduct.category,
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
@@ -1344,6 +1343,7 @@ def delete_transaction(transaction_id):
 
 @app.route('/api/finance/categories', methods=['GET'])
 def get_transaction_categories():
+    from models import FinancialTransaction
     try:
         # Get distinct categories from existing transactions
         categories = db.session.query(FinancialTransaction.category).distinct().all()
