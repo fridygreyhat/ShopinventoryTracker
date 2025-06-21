@@ -66,6 +66,12 @@ class Item(db.Model):
     unit_type = db.Column(db.String(20), default='quantity')
     sell_by = db.Column(db.String(20), default='quantity')
     category_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    stock_quantity = db.Column(db.Integer, default=0)
+    minimum_stock = db.Column(db.Integer, default=0)
+    retail_price = db.Column(db.Float, default=0.0)
+    wholesale_price = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -155,11 +161,13 @@ class Sale(db.Model):
     discount_value = db.Column(db.Float, default=0.0)
     discount_amount = db.Column(db.Float, default=0.0)
     total = db.Column(db.Float, default=0.0)
+    total_amount = db.Column(db.Float, default=0.0)
     payment_method = db.Column(db.String(20), default='cash')
     payment_details = db.Column(db.Text)
     payment_amount = db.Column(db.Float, default=0.0)
     change_amount = db.Column(db.Float, default=0.0)
     notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):

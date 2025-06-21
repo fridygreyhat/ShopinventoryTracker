@@ -184,6 +184,22 @@ with app.app_context():
             add_column_safely('item', 'sell_by',
                               "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
             add_column_safely('item', 'category_id', 'INTEGER')
+            add_column_safely('item', 'user_id', 'INTEGER')
+            add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT true', 'true')
+            add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', '0')
+            add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', '0')
+            add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', '0')
+            add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', '0')
+
+        # Check if sale table exists
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'sale' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            # Add missing sale columns
+            add_column_safely('sale', 'user_id', 'INTEGER')
+            add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
 
         # Initialize SMS notification settings if they don't exist
         try:
@@ -254,8 +270,15 @@ def get_inventory():
     """Get all inventory items with optional filtering"""
     from models import Item
 
-    # Start query
-    query = Item.query
+    # Get current user ID
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify([])
+
+    # Start query filtered by user
+    query = Item.query.filter(
+        db.or_(Item.user_id == current_user_id, Item.user_id.is_(None))
+    )
 
     # Optional filtering
     category = request.args.get('category')
@@ -323,16 +346,23 @@ def add_item():
         # Use retail price as default price for backward compatibility
         price = selling_price_retail
 
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        
         # Create new item
         new_item = Item(name=item_data["name"],
                         description=item_data.get("description", ""),
                         quantity=int(item_data["quantity"]),
+                        stock_quantity=int(item_data["quantity"]),
                         buying_price=buying_price,
                         selling_price_retail=selling_price_retail,
                         selling_price_wholesale=selling_price_wholesale,
+                        retail_price=selling_price_retail,
+                        wholesale_price=selling_price_wholesale,
                         price=price,
                         sales_type=item_data.get("sales_type", "both"),
                         category=item_data.get("category", "Uncategorized"),
+                        user_id=current_user_id,
                         sku=item_data.get(
                             "sku",
                             f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
@@ -1503,30 +1533,58 @@ def dashboard():
         from datetime import datetime, timedelta
         from sqlalchemy import func
 
-        # Get user's items
-        total_items = Item.query.count()
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return redirect(url_for('login'))
 
-        # Get recent sales (last 30 days)
+        # Get user's items
+        total_items = Item.query.filter(
+            db.or_(Item.user_id == current_user_id, Item.user_id.is_(None))
+        ).count()
+
+        # Get recent sales (last 30 days) - filter by user if user_id field exists
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        recent_sales_total = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.created_at >= thirty_days_ago
-        ).scalar() or 0
+        try:
+            recent_sales_total = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.created_at >= thirty_days_ago,
+                Sale.user_id == current_user_id
+            ).scalar() or 0
+        except:
+            # Fallback if Sale doesn't have user_id field yet
+            recent_sales_total = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.created_at >= thirty_days_ago
+            ).scalar() or 0
 
         # Get today's sales
         today = datetime.utcnow().date()
-        today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
-            func.date(Sale.created_at) == today
-        ).scalar() or 0
+        try:
+            today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
+                func.date(Sale.created_at) == today,
+                Sale.user_id == current_user_id
+            ).scalar() or 0
+        except:
+            # Fallback if Sale doesn't have user_id field yet
+            today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
+                func.date(Sale.created_at) == today
+            ).scalar() or 0
 
-        # Get low stock items
+        # Get low stock items for current user
         low_stock_items = Item.query.filter(
+            db.or_(Item.user_id == current_user_id, Item.user_id.is_(None)),
             Item.quantity <= 10
         ).count()
 
         # Recent transactions
-        recent_transactions = Sale.query.order_by(
-            Sale.created_at.desc()
-        ).limit(5).all()
+        try:
+            recent_transactions = Sale.query.filter(
+                Sale.user_id == current_user_id
+            ).order_by(Sale.created_at.desc()).limit(5).all()
+        except:
+            # Fallback if Sale doesn't have user_id field yet
+            recent_transactions = Sale.query.order_by(
+                Sale.created_at.desc()
+            ).limit(5).all()
 
         return render_template('dashboard.html',
                              total_items=total_items,
@@ -1622,6 +1680,33 @@ def settings():
 def account():
     """Account page route"""
     return render_template('account.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories page route"""
+    return render_template('categories.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page route"""
+    return render_template('reports.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page route"""
+    return render_template('on_demand.html')
+
+@app.route('/admin_users')
+@login_required
+def admin_users():
+    """Admin users management page"""
+    if not session.get('user_id'):
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('admin_users.html')
 
 
 @app.route('/register', methods=['GET', 'POST'])
