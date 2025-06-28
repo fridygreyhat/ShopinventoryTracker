@@ -613,9 +613,9 @@ def add_installment_payment():
     
     return redirect(url_for('manage_installments', sale_id=plan.sale_id))
 
-@app.route('/financial')
-@login_required
-def financial():
+@app.route('/finance')
+@login_required  
+def finance():
     page = request.args.get('page', 1, type=int)
     transaction_type = request.args.get('type', '')
     period = request.args.get('period', 'all')  # all, today, week, month, year
@@ -648,7 +648,7 @@ def financial():
     # Calculate comprehensive financial metrics
     financial_metrics = calculate_financial_metrics(current_user.id, date_filter, period)
     
-    return render_template('financial.html', 
+    return render_template('finance.html', 
                          transactions=transactions,
                          metrics=financial_metrics,
                          selected_type=transaction_type,

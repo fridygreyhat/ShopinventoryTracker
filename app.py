@@ -362,7 +362,7 @@ def api_create_session():
             session['user_id'] = user.id
             session['user_email'] = user.email
             session['user_name'] = f"{user.first_name} {user.last_name}"
-            
+
             if remember:
                 session.permanent = True
 
@@ -515,7 +515,7 @@ def add_item():
 
         # Get current user ID
         current_user_id = session.get('user_id')
-        
+
         # Create new item
         new_item = Item(name=item_data["name"],
                         description=item_data.get("description", ""),
@@ -1673,53 +1673,7 @@ def register():
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
-@app.route('/inventory')
-@login_required
-def inventory():
-    """Inventory management page"""
-    return render_template('inventory.html')
-
-@app.route('/sales')
-@login_required
-def sales():
-    """Sales management page"""
-    return render_template('sales.html')
-
-@app.route('/finance')
-@login_required
-def finance():
-    """Financial management page"""
-    return render_template('finance.html')
-
-@app.route('/installments')
-@login_required
-def installments():
-    """Installments management page"""
-    return render_template('installments.html')
-
-@app.route('/accounting')
-@login_required
-def accounting():
-    """Accounting page"""
-    return render_template('accounting.html')
-
-@app.route('/reports')
-@login_required
-def reports():
-    """Reports page"""
-    return render_template('reports.html')
-
-@app.route('/settings')
-@login_required
-def settings():
-    """Settings page"""
-    return render_template('settings.html')
-
-@app.route('/on_demand')
-@login_required
-def on_demand():
-    """On-demand products page"""
-    return render_template('on_demand.html')
+# Main page routes are defined in routes.py
 
 # Import routes module which contains all route definitions
 try:
