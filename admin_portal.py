@@ -7,6 +7,8 @@ import logging
 # Create admin blueprint
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
+logger = logging.getLogger(__name__)
+
 def admin_required(f):
     """Decorator to require admin access"""
     @wraps(f)
@@ -31,67 +33,72 @@ def admin_required(f):
 @admin_required
 def admin_dashboard():
     """Admin dashboard with system overview"""
-    from models import User, Item, Sale, Customer, FinancialTransaction, Category, db, Location, StockMovement, OnDemandProduct, OnDemandOrder
+    try:
+        from models import User, Item, Sale, Customer, FinancialTransaction, Category, db
+        
+        # Get date range for analytics
+        end_date = datetime.utcnow().date()
+        start_date = end_date - timedelta(days=30)
 
-    # Get date range for analytics
-    end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=30)
+        # System statistics
+        total_users = User.query.count()
+        active_users = User.query.filter_by(is_active=True).count()
+        admin_users = User.query.filter_by(is_admin=True).count()
 
-    # System statistics
-    total_users = User.query.count()
-    active_users = User.query.filter_by(is_active=True).count()
-    admin_users = User.query.filter_by(is_admin=True).count()
+        # Business metrics across all users
+        total_items = Item.query.filter_by(is_active=True).count()
+        total_customers = Customer.query.count() if hasattr(Customer, 'query') else 0
+        total_categories = Category.query.filter_by(is_active=True).count() if hasattr(Category, 'query') else 0
 
-    # Business metrics across all users
-    total_items = Item.query.filter_by(is_active=True).count()
-    total_customers = Customer.query.count()
-    total_locations = Location.query.count()
-    total_categories = Category.query.filter_by(is_active=True).count()
+        # Financial overview
+        total_sales_amount = db.session.query(func.sum(Sale.total_amount)).scalar() or 0
+        total_transactions = FinancialTransaction.query.count()
 
-    # Financial overview
-    total_sales_amount = db.session.query(func.sum(Sale.total_amount)).scalar() or 0
-    total_transactions = FinancialTransaction.query.count()
+        # Recent activity (last 30 days)
+        recent_sales = Sale.query.filter(Sale.created_at >= start_date).count()
+        recent_registrations = User.query.filter(User.created_at >= start_date).count()
 
-    # Recent activity (last 30 days)
-    recent_sales = Sale.query.filter(Sale.created_at >= start_date).count()
-    recent_registrations = User.query.filter(User.created_at >= start_date).count()
+        # Top performing users by sales (with error handling)
+        try:
+            top_users = db.session.query(
+                User.email,
+                func.count(Sale.id).label('sale_count'),
+                func.sum(Sale.total_amount).label('total_sales')
+            ).join(Sale, User.id == Sale.user_id, isouter=True)\
+             .group_by(User.id, User.email)\
+             .order_by(desc('total_sales'))\
+             .limit(10).all()
+        except Exception as e:
+            logger.warning(f"Error getting top users: {e}")
+            top_users = []
 
-    # Top performing users by sales
-    top_users = db.session.query(
-        User.email,
-        func.count(Sale.id).label('sale_count'),
-        func.sum(Sale.total_amount).label('total_sales')
-    ).join(Sale, User.id == Sale.user_id, isouter=True)\
-     .group_by(User.id, User.email)\
-     .order_by(desc('total_sales'))\
-     .limit(10).all()
+        # System health metrics
+        low_stock_items = Item.query.filter(Item.stock_quantity <= Item.minimum_stock).count()
 
-    # System health metrics
-    low_stock_items = Item.query.filter(Item.stock_quantity <= Item.minimum_stock).count()
-    pending_orders = OnDemandOrder.query.filter_by(status='pending').count()
+        # Recent system activity
+        recent_users = User.query.order_by(desc(User.created_at)).limit(5).all()
+        recent_sales_list = Sale.query.order_by(desc(Sale.created_at)).limit(10).all()
 
-    # Recent system activity
-    recent_users = User.query.order_by(desc(User.created_at)).limit(5).all()
-    recent_sales_list = Sale.query.order_by(desc(Sale.created_at)).limit(10).all()
-
-    return render_template('admin/dashboard.html',
-                         current_date=datetime.now(),
-                         total_users=total_users,
-                         active_users=active_users,
-                         admin_users=admin_users,
-                         total_items=total_items,
-                         total_customers=total_customers,
-                         total_locations=total_locations,
-                         total_categories=total_categories,
-                         total_sales_amount=total_sales_amount,
-                         total_transactions=total_transactions,
-                         recent_sales=recent_sales,
-                         recent_registrations=recent_registrations,
-                         top_users=top_users,
-                         low_stock_items=low_stock_items,
-                         pending_orders=pending_orders,
-                         recent_users=recent_users,
-                         recent_sales_list=recent_sales_list)
+        return render_template('admin/dashboard.html',
+                             current_date=datetime.now(),
+                             total_users=total_users,
+                             active_users=active_users,
+                             admin_users=admin_users,
+                             total_items=total_items,
+                             total_customers=total_customers,
+                             total_categories=total_categories,
+                             total_sales_amount=total_sales_amount,
+                             total_transactions=total_transactions,
+                             recent_sales=recent_sales,
+                             recent_registrations=recent_registrations,
+                             top_users=top_users,
+                             low_stock_items=low_stock_items,
+                             recent_users=recent_users,
+                             recent_sales_list=recent_sales_list)
+    except Exception as e:
+        logger.error(f"Error loading admin dashboard: {e}")
+        flash('Error loading admin dashboard', 'danger')
+        return redirect(url_for('dashboard'))
 
 @admin_bp.route('/users')
 @admin_required
