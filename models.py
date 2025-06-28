@@ -39,6 +39,11 @@ class User(db.Model):
         import hashlib
         return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
 
+    @property
+    def username(self):
+        """Return username or email as fallback"""
+        return self.username if self.username else self.email
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -192,7 +197,7 @@ class SaleItem(db.Model):
     product_sku = db.Column(db.String(50))
     price = db.Column(db.Float, default=0.0)
     quantity = db.Column(db.Integer, default=1)
-    total = db.Column(db.Float, default=0.0)
+    total = db.Column(db.Float,default=0.0)
 
     def to_dict(self):
         return {

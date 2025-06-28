@@ -143,9 +143,9 @@
                     </ul>
                 </div>
 
-                {% if session.get('user_id') %}
-                    {% set current_user = get_current_user() %}
-                    {% if current_user and current_user.is_admin %}
+                
+                {% set current_user = get_current_user() %}
+                {% if current_user and current_user.is_admin %}
                 <div class="nav-section">
                     <div class="nav-section-title">Administration</div>
                     <ul class="nav-menu">
@@ -163,8 +163,8 @@
                         </li>
                     </ul>
                 </div>
-                    {% endif %}
                 {% endif %}
+                
             </div>
 
             <!-- Sidebar Footer -->

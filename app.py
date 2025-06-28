@@ -88,15 +88,21 @@ def inject_current_user():
     return dict(get_current_user=get_current_user)
 
 
-# Import models first
+# Import models
 from models import (
-    Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, 
-    FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, 
-    InstallmentPayment, OnDemandProduct, Account, JournalEntry, BankReconciliation
+    User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
+    Category, Customer, OnDemandProduct
 )
 
 # Import auth service after models
 from auth_service import login_required
+
+# Import and register admin portal
+try:
+    from admin_portal import admin_bp
+    app.register_blueprint(admin_bp)
+except ImportError:
+    logger.warning("Admin portal not available")
 
 # Initialize database tables
 with app.app_context():
