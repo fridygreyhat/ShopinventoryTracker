@@ -34,6 +34,93 @@
                             <label for="first_name" class="form-label">
                                 <i class="fas fa-user"></i> First Name
                             </label>
+                            <input type="text" class="form-control" id="first_name" placeholder="Your first name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">
+                                <i class="fas fa-user"></i> Last Name
+                            </label>
+                            <input type="text" class="form-control" id="last_name" placeholder="Your last name" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" class="form-control" id="email" placeholder="your.email@example.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">
+                            <i class="fas fa-phone"></i> Phone Number (Optional)
+                        </label>
+                        <input type="tel" class="form-control" id="phone" placeholder="+255 XXX XXX XXX">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="shop_name" class="form-label">
+                            <i class="fas fa-store"></i> Shop/Business Name (Optional)
+                        </label>
+                        <input type="text" class="form-control" id="shop_name" placeholder="Your business name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="product_categories" class="form-label">
+                            <i class="fas fa-tags"></i> Product Categories (Optional)
+                        </label>
+                        <select class="form-select" id="product_categories" multiple>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing & Fashion</option>
+                            <option value="Food">Food & Beverages</option>
+                            <option value="Home">Home & Garden</option>
+                            <option value="Beauty">Beauty & Personal Care</option>
+                            <option value="Sports">Sports & Recreation</option>
+                            <option value="Books">Books & Stationery</option>
+                            <option value="Automotive">Automotive</option>
+                            <option value="Health">Health & Medical</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple categories</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock"></i> Password
+                            </label>
+                            <input type="password" class="form-control" id="password" placeholder="Create a strong password" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="confirm_password" class="form-label">
+                                <i class="fas fa-lock"></i> Confirm Password
+                            </label>
+                            <input type="password" class="form-control" id="confirm_password" placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary btn-lg" id="register-button">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">
+                                <i class="fas fa-user"></i> First Name
+                            </label>
                             <input type="text" class="form-control" id="first_name" placeholder="Enter your first name">
                         </div>
                         <div class="col-md-6 mb-3">

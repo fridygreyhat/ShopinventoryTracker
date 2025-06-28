@@ -295,12 +295,16 @@ def api_register():
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
+        username = data.get('username', '').strip()
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
+        shop_name = data.get('shop_name', '').strip()
+        phone = data.get('phone', '').strip()
+        product_categories = data.get('product_categories', '')
 
         # Validate required fields
-        if not all([email, password, first_name, last_name]):
-            return jsonify({'error': 'All fields are required'}), 400
+        if not all([email, password, username, first_name, last_name]):
+            return jsonify({'error': 'All required fields must be filled'}), 400
 
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
@@ -310,11 +314,20 @@ def api_register():
         if existing_user:
             return jsonify({'error': 'Email already registered'}), 400
 
+        # Check if username already exists
+        existing_username = User.query.filter_by(username=username).first()
+        if existing_username:
+            return jsonify({'error': 'Username already taken'}), 400
+
         # Create new user
         new_user = User(
+            username=username,
             email=email,
             first_name=first_name,
             last_name=last_name,
+            phone=phone if phone else None,
+            shop_name=shop_name if shop_name else None,
+            product_categories=product_categories if product_categories else None,
             is_active=True
         )
         new_user.set_password(password)
@@ -331,6 +344,7 @@ def api_register():
             'success': True,
             'user': {
                 'id': new_user.id,
+                'username': new_user.username,
                 'email': new_user.email,
                 'first_name': new_user.first_name,
                 'last_name': new_user.last_name
