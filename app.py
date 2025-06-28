@@ -238,7 +238,160 @@ with app.app_context():
         db.session.rollback()
 
 # Auth API Routes
-# Remove duplicate route - it's defined later in the file
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """API endpoint for user login"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+
+        # Check user credentials
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            # Create session
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['user_name'] = f"{user.first_name} {user.last_name}"
+
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid email or password'}), 401
+
+    except Exception as e:
+        logger.error(f"API login error: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """API endpoint for user registration"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+
+        # Validate required fields
+        if not all([email, password, first_name, last_name]):
+            return jsonify({'error': 'All fields are required'}), 400
+
+        if len(password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': 'Email already registered'}), 400
+
+        # Create new user
+        new_user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            is_active=True
+        )
+        new_user.set_password(password)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Create session
+        session['user_id'] = new_user.id
+        session['user_email'] = new_user.email
+        session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': new_user.id,
+                'email': new_user.email,
+                'first_name': new_user.first_name,
+                'last_name': new_user.last_name
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"API registration error: {str(e)}")
+        return jsonify({'error': 'Registration failed'}), 500
+
+@app.route('/api/auth/session', methods=['POST'])
+def api_create_session():
+    """API endpoint to create user session"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        remember = data.get('remember', False)
+
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+
+        # Check user credentials
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            # Create session
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['user_name'] = f"{user.first_name} {user.last_name}"
+            
+            if remember:
+                session.permanent = True
+
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+    except Exception as e:
+        logger.error(f"Session creation error: {str(e)}")
+        return jsonify({'error': 'Session creation failed'}), 500
+
+@app.route('/api/auth/profile', methods=['GET'])
+def api_get_profile():
+    """API endpoint to get user profile"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not authenticated'}), 401
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get profile error: {str(e)}")
+        return jsonify({'error': 'Failed to get profile'}), 500
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def api_forgot_password():
@@ -1632,12 +1785,6 @@ def on_demand():
     return render_template('on_demand.html')
 
 
-@app.route('/categories')
-@login_required
-def categories():
-    """Categories page route"""
-    return render_template('categories.html')
-
 @app.route('/accounting')
 @login_required
 def accounting():
@@ -1653,13 +1800,11 @@ def admin_users():
         return redirect(url_for('dashboard'))
     return render_template('admin_users.html')
 
-
 @app.route('/reports')
 @login_required
 def reports():
     """Reports page route"""
     return render_template('reports.html')
-
 
 @app.route('/margin')
 @login_required
@@ -1667,13 +1812,11 @@ def margin():
     """Margin analysis page route"""
     return render_template('margin.html')
 
-
 @app.route('/settings')
 @login_required
 def settings():
     """Settings page route"""
     return render_template('settings.html')
-
 
 @app.route('/account')
 @login_required
@@ -1686,27 +1829,6 @@ def account():
 def categories():
     """Categories page route"""
     return render_template('categories.html')
-
-@app.route('/reports')
-@login_required
-def reports():
-    """Reports page route"""
-    return render_template('reports.html')
-
-@app.route('/on_demand')
-@login_required
-def on_demand():
-    """On-demand products page route"""
-    return render_template('on_demand.html')
-
-@app.route('/admin_users')
-@login_required
-def admin_users():
-    """Admin users management page"""
-    if not session.get('user_id'):
-        flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-    return render_template('admin_users.html')
 
 
 @app.route('/register', methods=['GET', 'POST'])
