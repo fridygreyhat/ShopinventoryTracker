@@ -64,7 +64,18 @@ def get_setting_value(key, default=None):
 
 
 # Import auth service after models are imported
-
+try:
+    from auth_service import login_required
+except ImportError:
+    # Simple auth decorator if service not available
+    from functools import wraps
+    def login_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return decorated_function
 
 # Template helper function
 @app.context_processor
@@ -93,9 +104,6 @@ from models import (
     User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
     Category, Customer, OnDemandProduct
 )
-
-# Import auth service after models
-from auth_service import login_required
 
 # Import and register admin portal
 try:
@@ -1638,6 +1646,81 @@ def get_monthly_summaries():
         return jsonify({'error': str(e)}), 500
 
 # Main routes
+@app.route('/')
+def index():
+    """Main index route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard route for authenticated users"""
+    return render_template('index.html')
+
+@app.route('/login')
+def login():
+    """Login page route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/register')
+def register():
+    """Registration page route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('register.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales management page"""
+    return render_template('sales.html')
+
+@app.route('/finance')
+@login_required
+def finance():
+    """Financial management page"""
+    return render_template('finance.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments management page"""
+    return render_template('installments.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting page"""
+    return render_template('accounting.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page"""
+    return render_template('on_demand.html')
+
 # Import routes module which contains all route definitions
 try:
     from routes import *

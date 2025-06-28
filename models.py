@@ -39,10 +39,9 @@ class User(db.Model):
         import hashlib
         return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
 
-    @property
-    def username(self):
+    def get_username(self):
         """Return username or email as fallback"""
-        return self.username if self.username else self.email
+        return self.username if hasattr(self, 'username') and self.username else self.email
 
     def to_dict(self):
         return {
