@@ -73,7 +73,7 @@ class Item(db.Model):
     subcategory = db.Column(db.String(100))
     unit_type = db.Column(db.String(20), default='quantity')
     sell_by = db.Column(db.String(20), default='quantity')
-    category_id = db.Column(db.Integer)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     stock_quantity = db.Column(db.Integer, default=0)

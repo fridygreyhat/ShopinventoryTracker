@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (totalStockElement) totalStockElement.textContent = summary.total_stock.toLocaleString();
         if (lowStockCountElement) lowStockCountElement.textContent = summary.low_stock_count.toLocaleString();
         if (inventoryValueElement) inventoryValueElement.textContent = summary.inventory_value.toLocaleString();
-        
+
         // Update financial summary
         if (monthlyIncomeElement) monthlyIncomeElement.textContent = summary.monthly_income.toLocaleString();
         if (monthlyExpensesElement) monthlyExpensesElement.textContent = summary.monthly_expenses.toLocaleString();
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadDashboardData() {
         console.log('Loading dashboard data...');
         loadSalesPerformance();
-        
+
         // Load stock status report
         fetch('/api/reports/stock-status')
             .then(response => {
@@ -331,7 +331,7 @@ function loadDashboardData() {
 
     function updateDashboardSummary(data) {
         console.log('Updating dashboard summary with data:', data);
-        
+
         // Update summary cards with safe fallbacks
         if (totalItemsElement) {
             totalItemsElement.textContent = data.total_items || 0;
@@ -473,7 +473,7 @@ function loadDashboardData() {
         if (!financialSummaryChartElement) return;
 
         const ctx = financialSummaryChartElement.getContext('2d');
-        
+
         if (financialChart) {
             financialChart.destroy();
         }
@@ -1108,3 +1108,9 @@ function loadDashboardData() {
     // Additional function for manual refresh
     window.refreshDashboard = refreshDashboardData;
 });
+
+// Helper function to show errors
+function showError(message) {
+    console.error(message);
+    // You can add more error handling UI here if needed
+}
