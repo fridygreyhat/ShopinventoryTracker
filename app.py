@@ -45,7 +45,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
-
 # Helper function to get settings
 def get_setting_value(key, default=None):
     """
@@ -61,7 +60,6 @@ def get_setting_value(key, default=None):
     from models import Setting
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
-
 
 # Import auth service after models are imported
 try:
@@ -98,7 +96,6 @@ def inject_current_user():
 
     return dict(get_current_user=get_current_user)
 
-
 # Import models
 from models import (
     User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
@@ -122,12 +119,12 @@ with app.app_context():
         # First, create all tables
         db.create_all()
         logger.info("Database tables created successfully")
-        
+
         # Test database connection
         db.session.execute(db.text("SELECT 1"))
         db.session.commit()
         logger.info("Database connection test successful")
-        
+
     except Exception as e:
         logger.error(f"Database initialization error: {str(e)}")
         # Continue anyway - the app might still work
@@ -267,10 +264,10 @@ def api_login():
     """API endpoint for user login"""
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-            
+
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
 
@@ -283,10 +280,10 @@ def api_login():
         if user and user.check_password(password):
             if not user.is_active:
                 return jsonify({'error': 'Account is deactivated'}), 401
-                
+
             # Update last login
             user.last_login = datetime.utcnow()
-            
+
             # Create session
             session['user_id'] = user.id
             session['user_email'] = user.email
@@ -315,10 +312,10 @@ def api_register():
     """API endpoint for user registration"""
     try:
         data = request.get_json()
-        
+
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-            
+
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         username = data.get('username', '').strip()
@@ -544,7 +541,6 @@ def get_inventory():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
-
 @app.route('/api/inventory', methods=['POST'])
 def add_item():
     """API endpoint to add a new inventory item"""
@@ -662,7 +658,6 @@ def add_item():
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": "Failed to add item"}), 500
 
-
 @app.route('/api/inventory/<int:item_id>', methods=['GET'])
 def get_item(item_id):
     """API endpoint to get a specific inventory item"""
@@ -674,7 +669,6 @@ def get_item(item_id):
         return jsonify({"error": "Item not found"}), 404
 
     return jsonify(item.to_dict())
-
 
 @app.route('/api/inventory/<int:item_id>', methods=['PUT'])
 def update_item(item_id):
@@ -772,7 +766,6 @@ def update_item(item_id):
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": "Failed to update item"}), 500
 
-
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
     """API endpoint to delete an inventory item"""
@@ -798,7 +791,6 @@ def delete_item(item_id):
         db.session.rollback()
         logger.error(f"Error deleting item: {str(e)}")
         return jsonify({"error": "Failed to delete item"}), 500
-
 
 @app.route('/api/inventory/bulk-import', methods=['POST'])
 def bulk_import_inventory():
@@ -828,7 +820,6 @@ def bulk_import_inventory():
         logger.error(f"Bulk import failed: {str(e)}")
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
-
 @app.route('/api/inventory/csv-template', methods=['GET'])
 def get_csv_template():
     """API endpoint to get CSV template and format information"""
@@ -851,7 +842,6 @@ def get_csv_template():
         format_info = CSVTemplateGenerator.get_format_instructions()
         return jsonify(format_info)
 
-
 @app.route('/api/inventory/categories', methods=['GET'])
 def get_inventory_categories():
     """API endpoint to get all unique inventory categories"""
@@ -864,7 +854,6 @@ def get_inventory_categories():
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
-
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
@@ -908,11 +897,11 @@ def get_products():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
-
 @app.route('/api/reports/stock-status', methods=['GET'])
 def stock_status_report():
     """API endpoint to get stock status report"""
-    from models import Item
+    ```python
+from models import Item
     from sqlalchemy import func
 
     low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
@@ -947,7 +936,6 @@ def stock_status_report():
     }
 
     return jsonify(report)
-
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])
 def category_breakdown_report():
@@ -993,7 +981,6 @@ def category_breakdown_report():
 
     return jsonify(categories)
 
-
 @app.route('/api/export/csv', methods=['GET'])
 def export_csv():
     """API endpoint to export inventory as CSV"""
@@ -1029,7 +1016,6 @@ def export_csv():
         download_name=
         f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
 
-
 # On-Demand Products API endpoints
 @app.route('/api/on-demand', methods=['GET'])
 def get_on_demand_products():
@@ -1060,7 +1046,6 @@ def get_on_demand_products():
     # Execute query and convert to dictionary
     products = [product.to_dict() for product in query.all()]
     return jsonify(products)
-
 
 @app.route('/api/on-demand', methods=['POST'])
 def add_on_demand_product():
@@ -1098,7 +1083,6 @@ def add_on_demand_product():
         logger.error(f"Error adding on-demand product: {str(e)}")
         return jsonify({"error": "Failed to add on-demand product"}), 500
 
-
 @app.route('/api/on-demand/<int:product_id>', methods=['GET'])
 def get_on_demand_product(product_id):
     """API endpoint to get a specific on-demand product"""
@@ -1110,7 +1094,6 @@ def get_on_demand_product(product_id):
         return jsonify({"error": "Product not found"}), 404
 
     return jsonify(product.to_dict())
-
 
 @app.route('/api/on-demand/<int:product_id>', methods=['PUT'])
 def update_on_demand_product(product_id):
@@ -1139,7 +1122,6 @@ def update_on_demand_product(product_id):
         db.session.rollback()
         logger.error(f"Error updating on-demand product: {str(e)}")
         return jsonify({"error": "Failed to update on-demand product"}), 500
-
 
 @app.route('/api/on-demand/<int:product_id>', methods=['DELETE'])
 def delete_on_demand_product(product_id):
@@ -1170,7 +1152,6 @@ def delete_on_demand_product(product_id):
         logger.error(f"Error deleting on-demand product: {str(e)}")
         return jsonify({"error": "Failed to delete on-demand product"}), 500
 
-
 @app.route('/api/on-demand/categories', methods=['GET'])
 def get_on_demand_product_categories():
     """API endpoint to get all unique on-demand product categories"""
@@ -1183,7 +1164,6 @@ def get_on_demand_product_categories():
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
-
 
 # Settings API endpoints
 @app.route('/api/settings', methods=['GET'])
@@ -1215,7 +1195,6 @@ def get_settings():
 
     return jsonify(settings)
 
-
 @app.route('/api/settings/<string:key>', methods=['GET'])
 def get_setting(key):
     """API endpoint to get a specific setting"""
@@ -1227,7 +1206,6 @@ def get_setting(key):
         return jsonify({"error": "Setting not found"}), 404
 
     return jsonify(setting.to_dict())
-
 
 @app.route('/api/settings/get/user_theme', methods=['GET'])
 def get_user_theme():
@@ -1254,7 +1232,6 @@ def get_user_theme():
         'success': True,
         'value': 'tanzanite'  # Default theme
     })
-
 
 @app.route('/api/settings', methods=['POST'])
 def add_setting():
@@ -1300,7 +1277,6 @@ def add_setting():
         logger.error(f"Error adding/updating setting: {str(e)}")
         return jsonify({"error": "Failed to add/update setting"}), 500
 
-
 @app.route('/api/settings/<string:key>', methods=['PUT'])
 def update_setting(key):
     """API endpoint to update a setting"""
@@ -1330,7 +1306,6 @@ def update_setting(key):
         logger.error(f"Error updating setting: {str(e)}")
         return jsonify({"error": "Failed to update setting"}), 500
 
-
 @app.route('/api/settings/<string:key>', methods=['DELETE'])
 def delete_setting(key):
     """API endpoint to delete a setting"""
@@ -1359,7 +1334,6 @@ def delete_setting(key):
         logger.error(f"Error deleting setting: {str(e)}")
         return jsonify({"error": "Failed to delete setting"}), 500
 
-
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
@@ -1368,14 +1342,12 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('login'))
 
-
 # Financial Statement Routes
 @app.route('/finance')
 @login_required
 def finance():
     """Render the financial statement page"""
     return render_template('finance.html')
-
 
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
@@ -1453,7 +1425,6 @@ def get_transactions():
         }
     })
 
-
 @app.route('/api/finance/transactions', methods=['POST'])
 def add_transaction():
     """API endpoint to add a new financial transaction"""
@@ -1502,7 +1473,6 @@ def add_transaction():
         db.session.rollback()
         return jsonify({"error": f"Failed to add transaction: {str(e)}"}), 500
 
-
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['GET'])
 def get_transaction(transaction_id):
     """API endpoint to get a specific financial transaction"""
@@ -1513,7 +1483,6 @@ def get_transaction(transaction_id):
         return jsonify({"error": "Transaction not found"}), 404
 
     return jsonify(transaction.to_dict())
-
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
 def update_transaction(transaction_id):
@@ -1569,7 +1538,6 @@ def update_transaction(transaction_id):
         db.session.rollback()
         return jsonify({"error":
                         f"Failed to update transaction: {str(e)}"}), 500
-
 
 @app.route('/api/finance/transactions/<int:transaction_id>',
            methods=['DELETE'])
@@ -1708,6 +1676,159 @@ def get_monthly_summaries():
         logger.error(f"Error getting monthly summaries: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Additional imports for enhanced functionality
+import uuid
+from werkzeug.utils import secure_filename
+from datetime import date
+from services.predictive_analytics import PredictiveAnalyticsService
+from services.smart_inventory import SmartInventoryService
+
+# ===== PREDICTIVE ANALYTICS API ROUTES =====
+
+@app.route('/api/analytics/demand-forecast', methods=['GET'])
+def demand_forecast():
+    """Get demand forecast for items"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+        days_ahead = request.args.get('days_ahead', default=30, type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.demand_forecasting(item_id, days_ahead)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in demand forecast: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/seasonal-trends', methods=['GET'])
+def seasonal_trends():
+    """Get seasonal trend analysis"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.seasonal_trend_analysis(item_id)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in seasonal trends: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/price-optimization', methods=['GET'])
+def price_optimization():
+    """Get price optimization recommendations"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.price_optimization_recommendations(item_id)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in price optimization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/customer-behavior', methods=['GET'])
+def customer_behavior():
+    """Get customer behavior analytics"""
+    try:
+        user_id = session.get('user_id')
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.customer_behavior_analytics()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in customer behavior analytics: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ===== SMART INVENTORY API ROUTES =====
+
+@app.route('/api/smart-inventory/auto-reorder', methods=['GET', 'POST'])
+def auto_reorder():
+    """Auto reorder system"""
+    try:
+        user_id = session.get('user_id')
+        supplier_integration = request.args.get('supplier_integration', 'false').lower() == 'true'
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.auto_reorder_system(supplier_integration)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in auto reorder: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/dynamic-pricing', methods=['GET'])
+def dynamic_pricing():
+    """Dynamic pricing engine"""
+    try:
+        user_id = session.get('user_id')
+        market_data = request.json if request.method == 'POST' else None
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.dynamic_pricing_engine(market_data)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in dynamic pricing: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/expiry-tracking', methods=['GET'])
+def expiry_tracking():
+    """Expiry date tracking for perishable goods"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.expiry_date_tracking()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in expiry tracking: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/abc-analysis', methods=['GET'])
+def abc_analysis():
+    """ABC analysis for inventory categorization"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.abc_analysis()
+
+        return jsonify(result)
+
+    except```python
+ Exception as e:
+        logger.error(f"Error in ABC analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/health-score', methods=['GET'])
+def inventory_health_score():
+    """Get inventory health score"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.inventory_health_score()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error calculating health score: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 # Main routes
 @app.route('/')
 def index():
@@ -1751,14 +1872,12 @@ def not_found_error(error):
     logger.error(f"404 error: {request.url}")
     return render_template('404.html'), 404
 
-
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"500 error: {str(error)}")
     db.session.rollback()
     return render_template('500.html'), 500
-
 
 @app.errorhandler(Exception)
 def handle_exception(e):
