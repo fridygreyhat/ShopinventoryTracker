@@ -71,7 +71,10 @@ except ImportError:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
-                return redirect(url_for('login'))
+                try:
+                    return redirect(url_for('login'))
+                except:
+                    return redirect('/login')
             return f(*args, **kwargs)
         return decorated_function
 
@@ -2440,6 +2443,75 @@ def dashboard():
     """Dashboard route for authenticated users"""
     return render_template('index.html')
 
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales management page"""
+    return render_template('sales.html')
+
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting dashboard page"""
+    return render_template('accounting.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments management page"""
+    return render_template('installments.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page"""
+    return render_template('on_demand.html')
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """Admin users management page"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(user_id)
+    if not user or not user.is_admin:
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('admin_users.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
 @app.route('/security-management')
 @login_required
 def security_management():
@@ -2460,11 +2532,11 @@ def register():
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
-# Main page routes are defined in routes.py
-
-# Import routes module which contains all route definitions
+# Import routes module which contains additional route definitions
+# Note: Main routes are defined above to ensure they're available
 try:
-    from routes import *
+    # Only import specific functions to avoid conflicts
+    pass  # Routes are now defined directly in app.py
 except ImportError:
     logger.warning("Routes module not found, using basic route definitions")
 
@@ -2485,16 +2557,33 @@ def internal_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle general exceptions"""
-    logger.error(f"Unhandled exception: {str(e)}")
     # Pass through HTTP errors
     if hasattr(e, 'code'):
         return e
-    # Handle BuildError for missing routes
+    
+    # Handle BuildError for missing routes more gracefully
     if 'Could not build url for endpoint' in str(e):
-        logger.error(f"Missing route endpoint: {str(e)}")
-        return redirect(url_for('dashboard'))
-    # Handle non-HTTP exceptions
-    db.session.rollback()
+        # Only log once per unique error to avoid spam
+        error_msg = str(e)
+        if not hasattr(app, '_logged_build_errors'):
+            app._logged_build_errors = set()
+        
+        if error_msg not in app._logged_build_errors:
+            logger.error(f"Missing route endpoint: {error_msg}")
+            app._logged_build_errors.add(error_msg)
+        
+        # Try to redirect to dashboard instead of showing error
+        try:
+            return redirect(url_for('dashboard'))
+        except:
+            return "Application Error - Please check route configuration", 500
+    
+    # Handle other exceptions
+    logger.error(f"Unhandled exception: {str(e)}")
+    try:
+        db.session.rollback()
+    except:
+        pass
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
