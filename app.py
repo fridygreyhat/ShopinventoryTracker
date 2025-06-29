@@ -1347,6 +1347,12 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('login'))
 
+@app.route('/account')
+@login_required
+def account():
+    """User account management page"""
+    return render_template('account.html')
+
 # Financial Statement Routes
 @app.route('/finance')
 @login_required
@@ -2483,6 +2489,10 @@ def handle_exception(e):
     # Pass through HTTP errors
     if hasattr(e, 'code'):
         return e
+    # Handle BuildError for missing routes
+    if 'Could not build url for endpoint' in str(e):
+        logger.error(f"Missing route endpoint: {str(e)}")
+        return redirect(url_for('dashboard'))
     # Handle non-HTTP exceptions
     db.session.rollback()
     return render_template('500.html'), 500
