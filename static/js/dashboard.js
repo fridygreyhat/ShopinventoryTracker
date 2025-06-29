@@ -103,6 +103,66 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOnDemandProducts();
     loadFinancialSummary();
 
+    function loadDashboardData() {
+        fetch('/api/dashboard/summary')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateDashboardSummary(data.summary);
+                    updateLowStockTable(data.low_stock_items);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading dashboard data:', error);
+                // Set default values on error
+                if (totalItemsElement) totalItemsElement.textContent = '0';
+                if (totalStockElement) totalStockElement.textContent = '0';
+                if (lowStockCountElement) lowStockCountElement.textContent = '0';
+                if (inventoryValueElement) inventoryValueElement.textContent = '0';
+            });
+    }
+
+    function updateDashboardSummary(summary) {
+        if (totalItemsElement) totalItemsElement.textContent = summary.total_items.toLocaleString();
+        if (totalStockElement) totalStockElement.textContent = summary.total_stock.toLocaleString();
+        if (lowStockCountElement) lowStockCountElement.textContent = summary.low_stock_count.toLocaleString();
+        if (inventoryValueElement) inventoryValueElement.textContent = summary.inventory_value.toLocaleString();
+        
+        // Update financial summary
+        if (monthlyIncomeElement) monthlyIncomeElement.textContent = summary.monthly_income.toLocaleString();
+        if (monthlyExpensesElement) monthlyExpensesElement.textContent = summary.monthly_expenses.toLocaleString();
+        if (monthlyProfitElement) monthlyProfitElement.textContent = summary.monthly_profit.toLocaleString();
+    }
+
+    function updateLowStockTable(lowStockItems) {
+        if (!lowStockTableElement) return;
+
+        if (lowStockItems.length === 0) {
+            lowStockTableElement.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No low stock items</td></tr>';
+            return;
+        }
+
+        const tableRows = lowStockItems.map(item => `
+            <tr>
+                <td>${item.name}</td>
+                <td>${item.sku || 'N/A'}</td>
+                <td>${item.category}</td>
+                <td>
+                    <span class="badge bg-warning">${item.stock_quantity}</span>
+                    <small class="text-muted">/ ${item.minimum_stock} min</small>
+                </td>
+                <td><span class="currency-symbol">TZS</span> ${item.retail_price.toLocaleString()}</td>
+                <td>
+                    <a href="/inventory" class="btn btn-sm btn-primary">
+                        <i class="fas fa-edit"></i> Restock
+                    </a>
+                </td>
+            </tr>
+        `).join('');
+
+        lowStockTableElement.innerHTML = tableRows;
+    }
+
     // Calculate inventory health based on quantity
     function calculateInventoryHealth(quantity) {
         if (quantity <= 0) {
@@ -387,6 +447,92 @@ function loadDashboardData() {
         if (healthDonutChart) {
             healthDonutChart.destroy();
         }
+    }
+
+    function loadOnDemandProducts() {
+        // Mock function for now
+        if (onDemandProductsTableElement) {
+            onDemandProductsTableElement.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No on-demand products configured</td></tr>';
+        }
+    }
+
+    function loadFinancialSummary() {
+        fetch('/api/finance/summaries/monthly')
+            .then(response => response.json())
+            .then(data => {
+                if (data.monthly_data && financialSummaryChartElement) {
+                    createFinancialChart(data.monthly_data);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading financial summary:', error);
+            });
+    }
+
+    function createFinancialChart(monthlyData) {
+        if (!financialSummaryChartElement) return;
+
+        const ctx = financialSummaryChartElement.getContext('2d');
+        
+        if (financialChart) {
+            financialChart.destroy();
+        }
+
+        const labels = monthlyData.map(item => item.month_name);
+        const incomeData = monthlyData.map(item => item.income);
+        const expenseData = monthlyData.map(item => item.expenses);
+        const profitData = monthlyData.map(item => item.profit);
+
+        financialChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Profit',
+                        data: profitData,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'TZS ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
 
         healthDonutChart = new Chart(ctx, {
             type: 'doughnut',

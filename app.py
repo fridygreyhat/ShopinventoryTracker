@@ -1697,6 +1697,343 @@ from datetime import date
 from services.predictive_analytics import PredictiveAnalyticsService
 from services.smart_inventory import SmartInventoryService
 
+# ===== CATEGORIES API ROUTES =====
+
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def get_categories_api():
+    """Get all categories for current user"""
+    try:
+        from models import Category
+        user_id = session.get('user_id')
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        
+        categories_data = []
+        for category in categories:
+            categories_data.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'parent_id': category.parent_id,
+                'sort_order': category.sort_order,
+                'is_active': category.is_active,
+                'created_at': category.created_at.isoformat() if category.created_at else None
+            })
+        
+        return jsonify({'success': True, 'categories': categories_data})
+    except Exception as e:
+        logger.error(f"Error getting categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+@login_required
+def create_category_api():
+    """Create a new category"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from models import Category, db
+        
+        category = Category(
+            name=data['name'],
+            description=data.get('description'),
+            parent_id=data.get('parent_id'),
+            sort_order=data.get('sort_order', 0),
+            user_id=user_id,
+            is_active=True
+        )
+        
+        db.session.add(category)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'category_id': category.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== ACCOUNTING API ROUTES =====
+
+@app.route('/api/accounting/chart-of-accounts', methods=['GET'])
+@login_required
+def get_chart_of_accounts_api():
+    """Get chart of accounts"""
+    try:
+        user_id = session.get('user_id')
+        from models import ChartOfAccounts
+        
+        accounts = ChartOfAccounts.query.filter_by(user_id=user_id, is_active=True).order_by(ChartOfAccounts.account_code).all()
+        
+        accounts_data = []
+        for account in accounts:
+            accounts_data.append({
+                'id': account.id,
+                'account_code': account.account_code,
+                'account_name': account.account_name,
+                'account_type': account.account_type,
+                'parent_account_id': account.parent_account_id,
+                'balance': float(account.balance) if account.balance else 0.0,
+                'is_active': account.is_active
+            })
+        
+        return jsonify({'success': True, 'accounts': accounts_data})
+    except Exception as e:
+        logger.error(f"Error getting chart of accounts: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/journal-entries', methods=['GET'])
+@login_required
+def get_journal_entries_api():
+    """Get journal entries"""
+    try:
+        user_id = session.get('user_id')
+        from models import Journal
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        journals = Journal.query.filter_by(user_id=user_id).order_by(Journal.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        journals_data = []
+        for journal in journals.items:
+            journals_data.append({
+                'id': journal.id,
+                'journal_number': journal.journal_number,
+                'description': journal.description,
+                'total_debit': float(journal.total_debit) if journal.total_debit else 0.0,
+                'total_credit': float(journal.total_credit) if journal.total_credit else 0.0,
+                'created_at': journal.created_at.isoformat() if journal.created_at else None
+            })
+        
+        return jsonify({
+            'success': True, 
+            'journals': journals_data,
+            'pagination': {
+                'page': page,
+                'pages': journals.pages,
+                'per_page': per_page,
+                'total': journals.total
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting journal entries: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/balance-sheet', methods=['GET'])
+@login_required
+def get_balance_sheet_api():
+    """Get balance sheet data"""
+    try:
+        user_id = session.get('user_id')
+        as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Mock balance sheet data for now
+        balance_sheet_data = {
+            'as_of_date': as_of_date,
+            'assets': {
+                'current_assets': {
+                    'cash': 50000.0,
+                    'accounts_receivable': 25000.0,
+                    'inventory': 75000.0,
+                    'total': 150000.0
+                },
+                'fixed_assets': {
+                    'equipment': 100000.0,
+                    'accumulated_depreciation': -20000.0,
+                    'total': 80000.0
+                },
+                'total_assets': 230000.0
+            },
+            'liabilities': {
+                'current_liabilities': {
+                    'accounts_payable': 30000.0,
+                    'short_term_debt': 20000.0,
+                    'total': 50000.0
+                },
+                'long_term_liabilities': {
+                    'long_term_debt': 80000.0,
+                    'total': 80000.0
+                },
+                'total_liabilities': 130000.0
+            },
+            'equity': {
+                'owners_equity': 100000.0,
+                'total_equity': 100000.0
+            }
+        }
+        
+        return jsonify({'success': True, 'balance_sheet': balance_sheet_data})
+    except Exception as e:
+        logger.error(f"Error getting balance sheet: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/trial-balance', methods=['GET'])
+@login_required
+def get_trial_balance_api():
+    """Get trial balance data"""
+    try:
+        user_id = session.get('user_id')
+        as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Mock trial balance data
+        trial_balance_data = {
+            'as_of_date': as_of_date,
+            'accounts': [
+                {'account_name': 'Cash', 'debit': 50000.0, 'credit': 0.0},
+                {'account_name': 'Accounts Receivable', 'debit': 25000.0, 'credit': 0.0},
+                {'account_name': 'Inventory', 'debit': 75000.0, 'credit': 0.0},
+                {'account_name': 'Equipment', 'debit': 100000.0, 'credit': 0.0},
+                {'account_name': 'Accounts Payable', 'debit': 0.0, 'credit': 30000.0},
+                {'account_name': 'Long-term Debt', 'debit': 0.0, 'credit': 80000.0},
+                {'account_name': 'Owners Equity', 'debit': 0.0, 'credit': 100000.0},
+                {'account_name': 'Sales Revenue', 'debit': 0.0, 'credit': 40000.0}
+            ],
+            'total_debits': 250000.0,
+            'total_credits': 250000.0,
+            'is_balanced': True
+        }
+        
+        return jsonify({'success': True, 'trial_balance': trial_balance_data})
+    except Exception as e:
+        logger.error(f"Error getting trial balance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== INSTALLMENTS API ROUTES =====
+
+@app.route('/api/installment-sales/dashboard', methods=['GET'])
+@login_required
+def get_installment_dashboard():
+    """Get installment sales dashboard data"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Mock installment data
+        dashboard_data = {
+            'total_installment_sales': 150000.0,
+            'active_plans': 25,
+            'completed_plans': 15,
+            'overdue_payments': 3,
+            'total_outstanding': 45000.0,
+            'this_month_collections': 8500.0,
+            'upcoming_payments': [
+                {'customer_name': 'John Doe', 'amount': 1500.0, 'due_date': '2024-02-15'},
+                {'customer_name': 'Jane Smith', 'amount': 2000.0, 'due_date': '2024-02-20'},
+                {'customer_name': 'Bob Johnson', 'amount': 1200.0, 'due_date': '2024-02-25'}
+            ]
+        }
+        
+        return jsonify({'success': True, 'dashboard': dashboard_data})
+    except Exception as e:
+        logger.error(f"Error getting installment dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installment-sales', methods=['GET'])
+@login_required
+def get_installment_sales():
+    """Get installment sales"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Mock installment sales data
+        installment_sales = [
+            {
+                'id': 1,
+                'customer_name': 'John Doe',
+                'product_name': 'Laptop Computer',
+                'total_amount': 15000.0,
+                'down_payment': 3000.0,
+                'remaining_amount': 12000.0,
+                'monthly_payment': 2000.0,
+                'payments_made': 3,
+                'payments_remaining': 3,
+                'status': 'active',
+                'next_due_date': '2024-02-15'
+            },
+            {
+                'id': 2,
+                'customer_name': 'Jane Smith',
+                'product_name': 'Smartphone',
+                'total_amount': 8000.0,
+                'down_payment': 2000.0,
+                'remaining_amount': 6000.0,
+                'monthly_payment': 1500.0,
+                'payments_made': 2,
+                'payments_remaining': 2,
+                'status': 'active',
+                'next_due_date': '2024-02-20'
+            }
+        ]
+        
+        return jsonify({'success': True, 'installment_sales': installment_sales})
+    except Exception as e:
+        logger.error(f"Error getting installment sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== CUSTOMERS API ROUTES =====
+
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers_api():
+    """Get all customers for current user"""
+    try:
+        user_id = session.get('user_id')
+        from models import Customer
+        
+        customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
+        
+        customers_data = []
+        for customer in customers:
+            customers_data.append({
+                'id': customer.id,
+                'name': customer.name,
+                'email': customer.email,
+                'phone': customer.phone,
+                'address': customer.address,
+                'customer_type': customer.customer_type,
+                'credit_limit': float(customer.credit_limit) if customer.credit_limit else 0.0,
+                'loyalty_points': customer.loyalty_points,
+                'preferred_payment_method': customer.preferred_payment_method,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            })
+        
+        return jsonify({'success': True, 'customers': customers_data})
+    except Exception as e:
+        logger.error(f"Error getting customers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customers', methods=['POST'])
+@login_required
+def create_customer_api():
+    """Create a new customer"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from models import Customer, db
+        
+        customer = Customer(
+            name=data['name'],
+            email=data.get('email'),
+            phone=data.get('phone'),
+            address=data.get('address'),
+            customer_type=data.get('customer_type', 'retail'),
+            credit_limit=data.get('credit_limit', 0.0),
+            preferred_payment_method=data.get('preferred_payment_method'),
+            user_id=user_id
+        )
+        
+        db.session.add(customer)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'customer_id': customer.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating customer: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ===== PREDICTIVE ANALYTICS API ROUTES =====
 
 @app.route('/api/analytics/demand-forecast', methods=['GET'])
@@ -2370,6 +2707,89 @@ def sync_store_catalog(store_id):
         logger.error(f"Error syncing catalog: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# ===== DASHBOARD API ROUTES =====
+
+@app.route('/api/dashboard/summary', methods=['GET'])
+@login_required
+def get_dashboard_summary():
+    """Get dashboard summary data"""
+    try:
+        user_id = session.get('user_id')
+        from models import Item, Sale, Customer, FinancialTransaction
+        from sqlalchemy import func
+        
+        # Get basic counts
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        total_customers = Customer.query.filter_by(user_id=user_id).count()
+        
+        # Get stock information
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        total_stock = sum(item.stock_quantity or 0 for item in items)
+        low_stock_items = [item for item in items if (item.stock_quantity or 0) <= (item.minimum_stock or 0)]
+        
+        # Calculate inventory value
+        inventory_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
+        
+        # Get recent sales
+        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(10).all()
+        
+        # Financial summary for current month
+        today = datetime.now()
+        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        monthly_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'Income',
+            FinancialTransaction.created_at >= start_of_month
+        ).scalar() or 0
+        
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'Expense',
+            FinancialTransaction.created_at >= start_of_month
+        ).scalar() or 0
+        
+        monthly_profit = monthly_income - monthly_expenses
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_items': total_items,
+                'total_stock': total_stock,
+                'low_stock_count': len(low_stock_items),
+                'inventory_value': float(inventory_value),
+                'total_customers': total_customers,
+                'monthly_income': float(monthly_income),
+                'monthly_expenses': float(monthly_expenses),
+                'monthly_profit': float(monthly_profit)
+            },
+            'low_stock_items': [
+                {
+                    'id': item.id,
+                    'name': item.name,
+                    'sku': item.sku,
+                    'category': item.category.name if item.category else 'Uncategorized',
+                    'stock_quantity': item.stock_quantity or 0,
+                    'minimum_stock': item.minimum_stock or 0,
+                    'retail_price': float(item.retail_price or 0)
+                } for item in low_stock_items[:10]
+            ],
+            'recent_sales': [
+                {
+                    'id': sale.id,
+                    'sale_number': sale.sale_number,
+                    'total_amount': float(sale.total_amount or 0),
+                    'payment_type': sale.payment_type,
+                    'payment_status': sale.payment_status,
+                    'created_at': sale.created_at.isoformat() if sale.created_at else None,
+                    'customer_name': sale.customer.name if sale.customer else 'Walk-in Customer'
+                } for sale in recent_sales
+            ]
+        })
+    except Exception as e:
+        logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ===== BUSINESS INTELLIGENCE API ROUTES =====
 
 @app.route('/api/bi/kpis')
@@ -2441,13 +2861,45 @@ def index():
 @login_required
 def dashboard():
     """Dashboard route for authenticated users"""
-    return render_template('index.html')
+    try:
+        user_id = session.get('user_id')
+        from models import User
+        user = User.query.get(user_id)
+        
+        # Get basic dashboard data
+        from models import Item, Sale
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(5).all()
+        
+        # Calculate total inventory value
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        total_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
+        
+        return render_template('index.html', 
+                             user=user,
+                             total_items=total_items,
+                             total_value=total_value,
+                             recent_sales=recent_sales)
+    except Exception as e:
+        logger.error(f"Error loading dashboard: {str(e)}")
+        return render_template('index.html')
 
 @app.route('/inventory')
 @login_required
 def inventory():
     """Inventory management page"""
-    return render_template('inventory.html')
+    try:
+        user_id = session.get('user_id')
+        from models import Item, Category
+        
+        # Get items and categories for the user
+        items = Item.query.filter_by(user_id=user_id, is_active=True).order_by(Item.name).all()
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        
+        return render_template('inventory.html', items=items, categories=categories)
+    except Exception as e:
+        logger.error(f"Error loading inventory: {str(e)}")
+        return render_template('inventory.html', items=[], categories=[])
 
 @app.route('/categories')
 @login_required
