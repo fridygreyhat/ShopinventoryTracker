@@ -34,6 +34,93 @@
                             <label for="first_name" class="form-label">
                                 <i class="fas fa-user"></i> First Name
                             </label>
+                            <input type="text" class="form-control" id="first_name" placeholder="Your first name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">
+                                <i class="fas fa-user"></i> Last Name
+                            </label>
+                            <input type="text" class="form-control" id="last_name" placeholder="Your last name" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" class="form-control" id="email" placeholder="your.email@example.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">
+                            <i class="fas fa-phone"></i> Phone Number (Optional)
+                        </label>
+                        <input type="tel" class="form-control" id="phone" placeholder="+255 XXX XXX XXX">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="shop_name" class="form-label">
+                            <i class="fas fa-store"></i> Shop/Business Name (Optional)
+                        </label>
+                        <input type="text" class="form-control" id="shop_name" placeholder="Your business name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="product_categories" class="form-label">
+                            <i class="fas fa-tags"></i> Product Categories (Optional)
+                        </label>
+                        <select class="form-select" id="product_categories" multiple>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Clothing">Clothing & Fashion</option>
+                            <option value="Food">Food & Beverages</option>
+                            <option value="Home">Home & Garden</option>
+                            <option value="Beauty">Beauty & Personal Care</option>
+                            <option value="Sports">Sports & Recreation</option>
+                            <option value="Books">Books & Stationery</option>
+                            <option value="Automotive">Automotive</option>
+                            <option value="Health">Health & Medical</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple categories</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock"></i> Password
+                            </label>
+                            <input type="password" class="form-control" id="password" placeholder="Create a strong password" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="confirm_password" class="form-label">
+                                <i class="fas fa-lock"></i> Confirm Password
+                            </label>
+                            <input type="password" class="form-control" id="confirm_password" placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary btn-lg" id="register-button">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">
+                                <i class="fas fa-user"></i> First Name
+                            </label>
                             <input type="text" class="form-control" id="first_name" placeholder="Enter your first name">
                         </div>
                         <div class="col-md-6 mb-3">
@@ -119,28 +206,7 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Firebase SDK -->
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-
-<script type="module">
-    // Import Firebase modules and our authentication module
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { registerWithEmailPassword, createSession } from "{{ url_for('static', filename='js/firebase-auth.js') }}";
-
-    // Firebase configuration from server
-    const firebaseConfig = {
-        apiKey: "{{ firebase_config.apiKey }}",
-        projectId: "{{ firebase_config.projectId }}",
-        appId: "{{ firebase_config.appId }}",
-        authDomain: "{{ firebase_config.authDomain }}",
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
+<script>
     // Elements
     const registerButton = document.getElementById('register-button');
     const emailInput = document.getElementById('email');
@@ -152,8 +218,7 @@
     const shopNameInput = document.getElementById('shop_name');
     const productCategoriesSelect = document.getElementById('product_categories');
     const errorDiv = document.getElementById('auth-error');
-    const phoneInput = document.getElementById('phone');  // Get the phone input element
-
+    const phoneInput = document.getElementById('phone');
 
     // Register button click handler
     registerButton.addEventListener('click', async () => {
@@ -162,11 +227,10 @@
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
         const username = usernameInput.value.trim();
-        const phone = phoneInput.value.trim();  // Get the phone number
-
+        const phone = phoneInput.value.trim();
 
         // Validate form
-        if (!email || !password || !confirmPassword || !username || !phone) {
+        if (!email || !password || !confirmPassword || !username) {
             showError('Please fill in all required fields.');
             return;
         }
@@ -189,60 +253,40 @@
             // Get selected product categories
             const selectedCategories = Array.from(productCategoriesSelect.selectedOptions).map(option => option.value);
 
-            // User data to send to server
-            const userData = {
-                username: username,
-                firstName: firstNameInput.value.trim(),
-                lastName: lastNameInput.value.trim(),
-                shopName: shopNameInput.value.trim(),
-                productCategories: selectedCategories.join(','),
-                phone: phone
-            };
+            // Register with PostgreSQL backend
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    username: username,
+                    first_name: firstNameInput.value.trim(),
+                    last_name: lastNameInput.value.trim(),
+                    shop_name: shopNameInput.value.trim(),
+                    product_categories: selectedCategories.join(','),
+                    phone: phone
+                })
+            });
 
-            // Create user with Firebase and register with server using our helper function
-            console.log('Registering with Firebase and server...');
-            const { userCredential, serverData } = await registerWithEmailPassword(auth, email, password, userData);
-            console.log('Registration successful:', serverData);
+            const result = await response.json();
 
-            // Get the token for creating a session
-            console.log('Getting Firebase ID token...');
-            const token = await userCredential.user.getIdToken();
-            console.log('Token received, length:', token ? token.length : 0);
-
-            // Create a session with the server
-            console.log('Creating session with server...');
-            try {
-                const sessionResult = await createSession(token, true);
-                console.log('Session created successfully:', sessionResult);
-
-                // If we got here, registration and session creation were successful - redirect to dashboard
-                console.log('Redirecting to dashboard...');
+            if (response.ok && result.success) {
+                // Registration successful - redirect to dashboard
                 window.location.href = '/';
-            } catch (sessionError) {
-                console.error('Session creation failed:', sessionError);
-                showError('Account created but session creation failed. Please try logging in manually.');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 3000);
+            } else {
+                showError(result.error || 'Registration failed. Please try again.');
             }
 
         } catch (error) {
-            // Reset button and show error
+            console.error('Registration error:', error);
+            showError('Registration failed. Please try again.');
+        } finally {
+            // Reset button
             registerButton.disabled = false;
             registerButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
-
-            console.error('Registration error:', error);
-
-            let errorMessage = 'Registration failed. Please try again.';
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'Email already in use. Please try a different email address.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'Invalid email address. Please check and try again.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'Password is too weak. Please use a stronger password.';
-            }
-
-            showError(errorMessage);
         }
     });
 

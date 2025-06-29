@@ -1,295 +1,124 @@
 from datetime import datetime
-import json
-from enum import Enum
-import random
-import string
-from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import UserMixin
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+import enum
 
-class Item(db.Model):
-    """Item model for inventory items"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    sku = db.Column(db.String(50), unique=True)
-    unit_type = db.Column(db.String(20), default='quantity')  # 'quantity' or 'weight'
-    description = db.Column(db.Text)
-    category = db.Column(db.String(50))  # Legacy string category for backward compatibility
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)  # New FK to Category
-    subcategory = db.Column(db.String(50))
-    sell_by = db.Column(db.String(20), default='quantity')  # 'quantity' or 'kilogram'
-    quantity = db.Column(db.Integer, default=0)
-    buying_price = db.Column(db.Float, default=0.0)
-    selling_price_retail = db.Column(db.Float, default=0.0)
-    selling_price_wholesale = db.Column(db.Float, default=0.0)
-    price = db.Column(db.Float, default=0.0)  # For backward compatibility
-    sales_type = db.Column(db.String(20), default='both')  # 'retail', 'wholesale', or 'both'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+class Base(DeclarativeBase):
+    pass
 
-    def __repr__(self):
-        return f'<Item {self.name}>'
+db = SQLAlchemy(model_class=Base)
 
-    @staticmethod
-    def generate_sku(product_name: str, category: str = "") -> str:
-        """
-        Generate a unique SKU based on product name and category.
-
-        :param product_name: The name of the product
-        :param category: Optional category name
-        :return: A unique SKU string
-        """
-        # Clean and shorten product name
-        name_code = ''.join(filter(str.isalnum, product_name.upper()))[:4]
-
-        # Clean and shorten category
-        category_code = ''.join(filter(str.isalnum, category.upper()))[:3]
-
-        # Generate random alphanumeric suffix
-        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-        # Format: NAME-CAT-RANDOM
-        return f"{name_code}-{category_code}-{suffix}" if category else f"{name_code}-{suffix}"
-
-    def to_dict(self):
-        """Convert item to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'sku': self.sku or '',
-            'unit_type': self.unit_type or 'quantity',
-            'description': self.description or '',
-            'category': self.category or 'Uncategorized',
-            'subcategory': self.subcategory or '',
-            'sell_by': self.sell_by or 'quantity',
-            'quantity': self.quantity or 0,
-            'buying_price': float(self.buying_price or 0),
-            'selling_price_retail': float(self.selling_price_retail or 0),
-            'selling_price_wholesale': float(self.selling_price_wholesale or 0),
-            'price': float(self.price or self.selling_price_retail or 0),  # For backward compatibility
-            'sales_type': self.sales_type or 'both',
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-from enum import Enum
-
-class UserRole(Enum):
-    ADMIN = "admin"
-    INVENTORY_MANAGER = "inventory_manager" 
-    SALESPERSON = "salesperson"
-    VIEWER = "viewer"
-
-class User(UserMixin, db.Model):
-    """User model for authentication"""
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=True)
-    role = db.Column(db.String(20), default=UserRole.VIEWER.value)
-    # Firebase UID for authentication
-    firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    first_name = db.Column(db.String(64))
+    last_name = db.Column(db.String(64))
+    phone = db.Column(db.String(20))
+    shop_name = db.Column(db.String(128))
+    product_categories = db.Column(db.String(512))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    email_verified = db.Column(db.Boolean, default=False)
+    firebase_uid = db.Column(db.String(128))
+    verification_token = db.Column(db.String(64))
+    verification_token_expires = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
 
     def set_password(self, password):
-        """Set the user's password hash"""
-        self.password_hash = generate_password_hash(password)
+        """Set password hash"""
+        import hashlib
+        self.password_hash = hashlib.sha256(password.encode()).hexdigest()
 
     def check_password(self, password):
-        """Check if the password matches the hash"""
-        return check_password_hash(self.password_hash, password)
+        """Check if provided password matches hash"""
+        import hashlib
+        return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
 
-    # Email verification
-    email_verified = db.Column(db.Boolean, default=False)  # Whether email is verified
-    verification_token = db.Column(db.String(100), nullable=True)  # Token for email verification
-    verification_token_expires = db.Column(db.DateTime, nullable=True)  # Expiration for verification token
-
-
-
-    # User profile
-    first_name = db.Column(db.String(64), nullable=True)
-    last_name = db.Column(db.String(64), nullable=True)
-    phone = db.Column(db.String(20), nullable=True)
-    shop_name = db.Column(db.String(128), nullable=True)
-    product_categories = db.Column(db.String(512), nullable=True)  # Comma-separated list of product categories
-
-    # Account status
-    active = db.Column(db.Boolean, default=True)
-    is_active = db.Column(db.Boolean, default=True)  # Alternative name for consistency
-    is_admin = db.Column(db.Boolean, default=False)  # Admin flag for role-based access control
-
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)  # Track last login time
-
-    # Relationships
-    subusers = db.relationship('Subuser', backref='parent_user', lazy=True, cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f'<User {self.username}>'
+    def get_username(self):
+        """Return username or email as fallback"""
+        return self.username if hasattr(self, 'username') and self.username else self.email
 
     def to_dict(self):
-        """Convert user to dictionary for API responses"""
-        # Handle missing is_active column gracefully
-        try:
-            is_active_value = getattr(self, 'is_active', self.active)
-        except (AttributeError, Exception):
-            is_active_value = getattr(self, 'active', True)
-
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
-            'email_verified': self.email_verified,
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'phone': self.phone,
             'shop_name': self.shop_name,
-            'product_categories': self.product_categories,
-            'active': getattr(self, 'active', True),
-            'is_active': is_active_value,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
-        }
-
-
-class Subuser(UserMixin, db.Model):
-    """Subuser model for managing team members under main users"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255))
-    parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
-
-    # Relationships
-    permissions = db.relationship('SubuserPermission', backref='subuser', lazy=True, cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f'<Subuser {self.name}>'
-
-    def set_password(self, password):
-        """Set password hash"""
-        from werkzeug.security import generate_password_hash
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        """Check password against hash"""
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.password_hash, password)
-
-    def has_permission(self, permission_name):
-        """Check if subuser has a specific permission"""
-        permission = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            permission=permission_name, 
-            granted=True
-        ).first()
-        return permission is not None
-
-    def get_permissions(self):
-        """Get all granted permissions"""
-        permissions = SubuserPermission.query.filter_by(
-            subuser_id=self.id, 
-            granted=True
-        ).all()
-        return [p.permission for p in permissions]
-
-    def to_dict(self):
-        """Convert subuser to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'parent_user_id': self.parent_user_id,
             'is_active': self.is_active,
-            'permissions': self.get_permissions(),
+            'is_admin': self.is_admin,
+            'email_verified': self.email_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
-
-class SubuserPermission(db.Model):
-    """Model for managing subuser permissions"""
-    id = db.Column(db.Integer, primary_key=True)
-    subuser_id = db.Column(db.Integer, db.ForeignKey('subuser.id'), nullable=False)
-    permission = db.Column(db.String(100), nullable=False)
-    granted = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Ensure unique permission per subuser
-    __table_args__ = (db.UniqueConstraint('subuser_id', 'permission', name='_subuser_permission_uc'),)
-
-    def __repr__(self):
-        return f'<SubuserPermission {self.permission}>'
-
-    def to_dict(self):
-        """Convert permission to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'subuser_id': self.subuser_id,
-            'permission': self.permission,
-            'granted': self.granted,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class OnDemandProduct(db.Model):
-    """Model for on-demand products that can be created when needed"""
+class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    base_price = db.Column(db.Float, default=0.0)
-    production_time = db.Column(db.Integer)  # In hours
-    category = db.Column(db.String(50))
-    materials = db.Column(db.Text)
+    sku = db.Column(db.String(50), unique=True)
+    quantity = db.Column(db.Integer, default=0)
+    price = db.Column(db.Float, default=0.0)
+    buying_price = db.Column(db.Float, default=0.0)
+    selling_price_retail = db.Column(db.Float, default=0.0)
+    selling_price_wholesale = db.Column(db.Float, default=0.0)
+    sales_type = db.Column(db.String(20), default='both')
+    category = db.Column(db.String(100), default='Uncategorized')
+    subcategory = db.Column(db.String(100))
+    unit_type = db.Column(db.String(20), default='quantity')
+    sell_by = db.Column(db.String(20), default='quantity')
+    category_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    stock_quantity = db.Column(db.Integer, default=0)
+    minimum_stock = db.Column(db.Integer, default=0)
+    retail_price = db.Column(db.Float, default=0.0)
+    wholesale_price = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def __repr__(self):
-        return f'<OnDemandProduct {self.name}>'
+    @staticmethod
+    def generate_sku(name, category=""):
+        import string
+        import random
+        base = f"{category[:3].upper()}{name[:3].upper()}"
+        random_part = ''.join(random.choices(string.digits, k=4))
+        return f"{base}-{random_part}"
 
     def to_dict(self):
-        """Convert on-demand product to dictionary for API responses"""
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'base_price': self.base_price,
-            'production_time': self.production_time,
+            'sku': self.sku,
+            'quantity': self.quantity,
+            'price': self.price,
+            'buying_price': self.buying_price,
+            'selling_price_retail': self.selling_price_retail,
+            'selling_price_wholesale': self.selling_price_wholesale,
+            'sales_type': self.sales_type,
             'category': self.category,
-            'materials': self.materials,
-            'is_active': self.is_active,
+            'subcategory': self.subcategory,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-
 class Setting(db.Model):
-    """Model for application settings"""
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(64), unique=True, nullable=False)
-    value = db.Column(db.Text, nullable=True)
-    description = db.Column(db.String(255), nullable=True)
-    category = db.Column(db.String(64), default='general')
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text)
+    description = db.Column(db.Text)
+    category = db.Column(db.String(50), default='general')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<Setting {self.key}>'
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        """Convert setting to dictionary for API responses"""
         return {
             'id': self.id,
             'key': self.key,
@@ -300,551 +129,285 @@ class Setting(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-class Sale(db.Model):
-    """Model for sales transactions"""
+# Placeholder classes for other models referenced in app.py
+class Subuser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    invoice_number = db.Column(db.String(50), unique=True)
-    customer_name = db.Column(db.String(100), nullable=False, default='Walk-in Customer')
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256))
+    parent_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'is_active': self.is_active,
+            'permissions': []
+        }
+
+class SubuserPermission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    subuser_id = db.Column(db.Integer, db.ForeignKey('subuser.id'), nullable=False)
+    permission = db.Column(db.String(100), nullable=False)
+    granted = db.Column(db.Boolean, default=True)
+
+class Sale(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_number = db.Column(db.String(50), unique=True, nullable=False)
+    customer_name = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
-    sale_type = db.Column(db.String(20), default='retail')  # 'retail' or 'wholesale'
+    sale_type = db.Column(db.String(20), default='retail')
     subtotal = db.Column(db.Float, default=0.0)
-    discount_type = db.Column(db.String(20), default='none')  # 'none', 'percentage', 'fixed'
+    discount_type = db.Column(db.String(20), default='none')
     discount_value = db.Column(db.Float, default=0.0)
     discount_amount = db.Column(db.Float, default=0.0)
     total = db.Column(db.Float, default=0.0)
-    payment_method = db.Column(db.String(20), default='cash')  # 'cash', 'mobile_money', 'card', 'bank_transfer'
-    payment_details = db.Column(db.Text)  # JSON string with payment details
+    total_amount = db.Column(db.Float, default=0.0)
+    payment_method = db.Column(db.String(20), default='cash')
+    payment_details = db.Column(db.Text)
     payment_amount = db.Column(db.Float, default=0.0)
     change_amount = db.Column(db.Float, default=0.0)
     notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<Sale {self.invoice_number}>'
 
     def to_dict(self):
-        """Convert sale to dictionary for API responses"""
-        payment_details_dict = {}
-        if self.payment_details:
-            try:
-                payment_details_dict = json.loads(self.payment_details)
-            except json.JSONDecodeError:
-                payment_details_dict = {}
-
         return {
             'id': self.id,
             'invoice_number': self.invoice_number,
             'customer_name': self.customer_name,
-            'customer_phone': self.customer_phone,
-            'sale_type': self.sale_type,
-            'subtotal': self.subtotal,
-            'discount': {
-                'type': self.discount_type,
-                'value': self.discount_value,
-                'amount': self.discount_amount
-            },
             'total': self.total,
-            'payment': {
-                'method': self.payment_method,
-                'details': payment_details_dict,
-                'amount': self.payment_amount,
-                'change': self.change_amount
-            },
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'payment_method': self.payment_method,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class SaleItem(db.Model):
-    """Model for items in a sale transaction"""
     id = db.Column(db.Integer, primary_key=True)
-    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id', ondelete='CASCADE'), nullable=False)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
     product_name = db.Column(db.String(100), nullable=False)
     product_sku = db.Column(db.String(50))
     price = db.Column(db.Float, default=0.0)
     quantity = db.Column(db.Integer, default=1)
-    total = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Define relationships
-    sale = db.relationship('Sale', backref=db.backref('items', lazy=True, cascade='all, delete-orphan'))
-    item = db.relationship('Item', backref=db.backref('sale_items', lazy=True))
-
-    def __repr__(self):
-        return f'<SaleItem {self.product_name}>'
+    total = db.Column(db.Float,default=0.0)
 
     def to_dict(self):
-        """Convert sale item to dictionary for API responses"""
         return {
             'id': self.id,
-            'sale_id': self.sale_id,
-            'item_id': self.item_id,
             'product_name': self.product_name,
-            'product_sku': self.product_sku,
-            'price': self.price,
             'quantity': self.quantity,
-            'total': self.total,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'price': self.price,
+            'total': self.total
         }
 
-
-# Financial Statement Models
-class TransactionCategory(Enum):
-    """Enum for transaction categories"""
-    SALES = "Sales"
-    PURCHASE = "Purchase"
-    EXPENSE = "Expense"
-    SALARY = "Salary"
-    RENT = "Rent"
-    UTILITIES = "Utilities"
-    MAINTENANCE = "Maintenance"
-    MARKETING = "Marketing"
-    TAX = "Tax"
-    INSURANCE = "Insurance"
-    TRANSPORTATION = "Transportation"
-    OFFICE_SUPPLIES = "Office Supplies"
-    OTHER_INCOME = "Other Income"
-    OTHER_EXPENSE = "Other Expense"
-
-
-class TransactionType(Enum):
-    """Enum for transaction types"""
-    INCOME = "Income"
-    EXPENSE = "Expense"
-
-
 class FinancialTransaction(db.Model):
-    """Model for financial transactions (income and expenses)"""
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
-    description = db.Column(db.String(255), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    transaction_type = db.Column(db.String(20), nullable=False)  # 'Income' or 'Expense'
-    category = db.Column(db.String(50), nullable=False)
-    reference_id = db.Column(db.String(100))  # To link to sales or other records
-    payment_method = db.Column(db.String(50))  # Cash, bank transfer, mobile money, etc.
+    transaction_type = db.Column(db.String(20), nullable=False)
+    category = db.Column(db.String(100))
+    reference_id = db.Column(db.String(100))
+    payment_method = db.Column(db.String(50))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<FinancialTransaction {self.description} {self.amount}>'
 
     def to_dict(self):
-        """Convert financial transaction to dictionary for API responses"""
         return {
             'id': self.id,
             'date': self.date.isoformat() if self.date else None,
             'description': self.description,
             'amount': self.amount,
             'transaction_type': self.transaction_type,
-            'category': self.category,
-            'reference_id': self.reference_id,
-            'payment_method': self.payment_method,
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'category': self.category
         }
 
-
-class FinancialSummary(db.Model):
-    """Model for storing financial summary data by period"""
-    id = db.Column(db.Integer, primary_key=True)
-    period_type = db.Column(db.String(20), nullable=False)  # 'daily', 'weekly', 'monthly', 'yearly'
-    period_start = db.Column(db.Date, nullable=False)
-    period_end = db.Column(db.Date, nullable=False)
-    total_income = db.Column(db.Float, default=0.0)
-    total_expenses = db.Column(db.Float, default=0.0)
-    net_profit = db.Column(db.Float, default=0.0)
-    summary_data = db.Column(db.Text)  # JSON string with detailed breakdown
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<FinancialSummary {self.period_type} {self.period_start} to {self.period_end}>'
-
-    def to_dict(self):
-        """Convert financial summary to dictionary for API responses"""
-        summary_data_dict = {}
-        if self.summary_data:
-            try:
-                summary_data_dict = json.loads(self.summary_data)
-            except json.JSONDecodeError:
-                summary_data_dict = {}
-
-        return {
-            'id': self.id,
-            'period_type': self.period_type,
-            'period_start': self.period_start.isoformat() if self.period_start else None,
-            'period_end': self.period_end.isoformat() if self.period_end else None,
-            'total_income': self.total_income,
-            'total_expenses': self.total_expenses,
-            'net_profit': self.net_profit,
-            'summary_data': summary_data_dict,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
+# Placeholder classes for other models
 class Category(db.Model):
-    """Model for product categories"""
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text)
-    icon = db.Column(db.String(50))  # Font Awesome icon class
-    color = db.Column(db.String(7), default='#007bff')  # Hex color code
+    icon = db.Column(db.String(50), default='fas fa-box')
+    color = db.Column(db.String(20), default='#007bff')
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    subcategories = db.relationship('Subcategory', backref='category', lazy=True, cascade='all, delete-orphan')
-    items = db.relationship('Item', backref='category_obj', lazy=True, foreign_keys='Item.category_id')
-
-    def __repr__(self):
-        return f'<Category {self.name}>'
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        """Convert category to dictionary for API responses"""
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'icon': self.icon,
             'color': self.color,
-            'is_active': self.is_active,
-            'subcategories': [sub.to_dict() for sub in self.subcategories if sub.is_active],
-            'item_count': len([item for item in self.items if item.category == self.name]),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'is_active': self.is_active
         }
 
-
 class Subcategory(db.Model):
-    """Model for product subcategories"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Ensure unique subcategory names within each category
-    __table_args__ = (db.UniqueConstraint('name', 'category_id', name='_category_subcategory_uc'),)
-
-    def __repr__(self):
-        return f'<Subcategory {self.name}>'
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        """Convert subcategory to dictionary for API responses"""
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'category_id': self.category_id,
-            'category_name': self.category.name if self.category else None,
-            'is_active': self.is_active,
-            'item_count': Item.query.filter_by(subcategory=self.name).count(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'is_active': self.is_active
         }
 
-
-# Accounting System Models
-
-class AccountType(Enum):
-    """Enum for account types in double-entry bookkeeping"""
-    ASSET = "Asset"
-    LIABILITY = "Liability"
-    EQUITY = "Equity"
-    INCOME = "Income"
-    EXPENSE = "Expense"
-
-
-class Account(db.Model):
-    """Chart of Accounts model for double-entry accounting"""
+class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False)  # Account code (e.g., 1000, 2000)
     name = db.Column(db.String(100), nullable=False)
-    account_type = db.Column(db.String(20), nullable=False)  # Asset, Liability, Equity, Income, Expense
-    parent_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True)  # For sub-accounts
-    description = db.Column(db.Text)
-    is_active = db.Column(db.Boolean, default=True)
-    normal_balance = db.Column(db.String(10), nullable=False)  # 'Debit' or 'Credit'
+    phone = db.Column(db.String(20))
+    national_id = db.Column(db.String(50))
+    email = db.Column(db.String(120))
+    address = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    children = db.relationship('Account', backref=db.backref('parent', remote_side=[id]), lazy=True)
-    journal_entries = db.relationship('JournalEntry', backref='account', lazy=True)
-
-    def __repr__(self):
-        return f'<Account {self.code} - {self.name}>'
-
-    def get_balance(self, as_of_date=None):
-        """Calculate account balance up to a specific date"""
-        query = JournalEntry.query.filter_by(account_id=self.id)
-        
-        if as_of_date:
-            query = query.filter(JournalEntry.date <= as_of_date)
-        
-        entries = query.all()
-        
-        balance = 0
-        for entry in entries:
-            if entry.debit_amount:
-                balance += entry.debit_amount if self.normal_balance == 'Debit' else -entry.debit_amount
-            if entry.credit_amount:
-                balance += entry.credit_amount if self.normal_balance == 'Credit' else -entry.credit_amount
-        
-        return balance
 
     def to_dict(self):
-        """Convert account to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'phone': self.phone,
+            'national_id': self.national_id,
+            'email': self.email,
+            'address': self.address
+        }
+
+class InstallmentSale(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
+    quantity = db.Column(db.Integer, default=1)
+    total_amount = db.Column(db.Float, nullable=False)
+    down_payment = db.Column(db.Float, default=0.0)
+    number_of_installments = db.Column(db.Integer, nullable=False)
+    installment_amount = db.Column(db.Float, nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), default='Active')
+    agreement_signed = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'customer_id': self.customer_id,
+            'total_amount': self.total_amount,
+            'down_payment': self.down_payment,
+            'number_of_installments': self.number_of_installments,
+            'installment_amount': self.installment_amount,
+            'status': self.status
+        }
+
+class InstallmentPayment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    installment_sale_id = db.Column(db.Integer, db.ForeignKey('installment_sale.id'), nullable=False)
+    payment_date = db.Column(db.Date, nullable=False)
+    amount_paid = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(20), default='cash')
+    remarks = db.Column(db.Text)
+    created_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'amount_paid': self.amount_paid,
+            'payment_method': self.payment_method
+        }
+
+# Additional models referenced in app.py but not essential for basic functionality
+class OnDemandProduct(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    base_price = db.Column(db.Float, default=0.0)
+    production_time = db.Column(db.Integer, default=0)
+    category = db.Column(db.String(100))
+    materials = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'base_price': self.base_price,
+            'is_active': self.is_active
+        }
+
+class TransactionCategory(enum.Enum):
+    SALES = "Sales"
+    PURCHASES = "Purchases"
+    MARKETING = "Marketing"
+    UTILITIES = "Utilities"
+    RENT = "Rent"
+    SUPPLIES = "Supplies"
+    OTHER_INCOME = "Other Income"
+    OTHER_EXPENSE = "Other Expense"
+
+# Accounting models
+class Account(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    account_type = db.Column(db.String(50), nullable=False)
+    normal_balance = db.Column(db.String(10), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime)
+
+    def to_dict(self):
         return {
             'id': self.id,
             'code': self.code,
             'name': self.name,
             'account_type': self.account_type,
-            'parent_id': self.parent_id,
-            'parent_name': self.parent.name if self.parent else None,
-            'description': self.description,
-            'is_active': self.is_active,
             'normal_balance': self.normal_balance,
-            'current_balance': self.get_balance(),
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'is_active': self.is_active
         }
 
-
 class JournalEntry(db.Model):
-    """Journal entries for double-entry bookkeeping"""
     id = db.Column(db.Integer, primary_key=True)
-    entry_number = db.Column(db.String(50), unique=True, nullable=False)  # JE-2024-001
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    entry_number = db.Column(db.String(50))
+    date = db.Column(db.Date, nullable=False)
     account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
     debit_amount = db.Column(db.Float, default=0.0)
     credit_amount = db.Column(db.Float, default=0.0)
-    description = db.Column(db.String(255), nullable=False)
-    reference_type = db.Column(db.String(50))  # 'sale', 'purchase', 'manual', etc.
-    reference_id = db.Column(db.String(100))  # ID of related transaction
-    transaction_group = db.Column(db.String(50))  # Groups related journal entries
+    description = db.Column(db.Text)
+    reference_type = db.Column(db.String(50))
+    reference_id = db.Column(db.String(100))
+    transaction_group = db.Column(db.String(100))
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    creator = db.relationship('User', backref='journal_entries')
-
-    def __repr__(self):
-        return f'<JournalEntry {self.entry_number}>'
+    created_at = db.Column(db.DateTime)
 
     def to_dict(self):
-        """Convert journal entry to dictionary for API responses"""
         return {
             'id': self.id,
-            'entry_number': self.entry_number,
             'date': self.date.isoformat() if self.date else None,
-            'account_id': self.account_id,
-            'account_code': self.account.code if self.account else None,
-            'account_name': self.account.name if self.account else None,
             'debit_amount': self.debit_amount,
             'credit_amount': self.credit_amount,
-            'description': self.description,
-            'reference_type': self.reference_type,
-            'reference_id': self.reference_id,
-            'transaction_group': self.transaction_group,
-            'created_by': self.created_by,
-            'creator_name': self.creator.username if self.creator else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'description': self.description
         }
-
-
-class AccountingPeriod(db.Model):
-    """Accounting periods for financial reporting"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)  # "January 2024", "Q1 2024"
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    is_closed = db.Column(db.Boolean, default=False)
-    fiscal_year = db.Column(db.Integer, nullable=False)
-    period_type = db.Column(db.String(20), default='monthly')  # 'monthly', 'quarterly', 'yearly'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<AccountingPeriod {self.name}>'
-
-    def to_dict(self):
-        """Convert accounting period to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
-            'is_closed': self.is_closed,
-            'fiscal_year': self.fiscal_year,
-            'period_type': self.period_type,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class Customer(db.Model):
-    """Customer model for installment sales"""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    phone = db.Column(db.String(50))
-    email = db.Column(db.String(255))
-    address = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    installment_sales = db.relationship('InstallmentSale', backref='customer', lazy='dynamic')
-
-    def __repr__(self):
-        return f'<Customer {self.name}>'
-
-    def to_dict(self):
-        """Convert customer to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'name': self.name,
-            'phone': self.phone,
-            'email': self.email,
-            'address': self.address,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class InstallmentSale(db.Model):
-    """Installment sales model"""
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False, default=1)
-    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
-    down_payment = db.Column(db.Numeric(10, 2), nullable=False, default=0)
-    number_of_installments = db.Column(db.Integer, nullable=False)
-    installment_amount = db.Column(db.Numeric(10, 2), nullable=False)
-    start_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(50), default='Active')  # Active, Completed, Overdue, Cancelled
-    agreement_signed = db.Column(db.Boolean, default=False)
-    notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    item = db.relationship('Item', backref='installment_sales')
-    payments = db.relationship('InstallmentPayment', backref='installment_sale', lazy='dynamic')
-
-    def __repr__(self):
-        return f'<InstallmentSale {self.id}>'
-
-    def get_total_paid(self):
-        """Calculate total amount paid including down payment"""
-        payment_total = sum(float(payment.amount_paid) for payment in self.payments)
-        return float(self.down_payment) + payment_total
-
-    def get_remaining_balance(self):
-        """Calculate remaining balance"""
-        return float(self.total_amount) - self.get_total_paid()
-
-    def get_next_due_date(self):
-        """Calculate next payment due date"""
-        from dateutil.relativedelta import relativedelta
-        
-        payment_count = self.payments.count()
-        next_payment_number = payment_count + 1
-        
-        if next_payment_number > self.number_of_installments:
-            return None
-        
-        return self.start_date + relativedelta(months=next_payment_number)
-
-    def get_payment_schedule(self):
-        """Generate complete payment schedule"""
-        from dateutil.relativedelta import relativedelta
-        
-        schedule = []
-        for i in range(1, self.number_of_installments + 1):
-            due_date = self.start_date + relativedelta(months=i)
-            payment = self.payments.filter_by(installment_number=i).first()
-            
-            schedule.append({
-                'installment_number': i,
-                'due_date': due_date.isoformat(),
-                'amount_due': float(self.installment_amount),
-                'amount_paid': float(payment.amount_paid) if payment else 0,
-                'payment_date': payment.payment_date.isoformat() if payment and payment.payment_date else None,
-                'status': 'Paid' if payment else ('Overdue' if due_date < datetime.now().date() else 'Pending')
-            })
-        
-        return schedule
-
-    def to_dict(self):
-        """Convert installment sale to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'customer_id': self.customer_id,
-            'customer_name': self.customer.name if self.customer else None,
-            'item_id': self.item_id,
-            'item_name': self.item.name if self.item else None,
-            'quantity': self.quantity,
-            'total_amount': float(self.total_amount),
-            'down_payment': float(self.down_payment),
-            'number_of_installments': self.number_of_installments,
-            'installment_amount': float(self.installment_amount),
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'status': self.status,
-            'agreement_signed': self.agreement_signed,
-            'notes': self.notes,
-            'total_paid': self.get_total_paid(),
-            'remaining_balance': self.get_remaining_balance(),
-            'next_due_date': self.get_next_due_date().isoformat() if self.get_next_due_date() else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-
-class InstallmentPayment(db.Model):
-    """Installment payment tracking model"""
-    id = db.Column(db.Integer, primary_key=True)
-    installment_sale_id = db.Column(db.Integer, db.ForeignKey('installment_sale.id'), nullable=False)
-    installment_number = db.Column(db.Integer, nullable=False)
-    payment_date = db.Column(db.Date, nullable=False)
-    amount_paid = db.Column(db.Numeric(10, 2), nullable=False)
-    payment_method = db.Column(db.String(50), default='cash')
-    remarks = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<InstallmentPayment {self.id}>'
-
-    def to_dict(self):
-        """Convert installment payment to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'installment_sale_id': self.installment_sale_id,
-            'installment_number': self.installment_number,
-            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
-            'amount_paid': float(self.amount_paid),
-            'payment_method': self.payment_method,
-            'remarks': self.remarks,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
 
 class BankReconciliation(db.Model):
-    """Bank reconciliation records"""
     id = db.Column(db.Integer, primary_key=True)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
     reconciliation_date = db.Column(db.Date, nullable=False)
@@ -857,33 +420,13 @@ class BankReconciliation(db.Model):
     is_reconciled = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    bank_account = db.relationship('Account', backref='reconciliations')
-    creator = db.relationship('User', backref='bank_reconciliations')
-
-    def __repr__(self):
-        return f'<BankReconciliation {self.reconciliation_date}>'
+    created_at = db.Column(db.DateTime)
 
     def to_dict(self):
-        """Convert bank reconciliation to dictionary for API responses"""
         return {
             'id': self.id,
-            'bank_account_id': self.bank_account_id,
-            'bank_account_name': self.bank_account.name if self.bank_account else None,
             'reconciliation_date': self.reconciliation_date.isoformat() if self.reconciliation_date else None,
             'bank_statement_balance': self.bank_statement_balance,
             'book_balance': self.book_balance,
-            'outstanding_deposits': self.outstanding_deposits,
-            'outstanding_checks': self.outstanding_checks,
-            'bank_fees': self.bank_fees,
-            'reconciled_balance': self.reconciled_balance,
-            'is_reconciled': self.is_reconciled,
-            'notes': self.notes,
-            'created_by': self.created_by,
-            'creator_name': self.creator.username if self.creator else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'is_reconciled': self.is_reconciled
         }

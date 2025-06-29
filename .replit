@@ -3,14 +3,14 @@ run = "python.py"
 
 [nix]
 channel = "stable-24_05"
-packages = ["openssl", "postgresql"]
+packages = ["iana-etc", "openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Project"
+runButton = "Start Application"
 
 [[workflows.workflow]]
 name = "Project"
@@ -50,6 +50,24 @@ args = "python main.py"
 
 [[workflows.workflow]]
 name = "Run Flask App"
+author = 40995501
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Start Flask Application"
+author = 40995501
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+
+[[workflows.workflow]]
+name = "Start Application"
 author = 40995501
 mode = "sequential"
 

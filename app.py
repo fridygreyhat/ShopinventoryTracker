@@ -24,27 +24,25 @@ app.secret_key = os.environ.get("SESSION_SECRET",
                                 "shop_inventory_default_secret")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Firebase configuration
-app.config["FIREBASE_API_KEY"] = os.environ.get("FIREBASE_API_KEY")
-app.config["FIREBASE_PROJECT_ID"] = os.environ.get("FIREBASE_PROJECT_ID")
-app.config["FIREBASE_APP_ID"] = os.environ.get("FIREBASE_APP_ID")
-print(os.environ.get("FIREBASE_API_KEY"))
-
-
 # Database configuration
-class Base(DeclarativeBase):
-    pass
-
-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db")
+    "DATABASE_URL", "postgresql://inventory:password@localhost:5432/inventory_db")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(model_class=Base)
+
+# Initialize database with app
+from models import db
 db.init_app(app)
+
+# Mail configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
 
@@ -65,9 +63,19 @@ def get_setting_value(key, default=None):
     return setting.value if setting else default
 
 
-# Import auth service
-from auth_service import login_required, verify_firebase_token, create_or_update_user
-
+# Import auth service after models are imported
+try:
+    from auth_service import login_required
+except ImportError:
+    # Simple auth decorator if service not available
+    from functools import wraps
+    def login_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return decorated_function
 
 # Template helper function
 @app.context_processor
@@ -77,6 +85,7 @@ def inject_current_user():
     def get_current_user():
         if 'user_id' in session:
             try:
+                from models import User
                 user = User.query.get(session['user_id'])
                 return user
             except Exception as e:
@@ -90,11 +99,21 @@ def inject_current_user():
     return dict(get_current_user=get_current_user)
 
 
+# Import models
+from models import (
+    User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
+    Category, Customer, OnDemandProduct
+)
+
+# Import and register admin portal
+try:
+    from admin_portal import admin_bp
+    app.register_blueprint(admin_bp)
+except ImportError:
+    logger.warning("Admin portal not available")
+
 # Initialize database tables
 with app.app_context():
-    # Import models to ensure they are registered with SQLAlchemy
-    from models import Item, User, Subuser, SubuserPermission, Setting, Sale, SaleItem, FinancialTransaction, Category, Subcategory, Customer, InstallmentSale, InstallmentPayment
-    import json
 
     # When we have schema changes, we need to reset the database
     # Comment out the line below to avoid data loss in production
@@ -179,6 +198,22 @@ with app.app_context():
             add_column_safely('item', 'sell_by',
                               "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
             add_column_safely('item', 'category_id', 'INTEGER')
+            add_column_safely('item', 'user_id', 'INTEGER')
+            add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT true', 'true')
+            add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', '0')
+            add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', '0')
+            add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', '0')
+            add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', '0')
+
+        # Check if sale table exists
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'sale' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            # Add missing sale columns
+            add_column_safely('sale', 'user_id', 'INTEGER')
+            add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
 
         # Initialize SMS notification settings if they don't exist
         try:
@@ -216,89 +251,215 @@ with app.app_context():
         logger.error(f"Error during database migration: {str(e)}")
         db.session.rollback()
 
+# Auth API Routes
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """API endpoint for user login"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
 
-@app.route('/')
-@login_required
-def index():
-    """Render the dashboard page"""
-    return render_template('index.html')
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
 
+        # Check user credentials
+        user = User.query.filter_by(email=email).first()
 
-@app.route('/inventory')
-@login_required
-def inventory():
-    """Render the inventory management page"""
-    return render_template('inventory.html')
+        if user and user.check_password(password):
+            # Create session
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['user_name'] = f"{user.first_name} {user.last_name}"
 
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid email or password'}), 401
 
-@app.route('/margin')
-@login_required
-def margin():
-    """Render the margin analysis page"""
-    return render_template('margin.html')
+    except Exception as e:
+        logger.error(f"API login error: {str(e)}")
+        return jsonify({'error': 'Login failed'}), 500
 
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """API endpoint for user registration"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        username = data.get('username', '').strip()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        shop_name = data.get('shop_name', '').strip()
+        phone = data.get('phone', '').strip()
+        product_categories = data.get('product_categories', '')
 
-@app.route('/item/<int:item_id>')
-@login_required
-def item_detail(item_id):
-    """Render the item detail page"""
-    # Get the item from database
-    from models import Item
-    item = Item.query.get_or_404(item_id)
+        # Validate required fields
+        if not all([email, password, username, first_name, last_name]):
+            return jsonify({'error': 'All required fields must be filled'}), 400
 
-    return render_template('item_detail.html', item=item.to_dict())
+        if len(password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
 
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': 'Email already registered'}), 400
 
-@app.route('/reports')
-@login_required
-def reports():
-    """Render the reports page"""
-    return render_template('reports.html')
+        # Check if username already exists
+        existing_username = User.query.filter_by(username=username).first()
+        if existing_username:
+            return jsonify({'error': 'Username already taken'}), 400
 
+        # Create new user
+        new_user = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone if phone else None,
+            shop_name=shop_name if shop_name else None,
+            product_categories=product_categories if product_categories else None,
+            is_active=True
+        )
+        new_user.set_password(password)
 
-@app.route('/settings')
-@login_required
-def settings():
-    """Render the settings page"""
-    return render_template('settings.html')
+        db.session.add(new_user)
+        db.session.commit()
 
+        # Create session
+        session['user_id'] = new_user.id
+        session['user_email'] = new_user.email
+        session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
 
-@app.route('/on-demand')
-@login_required
-def on_demand():
-    """Render the on-demand products page"""
-    return render_template('on_demand.html')
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': new_user.id,
+                'username': new_user.username,
+                'email': new_user.email,
+                'first_name': new_user.first_name,
+                'last_name': new_user.last_name
+            }
+        }), 201
 
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"API registration error: {str(e)}")
+        return jsonify({'error': 'Registration failed'}), 500
 
-@app.route('/sales')
-@login_required
-def sales():
-    """Render the sales management page"""
-    return render_template('sales.html')
+@app.route('/api/auth/session', methods=['POST'])
+def api_create_session():
+    """API endpoint to create user session"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        remember = data.get('remember', False)
 
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
 
-@app.route('/categories')
-@login_required
-def categories():
-    """Render the categories management page"""
-    return render_template('categories.html')
+        # Check user credentials
+        user = User.query.filter_by(email=email).first()
 
+        if user and user.check_password(password):
+            # Create session
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['user_name'] = f"{user.first_name} {user.last_name}"
 
-@app.route('/installments')
-@login_required
-def installments():
-    """Render the installments management page"""
-    return render_template('installments.html')
+            if remember:
+                session.permanent = True
 
+            return jsonify({
+                'success': True,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                }
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+    except Exception as e:
+        logger.error(f"Session creation error: {str(e)}")
+        return jsonify({'error': 'Session creation failed'}), 500
+
+@app.route('/api/auth/profile', methods=['GET'])
+def api_get_profile():
+    """API endpoint to get user profile"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not authenticated'}), 401
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get profile error: {str(e)}")
+        return jsonify({'error': 'Failed to get profile'}), 500
+
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """API endpoint for password reset"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            # Here you would typically send a password reset email
+            # For now, we'll just return success
+            logger.info(f"Password reset requested for: {email}")
+
+        return jsonify({'success': True, 'message': 'Password reset email sent if account exists'}), 200
+
+    except Exception as e:
+        logger.error(f"Password reset error: {str(e)}")
+        return jsonify({'error': 'Password reset failed'}), 500
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
+@login_required
 def get_inventory():
-    """API endpoint to get all inventory items"""
+    """Get all inventory items with optional filtering"""
     from models import Item
 
-    # Start query
-    query = Item.query
+    # Get current user ID
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify([])
+
+    # Start query filtered by user
+    query = Item.query.filter(
+        db.or_(Item.user_id == current_user_id, Item.user_id.is_(None))
+    )
 
     # Optional filtering
     category = request.args.get('category')
@@ -366,16 +527,23 @@ def add_item():
         # Use retail price as default price for backward compatibility
         price = selling_price_retail
 
+        # Get current user ID
+        current_user_id = session.get('user_id')
+
         # Create new item
         new_item = Item(name=item_data["name"],
                         description=item_data.get("description", ""),
                         quantity=int(item_data["quantity"]),
+                        stock_quantity=int(item_data["quantity"]),
                         buying_price=buying_price,
                         selling_price_retail=selling_price_retail,
                         selling_price_wholesale=selling_price_wholesale,
+                        retail_price=selling_price_retail,
+                        wholesale_price=selling_price_wholesale,
                         price=price,
                         sales_type=item_data.get("sales_type", "both"),
                         category=item_data.get("category", "Uncategorized"),
+                        user_id=current_user_id,
                         sku=item_data.get(
                             "sku",
                             f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
@@ -1360,2242 +1528,199 @@ def delete_transaction(transaction_id):
     """API endpoint to delete a financial transaction"""
     from models import FinancialTransaction
 
-    transaction = FinancialTransaction.query.get(transaction_id)
-    if not transaction:
-        return jsonify({"error": "Transaction not found"}), 404
-
     try:
+        transaction = FinancialTransaction.query.get(transaction_id)
+
+        if transaction is None:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        # Store transaction details before deletion
+        transaction_dict = transaction.to_dict()
+        transaction_description = transaction.description
+
+        # Remove transaction from database
         db.session.delete(transaction)
         db.session.commit()
-        return jsonify({"message": "Transaction deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error":
-                        f"Failed to delete transaction: {str(e)}"}), 500
 
-
-@app.route('/api/finance/summaries/monthly', methods=['GET'])
-def get_monthly_summary():
-    """API endpoint to get monthly financial summaries"""
-    from models import FinancialTransaction
-    from datetime import datetime
-    from sqlalchemy import func, extract
-
-    # Get year parameter, default to current year
-    year = request.args.get('year', datetime.utcnow().year, type=int)
-
-    # Query to get monthly sums for income and expenses
-    monthly_data = db.session.query(
-        extract('month', FinancialTransaction.date).label('month'),
-        func.sum(FinancialTransaction.amount).filter(
-            FinancialTransaction.transaction_type == 'Income').label('income'),
-        func.sum(FinancialTransaction.amount).filter(
-            FinancialTransaction.transaction_type ==
-            'Expense').label('expenses')).filter(
-                extract('year', FinancialTransaction.date) == year).group_by(
-                    extract('month', FinancialTransaction.date)).order_by(
-                        extract('month', FinancialTransaction.date)).all()
-
-    # Format the results
-    results = []
-    for month_num, income, expenses in monthly_data:
-        income = income or 0
-        expenses = expenses or 0
-        profit = income - expenses
-
-        month_name = datetime(year, int(month_num), 1).strftime('%B')
-
-        results.append({
-            'month': int(month_num),
-            'month_name': month_name,
-            'income': income,
-            'expenses': expenses,
-            'profit': profit
+        return jsonify({
+            "message": f"Deleted transaction: {transaction_description}",
+            "transaction": transaction_dict
         })
 
-    # Fill in missing months with zeros
-    month_dict = {item['month']: item for item in results}
-    all_months = []
-
-    for month in range(1, 13):
-        if month in month_dict:
-            all_months.append(month_dict[month])
-        else:
-            month_name = datetime(year, month, 1).strftime('%B')
-            all_months.append({
-                'month': month,
-                'month_name': month_name,
-                'income': 0,
-                'expenses': 0,
-                'profit': 0
-            })
-
-    # Calculate yearly totals
-    yearly_income = sum(item['income'] for item in all_months)
-    yearly_expenses = sum(item['expenses'] for item in all_months)
-    yearly_profit = yearly_income - yearly_expenses
-
-    return jsonify({
-        'year': year,
-        'monthly_data': all_months,
-        'yearly_summary': {
-            'total_income': yearly_income,
-            'total_expenses': yearly_expenses,
-            'net_profit': yearly_profit
-        }
-    })
-
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting transaction: {str(e)}")
+        return jsonify({"error": "Failed to delete transaction"}), 500
 
 @app.route('/api/finance/categories', methods=['GET'])
-def get_finance_categories():
-    """API endpoint to get all transaction categories"""
-    from models import TransactionCategory
-
-    # Get all categories from the enum
-    categories = [cat.value for cat in TransactionCategory]
-
-    return jsonify(categories)
-
-
-# Sales API Routes
-@app.route('/api/sales/performance/top', methods=['GET'])
-def get_top_selling_items():
-    """API endpoint to get top selling items"""
+def get_transaction_categories():
+    from models import FinancialTransaction
     try:
-        from sqlalchemy import func
-        from models import Item, Sale, SaleItem
-
-        # Get sales data from last 30 days
-        days = request.args.get('days', 30, type=int)
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
-
-        # Query to get top selling items
-        top_items = db.session.query(
-            Item,
-            func.sum(SaleItem.quantity).label('total_quantity'),
-            func.sum(SaleItem.total).label('total_revenue')).join(
-                SaleItem).join(Sale).filter(
-                    Sale.created_at >= cutoff_date).group_by(Item.id).order_by(
-                        func.sum(SaleItem.quantity).desc()).limit(5).all()
-
-        # Format response
-        result = []
-        for item, quantity, revenue in top_items:
-            result.append({
-                'id': item.id,
-                'name': item.name,
-                'category': item.category,
-                'units_sold': int(quantity),
-                'revenue': float(revenue)
-            })
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error getting top selling items: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/sales/performance/slow', methods=['GET'])
-def get_slow_moving_items():
-    """API endpoint to get slow moving items"""
-    try:
-        from models import Item, Sale, SaleItem
-
-        # Get items with no sales in last 30 days
-        days = request.args.get('days', 30, type=int)
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
-
-        # Subquery to get items that have had sales
-        sold_items = db.session.query(SaleItem.item_id).join(Sale).filter(
-            Sale.created_at >= cutoff_date).distinct().subquery()
-
-        # Query to get items with no recent sales
-        slow_items = Item.query.filter(
-            ~Item.id.in_(sold_items), Item.quantity
-            > 0).order_by(Item.quantity.desc()).limit(5).all()
-
-        # Format response
-        result = []
-        for item in slow_items:
-            # Calculate days in stock based on last sale or creation date
-            last_sale = db.session.query(
-                Sale.created_at).join(SaleItem).filter(
-                    SaleItem.item_id == item.id).order_by(
-                        Sale.created_at.desc()).first()
-
-            reference_date = last_sale[0] if last_sale else item.created_at
-            days_in_stock = (datetime.utcnow() - reference_date).days
-
-            result.append({
-                'id': item.id,
-                'name': item.name,
-                'category': item.category,
-                'days_in_stock': days_in_stock,
-                'quantity': item.quantity
-            })
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error getting slow moving items: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/sales', methods=['POST'])
-def create_sale():
-    """API endpoint to create a new sale"""
-    try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        # Generate a unique invoice number
-        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-
-        # Prepare payment details
-        payment_details = {}
-        if data.get('payment', {}).get('mobile_info'):
-            payment_details.update(data.get('payment', {}).get('mobile_info', {}))
-        if data.get('payment', {}).get('installment_info'):
-            payment_details.update(data.get('payment', {}).get('installment_info', {}))
-
-        # Create new sale record
-        new_sale = Sale(invoice_number=invoice_number,
-                        customer_name=data.get('customer',
-                                               {}).get('name',
-                                                       'Walk-in Customer'),
-                        customer_phone=data.get('customer',
-                                                {}).get('phone', ''),
-                        sale_type=data.get('sale_type', 'retail'),
-                        subtotal=data.get('subtotal', 0),
-                        discount_type=data.get('discount',
-                                               {}).get('type', 'none'),
-                        discount_value=data.get('discount',
-                                                {}).get('value', 0),
-                        discount_amount=data.get('discount',
-                                                 {}).get('amount', 0),
-                        total=data.get('total', 0),
-                        payment_method=data.get('payment',
-                                                {}).get('method', 'cash'),
-                        payment_details=json.dumps(payment_details),
-                        payment_amount=data.get('payment',
-                                                {}).get('amount', 0),
-                        change_amount=data.get('payment', {}).get('change', 0),
-                        notes=data.get('notes', ''))
-
-        db.session.add(new_sale)
-        db.session.flush()  # Flush to get the sale ID
-
-        # Add sale items
-        for item_data in data.get('items', []):
-            # Get item from database if it exists
-            item = Item.query.filter_by(id=item_data.get('id')).first()
-
-            # Create sale item record
-            sale_item = SaleItem(sale_id=new_sale.id,
-                                 item_id=item.id if item else None,
-                                 product_name=item_data.get(
-                                     'name', 'Unknown Product'),
-                                 product_sku=item_data.get('sku', ''),
-                                 price=item_data.get('price', 0),
-                                 quantity=item_data.get('quantity', 1),
-                                 total=item_data.get('total', 0))
-
-            db.session.add(sale_item)
-
-            # Update inventory quantity if item exists
-            if item:
-                item.quantity = max(
-                    0, item.quantity - item_data.get('quantity', 1))
-
-        db.session.commit()
-
-        # If this is an installment sale, create the installment record
-        if data.get('payment', {}).get('method') == 'installment':
-            try:
-                # Create or get customer
-                customer_data = data.get('customer', {})
-                customer_name = customer_data.get('name', 'Walk-in Customer')
-                customer_phone = customer_data.get('phone', '')
-                customer_address = customer_data.get('address', '')
-
-                # Check if customer exists
-                existing_customer = Customer.query.filter_by(
-                    name=customer_name, 
-                    phone=customer_phone
-                ).first()
-
-                if existing_customer:
-                    customer = existing_customer
-                else:
-                    # Create new customer
-                    customer = Customer(
-                        name=customer_name,
-                        phone=customer_phone,
-                        address=customer_address
-                    )
-                    db.session.add(customer)
-                    db.session.flush()
-
-                # Get installment info
-                installment_info = data.get('payment', {}).get('installment_info', {})
-
-                # For now, we'll use the first item in the cart for installment
-                # In a more complex system, you might want to handle multiple items differently
-                first_item = data.get('items', [])[0] if data.get('items') else None
-                if first_item:
-                    # Calculate installment amount
-                    total_amount = data.get('total', 0)
-                    down_payment = installment_info.get('down_payment', 0)
-                    remaining_amount = total_amount - down_payment
-                    number_of_installments = installment_info.get('number_of_installments', 12)
-                    installment_amount = remaining_amount / number_of_installments
-
-                    # Create installment sale
-                    installment_sale = InstallmentSale(
-                        customer_id=customer.id,
-                        item_id=first_item.get('id'),
-                        quantity=first_item.get('quantity', 1),
-                        total_amount=total_amount,
-                        down_payment=down_payment,
-                        number_of_installments=number_of_installments,
-                        installment_amount=installment_amount,
-                        start_date=datetime.now().date(),
-                        status='Active',
-                        agreement_signed=True,  # Assume signed for sales
-                        notes=f"Created from sale {new_sale.invoice_number}"
-                    )
-                    db.session.add(installment_sale)
-                    db.session.commit()
-
-            except Exception as e:
-                logger.error(f"Error creating installment sale: {str(e)}")
-                # Don't fail the main sale, just log the error
-                pass
-
-        # Create accounting entries for the sale
-        try:
-            from accounting_service import AccountingService
-            AccountingService.record_sale_transaction(new_sale)
-        except Exception as e:
-            logger.warning(f"Could not create accounting entries for sale: {str(e)}")
-
-        return jsonify({
-            'success': True,
-            'message': 'Sale created successfully',
-            'sale': new_sale.to_dict()
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating sale: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/sales', methods=['GET'])
-def get_sales():
-    """API endpoint to get sales data with optional filtering"""
-    try:
-        # Get query parameters for filtering
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        customer = request.args.get('customer')
-        payment_method = request.args.get('payment_method')
-
-        # Build query
-        query = Sale.query
-
-        # Apply filters if provided
-        if start_date:
-            try:
-                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
-                query = query.filter(Sale.created_at >= start_datetime)
-            except ValueError:
-                pass
-
-        if end_date:
-            try:
-                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
-                # Add one day to include the entire end date
-                end_datetime = end_datetime.replace(hour=23,
-                                                    minute=59,
-                                                    second=59)
-                query = query.filter(Sale.created_at <= end_datetime)
-            except ValueError:
-                pass
-
-        if customer:
-            query = query.filter(Sale.customer_name.ilike(f'%{customer}%'))
-
-        if payment_method:
-            query = query.filter(Sale.payment_method == payment_method)
-
-        # Order by created_at descending (most recent first)
-        sales = query.order_by(Sale.created_at.desc()).all()
-
-        # Convert to dictionary for JSON response
-        return jsonify([sale.to_dict() for sale in sales])
-
-    except Exception as e:
-        logger.error(f"Error getting sales data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/sales/<int:sale_id>', methods=['GET'])
-def get_sale(sale_id):
-    """API endpoint to get a specific sale by ID"""
-    try:
-        sale = Sale.query.get_or_404(sale_id)
-        sale_data = sale.to_dict()
-
-        # Add items to the sale data
-        sale_items = SaleItem.query.filter_by(sale_id=sale_id).all()
-        sale_data['items'] = [item.to_dict() for item in sale_items]
-
-        return jsonify(sale_data)
-
-    except Exception as e:
-        logger.error(f"Error getting sale {sale_id}: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-# Subusers API Routes
-
-
-@app.route('/api/subusers', methods=['GET'])
-@login_required
-def get_subusers():
-    """Get all subusers for the current user"""
-    try:
-        subusers = Subuser.query.filter_by(
-            parent_user_id=session['user_id']).all()
-        return jsonify([subuser.to_dict() for subuser in subusers])
-    except Exception as e:
-        logger.error(f"Error getting subusers: {str(e)}")
-        return jsonify({'error': 'Failed to load subusers'}), 500
-
-
-@app.route('/api/subusers', methods=['POST'])
-@login_required
-def create_subuser():
-    """Create a new subuser"""
-    try:
-        data = request.get_json()
-        logger.info(f"Creating subuser with data: {data}")
-
-        # Validate required fields
-        if not data.get('name') or not data.get('email') or not data.get(
-                'password'):
-            return jsonify({'error':
-                            'Name, email, and password are required'}), 400
-
-        # Check if email already exists
-        existing_user = User.query.filter_by(email=data['email']).first()
-        existing_subuser = Subuser.query.filter_by(email=data['email']).first()
-
-        if existing_user or existing_subuser:
-            return jsonify({'error': 'Email already exists'}), 400
-
-        # Create new subuser
-        subuser = Subuser(name=data['name'],
-                          email=data['email'],
-                          parent_user_id=session['user_id'],
-                          is_active=data.get('is_active', True))
-        subuser.set_password(data['password'])
-
-        db.session.add(subuser)
-        db.session.flush()  # Get the subuser ID
-
-        logger.info(f"Created subuser with ID: {subuser.id}")
-
-        # Add permissions
-        permissions = data.get('permissions', [])
-        logger.info(f"Adding permissions: {permissions}")
-
-        for permission in permissions:
-            perm = SubuserPermission(subuser_id=subuser.id,
-                                     permission=permission,
-                                     granted=True)
-            db.session.add(perm)
-
-        db.session.commit()
-        logger.info(f"Successfully created subuser: {subuser.name}")
-
-        # Return the created subuser with permissions
-        created_subuser = subuser.to_dict()
-        logger.info(f"Returning subuser data: {created_subuser}")
-
-        return jsonify({'success': True, 'subuser': created_subuser}), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating subuser: {str(e)}")
-        return jsonify({'error': f'Failed to create subuser: {str(e)}'}), 500
-
-
-@app.route('/api/subusers/<int:subuser_id>', methods=['PUT'])
-@login_required
-def update_subuser(subuser_id):
-    """Update a subuser"""
-    try:
-        subuser = Subuser.query.filter_by(
-            id=subuser_id, parent_user_id=session['user_id']).first()
-
-        if not subuser:
-            return jsonify({'error': 'Subuser not found'}), 404
-
-        data = request.get_json()
-
-        # Update basic info
-        if 'name' in data:
-            subuser.name = data['name']
-        if 'email' in data:
-            # Check email uniqueness
-            existing = Subuser.query.filter(Subuser.email == data['email'],
-                                            Subuser.id != subuser_id).first()
-            if existing:
-                return jsonify({'error': 'Email already exists'}), 400
-            subuser.email = data['email']
-        if 'password' in data and data['password']:
-            subuser.set_password(data['password'])
-        if 'is_active' in data:
-            subuser.is_active = data['is_active']
-
-        # Update permissions
-        if 'permissions' in data:
-            # Remove all existing permissions
-            SubuserPermission.query.filter_by(subuser_id=subuser.id).delete()
-
-            # Add new permissions
-            for permission in data['permissions']:
-                perm = SubuserPermission(subuser_id=subuser.id,
-                                         permission=permission,
-                                         granted=True)
-                db.session.add(perm)
-
-        subuser.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify({'success': True, 'subuser': subuser.to_dict()})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating subuser: {str(e)}")
-        return jsonify({'error': 'Failed to update subuser'}), 500
-
-
-@app.route('/api/subusers/<int:subuser_id>', methods=['DELETE'])
-@login_required
-def delete_subuser(subuser_id):
-    """Delete a subuser"""
-    try:
-        subuser = Subuser.query.filter_by(
-            id=subuser_id, parent_user_id=session['user_id']).first()
-
-        if not subuser:
-            return jsonify({'error': 'Subuser not found'}), 404
-
-        db.session.delete(subuser)
-        db.session.commit()
-
-        return jsonify({'success': True})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting subuser: {str(e)}")
-        return jsonify({'error': 'Failed to delete subuser'}), 500
-
-
-@app.route('/api/subusers/permissions', methods=['GET'])
-@login_required
-def get_available_permissions():
-    """Get all available permissions for subusers"""
-    try:
-        # Define available permissions and their descriptions
-        permissions_data = {
-            'view_inventory': 'View Inventory',
-            'edit_inventory': 'Edit Inventory Items',
-            'delete_inventory': 'Delete Inventory Items',
-            'view_sales': 'View Sales Data',
-            'create_sales': 'Create Sales Records',
-            'view_reports': 'View Reports',
-            'export_data': 'Export Data',
-            'manage_categories': 'Manage Categories',
-            'view_financial': 'View Financial Data',
-            'edit_financial': 'Edit Financial Records',
-            'manage_settings': 'Manage Settings',
-            'manage_users': 'Manage Users'
+        # Get distinct categories from existing transactions
+        categories = db.session.query(FinancialTransaction.category).distinct().all()
+        category_list = [cat[0] for cat in categories if cat[0]]
+
+        # Default categories
+        default_categories = {
+            'income': ['Sales Revenue', 'Service Income', 'Interest Income', 'Other Income'],
+            'expense': ['Rent', 'Utilities', 'Supplies', 'Marketing', 'Transportation', 'Equipment', 'Professional Services', 'Insurance', 'Other Expenses']
         }
 
-        descriptions = {
-            'view_inventory': 'Can view inventory items and stock levels',
-            'edit_inventory': 'Can add, edit, and update inventory items',
-            'delete_inventory': 'Can delete inventory items',
-            'view_sales': 'Can view sales transactions and history',
-            'create_sales': 'Can create new sales transactions',
-            'view_reports': 'Can view and generate reports',
-            'export_data': 'Can export data to various formats',
-            'manage_categories': 'Can create and manage product categories',
-            'view_financial': 'Can view financial data and statements',
-            'edit_financial': 'Can edit and manage financial records',
-            'manage_settings': 'Can modify system settings',
-            'manage_users': 'Can manage team members and permissions'
+        # Combine with existing categories
+        all_categories = {
+            'income': list(set(default_categories['income'] + [cat for cat in category_list if cat not in default_categories['expense']])),
+            'expense': list(set(default_categories['expense'] + [cat for cat in category_list if cat not in default_categories['income']])),
+            'custom': category_list
         }
 
-        result = {
-            'success': True,
-            'permissions': list(permissions_data.keys()),
-            'descriptions': descriptions
-        }
-
-        logger.info(f"Returning permissions data: {result}")
-        return jsonify(result)
-
+        return jsonify(all_categories)
     except Exception as e:
-        logger.error(f"Error getting permissions: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to load permissions',
-            'permissions': [],
-            'descriptions': {}
-        }), 500
-
-
-# Accounting Routes
-@app.route('/accounting')
-@login_required
-def accounting():
-    """Render the accounting page"""
-    return render_template('accounting.html')
-
-
-# Accounting API Routes
-@app.route('/api/accounting/initialize', methods=['POST'])
-@login_required
-def initialize_accounting():
-    """Initialize chart of accounts"""
-    try:
-        from accounting_service import AccountingService
-        AccountingService.initialize_chart_of_accounts()
-        return jsonify({'success': True, 'message': 'Chart of accounts initialized successfully'})
-    except Exception as e:
-        logger.error(f"Error initializing accounting: {str(e)}")
+        logger.error(f"Error getting categories: {e}")
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/accounting/chart-of-accounts', methods=['GET'])
-@login_required
-def get_chart_of_accounts():
-    """Get chart of accounts"""
-    try:
-        from models import Account
-        accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
-        return jsonify([account.to_dict() for account in accounts])
-    except Exception as e:
-        logger.error(f"Error getting chart of accounts: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/accounts', methods=['POST'])
-@login_required
-def create_account():
-    """Create new account"""
-    try:
-        from models import Account
-        data = request.json
-
-        # Validate required fields
-        required_fields = ['code', 'name', 'account_type', 'normal_balance']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-
-        # Check if account code already exists
-        existing = Account.query.filter_by(code=data['code']).first()
-        if existing:
-            return jsonify({'error': 'Account code already exists'}), 400
-
-        account = Account(
-            code=data['code'],
-            name=data['name'],
-            account_type=data['account_type'],
-            normal_balance=data['normal_balance'],
-            parent_id=data.get('parent_id'),
-            description=data.get('description', '')
-        )
-
-        db.session.add(account)
-        db.session.commit()
-
-        return jsonify(account.to_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating account: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/accounts/<int:account_id>', methods=['PUT'])
-@login_required
-def update_account(account_id):
-    """Update account"""
-    try:
-        from models import Account
-        account = Account.query.get_or_404(account_id)
-        data = request.json
-
-        # Update fields
-        for field in ['name', 'description', 'is_active']:
-            if field in data:
-                setattr(account, field, data[field])
-
-        account.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify(account.to_dict())
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating account: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/journal-entries', methods=['GET'])
-@login_required
-def get_journal_entries():
-    """Get journal entries with optional filtering"""
-    try:
-        from models import JournalEntry
-
-        # Get query parameters
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        account_id = request.args.get('account_id')
-        reference_type = request.args.get('reference_type')
-
-        # Build query
-        query = JournalEntry.query
-
-        if start_date:
-            query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
-        if end_date:
-            query = query.filter(JournalEntry.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
-        if account_id:
-            query = query.filter(JournalEntry.account_id == account_id)
-        if reference_type:
-            query = query.filter(JournalEntry.reference_type == reference_type)
-
-        entries = query.order_by(JournalEntry.date.desc(), JournalEntry.entry_number.desc()).all()
-        return jsonify([entry.to_dict() for entry in entries])
-    except Exception as e:
-        logger.error(f"Error getting journal entries: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/journal-entries', methods=['POST'])
-@login_required
-def create_manual_journal_entry():
-    """Create manual journal entry"""
-    try:
-        from accounting_service import AccountingService
-        data = request.json
-
-        # Validate data
-        if not data.get('entries') or len(data['entries']) < 2:
-            return jsonify({'error': 'At least two journal entries required for double-entry'}), 400
-
-        # Validate that debits equal credits
-        total_debits = sum(entry.get('debit_amount', 0) for entry in data['entries'])
-        total_credits = sum(entry.get('credit_amount', 0) for entry in data['entries'])
-
-        if abs(total_debits - total_credits) > 0.01:
-            return jsonify({'error': 'Debits must equal credits'}), 400
-
-        # Create journal entries
-        transaction_group = f"MANUAL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        for entry_data in data['entries']:
-            AccountingService.create_journal_entry(
-                account_id=entry_data['account_id'],
-                debit_amount=entry_data.get('debit_amount', 0),
-                credit_amount=entry_data.get('credit_amount', 0),
-                description=entry_data.get('description', ''),
-                reference_type='manual',
-                transaction_group=transaction_group,
-                entry_date=datetime.strptime(data.get('date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
-                created_by=session.get('user_id')
-            )
-
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Journal entries created successfully'})
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating manual journal entry: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/trial-balance', methods=['GET'])
-@login_required
-def get_trial_balance():
-    """Get trial balance"""
-    try:
-        from accounting_service import AccountingService
-        as_of_date = request.args.get('as_of_date')
-
-        if as_of_date:
-            as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
-
-        trial_balance = AccountingService.get_trial_balance(as_of_date)
-        return jsonify(trial_balance)
-    except Exception as e:
-        logger.error(f"Error getting trial balance: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/income-statement', methods=['GET'])
-@login_required
-def get_income_statement():
-    """Get profit & loss statement"""
-    try:
-        from accounting_service import AccountingService
-
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-
-        if not start_date or not end_date:
-            # Default to current month
-            today = datetime.now().date()
-            start_date = datetime(today.year, today.month, 1).date()
-            end_date = today
-        else:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-
-        income_statement = AccountingService.get_income_statement(start_date, end_date)
-        return jsonify(income_statement)
-    except Exception as e:
-        logger.error(f"Error getting income statement: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/balance-sheet', methods=['GET'])
-@login_required
-def get_balance_sheet():
-    """Get balance sheet"""
-    try:
-        from accounting_service import AccountingService
-        as_of_date = request.args.get('as_of_date')
-
-        if as_of_date:
-            as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
-
-        balance_sheet = AccountingService.get_balance_sheet(as_of_date)
-        return jsonify(balance_sheet)
-    except Exception as e:
-        logger.error(f"Error getting balance sheet: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/general-ledger/<int:account_id>', methods=['GET'])
-@login_required
-def get_general_ledger(account_id):
-    """Get general ledger for specific account"""
-    try:
-        from models import Account, JournalEntry
-
-        account = Account.query.get_or_404(account_id)
-
-        # Get date filters
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-
-        query = JournalEntry.query.filter_by(account_id=account_id)
-
-        if start_date:
-            query = query.filter(JournalEntry.date >= datetime.strptime(start_date, '%Y-%m-%d').date())
-        if end_date:
-            query = query.filter(JournalEntry.date <= datetime.strptime(end_date, '%Y-%m-%d').date())
-
-        entries = query.order_by(JournalEntry.date, JournalEntry.entry_number).all()
-
-        # Calculate running balance
-        running_balance = 0
-        ledger_entries = []
-
-        for entry in entries:
-            if account.normal_balance == 'Debit':
-                running_balance += entry.debit_amount - entry.credit_amount
-            else:
-                running_balance += entry.credit_amount - entry.debit_amount
-
-            entry_dict = entry.to_dict()
-            entry_dict['running_balance'] = running_balance
-            ledger_entries.append(entry_dict)
-
-        return jsonify({
-            'account': account.to_dict(),
-            'entries': ledger_entries,
-            'ending_balance': running_balance
-        })
-    except Exception as e:
-        logger.error(f"Error getting general ledger: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/cash-flow', methods=['GET'])
-@login_required
-def get_cash_flow_statement():
-    """Get cash flow statement"""
-    try:
-        from models import Account, JournalEntry
-
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-
-        if not start_date or not end_date:
-            # Default to current month
-            today = datetime.now().date()
-            start_date = datetime(today.year, today.month, 1).date()
-            end_date = today
-        else:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-
-        # Get cash accounts
-        cash_accounts = Account.query.filter(
-            Account.code.in_(['1000', '1010', '1020']),
-            Account.is_active == True
-        ).all()
-
-        # Calculate cash flows
-        operating_activities = []
-        investing_activities = []
-        financing_activities = []
-
-        total_operating = 0
-        total_investing = 0
-        total_financing = 0
-
-        for account in cash_accounts:
-            entries = JournalEntry.query.filter(
-                JournalEntry.account_id == account.id,
-                JournalEntry.date >= start_date,
-                JournalEntry.date <= end_date
-            ).all()
-
-            for entry in entries:
-                cash_flow = entry.debit_amount - entry.credit_amount
-
-                # Categorize based on reference type
-                if entry.reference_type in ['sale', 'expense']:
-                    operating_activities.append({
-                        'description': entry.description,
-                        'amount': cash_flow,
-                        'date': entry.date.isoformat()
-                    })
-                    total_operating += cash_flow
-                elif entry.reference_type in ['purchase']:
-                    investing_activities.append({
-                        'description': entry.description,
-                        'amount': cash_flow,
-                        'date': entry.date.isoformat()
-                    })
-                    total_investing += cash_flow
-                else:
-                    financing_activities.append({
-                        'description': entry.description,
-                        'amount': cash_flow,
-                        'date': entry.date.isoformat()
-                    })
-                    total_financing += cash_flow
-
-        net_change_in_cash = total_operating + total_investing + total_financing
-
-        return jsonify({
-            'period': {
-                'start_date': start_date.isoformat(),
-                'end_date': end_date.isoformat()
-            },
-            'operating_activities': {
-                'items': operating_activities,
-                'total': total_operating
-            },
-            'investing_activities': {
-                'items': investing_activities,
-                'total': total_investing
-            },
-            'financing_activities': {
-                'items': financing_activities,
-                'total': total_financing
-            },
-            'net_change_in_cash': net_change_in_cash
-        })
-    except Exception as e:
-        logger.error(f"Error getting cash flow statement: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/reconciliation', methods=['GET'])
-@login_required
-def get_bank_reconciliations():
-    """Get bank reconciliation records"""
-    try:
-        from models import BankReconciliation
-
-        bank_account_id = request.args.get('bank_account_id')
-
-        query = BankReconciliation.query
-        if bank_account_id:
-            query = query.filter_by(bank_account_id=bank_account_id)
-
-        reconciliations = query.order_by(BankReconciliation.reconciliation_date.desc()).all()
-        return jsonify([rec.to_dict() for rec in reconciliations])
-    except Exception as e:
-        logger.error(f"Error getting bank reconciliations: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/accounting/reconciliation', methods=['POST'])
-@login_required
-def create_bank_reconciliation():
-    """Create bank reconciliation"""
-    try:
-        from models import BankReconciliation
-        data = request.json
-
-        reconciliation = BankReconciliation(
-            bank_account_id=data['bank_account_id'],
-            reconciliation_date=datetime.strptime(data['reconciliation_date'], '%Y-%m-%d').date(),
-            bank_statement_balance=data['bank_statement_balance'],
-            book_balance=data['book_balance'],
-            outstanding_deposits=data.get('outstanding_deposits', 0),
-            outstanding_checks=data.get('outstanding_checks', 0),
-            bank_fees=data.get('bank_fees', 0),
-            reconciled_balance=data['reconciled_balance'],
-            is_reconciled=data.get('is_reconciled', False),
-            notes=data.get('notes', ''),
-            created_by=session.get('user_id')
-        )
-
-        db.session.add(reconciliation)
-        db.session.commit()
-
-        return jsonify(reconciliation.to_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating bank reconciliation: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-# Installments API Routes
-@app.route('/api/installments', methods=['GET'])
-@login_required
-def get_installments():
-    """API endpoint to get all installment sales"""
-    try:
-        installments = InstallmentSale.query.order_by(InstallmentSale.created_at.desc()).all()
-        return jsonify([installment.to_dict() for installment in installments])
-    except Exception as e:
-        logger.error(f"Error getting installments: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/installments', methods=['POST'])
-@login_required
-def create_installment():
-    """API endpoint to create a new installment sale"""
+@app.route('/api/finance/categories', methods=['POST'])
+def add_transaction_category():
     try:
         data = request.json
+        category_name = data.get('name', '').strip()
+        category_type = data.get('type', '').strip()
 
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        if not category_name or not category_type:
+            return jsonify({'error': 'Category name and type are required'}), 400
 
-        # Validate required fields
-        required_fields = ['customer_id', 'product_id', 'total_amount', 'down_payment', 'number_of_installments']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-
-        # Calculate installment amount
-        remaining_amount = float(data['total_amount']) - float(data['down_payment'])
-        installment_amount = remaining_amount / int(data['number_of_installments'])
-
-        # Create new installment sale
-        new_installment = InstallmentSale(
-            customer_id=data['customer_id'],
-            product_id=data['product_id'],
-            total_amount=data['total_amount'],
-            down_payment=data['down_payment'],
-            number_of_installments=data['number_of_installments'],
-            installment_amount=installment_amount,
-            start_date=datetime.strptime(data.get('start_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
-            status=data.get('status', 'Active')
-        )
-
-        db.session.add(new_installment)
-        db.session.commit()
-
-        return jsonify(new_installment.to_dict()), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating installment: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/installments/<int:installment_id>/payments', methods=['POST'])
-@login_required
-def add_installment_payment():
-    """API endpoint to add a payment to an installment"""
-    try:
-        data = request.json
-        installment_id = request.view_args['installment_id']
-
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        # Validate installment exists
-        installment = InstallmentSale.query.get_or_404(installment_id)
-
-        # Create new payment
-        new_payment = InstallmentPayment(
-            installment_sale_id=installment_id,
-            payment_date=datetime.strptime(data.get('payment_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d').date(),
-            amount_paid=data['amount_paid'],
-            payment_method=data.get('payment_method', 'cash'),
-            remarks=data.get('remarks', '')
-        )
-
-        db.session.add(new_payment)
-        db.session.commit()
-
-        return jsonify(new_payment.to_dict()), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error adding installment payment: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-# Customer API Routes
-@app.route('/api/customers', methods=['GET'])
-@login_required
-def get_customers():
-    """API endpoint to get all customers"""
-    try:
-        customers = Customer.query.order_by(Customer.name).all()
-        return jsonify([customer.to_dict() for customer in customers])
-    except Exception as e:
-        logger.error(f"Error getting customers: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/customers', methods=['POST'])
-@login_required
-def create_customer():
-    """API endpoint to create a new customer"""
-    try:
-        data = request.json
-
-        if not data or 'name' not in data:
-            return jsonify({'error': 'Customer name is required'}), 400
-
-        # Create new customer
-        new_customer = Customer(
-            name=data['name'],
-            phone=data.get('phone', ''),
-            email=data.get('email', ''),
-            address=data.get('address', '')
-        )
-
-        db.session.add(new_customer)
-        db.session.commit()
-
-        return jsonify(new_customer.to_dict()), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating customer: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-# Categories API Routes
-@app.route('/api/categories', methods=['GET'])
-@login_required
-def get_categories():
-    """API endpoint to get all categories with subcategories"""
-    try:
-        categories = Category.query.filter_by(is_active=True).order_by(
-            Category.name).all()
-        return jsonify([category.to_dict() for category in categories])
-    except Exception as e:
-        logger.error(f"Error getting categories: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/categories', methods=['POST'])
-@login_required
-def create_category():
-    """API endpoint to create a new category"""
-    try:
-        data = request.json
-
-        if not data or 'name' not in data:
-            return jsonify({'error': 'Category name is required'}), 400
+        if category_type not in ['Income', 'Expense']:
+            return jsonify({'error': 'Category type must be Income or Expense'}), 400
 
         # Check if category already exists
-        existing_category = Category.query.filter_by(name=data['name']).first()
-        if existing_category:
+        existing = FinancialTransaction.query.filter_by(category=category_name).first()
+        if existing:
             return jsonify({'error': 'Category already exists'}), 400
 
-        # Create new category
-        new_category = Category(name=data['name'],
-                                description=data.get('description', ''),
-                                icon=data.get('icon', 'fas fa-box'),
-                                color=data.get('color', '#007bff'))
-
-        db.session.add(new_category)
-        db.session.commit()
-
-        return jsonify(new_category.to_dict()), 201
-
+        return jsonify({
+            'success': True, 
+            'message': 'Category can be used in transactions',
+            'category': {'name': category_name, 'type': category_type}
+        })
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating category: {str(e)}")
+        logger.error(f"Error adding category: {e}")
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/categories/<int:category_id>', methods=['PUT'])
-@login_required
-def update_category(category_id):
-    """API endpoint to update a category"""
+@app.route('/api/finance/summaries/monthly', methods=['GET'])
+def get_monthly_summaries():
+    """API endpoint to get monthly financial summaries for charts"""
     try:
-        category = Category.query.get_or_404(category_id)
-        data = request.json
+        from models import FinancialTransaction
+        from sqlalchemy import extract, func
+        from datetime import datetime
 
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        year = request.args.get('year', datetime.now().year)
 
-        # Update category fields
-        if 'name' in data:
-            # Check if new name conflicts with existing categories
-            existing_category = Category.query.filter_by(
-                name=data['name']).filter(Category.id != category_id).first()
-            if existing_category:
-                return jsonify({"error": "Category name already exists"}), 400
-            category.name = data['name']
+        try:
+            year = int(year)
+        except ValueError:
+            return jsonify({'error': 'Invalid year format'}), 400
 
-        if 'description' in data:
-            category.description = data['description']
+        # Query monthly summaries
+        monthly_data = []
+        months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
 
-        if 'icon' in data:
-            category.icon = data['icon']
+        for month_num in range(1, 13):
+            # Get income for this month
+            income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                extract('year', FinancialTransaction.date) == year,
+                extract('month', FinancialTransaction.date) == month_num,
+                FinancialTransaction.transaction_type == 'Income'
+            ).scalar() or 0
 
-        if 'color' in data:
-            category.color = data['color']
+            # Get expenses for this month
+            expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                extract('year', FinancialTransaction.date) == year,
+                extract('month', FinancialTransaction.date) == month_num,
+                FinancialTransaction.transaction_type == 'Expense'
+            ).scalar() or 0
 
-        if 'is_active' in data:
-            category.is_active = data['is_active']
-
-        category.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify(category.to_dict())
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating category: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
-@login_required
-def delete_category(category_id):
-    """API endpoint to delete a category"""
-    try:
-        category = Category.query.get_or_404(category_id)
-
-        # Check if category has items
-        item_count = Item.query.filter_by(category=category.name).count()
-        if item_count > 0:
-            return jsonify({
-                'error':
-                f'Cannot delete category with {item_count} items. Move or delete items first.'
-            }), 400
-
-        # Soft delete - mark as inactive
-        category.is_active = False
-        category.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify(
-            {'message': f'Category "{category.name}" deleted successfully'})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting category: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
-@login_required
-def get_subcategories(category_id):
-    """API endpoint to get subcategories for a category"""
-    try:
-        category = Category.query.get_or_404(category_id)
-        subcategories = Subcategory.query.filter_by(
-            category_id=category_id,
-            is_active=True).order_by(Subcategory.name).all()
-        return jsonify(
-            [subcategory.to_dict() for subcategory in subcategories])
-    except Exception as e:
-        logger.error(f"Error getting subcategories: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
-@login_required
-def create_subcategory(category_id):
-    """API endpoint to create a new subcategory"""
-    try:
-        category = Category.query.get_or_404(category_id)
-        data = request.json
-
-        if not data or 'name' not in data:
-            return jsonify({'error': 'Subcategory name is required'}), 400
-
-        # Check if subcategory already exists in this category
-        existing_subcategory = Subcategory.query.filter_by(
-            name=data['name'], category_id=category_id).first()
-        if existing_subcategory:
-            return jsonify(
-                {'error': 'Subcategory already exists in this category'}), 400
-
-        # Create new subcategory
-        new_subcategory = Subcategory(name=data['name'],
-                                      description=data.get('description', ''),
-                                      category_id=category_id)
-
-        db.session.add(new_subcategory)
-        db.session.commit()
-
-        return jsonify(new_subcategory.to_dict()), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating subcategory: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/subcategories/<int:subcategory_id>', methods=['GET'])
-@login_required
-def get_subcategory(subcategory_id):
-    """API endpoint to get a single subcategory"""
-    try:
-        subcategory = Subcategory.query.get_or_404(subcategory_id)
-        return jsonify(subcategory.to_dict())
-    except Exception as e:
-        logger.error(f"Error getting subcategory: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/subcategories/<int:subcategory_id>', methods=['PUT'])
-@login_required
-def update_subcategory(subcategory_id):
-    """API endpoint to update a subcategory"""
-    try:
-        subcategory = Subcategory.query.get_or_404(subcategory_id)
-        data = request.json
-
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        # Update subcategory fields
-        if 'name' in data:
-            # Check if new name conflicts within the same category
-            existing_subcategory = Subcategory.query.filter_by(
-                name=data['name'], category_id=subcategory.category_id).filter(
-                    Subcategory.id != subcategory_id).first()
-
-            if existing_subcategory:
-                return jsonify({
-                    'error':
-                    'Subcategory name already exists in this category'
-                }), 400
-            subcategory.name = data['name']
-
-        if 'description' in data:
-            subcategory.description = data['description']
-
-        if 'is_active' in data:
-            subcategory.is_active = data['is_active']
-
-        subcategory.updated_at = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify(subcategory.to_dict())
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating subcategory: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/subcategories/<int:subcategory_id>', methods=['DELETE'])
-@login_required
-def delete_subcategory(subcategory_id):
-    """API endpoint to delete a subcategory"""
-    try:
-        subcategory = Subcategory.query.get_or_404(subcategory_id)
-
-        # Check if subcategory has items
-        item_count = Item.query.filter_by(subcategory=subcategory.name).count()
-        if item_count > 0:
-            return jsonify({
-                'error':
-                f'Cannot delete subcategory with {item_count} items. Move or delete items first.'
-            }), 400
-
-        # Soft delete - mark as inactive
-        subcategory.is_active = False
-        subcategory.updated_at = datetime.utcnow()
-        db.session.commit()
+            monthly_data.append({
+                'month': month_num,
+                'month_name': months[month_num - 1],
+                'income': float(income),
+                'expenses': float(expenses),
+                'profit': float(income - expenses)
+            })
 
         return jsonify({
-            'message':
-            f'Subcategory "{subcategory.name}" deleted successfully'
+            'year': year,
+            'monthly_data': monthly_data
         })
 
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting subcategory: {str(e)}")
+        logger.error(f"Error getting monthly summaries: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Main routes
+@app.route('/')
+def index():
+    """Main index route"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
 
-@app.route('/api/categories/<int:category_id>/items', methods=['GET'])
+@app.route('/dashboard')
 @login_required
-def get_category_items(category_id):
-    """API endpoint to get items in a category"""
-    try:
-        category = Category.query.get_or_404(category_id)
-        items = Item.query.filter_by(category=category.name).all()
-        return jsonify([item.to_dict() for item in items])
-    except Exception as e:
-        logger.error(f"Error getting category items: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+def dashboard():
+    """Dashboard route for authenticated users"""
+    return render_template('index.html')
 
-
-# Notification API Routes
-@app.route('/api/notifications/test', methods=['POST'])
-def test_notifications():
-    """API endpoint to test notifications for low stock items"""
-    try:
-        from notifications.notification_manager import check_low_stock_and_notify
-        from models import Item, Setting
-
-        # Call the notification manager to check low stock and send notifications
-        result = check_low_stock_and_notify(db, Item, Setting)
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error testing notifications: {str(e)}")
-        return jsonify({
-            'success': False,
-            'errors': [f"Error testing notifications: {str(e)}"]
-        }), 500
-
-
-@app.route('/api/notifications/test-sms', methods=['POST'])
-def test_sms():
-    """API endpoint to test SMS notifications"""
-    try:
-        data = request.get_json()
-        phone_number = data.get('phone_number')
-        message = data.get('message', 'Test SMS from Inventory System')
-
-        if not phone_number:
-            return jsonify({'error': 'Phone number is required'}), 400
-
-        from notifications.sms_service import send_sms
-        result = send_sms(phone_number, message)
-
-        if result:
-            return jsonify({'success': True, 'message': 'SMS sent successfully'})
-        else:
-            return jsonify({'success': False, 'error': 'Failed to send SMS'})
-
-    except Exception as e:
-        logger.error(f"Error sending test SMS: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/notifications/send-low-stock-alert', methods=['POST'])
-def send_low_stock_alert():
-    """API endpoint to manually trigger low stock SMS alerts"""
-    try:
-        from notifications.notification_manager import check_low_stock_and_notify
-        from models import Item, Setting
-
-        # Trigger the notification check
-        result = check_low_stock_and_notify(db, Item, Setting)
-
-        return jsonify({
-            'success': result.get('success', False),
-            'sms_sent': result.get('sms_sent', False),
-            'email_sent': result.get('email_sent', False),
-            'low_stock_count': result.get('low_stock_count', 0),
-            'errors': result.get('errors', [])
-        })
-
-    except Exception as e:
-        logger.error(f"Error sending low stock alert: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/notifications/check-stock', methods=['GET'])
-def check_low_stock():
-    """API endpoint to check for low stock items without sending notifications"""
-    try:
-        # Get threshold from query parameter or use default
-        threshold = request.args.get('threshold', 10, type=int)
-
-        # Get low stock items
-        low_stock_items = Item.query.filter(Item.quantity <= threshold).all()
-
-        # Return results
-        return jsonify({
-            'success':
-            True,
-            'low_stock_count':
-            len(low_stock_items),
-            'low_stock_items': [item.to_dict() for item in low_stock_items]
-        })
-
-    except Exception as e:
-        logger.error(f"Error checking low stock: {str(e)}")
-        return jsonify({
-            'success': False,
-            'errors': [f"Error checking low stock: {str(e)}"]
-        }), 500
-
-
-# Theme management
-@app.route('/api/settings/appearance', methods=['POST'])
-def update_appearance_settings():
-    """API endpoint to update appearance settings"""
-    from models import Setting
-
-    try:
-        data = request.json
-
-        # Extract theme data
-        theme = data.get('theme', 'tanzanite')
-        items_per_page = data.get('itemsPerPage', '25')
-        date_format = data.get('dateFormat', 'YYYY-MM-DD')
-
-        # Update theme in session - this will apply immediately
-        session['user_theme'] = theme
-
-        # Save settings to database
-        user_id = session.get('user_id')
-        if user_id:
-            # Save theme setting for this user
-            theme_key = f"user_{user_id}_theme"
-            theme_setting = Setting.query.filter_by(key=theme_key).first()
-
-            if theme_setting:
-                theme_setting.value = theme
-                theme_setting.category = 'appearance'
-            else:
-                theme_setting = Setting(
-                    key=theme_key,
-                    value=theme,
-                    description=f"Theme preference for user {user_id}",
-                    category='appearance')
-                db.session.add(theme_setting)
-
-            # Save items per page setting
-            items_key = f"user_{user_id}_items_per_page"
-            items_setting = Setting.query.filter_by(key=items_key).first()
-
-            if items_setting:
-                items_setting.value = items_per_page
-                items_setting.category = 'appearance'
-            else:
-                items_setting = Setting(
-                    key=items_key,
-                    value=items_per_page,
-                    description=f"Items per page preference for user {user_id}",
-                    category='appearance')
-                db.session.add(items_setting)
-
-            # Save date format setting
-            date_key = f"user_{user_id}_date_format"
-            date_setting = Setting.query.filter_by(key=date_key).first()
-
-            if date_setting:
-                date_setting.value = date_format
-                date_setting.category = 'appearance'
-            else:
-                date_setting = Setting(
-                    key=date_key,
-                    value=date_format,
-                    description=f"Date format preference for user {user_id}",
-                    category='appearance')
-                db.session.add(date_setting)
-
-            db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "Appearance settings updated successfully"
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating appearance settings: {str(e)}")
-        return jsonify({"error": "Failed to update appearance settings"}), 500
-
-
-# Authentication routes
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login')
 def login():
-    """Handle login form"""
-    # If user is already logged in, redirect to dashboard
+    """Login page route"""
     if 'user_id' in session:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
 
-    # Render login template
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
-
-    return render_template('login.html', firebase_config=firebase_config)
-
-
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register')
 def register():
-    """Handle the registration page"""
-    # If user is already logged in, redirect to dashboard
+    """Registration page route"""
     if 'user_id' in session:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
+    return render_template('register.html')
 
-    # Render registration template with Firebase config
-    firebase_config = {
-        'apiKey': app.config['FIREBASE_API_KEY'],
-        'projectId': app.config['FIREBASE_PROJECT_ID'],
-        'appId': app.config['FIREBASE_APP_ID'],
-        'authDomain': f"{app.config['FIREBASE_PROJECT_ID']}.firebaseapp.com",
-    }
+# Main page routes are defined in routes.py
 
-    return render_template('register.html', firebase_config=firebase_config)
+# Import routes module which contains all route definitions
+try:
+    from routes import *
+except ImportError:
+    logger.warning("Routes module not found, using basic route definitions")
 
-
-@app.route('/api/auth/session', methods=['POST'])
-def create_session():
-    """Create a session for authenticated user using Firebase token"""
-    try:
-        data = request.json
-
-        logger.info("Session creation request received")
-
-        if not data or 'idToken' not in data:
-            logger.warning("Missing idToken in session creation request")
-            return jsonify({"error": "Firebase ID token is required"}), 400
-
-        # Verify the Firebase token
-        logger.info("Verifying Firebase token...")
-        user_data = verify_firebase_token(data['idToken'])
-
-        if not user_data:
-            logger.warning("Firebase token verification failed")
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        logger.info(
-            f"Firebase token verified successfully for email: {user_data.get('email')}"
-        )
-
-        # Create or update user in database
-        logger.info("Creating or updating user in database...")
-        user = create_or_update_user(user_data)
-
-        if not user:
-            logger.error("Failed to create or update user record")
-            return jsonify({"error": "Failed to create user record"}), 500
-
-        logger.info(
-            f"User record updated/created successfully for ID: {user.id}")
-
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-
-        # Set session data
-        logger.info("Setting session data...")
-        session['user_id'] = user.id
-        session['email'] = user.email
-        session['is_admin'] = user.is_admin
-        session.permanent = data.get('remember', False)
-
-        # Load user theme preference
-        from models import Setting
-        theme_key = f"user_{user.id}_theme"
-        theme_setting = Setting.query.filter_by(key=theme_key).first()
-        if theme_setting:
-            session['user_theme'] = theme_setting.value
-            logger.info(f"Loaded user theme: {theme_setting.value}")
-        else:
-            session['user_theme'] = 'tanzanite'  # Default theme
-            logger.info("Using default theme: tanzanite")
-
-        logger.info("Session created successfully")
-        return jsonify({"success": True, "user": user.to_dict()})
-
-    except Exception as e:
-        logger.error(f"Error creating session with Firebase: {str(e)}")
-        return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
-
-
-@app.route('/api/auth/register', methods=['POST'])
-def register_user():
-    """Register a new user via Firebase API"""
-    try:
-        data = request.json
-
-        if not data or 'idToken' not in data:
-            return jsonify({"error": "Firebase ID token is required"}), 400
-
-        # Additional user data from registration form
-        extra_data = {}
-        if 'username' in data:
-            extra_data['username'] = data['username']
-        if 'firstName' in data:
-            extra_data['first_name'] = data['firstName']
-        if 'lastName' in data:
-            extra_data['last_name'] = data['lastName']
-        if 'shopName' in data:
-            extra_data['shop_name'] = data['shopName']
-        if 'productCategories' in data:
-            extra_data['product_categories'] = data['productCategories']
-
-        # Verify the Firebase token
-        user_data = verify_firebase_token(data['idToken'])
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        # Create or update user in database with extra profile data
-        user = create_or_update_user(user_data, extra_data)
-
-        if not user:
-            return jsonify({"error": "Failed to create user record"}), 500
-
-        # Set session data
-        session['user_id'] = user.id
-        session['email'] = user.email
-        session['is_admin'] = user.is_admin
-        session.permanent = data.get('remember', False)
-
-        # Update last login time
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-
-        return jsonify({"success": True, "user": user.to_dict()})
-
-    except Exception as e:
-        logger.error(f"Error registering user: {str(e)}")
-        return jsonify({"error": "Failed to register user"}), 500
-
-
-# This logout route is now unified with the existing one at line 770
-
-
-@app.route('/account')
-def account():
-    """Render the user account page"""
-    from auth_service import login_required
-
-    @login_required
-    def protected_account():
-        from models import User
-        user = User.query.get(session['user_id'])
-        if not user:
-            session.clear()
-            return redirect(url_for('login'))
-
-        return render_template('account.html', user=user)
-
-    return protected_account()
-
-
-@app.route('/admin/users')
-@login_required
-def admin_users():
-    """Render the user management page (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        flash('Admin access required', 'danger')
-        return redirect(url_for('index'))
-
-    users = User.query.all()
-    return render_template('admin_users.html', users=users)
-
-
-@app.route('/api/auth/users', methods=['GET'])
-@login_required
-def get_users():
-    """API endpoint to get all users (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        return jsonify({"error": "Admin access required"}), 403
-
-    users = User.query.all()
-    return jsonify([user.to_dict() for user in users])
-
-
-@app.route('/api/auth/users/<int:user_id>', methods=['PUT'])
-@login_required
-def update_user(user_id):
-    """API endpoint to update user (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        return jsonify({"error": "Admin access required"}), 403
-
-    try:
-        data = request.json
-        user = User.query.get_or_404(user_id)
-
-        # Only allow updating specific fields
-        if 'is_active' in data:
-            user.active = data['is_active']
-
-        if 'is_admin' in data:
-            user.is_admin = data['is_admin']
-
-        if 'username' in data:
-            # Check for username uniqueness
-            existing_user = User.query.filter_by(
-                username=data['username']).first()
-            if existing_user and existing_user.id != user.id:
-                return jsonify({"error": "Username already taken"}), 400
-            user.username = data['username']
-
-        if 'firstName' in data:
-            user.first_name = data['firstName']
-
-        if 'lastName' in data:
-            user.last_name = data['lastName']
-
-        if 'shopName' in data:
-            user.shop_name = data['shopName']
-
-        if 'productCategories' in data:
-            user.product_categories = data['productCategories']
-
-        user.updated_at = datetime.utcnow()
-        db.session.commit()
-        return jsonify(user.to_dict())
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating user: {str(e)}")
-        return jsonify({"error": "Failed to update user"}), 500
-
-
-@app.route('/api/auth/users/<int:user_id>', methods=['DELETE'])
-@login_required
-def delete_user(user_id):
-    """API endpoint to delete user (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        return jsonify({"error": "Admin access required"}), 403
-
-    # Prevent admin from deleting themselves
-    if user_id == current_user.id:
-        return jsonify({"error": "Cannot delete your own account"}), 400
-
-    try:
-        user = User.query.get_or_404(user_id)
-        username = user.username
-
-        db.session.delete(user)
-        db.session.commit()
-
-        return jsonify({"message": f"User {username} deleted successfully"})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting user: {str(e)}")
-        return jsonify({"error": "Failed to delete user"}), 500
-
-
-@app.route('/api/shop/details', methods=['GET'])
-@login_required
-def get_shop_details():
-    """API endpoint to get shop details for the current user"""
-    try:
-        user_id = session.get('user_id')
-
-        if not user_id:
-            return jsonify({"error": "User not authenticated"}), 401
-
-        user = User.query.get_or_404(user_id)
-
-        # Get shop name from user profile, fallback to username
-        shop_name = user.shop_name or f"{user.username}'s Shop"
-
-        return jsonify({
-            'shop_name':
-            shop_name,
-            'owner_name':
-            f"{user.first_name} {user.last_name}".strip() or user.username,
-            'product_categories':
-            user.product_categories or ""
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting shop details: {str(e)}")
-        return jsonify({"error": "Failed to get shop details"}), 500
-
-
-@app.route('/api/auth/users/stats', methods=['GET'])
-@login_required
-def get_user_stats():
-    """API endpoint to get user statistics (admin only)"""
-    # Check if current user is admin
-    current_user = User.query.get(session['user_id'])
-    if not current_user or not current_user.is_admin:
-        return jsonify({"error": "Admin access required"}), 403
-
-    try:
-        total_users = User.query.count()
-        active_users = User.query.filter_by(active=True).count()
-        admin_users = User.query.filter_by(is_admin=True).count()
-        unverified_users = User.query.filter_by(email_verified=False).count()
-
-        # Get recent registrations (last 30 days)
-        from datetime import timedelta
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        recent_registrations = User.query.filter(
-            User.created_at >= thirty_days_ago).count()
-
-        return jsonify({
-            'total_users': total_users,
-            'active_users': active_users,
-            'admin_users': admin_users,
-            'unverified_users': unverified_users,
-            'recent_registrations': recent_registrations
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting user stats: {str(e)}")
-        return jsonify({"error": "Failed to get user statistics"}), 500
-
-
-@app.route('/api/auth/profile', methods=['PUT'])
-def update_profile():
-    """API endpoint to update the current user's profile"""
-    from auth_service import login_required
-
-    @login_required
-    def protected_update_profile():
-        from models import User
-        try:
-            data = request.json
-            user_id = session.get('user_id')
-
-            if not user_id:
-                return jsonify({"error": "User not authenticated"}), 401
-
-            user = User.query.get_or_404(user_id)
-
-            # Only allow updating specific fields (non-admin fields)
-            if 'username' in data:
-                user.username = data['username']
-
-            if 'firstName' in data:
-                user.first_name = data['firstName']
-
-            if 'lastName' in data:
-                user.last_name = data['lastName']
-
-            if 'shopName' in data:
-                user.shop_name = data['shopName']
-
-            if 'productCategories' in data:
-                user.product_categories = data['productCategories']
-
-            # Update timestamps
-            user.updated_at = datetime.utcnow()
-
-            db.session.commit()
-            return jsonify({"success": True, "user": user.to_dict()})
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error updating profile: {str(e)}")
-            return jsonify({"error":
-                            f"Failed to update profile: {str(e)}"}), 500
-
-    return protected_update_profile()
-
-
-@app.route('/api/auth/profile', methods=['GET'])
-def get_profile():
-    """API endpoint to get the current user's profile"""
-    from auth_service import login_required
-
-    @login_required
-    def protected_get_profile():
-        from models import User
-        try:
-            user_id = session.get('user_id')
-
-            if not user_id:
-                return jsonify({"error": "User not authenticated"}), 401
-
-            user = User.query.get_or_404(user_id)
-            return jsonify({"success": True, "user": user.to_dict()})
-
-        except Exception as e:
-            logger.error(f"Error getting profile: {str(e)}")
-            return jsonify({"error": f"Failed to get profile: {str(e)}"}), 500
-
-    return protected_get_profile()
-
-
-@app.route('/api/auth/sync-profile', methods=['POST'])
-def sync_profile():
-    """API endpoint to sync user profile with Firebase"""
-    from auth_service import login_required, verify_firebase_token, update_user_profile
-
-    @login_required
-    def protected_sync_profile():
-        from models import User
-        try:
-            # Get current user
-            user_id = session.get('user_id')
-
-            if not user_id:
-                return jsonify({"error": "User not authenticated"}), 401
-
-            user = User.query.get_or_404(user_id)
-
-            # Get Firebase ID token from request
-            auth_header = request.headers.get('Authorization', '')
-            if not auth_header.startswith('Bearer '):
-                return jsonify({"error": "Invalid authorization header"}), 401
-
-            token = auth_header.split(' ')[1]
-
-            # Verify token and get user info
-            firebase_user = verify_firebase_token(token)
-
-            if not firebase_user:
-                return jsonify({"error": "Invalid Firebase token"}), 401
-
-            # Update user profile with Firebase data
-            if firebase_user.get('displayName'):
-                # Split display name into first and last name if available
-                name_parts = firebase_user.get('displayName', '').split(' ', 1)
-                if len(name_parts) > 0:
-                    user.first_name = name_parts[0]
-                if len(name_parts) > 1:
-                    user.last_name = name_parts[1]
-
-            # Update email and email verification status
-            if firebase_user.get('email'):
-                user.email = firebase_user.get('email')
-
-            if 'emailVerified' in firebase_user:
-                user.email_verified = firebase_user.get('emailVerified', False)
-
-            # Update Firebase UID if needed
-            if firebase_user.get('localId') and not user.firebase_uid:
-                user.firebase_uid = firebase_user.get('localId')
-
-            # Set last login time
-            user.last_login = datetime.utcnow()
-
-            # Update timestamps
-            user.updated_at = datetime.utcnow()
-
-            # Save changes
-            db.session.commit()
-
-            return jsonify({
-                "success": True,
-                "message": "Profile synchronized with Firebase",
-                "user": user.to_dict()
-            })
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error syncing profile: {str(e)}")
-            return jsonify({"error": f"Failed to sync profile: {str(e)}"}), 500
-
-    return protected_sync_profile()
-
-
-@app.route('/api/auth/change-password', methods=['POST'])
-def change_password():
-    """API endpoint to change user password"""
-    from auth_service import login_required
-
-    @login_required
-    def protected_change_password():
-        from models import User
-        try:
-            data = request.json
-            user_id = session.get('user_id')
-
-            if not user_id:
-                return jsonify({"error": "User not authenticated"}), 401
-
-            if 'current_password' not in data or 'new_password' not in data:
-                return jsonify({
-                    "error":
-                    "Current password and new password are required"
-                }), 400
-
-            user = User.query.get_or_404(user_id)
-
-            # Verify current password
-            if not user.check_password(data['current_password']):
-                return jsonify({"error": "Current password is incorrect"}), 400
-
-            # Validate new password
-            if len(data['new_password']) < 6:
-                return jsonify(
-                    {"error":
-                     "Password must be at least 6 characters long"}), 400
-
-            # Update password
-            user.set_password(data['new_password'])
-            db.session.commit()
-
-            return jsonify({
-                "success": True,
-                "message": "Password changed successfully"
-            })
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error changing password: {str(e)}")
-            return jsonify({"error": "Failed to change password"}), 500
-
-    return protected_change_password()
-
-
-@app.route('/api/auth/send-verification', methods=['POST'])
-def send_verification():
-    """API endpoint to send email verification"""
-    from auth_service import login_required
-    from notifications.email_service import send_email
-
-    @login_required
-    def protected_send_verification():
-        from models import User
-        import secrets
-        import datetime
-
-        try:
-            user_id = session.get('user_id')
-
-            if not user_id:
-                return jsonify({"error": "User not authenticated"}), 401
-
-            user = User.query.get_or_404(user_id)
-
-            # Generate verification token
-            verification_token = secrets.token_urlsafe(32)
-            user.verification_token = verification_token
-            user.verification_token_expires = datetime.datetime.utcnow(
-            ) + datetime.timedelta(hours=24)
-            db.session.commit()
-
-            # Build verification URL
-            verification_url = url_for('verify_email',
-                                       token=verification_token,
-                                       _external=True)
-
-            # Create email content
-            shop_name = user.shop_name or "Your Shop"
-            html_content = f"""
-            <h2>Email Verification</h2>
-            <p>Hello {user.first_name or user.username},</p>
-            <p>Thank you for registering your account for {shop_name}. Please verify your email address by clicking the link below:</p>
-            <p><a href="{verification_url}" style="background-color:#4CAF50;border:none;color:white;padding:10px 20px;text-align:center;text-decoration:none;display:inline-block;font-size:16px;margin:4px 2px;cursor:pointer;border-radius:5px;">Verify Email</a></p>
-            <p>If you did not request this verification, please ignore this email.</p>
-            <p>Sincerely,</p>
-            <p>The {shop_name} Team</p>
-            """
-
-            # Send email
-            subject = "Verify Your Email Address"
-            send_email(user.email, subject, html_content)
-
-            return jsonify({
-                "success": True,
-                "message": "Verification email sent successfully"
-            })
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error sending verification email: {str(e)}")
-            return jsonify({"error":
-                            f"Failed to send verification email: {str(e)}"}), 500
-
-    return protected_send_verification()
-
-
-@app.route('/verify-email/<token>')
-def verify_email(token):
-    """Verify email address using token"""
-    from models import User
-
-    try:
-        user = User.query.filter_by(verification_token=token).first()
-
-        if not user:
-            flash('Invalid verification token', 'danger')
-            return redirect(url_for('login'))
-
-        if user.verification_token_expires < datetime.datetime.utcnow():
-            flash('Verification token has expired', 'danger')
-            return redirect(url_for('login'))
-
-        # Mark email as verified
-        user.email_verified = True
-        user.verification_token = None
-        user.verification_token_expires = None
-        db.session.commit()
-
-        flash('Email verified successfully!', 'success')
-        return redirect(url_for('login'))
-
-    except Exception as e:
-        logger.error(f"Error verifying email: {str(e)}")
-        flash('An error occurred during email verification', 'danger')
-        return redirect(url_for('login'))
-
-
+# Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
+    """Handle 404 errors"""
+    logger.error(f"404 error: {request.url}")
     return render_template('404.html'), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"500 error: {str(error)}")
     db.session.rollback()
     return render_template('500.html'), 500
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle general exceptions"""
+    logger.error(f"Unhandled exception: {str(e)}")
+    # Pass through HTTP errors
+    if hasattr(e, 'code'):
+        return e
+    # Handle non-HTTP exceptions
+    db.session.rollback()
+    return render_template('500.html'), 500
+
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
