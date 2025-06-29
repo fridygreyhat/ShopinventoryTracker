@@ -114,13 +114,23 @@ except ImportError:
 
 # Initialize database tables
 with app.app_context():
+    try:
+        # When we have schema changes, we need to reset the database
+        # Comment out the line below to avoid data loss in production
+        # db.drop_all()  # Commented out to prevent data loss
 
-    # When we have schema changes, we need to reset the database
-    # Comment out the line below to avoid data loss in production
-    # db.drop_all()  # Commented out to prevent data loss
-
-    # First, create all tables
-    db.create_all()
+        # First, create all tables
+        db.create_all()
+        logger.info("Database tables created successfully")
+        
+        # Test database connection
+        db.session.execute(db.text("SELECT 1"))
+        db.session.commit()
+        logger.info("Database connection test successful")
+        
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+        # Continue anyway - the app might still work
 
     # Then, handle migrations for existing databases
     # Helper function to check if column exists
@@ -257,6 +267,10 @@ def api_login():
     """API endpoint for user login"""
     try:
         data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
 
@@ -267,10 +281,18 @@ def api_login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            if not user.is_active:
+                return jsonify({'error': 'Account is deactivated'}), 401
+                
+            # Update last login
+            user.last_login = datetime.utcnow()
+            
             # Create session
             session['user_id'] = user.id
             session['user_email'] = user.email
             session['user_name'] = f"{user.first_name} {user.last_name}"
+
+            db.session.commit()
 
             return jsonify({
                 'success': True,
@@ -286,13 +308,17 @@ def api_login():
 
     except Exception as e:
         logger.error(f"API login error: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
     """API endpoint for user registration"""
     try:
         data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         username = data.get('username', '').strip()
@@ -303,11 +329,28 @@ def api_register():
         product_categories = data.get('product_categories', '')
 
         # Validate required fields
-        if not all([email, password, username, first_name, last_name]):
-            return jsonify({'error': 'All required fields must be filled'}), 400
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        if not first_name:
+            return jsonify({'error': 'First name is required'}), 400
+        if not last_name:
+            return jsonify({'error': 'Last name is required'}), 400
+
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'error': 'Invalid email format'}), 400
 
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+        if len(username) < 3:
+            return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
@@ -328,17 +371,23 @@ def api_register():
             phone=phone if phone else None,
             shop_name=shop_name if shop_name else None,
             product_categories=product_categories if product_categories else None,
-            is_active=True
+            is_active=True,
+            is_admin=False,
+            email_verified=False
         )
         new_user.set_password(password)
 
         db.session.add(new_user)
-        db.session.commit()
+        db.session.flush()  # Get the user ID without committing
 
         # Create session
         session['user_id'] = new_user.id
         session['user_email'] = new_user.email
         session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
+
+        db.session.commit()
+
+        logger.info(f"New user registered: {email}")
 
         return jsonify({
             'success': True,
@@ -354,7 +403,7 @@ def api_register():
     except Exception as e:
         db.session.rollback()
         logger.error(f"API registration error: {str(e)}")
-        return jsonify({'error': 'Registration failed'}), 500
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
 def api_create_session():

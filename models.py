@@ -30,14 +30,14 @@ class User(db.Model):
     last_login = db.Column(db.DateTime)
 
     def set_password(self, password):
-        """Set password hash"""
-        import hashlib
-        self.password_hash = hashlib.sha256(password.encode()).hexdigest()
+        """Set password hash using werkzeug's secure method"""
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         """Check if provided password matches hash"""
-        import hashlib
-        return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
+        from werkzeug.security import check_password_hash
+        return check_password_hash(self.password_hash, password)
 
     def get_username(self):
         """Return username or email as fallback"""
