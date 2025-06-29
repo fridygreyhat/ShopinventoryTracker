@@ -331,7 +331,189 @@ class InstallmentPayment(db.Model):
         }
 
 # Additional models referenced in app.py but not essential for basic functionality
+class Supplier(db.Model):
+    __tablename__ = 'suppliers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    contact_person = db.Column(db.String(100))
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    tax_id = db.Column(db.String(50))
+    payment_terms = db.Column(db.Integer, default=30)  # Days
+    rating = db.Column(db.Float, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'contact_person': self.contact_person,
+            'email': self.email,
+            'phone': self.phone,
+            'address': self.address,
+            'tax_id': self.tax_id,
+            'payment_terms': self.payment_terms,
+            'rating': self.rating,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class PurchaseOrder(db.Model):
+    __tablename__ = 'purchase_orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(50), unique=True, nullable=False)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
+    expected_delivery_date = db.Column(db.Date)
+    delivered_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default='pending')  # pending, approved, shipped, delivered, cancelled
+    total_amount = db.Column(db.Float, default=0)
+    notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    supplier = db.relationship('Supplier', backref='purchase_orders')
+    items = db.relationship('PurchaseOrderItem', backref='purchase_order', cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'po_number': self.po_number,
+            'supplier_id': self.supplier_id,
+            'expected_delivery_date': self.expected_delivery_date.isoformat() if self.expected_delivery_date else None,
+            'delivered_date': self.delivered_date.isoformat() if self.delivered_date else None,
+            'status': self.status,
+            'total_amount': self.total_amount,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'items': [item.to_dict() for item in self.items]
+        }
+
+class PurchaseOrderItem(db.Model):
+    __tablename__ = 'purchase_order_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    total_price = db.Column(db.Float, nullable=False)
+
+    # Relationships
+    item = db.relationship('Item')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else '',
+            'quantity': self.quantity,
+            'unit_price': self.unit_price,
+            'total_price': self.total_price
+        }
+
+class DeliveryTracking(db.Model):
+    __tablename__ = 'delivery_tracking'
+
+    id = db.Column(db.Integer, primary_key=True)
+    purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False)
+    status = db.Column(db.String(50), nullable=False)
+    location = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class QualityChecklist(db.Model):
+    __tablename__ = 'quality_checklists'
+
+    id = db.Column(db.Integer, primary_key=True)
+    purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False)
+    inspector_name = db.Column(db.String(100), nullable=False)
+    inspection_date = db.Column(db.Date, nullable=False)
+    overall_status = db.Column(db.String(20), default='pending')  # pending, passed, failed, partial
+    notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    items = db.relationship('QualityCheckItem', backref='checklist', cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'purchase_order_id': self.purchase_order_id,
+            'inspector_name': self.inspector_name,
+            'inspection_date': self.inspection_date.isoformat() if self.inspection_date else None,
+            'overall_status': self.overall_status,
+            'notes': self.notes,
+            'items': [item.to_dict() for item in self.items]
+        }
+
+class QualityCheckItem(db.Model):
+    __tablename__ = 'quality_check_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    quality_checklist_id = db.Column(db.Integer, db.ForeignKey('quality_checklists.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    check_description = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), nullable=False)  # passed, failed
+    notes = db.Column(db.Text)
+
+    # Relationships
+    item = db.relationship('Item')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'item_id': self.item_id,
+            'item_name': self.item.name if self.item else '',
+            'check_description': self.check_description,
+            'status': self.status,
+            'notes': self.notes
+        }
+
+class PaymentTransaction(db.Model):
+    __tablename__ = 'payment_transactions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.String(100), unique=True, nullable=False)
+    payment_method = db.Column(db.String(50), nullable=False)  # mpesa, mobile_money, crypto, split
+    provider = db.Column(db.String(50))  # safaricom, tigo, airtel, etc.
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(10), default='TZS')
+    status = db.Column(db.String(20), default='pending')  # pending, completed, failed, cancelled
+    reference = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    customer_phone = db.Column(db.String(20))
+    wallet_address = db.Column(db.String(200))  # For crypto payments
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'transaction_id': self.transaction_id,
+            'payment_method': self.payment_method,
+            'provider': self.provider,
+            'amount': self.amount,
+            'currency': self.currency,
+            'status': self.status,
+            'reference': self.reference,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
 class OnDemandProduct(db.Model):
+    __tablename__ = 'on_demand_products'
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
@@ -349,84 +531,4 @@ class OnDemandProduct(db.Model):
             'description': self.description,
             'base_price': self.base_price,
             'is_active': self.is_active
-        }
-
-class TransactionCategory(enum.Enum):
-    SALES = "Sales"
-    PURCHASES = "Purchases"
-    MARKETING = "Marketing"
-    UTILITIES = "Utilities"
-    RENT = "Rent"
-    SUPPLIES = "Supplies"
-    OTHER_INCOME = "Other Income"
-    OTHER_EXPENSE = "Other Expense"
-
-# Accounting models
-class Account(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    account_type = db.Column(db.String(50), nullable=False)
-    normal_balance = db.Column(db.String(10), nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('account.id'))
-    description = db.Column(db.Text)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime)
-    updated_at = db.Column(db.DateTime)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'code': self.code,
-            'name': self.name,
-            'account_type': self.account_type,
-            'normal_balance': self.normal_balance,
-            'is_active': self.is_active
-        }
-
-class JournalEntry(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    entry_number = db.Column(db.String(50))
-    date = db.Column(db.Date, nullable=False)
-    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
-    debit_amount = db.Column(db.Float, default=0.0)
-    credit_amount = db.Column(db.Float, default=0.0)
-    description = db.Column(db.Text)
-    reference_type = db.Column(db.String(50))
-    reference_id = db.Column(db.String(100))
-    transaction_group = db.Column(db.String(100))
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'date': self.date.isoformat() if self.date else None,
-            'debit_amount': self.debit_amount,
-            'credit_amount': self.credit_amount,
-            'description': self.description
-        }
-
-class BankReconciliation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    bank_account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
-    reconciliation_date = db.Column(db.Date, nullable=False)
-    bank_statement_balance = db.Column(db.Float, nullable=False)
-    book_balance = db.Column(db.Float, nullable=False)
-    outstanding_deposits = db.Column(db.Float, default=0.0)
-    outstanding_checks = db.Column(db.Float, default=0.0)
-    bank_fees = db.Column(db.Float, default=0.0)
-    reconciled_balance = db.Column(db.Float, nullable=False)
-    is_reconciled = db.Column(db.Boolean, default=False)
-    notes = db.Column(db.Text)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'reconciliation_date': self.reconciliation_date.isoformat() if self.reconciliation_date else None,
-            'bank_statement_balance': self.bank_statement_balance,
-            'book_balance': self.book_balance,
-            'is_reconciled': self.is_reconciled
         }

@@ -109,6 +109,12 @@ try:
 except ImportError:
     logger.warning("Admin portal not available")
 
+# Import new services
+from services.localization_service import LocalizationService
+from services.payment_service import PaymentService
+from services.supply_chain_service import SupplyChainService
+from services.business_intelligence import BusinessIntelligenceService
+
 # Initialize database tables
 with app.app_context():
     try:
@@ -900,8 +906,7 @@ def get_products():
 @app.route('/api/reports/stock-status', methods=['GET'])
 def stock_status_report():
     """API endpoint to get stock status report"""
-    ```python
-from models import Item
+    from models import Item
     from sqlalchemy import func
 
     low_stock_threshold = int(request.args.get('low_stock_threshold', 10))
@@ -1828,6 +1833,239 @@ def inventory_health_score():
     except Exception as e:
         logger.error(f"Error calculating health score: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# ===== LOCALIZATION API ROUTES =====
+
+@app.route('/api/localization/language', methods=['GET', 'POST'])
+def manage_language():
+    """Get or set user language preference"""
+    localization = LocalizationService()
+    
+    if request.method == 'GET':
+        return jsonify({
+            'current_language': localization.get_user_language(),
+            'supported_languages': localization.supported_languages
+        })
+    else:
+        data = request.get_json()
+        language = data.get('language')
+        
+        if localization.set_user_language(language):
+            return jsonify({'success': True, 'language': language})
+        else:
+            return jsonify({'error': 'Unsupported language'}), 400
+
+@app.route('/api/localization/currency/<amount>')
+def format_currency(amount):
+    """Format currency amount according to local preferences"""
+    try:
+        localization = LocalizationService()
+        currency = request.args.get('currency', 'TZS')
+        formatted = localization.format_currency(float(amount), currency)
+        return jsonify({'formatted_amount': formatted})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/localization/tax/vat', methods=['POST'])
+def calculate_vat():
+    """Calculate VAT for Tanzania"""
+    try:
+        data = request.get_json()
+        amount = data.get('amount')
+        include_vat = data.get('include_vat', True)
+        
+        localization = LocalizationService()
+        result = localization.calculate_vat(amount, include_vat)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ===== PAYMENT GATEWAY API ROUTES =====
+
+@app.route('/api/payments/mpesa/initiate', methods=['POST'])
+def initiate_mpesa_payment():
+    """Initiate M-Pesa STK Push payment"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.initiate_mpesa_payment(
+            phone_number=data['phone_number'],
+            amount=data['amount'],
+            reference=data['reference'],
+            description=data['description']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/mpesa/status/<checkout_request_id>')
+def check_mpesa_status(checkout_request_id):
+    """Check M-Pesa payment status"""
+    try:
+        payment_service = PaymentService()
+        result = payment_service.check_mpesa_payment_status(checkout_request_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/mobile-money', methods=['POST'])
+def process_mobile_money():
+    """Process mobile money payments"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_mobile_money_payment(
+            provider=data['provider'],
+            phone_number=data['phone_number'],
+            amount=data['amount'],
+            reference=data['reference']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/crypto', methods=['POST'])
+def process_crypto_payment():
+    """Process cryptocurrency payments"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_cryptocurrency_payment(
+            currency=data['currency'],
+            amount=data['amount'],
+            wallet_address=data['wallet_address']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/split', methods=['POST'])
+def process_split_payment():
+    """Process split payments across multiple methods"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_split_payment(data['payment_methods'])
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== SUPPLY CHAIN API ROUTES =====
+
+@app.route('/api/supply-chain/suppliers', methods=['GET', 'POST'])
+def manage_suppliers():
+    """Get or create suppliers"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        
+        if request.method == 'GET':
+            from models import Supplier
+            suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).all()
+            return jsonify([s.to_dict() for s in suppliers])
+        else:
+            data = request.get_json()
+            result = supply_chain.create_supplier(data)
+            return jsonify(result), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/purchase-orders', methods=['GET', 'POST'])
+def manage_purchase_orders():
+    """Get or create purchase orders"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        
+        if request.method == 'GET':
+            from models import PurchaseOrder
+            pos = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
+            return jsonify([po.to_dict() for po in pos])
+        else:
+            data = request.get_json()
+            result = supply_chain.create_purchase_order(data)
+            return jsonify(result), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/reorder-suggestions')
+def get_reorder_suggestions():
+    """Get automated reorder suggestions"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        suggestions = supply_chain.automated_reorder_suggestions()
+        return jsonify(suggestions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== BUSINESS INTELLIGENCE API ROUTES =====
+
+@app.route('/api/bi/kpis')
+def get_real_time_kpis():
+    """Get real-time KPI data"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        kpis = bi_service.get_real_time_kpis()
+        return jsonify(kpis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/comparative-analysis')
+def get_comparative_analysis():
+    """Get comparative analysis (YoY, MoM)"""
+    try:
+        user_id = session.get('user_id')
+        period = request.args.get('period', 'monthly')
+        bi_service = BusinessIntelligenceService(user_id)
+        analysis = bi_service.get_comparative_analysis(period)
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/profit-margins')
+def get_profit_margins():
+    """Get profit margin analysis"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        margins = bi_service.get_profit_margin_analysis()
+        return jsonify(margins)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/cash-flow-forecast')
+def get_cash_flow_forecast():
+    """Get cash flow forecasting"""
+    try:
+        user_id = session.get('user_id')
+        days_ahead = request.args.get('days_ahead', 30, type=int)
+        bi_service = BusinessIntelligenceService(user_id)
+        forecast = bi_service.get_cash_flow_forecast(days_ahead)
+        return jsonify(forecast)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/dashboard')
+def get_bi_dashboard():
+    """Get all BI dashboard data in one call"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        dashboard_data = bi_service.get_dashboard_widgets()
+        return jsonify(dashboard_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Main routes
 @app.route('/')
