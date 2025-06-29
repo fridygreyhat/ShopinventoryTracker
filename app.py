@@ -1814,8 +1814,7 @@ def abc_analysis():
 
         return jsonify(result)
 
-    except```python
- Exception as e:
+    except Exception as e:
         logger.error(f"Error in ABC analysis: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
@@ -2008,6 +2007,360 @@ def get_reorder_suggestions():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== ENHANCED SECURITY API ROUTES =====
+
+@app.route('/api/security/setup-2fa', methods=['POST'])
+@login_required
+def setup_2fa():
+    """Set up two-factor authentication"""
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        from services.security_service import SecurityService
+        security_service = SecurityService(user_id)
+        
+        result = security_service.setup_2fa(user.email)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error setting up 2FA: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/verify-2fa', methods=['POST'])
+@login_required
+def verify_2fa():
+    """Verify 2FA token"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from services.security_service import SecurityService
+        security_service = SecurityService(user_id)
+        
+        is_valid = security_service.verify_2fa_token(data['secret'], data['token'])
+        
+        if is_valid:
+            # Update user 2FA status
+            from models import UserTwoFactor, db
+            
+            two_fa = UserTwoFactor.query.filter_by(user_id=user_id).first()
+            if not two_fa:
+                two_fa = UserTwoFactor(user_id=user_id, secret_key=data['secret'])
+                db.session.add(two_fa)
+            
+            two_fa.is_enabled = True
+            db.session.commit()
+        
+        return jsonify({'success': is_valid})
+        
+    except Exception as e:
+        logger.error(f"Error verifying 2FA: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/audit-logs')
+@login_required
+def get_audit_logs():
+    """Get security audit logs"""
+    try:
+        user_id = session.get('user_id')
+        
+        from models import SecurityAudit
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        audits = SecurityAudit.query.filter_by(user_id=user_id).order_by(
+            SecurityAudit.timestamp.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'audits': [audit.to_dict() for audit in audits.items],
+            'pagination': {
+                'page': page,
+                'pages': audits.pages,
+                'per_page': per_page,
+                'total': audits.total
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting audit logs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== DATA MANAGEMENT API ROUTES =====
+
+@app.route('/api/data/backup', methods=['POST'])
+@login_required
+def create_backup():
+    """Create data backup"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.create_automated_backup()
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating backup: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/data/export/<data_type>/<format_type>')
+@login_required
+def export_data_format(data_type, format_type):
+    """Export data in specified format"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.export_data_multiple_formats(data_type, format_type)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+            
+        return send_file(
+            io.BytesIO(result['content'].encode() if format_type != 'excel' else result['content']),
+            mimetype='application/octet-stream',
+            as_attachment=True,
+            download_name=result['filename']
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/data/archive', methods=['POST'])
+@login_required
+def archive_old_data():
+    """Archive old records"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        archive_before = datetime.strptime(data['archive_before_date'], '%Y-%m-%d').date()
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.archive_old_records(archive_before)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error archiving data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== TEAM MANAGEMENT API ROUTES =====
+
+@app.route('/api/team/employees', methods=['GET', 'POST'])
+@login_required
+def manage_employees():
+    """Get or create employees"""
+    try:
+        user_id = session.get('user_id')
+        
+        if request.method == 'GET':
+            from models import Employee
+            employees = Employee.query.filter_by(user_id=user_id, is_active=True).all()
+            return jsonify([emp.to_dict() for emp in employees])
+        else:
+            data = request.get_json()
+            
+            from models import Employee, db
+            
+            employee = Employee(
+                user_id=user_id,
+                employee_code=data['employee_code'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data.get('email'),
+                phone=data.get('phone'),
+                position=data.get('position'),
+                department=data.get('department'),
+                hire_date=datetime.strptime(data['hire_date'], '%Y-%m-%d').date() if data.get('hire_date') else None,
+                salary=data.get('salary'),
+                commission_rate=data.get('commission_rate', 0.0)
+            )
+            
+            db.session.add(employee)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'employee_id': employee.id}), 201
+            
+    except Exception as e:
+        logger.error(f"Error managing employees: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/performance/<int:employee_id>')
+@login_required
+def get_employee_performance(employee_id):
+    """Get employee performance metrics"""
+    try:
+        user_id = session.get('user_id')
+        
+        period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
+        period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        performance = team_service.track_employee_performance(employee_id, period_start, period_end)
+        return jsonify(performance)
+        
+    except Exception as e:
+        logger.error(f"Error getting performance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/commission/<int:employee_id>')
+@login_required
+def calculate_employee_commission(employee_id):
+    """Calculate employee commission"""
+    try:
+        user_id = session.get('user_id')
+        
+        period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
+        period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        commission = team_service.calculate_commission(employee_id, period_start, period_end)
+        return jsonify(commission)
+        
+    except Exception as e:
+        logger.error(f"Error calculating commission: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/shifts', methods=['POST'])
+@login_required
+def schedule_shift():
+    """Schedule employee shift"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        result = team_service.manage_shifts(data['employee_id'], data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error scheduling shift: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== MARKETING API ROUTES =====
+
+@app.route('/api/marketing/email-campaign', methods=['POST'])
+@login_required
+def create_email_campaign():
+    """Create email marketing campaign"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.create_email_campaign(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating email campaign: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/sms-promotion', methods=['POST'])
+@login_required
+def send_sms_promotion():
+    """Send SMS promotion"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.send_sms_promotion(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error sending SMS promotion: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/feedback', methods=['POST'])
+@login_required
+def collect_feedback():
+    """Collect customer feedback"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.collect_customer_feedback(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error collecting feedback: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/social-media', methods=['POST'])
+@login_required
+def schedule_social_post():
+    """Schedule social media post"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.schedule_social_media_post(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error scheduling social post: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ecommerce/store', methods=['POST'])
+@login_required
+def create_online_store():
+    """Create online store"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.create_online_store(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating online store: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ecommerce/sync-catalog/<int:store_id>', methods=['POST'])
+@login_required
+def sync_store_catalog(store_id):
+    """Sync product catalog with online store"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.sync_product_catalog(store_id)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error syncing catalog: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ===== BUSINESS INTELLIGENCE API ROUTES =====
 
 @app.route('/api/bi/kpis')
@@ -2080,6 +2433,12 @@ def index():
 def dashboard():
     """Dashboard route for authenticated users"""
     return render_template('index.html')
+
+@app.route('/security-management')
+@login_required
+def security_management():
+    """Security and management dashboard"""
+    return render_template('security_management.html')
 
 @app.route('/login')
 def login():

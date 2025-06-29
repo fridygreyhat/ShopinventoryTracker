@@ -532,3 +532,216 @@ class OnDemandProduct(db.Model):
             'base_price': self.base_price,
             'is_active': self.is_active
         }
+
+# Enhanced Security Models
+class SecurityAudit(db.Model):
+    __tablename__ = 'security_audits'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(100), nullable=False)
+    details = db.Column(db.JSON)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'action': self.action,
+            'details': self.details,
+            'ip_address': self.ip_address,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+        }
+
+class UserTwoFactor(db.Model):
+    __tablename__ = 'user_two_factor'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    secret_key = db.Column(db.String(32), nullable=False)
+    is_enabled = db.Column(db.Boolean, default=False)
+    backup_codes = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Data Management Models
+class PriceHistory(db.Model):
+    __tablename__ = 'price_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    old_price = db.Column(db.Float, nullable=False)
+    new_price = db.Column(db.Float, nullable=False)
+    change_reason = db.Column(db.String(200))
+    changed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    change_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+class BackupSchedule(db.Model):
+    __tablename__ = 'backup_schedules'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    frequency = db.Column(db.String(20), nullable=False)  # daily, weekly, monthly
+    next_backup = db.Column(db.DateTime, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ArchivedSale(db.Model):
+    __tablename__ = 'archived_sales'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    original_id = db.Column(db.Integer, nullable=False)
+    data = db.Column(db.JSON, nullable=False)
+    archived_date = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class ArchivedTransaction(db.Model):
+    __tablename__ = 'archived_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    original_id = db.Column(db.Integer, nullable=False)
+    data = db.Column(db.JSON, nullable=False)
+    archived_date = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+# Team Management Models
+class Employee(db.Model):
+    __tablename__ = 'employees'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    employee_code = db.Column(db.String(20), unique=True, nullable=False)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(20))
+    position = db.Column(db.String(100))
+    department = db.Column(db.String(100))
+    hire_date = db.Column(db.Date)
+    salary = db.Column(db.Float)
+    commission_rate = db.Column(db.Float, default=0.0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_code': self.employee_code,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'phone': self.phone,
+            'position': self.position,
+            'department': self.department,
+            'hire_date': self.hire_date.isoformat() if self.hire_date else None,
+            'salary': self.salary,
+            'commission_rate': self.commission_rate,
+            'is_active': self.is_active
+        }
+
+class Shift(db.Model):
+    __tablename__ = 'shifts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    shift_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    shift_type = db.Column(db.String(20), default='regular')
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class InventoryTransfer(db.Model):
+    __tablename__ = 'inventory_transfers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_number = db.Column(db.String(50), unique=True, nullable=False)
+    from_location_id = db.Column(db.Integer, nullable=False)
+    to_location_id = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    notes = db.Column(db.Text)
+    initiated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    approved_at = db.Column(db.DateTime)
+
+class InventoryTransferItem(db.Model):
+    __tablename__ = 'inventory_transfer_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transfer_id = db.Column(db.Integer, db.ForeignKey('inventory_transfers.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+
+# Marketing Models
+class EmailCampaign(db.Model):
+    __tablename__ = 'email_campaigns'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    target_audience = db.Column(db.String(50))
+    scheduled_date = db.Column(db.DateTime)
+    status = db.Column(db.String(20), default='draft')
+    sent_count = db.Column(db.Integer, default=0)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SMSCampaign(db.Model):
+    __tablename__ = 'sms_campaigns'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    target_audience = db.Column(db.String(50))
+    status = db.Column(db.String(20), default='pending')
+    sent_count = db.Column(db.Integer, default=0)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class FeedbackRequest(db.Model):
+    __tablename__ = 'feedback_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    questions = db.Column(db.JSON, nullable=False)
+    target_audience = db.Column(db.String(50))
+    expiry_date = db.Column(db.DateTime)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SocialMediaPost(db.Model):
+    __tablename__ = 'social_media_posts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(50), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    media_urls = db.Column(db.JSON)
+    scheduled_date = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default='scheduled')
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class OnlineStore(db.Model):
+    __tablename__ = 'online_stores'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    store_name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    theme = db.Column(db.String(50), default='default')
+    domain = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class OnlineStoreProduct(db.Model):
+    __tablename__ = 'online_store_products'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.Integer, db.ForeignKey('online_stores.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    is_visible = db.Column(db.Boolean, default=True)
+    online_price = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
