@@ -179,17 +179,29 @@ class Sale(db.Model):
     change_amount = db.Column(db.Float, default=0.0)
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    payment_type = db.Column(db.String(20), default='cash')
+    payment_status = db.Column(db.String(20), default='completed')
+    sale_number = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             'id': self.id,
             'invoice_number': self.invoice_number,
+            'sale_number': self.sale_number,
             'customer_name': self.customer_name,
+            'customer_id': self.customer_id,
             'total': self.total,
+            'total_amount': self.total_amount,
             'payment_method': self.payment_method,
+            'payment_type': self.payment_type,
+            'payment_status': self.payment_status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+# Add relationship after Sale model definition
+Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
 
 class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -220,6 +232,7 @@ class FinancialTransaction(db.Model):
     reference_id = db.Column(db.String(100))
     payment_method = db.Column(db.String(50))
     notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -296,7 +309,6 @@ class Customer(db.Model):
 
     # Relationships
     user = db.relationship('User', backref=db.backref('customers', lazy=True))
-    sales = db.relationship('Sale', backref='customer', lazy=True)
 
     def to_dict(self):
         return {

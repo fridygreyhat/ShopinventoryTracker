@@ -229,7 +229,28 @@ with app.app_context():
         if result.fetchone():
             # Add missing sale columns
             add_column_safely('sale', 'user_id', 'INTEGER')
+            add_column_safely('sale', 'customer_id', 'INTEGER')
             add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
+            add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", "'cash'")
+            add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", "'completed'")
+            add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
+
+        # Check if customer table exists and add foreign key constraints
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'customer' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            logger.info("Customer table exists, checking foreign key constraints")
+
+        # Check if financial_transaction table exists
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'financial_transaction' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            # Add missing financial_transaction columns
+            add_column_safely('financial_transaction', 'user_id', 'INTEGER')
 
         # Initialize default settings if they don't exist
         try:
