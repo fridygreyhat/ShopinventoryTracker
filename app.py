@@ -590,6 +590,36 @@ def get_inventory():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
+@app.route('/api/shop/details', methods=['GET'])
+@login_required
+def get_shop_details():
+    """API endpoint to get shop/user details for the dashboard"""
+    try:
+        user_id = session.get('user_id')
+        from models import User
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'shop_name': user.shop_name or f"{user.first_name}'s Shop" if user.first_name else "Your Shop",
+                'phone': user.phone,
+                'is_admin': user.is_admin,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/inventory', methods=['POST'])
 def add_item():
     """API endpoint to add a new inventory item"""

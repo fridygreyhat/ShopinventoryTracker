@@ -532,7 +532,22 @@ function loadDashboardData() {
             }
         });
     }
-});
+
+    function createInventoryHealthChart(healthStats) {
+        const healthCategories = [
+            { status: 'critical', label: 'Out of Stock', color: 'danger', icon: 'exclamation-circle', bgColor: '#dc3545' },
+            { status: 'low', label: 'Low Stock', color: 'warning', icon: 'exclamation-triangle', bgColor: '#ffc107' },
+            { status: 'medium', label: 'Medium Stock', color: 'info', icon: 'info-circle', bgColor: '#0dcaf0' },
+            { status: 'good', label: 'Good Stock', color: 'primary', icon: 'check-circle', bgColor: '#0d6efd' },
+            { status: 'optimal', label: 'Optimal Stock', color: 'success', icon: 'check-double', bgColor: '#198754' }
+        ];
+
+        const ctx = document.getElementById('inventoryHealthChart');
+        if (!ctx) return;
+
+        if (healthDonutChart) {
+            healthDonutChart.destroy();
+        }
 
         healthDonutChart = new Chart(ctx, {
             type: 'doughnut',
