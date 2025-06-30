@@ -360,6 +360,78 @@ class OnDemandProduct(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
+# Missing models that are referenced in the app
+class StockMovement(db.Model):
+    __tablename__ = 'stock_movement'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    movement_type = db.Column(db.String(20), nullable=False)  # 'in' or 'out'
+    quantity = db.Column(db.Float, nullable=False)
+    reason = db.Column(db.String(200))
+    reference_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    item = db.relationship('Item', backref='movements', lazy=True)
+    user = db.relationship('User', backref='stock_movements', lazy=True)
+
+class ChartOfAccounts(db.Model):
+    __tablename__ = 'chart_of_accounts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_code = db.Column(db.String(20), unique=True, nullable=False)
+    account_name = db.Column(db.String(100), nullable=False)
+    account_type = db.Column(db.String(50), nullable=False)  # Asset, Liability, Equity, Revenue, Expense
+    parent_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'))
+    is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Journal(db.Model):
+    __tablename__ = 'journal'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False)
+    debit_amount = db.Column(db.Float, default=0.0)
+    credit_amount = db.Column(db.Float, default=0.0)
+    description = db.Column(db.String(200))
+    reference_type = db.Column(db.String(50))
+    transaction_group = db.Column(db.String(100))
+    entry_date = db.Column(db.Date, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Supplier(db.Model):
+    __tablename__ = 'supplier'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    contact_person = db.Column(db.String(100))
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    payment_terms = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PurchaseOrder(db.Model):
+    __tablename__ = 'purchase_order'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(50), unique=True, nullable=False)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    total_amount = db.Column(db.Float, default=0.0)
+    order_date = db.Column(db.Date, nullable=False)
+    expected_date = db.Column(db.Date)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# These models are already defined earlier in the file
+
 # Enhanced Security Models
 class SecurityAudit(db.Model):
     __tablename__ = 'security_audits'

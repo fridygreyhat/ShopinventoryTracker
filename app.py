@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import func, or_, and_
 from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
@@ -99,10 +100,43 @@ def inject_current_user():
 
     return dict(get_current_user=get_current_user)
 
+# Helper function to get current user for APIs
+def get_current_user():
+    """Get current user from session"""
+    if 'user_id' in session:
+        try:
+            from models import User
+            user = User.query.get(session['user_id'])
+            return user
+        except Exception as e:
+            logger.warning(f"Error getting current user: {str(e)}")
+            session.clear()
+            return None
+    return None
+
+# Create a pseudo current_user object for consistency with flask-login style code
+class CurrentUser:
+    @property
+    def id(self):
+        user = get_current_user()
+        return user.id if user else None
+    
+    @property
+    def is_authenticated(self):
+        return 'user_id' in session
+    
+    @property
+    def is_admin(self):
+        user = get_current_user()
+        return user.is_admin if user else False
+
+current_user = CurrentUser()
+
 # Import models
 from models import (
     User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
-    Category, Customer, OnDemandProduct
+    Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
+    Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
 )
 
 # Import and register admin portal
@@ -3227,6 +3261,12 @@ def installments():
 def reports():
     """Reports page"""
     return render_template('reports.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
 
 @app.route('/on_demand')
 @login_required
