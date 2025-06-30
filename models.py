@@ -166,7 +166,6 @@ class Sale(db.Model):
     invoice_number = db.Column(db.String(50), unique=True, nullable=False)
     customer_name = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     sale_type = db.Column(db.String(20), default='retail')
     subtotal = db.Column(db.Float, default=0.0)
     discount_type = db.Column(db.String(20), default='none')
