@@ -75,6 +75,9 @@ class Item(db.Model):
     sell_by = db.Column(db.String(20), default='quantity')
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Relationships
+    category_rel = db.relationship('Category', backref=db.backref('items', lazy=True))
     is_active = db.Column(db.Boolean, default=True)
     stock_quantity = db.Column(db.Integer, default=0)
     minimum_stock = db.Column(db.Integer, default=0)
@@ -163,6 +166,7 @@ class Sale(db.Model):
     invoice_number = db.Column(db.String(50), unique=True, nullable=False)
     customer_name = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     sale_type = db.Column(db.String(20), default='retail')
     subtotal = db.Column(db.Float, default=0.0)
     discount_type = db.Column(db.String(20), default='none')
@@ -246,7 +250,6 @@ class Category(db.Model):
     # Relationships
     user = db.relationship('User', backref=db.backref('categories', lazy=True))
     parent = db.relationship('Category', remote_side=[id], backref='children')
-    items = db.relationship('Item', backref='category', lazy=True)
 
     def get_descendants(self):
         """Get all descendant categories"""

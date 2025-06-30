@@ -231,12 +231,12 @@ with app.app_context():
             add_column_safely('sale', 'user_id', 'INTEGER')
             add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
 
-        # Initialize SMS notification settings if they don't exist
+        # Initialize default settings if they don't exist
         try:
             from models import Setting
 
-            # Default SMS settings
-            default_sms_settings = [
+            # Default settings
+            default_settings = [
                 ('sms_notifications_enabled', 'false', 'Enable SMS notifications for low stock alerts', 'notifications'),
                 ('notification_phone', '', 'Phone number to receive SMS notifications (include country code)', 'notifications'),
                 ('low_stock_threshold', '10', 'Quantity threshold for low stock alerts', 'notifications'),
@@ -245,7 +245,7 @@ with app.app_context():
                 ('sender_email', 'inventory@yourbusiness.com', 'Email address to send notifications from', 'notifications')
             ]
 
-            for key, value, description, category in default_sms_settings:
+            for key, value, description, category in default_settings:
                 existing_setting = Setting.query.filter_by(key=key).first()
                 if not existing_setting:
                     new_setting = Setting(
@@ -257,10 +257,10 @@ with app.app_context():
                     db.session.add(new_setting)
 
             db.session.commit()
-            logger.info("SMS notification settings initialized")
+            logger.info("Default settings initialized successfully")
 
         except Exception as e:
-            logger.warning(f"Could not initialize SMS settings: {str(e)}")
+            logger.warning(f"Could not initialize default settings: {str(e)}")
             db.session.rollback()
 
     except Exception as e:
@@ -284,36 +284,44 @@ def api_login():
             return jsonify({'error': 'Email and password are required'}), 400
 
         # Check user credentials
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email, is_active=True).first()
 
         if user and user.check_password(password):
-            if not user.is_active:
-                return jsonify({'error': 'Account is deactivated'}), 401
+            try:
+                # Update last login
+                user.last_login = datetime.utcnow()
 
-            # Update last login
-            user.last_login = datetime.utcnow()
+                # Create session
+                session.clear()  # Clear any existing session data
+                session['user_id'] = user.id
+                session['user_email'] = user.email
+                session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
 
-            # Create session
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            session['user_name'] = f"{user.first_name} {user.last_name}"
+                db.session.commit()
 
-            db.session.commit()
+                logger.info(f"User {email} logged in successfully")
 
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name
-                }
-            }), 200
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'username': user.username,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name
+                    }
+                }), 200
+            except Exception as session_error:
+                logger.error(f"Session creation error: {str(session_error)}")
+                db.session.rollback()
+                return jsonify({'error': 'Login failed during session creation'}), 500
         else:
+            logger.warning(f"Failed login attempt for email: {email}")
             return jsonify({'error': 'Invalid email or password'}), 401
 
     except Exception as e:
         logger.error(f"API login error: {str(e)}")
+        db.session.rollback()
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
@@ -381,15 +389,26 @@ def api_register():
             is_admin=False,
             email_verified=False
         )
+        
+        # Set password hash
         new_user.set_password(password)
+        
+        # Verify password was set correctly
+        if not new_user.password_hash:
+            return jsonify({'error': 'Failed to set password'}), 500
 
         db.session.add(new_user)
         db.session.flush()  # Get the user ID without committing
 
+        # Verify user was created
+        if not new_user.id:
+            return jsonify({'error': 'Failed to create user'}), 500
+
         # Create session
+        session.clear()  # Clear any existing session
         session['user_id'] = new_user.id
         session['user_email'] = new_user.email
-        session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
+        session['user_name'] = f"{new_user.first_name} {new_user.last_name}".strip()
 
         db.session.commit()
 
