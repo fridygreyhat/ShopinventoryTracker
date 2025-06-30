@@ -1,13 +1,9 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 import enum
 
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+# Import db from extensions to avoid circular imports
+from extensions import db
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -216,28 +212,21 @@ class SaleItem(db.Model):
     
     # Relationships
     item = db.relationship('Item', backref='sale_items', lazy=True)
-
-# Add relationship after Sale model definition
-Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
-
-class SaleItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
-    product_name = db.Column(db.String(100), nullable=False)
-    product_sku = db.Column(db.String(50))
-    price = db.Column(db.Float, default=0.0)
-    quantity = db.Column(db.Integer, default=1)
-    total = db.Column(db.Float,default=0.0)
-
+    
     def to_dict(self):
         return {
             'id': self.id,
-            'product_name': self.product_name,
+            'sale_id': self.sale_id,
+            'item_id': self.item_id,
             'quantity': self.quantity,
-            'price': self.price,
-            'total': self.total
+            'unit_price': self.unit_price,
+            'unit_cost': self.unit_cost,
+            'total_price': self.total_price,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+# Add relationship after Sale model definition
+Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
 
 class FinancialTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)

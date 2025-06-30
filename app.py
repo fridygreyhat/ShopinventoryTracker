@@ -34,7 +34,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize database with app
-from models import db
+from extensions import db
 db.init_app(app)
 
 # Mail configuration
