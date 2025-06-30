@@ -410,10 +410,10 @@ def api_register():
             is_admin=False,
             email_verified=False
         )
-        
+
         # Set password hash
         new_user.set_password(password)
-        
+
         # Verify password was set correctly
         if not new_user.password_hash:
             return jsonify({'error': 'Failed to set password'}), 500
@@ -597,11 +597,11 @@ def get_shop_details():
     try:
         user_id = session.get('user_id')
         from models import User
-        
+
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'User not found'}), 404
-            
+
         return jsonify({
             'success': True,
             'user': {
@@ -882,7 +882,7 @@ def bulk_import_inventory():
     file = request.files['file']
 
     try:
-        # Initialize import service
+        # Initialize importservice
         import_service = CSVImportService(db.session, Item)
 
         # Process the import
@@ -1777,7 +1777,7 @@ def get_categories_api():
         from models import Category
         user_id = session.get('user_id')
         categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
-        
+
         categories_data = []
         for category in categories:
             categories_data.append({
@@ -1789,7 +1789,7 @@ def get_categories_api():
                 'is_active': category.is_active,
                 'created_at': category.created_at.isoformat() if category.created_at else None
             })
-        
+
         return jsonify({'success': True, 'categories': categories_data})
     except Exception as e:
         logger.error(f"Error getting categories: {str(e)}")
@@ -1802,9 +1802,9 @@ def create_category_api():
     try:
         data = request.get_json()
         user_id = session.get('user_id')
-        
+
         from models import Category, db
-        
+
         category = Category(
             name=data['name'],
             description=data.get('description'),
@@ -1813,10 +1813,10 @@ def create_category_api():
             user_id=user_id,
             is_active=True
         )
-        
+
         db.session.add(category)
         db.session.commit()
-        
+
         return jsonify({'success': True, 'category_id': category.id}), 201
     except Exception as e:
         db.session.rollback()
@@ -1832,9 +1832,9 @@ def get_chart_of_accounts_api():
     try:
         user_id = session.get('user_id')
         from models import ChartOfAccounts
-        
+
         accounts = ChartOfAccounts.query.filter_by(user_id=user_id, is_active=True).order_by(ChartOfAccounts.account_code).all()
-        
+
         accounts_data = []
         for account in accounts:
             accounts_data.append({
@@ -1846,7 +1846,7 @@ def get_chart_of_accounts_api():
                 'balance': float(account.balance) if account.balance else 0.0,
                 'is_active': account.is_active
             })
-        
+
         return jsonify({'success': True, 'accounts': accounts_data})
     except Exception as e:
         logger.error(f"Error getting chart of accounts: {str(e)}")
@@ -1859,14 +1859,14 @@ def get_journal_entries_api():
     try:
         user_id = session.get('user_id')
         from models import Journal
-        
+
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
-        
+
         journals = Journal.query.filter_by(user_id=user_id).order_by(Journal.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
-        
+
         journals_data = []
         for journal in journals.items:
             journals_data.append({
@@ -1877,7 +1877,7 @@ def get_journal_entries_api():
                 'total_credit': float(journal.total_credit) if journal.total_credit else 0.0,
                 'created_at': journal.created_at.isoformat() if journal.created_at else None
             })
-        
+
         return jsonify({
             'success': True, 
             'journals': journals_data,
@@ -1899,7 +1899,7 @@ def get_balance_sheet_api():
     try:
         user_id = session.get('user_id')
         as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
-        
+
         # Mock balance sheet data for now
         balance_sheet_data = {
             'as_of_date': as_of_date,
@@ -1934,7 +1934,7 @@ def get_balance_sheet_api():
                 'total_equity': 100000.0
             }
         }
-        
+
         return jsonify({'success': True, 'balance_sheet': balance_sheet_data})
     except Exception as e:
         logger.error(f"Error getting balance sheet: {str(e)}")
@@ -1947,7 +1947,7 @@ def get_trial_balance_api():
     try:
         user_id = session.get('user_id')
         as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
-        
+
         # Mock trial balance data
         trial_balance_data = {
             'as_of_date': as_of_date,
@@ -1965,7 +1965,7 @@ def get_trial_balance_api():
             'total_credits': 250000.0,
             'is_balanced': True
         }
-        
+
         return jsonify({'success': True, 'trial_balance': trial_balance_data})
     except Exception as e:
         logger.error(f"Error getting trial balance: {str(e)}")
@@ -1979,7 +1979,7 @@ def get_installment_dashboard():
     """Get installment sales dashboard data"""
     try:
         user_id = session.get('user_id')
-        
+
         # Mock installment data
         dashboard_data = {
             'total_installment_sales': 150000.0,
@@ -1994,7 +1994,7 @@ def get_installment_dashboard():
                 {'customer_name': 'Bob Johnson', 'amount': 1200.0, 'due_date': '2024-02-25'}
             ]
         }
-        
+
         return jsonify({'success': True, 'dashboard': dashboard_data})
     except Exception as e:
         logger.error(f"Error getting installment dashboard: {str(e)}")
@@ -2006,7 +2006,7 @@ def get_installment_sales():
     """Get installment sales"""
     try:
         user_id = session.get('user_id')
-        
+
         # Mock installment sales data
         installment_sales = [
             {
@@ -2036,7 +2036,7 @@ def get_installment_sales():
                 'next_due_date': '2024-02-20'
             }
         ]
-        
+
         return jsonify({'success': True, 'installment_sales': installment_sales})
     except Exception as e:
         logger.error(f"Error getting installment sales: {str(e)}")
@@ -2051,9 +2051,9 @@ def get_customers_api():
     try:
         user_id = session.get('user_id')
         from models import Customer
-        
+
         customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
-        
+
         customers_data = []
         for customer in customers:
             customers_data.append({
@@ -2068,7 +2068,7 @@ def get_customers_api():
                 'preferred_payment_method': customer.preferred_payment_method,
                 'created_at': customer.created_at.isoformat() if customer.created_at else None
             })
-        
+
         return jsonify({'success': True, 'customers': customers_data})
     except Exception as e:
         logger.error(f"Error getting customers: {str(e)}")
@@ -2081,9 +2081,9 @@ def create_customer_api():
     try:
         data = request.get_json()
         user_id = session.get('user_id')
-        
+
         from models import Customer, db
-        
+
         customer = Customer(
             name=data['name'],
             email=data.get('email'),
@@ -2094,10 +2094,10 @@ def create_customer_api():
             preferred_payment_method=data.get('preferred_payment_method'),
             user_id=user_id
         )
-        
+
         db.session.add(customer)
         db.session.commit()
-        
+
         return jsonify({'success': True, 'customer_id': customer.id}), 201
     except Exception as e:
         db.session.rollback()
@@ -2255,7 +2255,7 @@ def inventory_health_score():
 def manage_language():
     """Get or set user language preference"""
     localization = LocalizationService()
-    
+
     if request.method == 'GET':
         return jsonify({
             'current_language': localization.get_user_language(),
@@ -2264,7 +2264,7 @@ def manage_language():
     else:
         data = request.get_json()
         language = data.get('language')
-        
+
         if localization.set_user_language(language):
             return jsonify({'success': True, 'language': language})
         else:
@@ -2288,10 +2288,10 @@ def calculate_vat():
         data = request.get_json()
         amount = data.get('amount')
         include_vat = data.get('include_vat', True)
-        
+
         localization = LocalizationService()
         result = localization.calculate_vat(amount, include_vat)
-        
+
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -2304,14 +2304,14 @@ def initiate_mpesa_payment():
     try:
         data = request.get_json()
         payment_service = PaymentService()
-        
+
         result = payment_service.initiate_mpesa_payment(
             phone_number=data['phone_number'],
             amount=data['amount'],
             reference=data['reference'],
             description=data['description']
         )
-        
+
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2332,14 +2332,14 @@ def process_mobile_money():
     try:
         data = request.get_json()
         payment_service = PaymentService()
-        
+
         result = payment_service.process_mobile_money_payment(
             provider=data['provider'],
             phone_number=data['phone_number'],
             amount=data['amount'],
             reference=data['reference']
         )
-        
+
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2350,13 +2350,13 @@ def process_crypto_payment():
     try:
         data = request.get_json()
         payment_service = PaymentService()
-        
+
         result = payment_service.process_cryptocurrency_payment(
             currency=data['currency'],
             amount=data['amount'],
             wallet_address=data['wallet_address']
         )
-        
+
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2367,9 +2367,9 @@ def process_split_payment():
     try:
         data = request.get_json()
         payment_service = PaymentService()
-        
+
         result = payment_service.process_split_payment(data['payment_methods'])
-        
+
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2382,7 +2382,7 @@ def manage_suppliers():
     try:
         user_id = session.get('user_id')
         supply_chain = SupplyChainService(user_id)
-        
+
         if request.method == 'GET':
             from models import Supplier
             suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).all()
@@ -2400,7 +2400,7 @@ def manage_purchase_orders():
     try:
         user_id = session.get('user_id')
         supply_chain = SupplyChainService(user_id)
-        
+
         if request.method == 'GET':
             from models import PurchaseOrder
             pos = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
@@ -2432,13 +2432,13 @@ def setup_2fa():
     try:
         user_id = session.get('user_id')
         user = User.query.get(user_id)
-        
+
         from services.security_service import SecurityService
         security_service = SecurityService(user_id)
-        
+
         result = security_service.setup_2fa(user.email)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error setting up 2FA: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2450,26 +2450,26 @@ def verify_2fa():
     try:
         data = request.get_json()
         user_id = session.get('user_id')
-        
+
         from services.security_service import SecurityService
         security_service = SecurityService(user_id)
-        
+
         is_valid = security_service.verify_2fa_token(data['secret'], data['token'])
-        
+
         if is_valid:
             # Update user 2FA status
             from models import UserTwoFactor, db
-            
+
             two_fa = UserTwoFactor.query.filter_by(user_id=user_id).first()
             if not two_fa:
                 two_fa = UserTwoFactor(user_id=user_id, secret_key=data['secret'])
                 db.session.add(two_fa)
-            
+
             two_fa.is_enabled = True
             db.session.commit()
-        
+
         return jsonify({'success': is_valid})
-        
+
     except Exception as e:
         logger.error(f"Error verifying 2FA: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2480,16 +2480,16 @@ def get_audit_logs():
     """Get security audit logs"""
     try:
         user_id = session.get('user_id')
-        
+
         from models import SecurityAudit
-        
+
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
-        
+
         audits = SecurityAudit.query.filter_by(user_id=user_id).order_by(
             SecurityAudit.timestamp.desc()
         ).paginate(page=page, per_page=per_page, error_out=False)
-        
+
         return jsonify({
             'audits': [audit.to_dict() for audit in audits.items],
             'pagination': {
@@ -2499,7 +2499,7 @@ def get_audit_logs():
                 'total': audits.total
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting audit logs: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2512,13 +2512,13 @@ def create_backup():
     """Create data backup"""
     try:
         user_id = session.get('user_id')
-        
+
         from services.data_management_service import DataManagementService
         data_service = DataManagementService(user_id)
-        
+
         result = data_service.create_automated_backup()
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error creating backup: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2529,22 +2529,22 @@ def export_data_format(data_type, format_type):
     """Export data in specified format"""
     try:
         user_id = session.get('user_id')
-        
+
         from services.data_management_service import DataManagementService
         data_service = DataManagementService(user_id)
-        
+
         result = data_service.export_data_multiple_formats(data_type, format_type)
-        
+
         if 'error' in result:
             return jsonify(result), 400
-            
+
         return send_file(
             io.BytesIO(result['content'].encode() if format_type != 'excel' else result['content']),
             mimetype='application/octet-stream',
             as_attachment=True,
             download_name=result['filename']
         )
-        
+
     except Exception as e:
         logger.error(f"Error exporting data: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2556,15 +2556,15 @@ def archive_old_data():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         archive_before = datetime.strptime(data['archive_before_date'], '%Y-%m-%d').date()
-        
+
         from services.data_management_service import DataManagementService
         data_service = DataManagementService(user_id)
-        
+
         result = data_service.archive_old_records(archive_before)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error archiving data: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2577,16 +2577,16 @@ def manage_employees():
     """Get or create employees"""
     try:
         user_id = session.get('user_id')
-        
+
         if request.method == 'GET':
             from models import Employee
             employees = Employee.query.filter_by(user_id=user_id, is_active=True).all()
             return jsonify([emp.to_dict() for emp in employees])
         else:
             data = request.get_json()
-            
+
             from models import Employee, db
-            
+
             employee = Employee(
                 user_id=user_id,
                 employee_code=data['employee_code'],
@@ -2600,12 +2600,12 @@ def manage_employees():
                 salary=data.get('salary'),
                 commission_rate=data.get('commission_rate', 0.0)
             )
-            
+
             db.session.add(employee)
             db.session.commit()
-            
+
             return jsonify({'success': True, 'employee_id': employee.id}), 201
-            
+
     except Exception as e:
         logger.error(f"Error managing employees: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2616,16 +2616,16 @@ def get_employee_performance(employee_id):
     """Get employee performance metrics"""
     try:
         user_id = session.get('user_id')
-        
+
         period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
         period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
-        
+
         from services.team_management_service import TeamManagementService
         team_service = TeamManagementService(user_id)
-        
+
         performance = team_service.track_employee_performance(employee_id, period_start, period_end)
         return jsonify(performance)
-        
+
     except Exception as e:
         logger.error(f"Error getting performance: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2636,16 +2636,16 @@ def calculate_employee_commission(employee_id):
     """Calculate employee commission"""
     try:
         user_id = session.get('user_id')
-        
+
         period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
         period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
-        
+
         from services.team_management_service import TeamManagementService
         team_service = TeamManagementService(user_id)
-        
+
         commission = team_service.calculate_commission(employee_id, period_start, period_end)
         return jsonify(commission)
-        
+
     except Exception as e:
         logger.error(f"Error calculating commission: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2657,13 +2657,13 @@ def schedule_shift():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.team_management_service import TeamManagementService
         team_service = TeamManagementService(user_id)
-        
+
         result = team_service.manage_shifts(data['employee_id'], data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error scheduling shift: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2677,13 +2677,13 @@ def create_email_campaign():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.create_email_campaign(data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error creating email campaign: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2695,13 +2695,13 @@ def send_sms_promotion():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.send_sms_promotion(data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error sending SMS promotion: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2713,13 +2713,13 @@ def collect_feedback():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.collect_customer_feedback(data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error collecting feedback: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2731,13 +2731,13 @@ def schedule_social_post():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.schedule_social_media_post(data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error scheduling social post: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2749,13 +2749,13 @@ def create_online_store():
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.create_online_store(data)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error creating online store: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2766,13 +2766,13 @@ def sync_store_catalog(store_id):
     """Sync product catalog with online store"""
     try:
         user_id = session.get('user_id')
-        
+
         from services.marketing_service import MarketingService
         marketing_service = MarketingService(user_id)
-        
+
         result = marketing_service.sync_product_catalog(store_id)
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Error syncing catalog: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2787,40 +2787,40 @@ def get_dashboard_summary():
         user_id = session.get('user_id')
         from models import Item, Sale, Customer, FinancialTransaction
         from sqlalchemy import func
-        
+
         # Get basic counts
         total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
         total_customers = Customer.query.filter_by(user_id=user_id).count()
-        
+
         # Get stock information
         items = Item.query.filter_by(user_id=user_id, is_active=True).all()
         total_stock = sum(item.stock_quantity or 0 for item in items)
         low_stock_items = [item for item in items if (item.stock_quantity or 0) <= (item.minimum_stock or 0)]
-        
+
         # Calculate inventory value
         inventory_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
-        
+
         # Get recent sales
         recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(10).all()
-        
+
         # Financial summary for current month
         today = datetime.now()
         start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        
+
         monthly_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
             FinancialTransaction.user_id == user_id,
             FinancialTransaction.transaction_type == 'Income',
             FinancialTransaction.created_at >= start_of_month
         ).scalar() or 0
-        
+
         monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
             FinancialTransaction.user_id == user_id,
             FinancialTransaction.transaction_type == 'Expense',
             FinancialTransaction.created_at >= start_of_month
         ).scalar() or 0
-        
+
         monthly_profit = monthly_income - monthly_expenses
-        
+
         return jsonify({
             'success': True,
             'summary': {
@@ -2919,69 +2919,290 @@ def get_bi_dashboard():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Main routes
-@app.route('/')
-def index():
-    """Main index route"""
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('index.html')
-
-@app.route('/dashboard')
+@app.route('/api/get_cart')
 @login_required
-def dashboard():
-    """Dashboard route for authenticated users"""
+def get_cart():
+    cart = session.get('cart', [])
+    return jsonify({'cart': cart})
+
+@app.route('/api/clear_cart', methods=['POST'])
+@login_required
+def clear_cart():
+    session.pop('cart', None)
+    return jsonify({'success': True, 'message': 'Cart cleared'})
+
+@app.route('/api/inventory')
+@login_required
+def api_inventory():
+    """API endpoint to get inventory items for sales interface"""
     try:
-        user_id = session.get('user_id')
-        from models import User
-        user = User.query.get(user_id)
-        
-        # Get basic dashboard data
-        from models import Item, Sale
-        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
-        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(5).all()
-        
-        # Calculate total inventory value
-        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
-        total_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
-        
-        return render_template('index.html', 
-                             user=user,
-                             total_items=total_items,
-                             total_value=total_value,
-                             recent_sales=recent_sales)
-    except Exception as e:
-        logger.error(f"Error loading dashboard: {str(e)}")
-        return render_template('index.html')
+        search = request.args.get('search', '')
+        category_id = request.args.get('category_id', type=int)
 
-@app.route('/inventory')
+        # Build query
+        query = Item.query.filter_by(user_id=current_user.id, is_active=True)
+
+        if search:
+            query = query.filter(
+                or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.sku.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                )
+            )
+
+        if category_id:
+            query = query.filter_by(category_id=category_id)
+
+        items = query.order_by(Item.name).all()
+
+        # Format items for frontend
+        inventory_data = []
+        for item in items:
+            inventory_data.append({
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku or '',
+                'description': item.description or '',
+                'category': item.category.name if item.category else 'Uncategorized',
+                'category_id': item.category_id,
+                'buying_price': float(item.buying_price or 0),
+                'wholesale_price': float(item.wholesale_price or 0),
+                'retail_price': float(item.retail_price or 0),
+                'price': float(item.price or 0),
+                'selling_price_retail': float(item.retail_price or 0),
+                'selling_price_wholesale': float(item.wholesale_price or 0),
+                'quantity': item.stock_quantity or 0,
+                'minimum_stock': item.minimum_stock or 0,
+                'unit_type': item.unit_type or 'quantity',
+                'sales_type': item.sell_by or 'both',
+                'created_at': item.created_at.isoformat() if item.created_at else None,
+                'updated_at': item.updated_at.isoformat() if item.updated_at else None
+            })
+
+        return jsonify(inventory_data)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales', methods=['POST'])
 @login_required
-def inventory():
-    """Inventory management page"""
+def api_create_sale():
+    """API endpoint to create a new sale"""
     try:
-        user_id = session.get('user_id')
-        from models import Item, Category
-        
-        # Get items and categories for the user
-        items = Item.query.filter_by(user_id=user_id, is_active=True).order_by(Item.name).all()
-        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
-        
-        return render_template('inventory.html', items=items, categories=categories)
-    except Exception as e:
-        logger.error(f"Error loading inventory: {str(e)}")
-        return render_template('inventory.html', items=[], categories=[])
+        data = request.get_json()
 
-@app.route('/categories')
+        if not data or not data.get('items'):
+            return jsonify({'error': 'No items provided'}), 400
+
+        # Generate sale number
+        sale_number = f"SALE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+        # Create sale record
+        sale = Sale(
+            sale_number=sale_number,
+            invoice_number=sale_number,
+            customer_name=data.get('customer', {}).get('name', 'Walk-in Customer'),
+            customer_phone=data.get('customer', {}).get('phone'),
+            sale_type=data.get('sale_type', 'retail'),
+            subtotal=float(data.get('subtotal', 0)),
+            discount_type=data.get('discount', {}).get('type', 'none'),
+            discount_value=float(data.get('discount', {}).get('value', 0)),
+            discount_amount=float(data.get('discount', {}).get('amount', 0)),
+            total=float(data.get('total', 0)),
+            total_amount=float(data.get('total', 0)),
+            payment_method=data.get('payment', {}).get('method', 'cash'),
+            payment_amount=float(data.get('payment', {}).get('amount', 0)),
+            change_amount=float(data.get('payment', {}).get('change', 0)),
+            notes=data.get('notes', ''),
+            user_id=current_user.id,
+            payment_status='paid',
+            created_at=datetime.utcnow()
+        )
+
+        # Handle payment details for mobile money and installments
+        payment_details = {}
+        if data.get('payment', {}).get('method') == 'mobile_money':
+            mobile_info = data.get('payment', {}).get('mobile_info', {})
+            payment_details.update(mobile_info)
+        elif data.get('payment', {}).get('method') == 'installment':
+            installment_info = data.get('payment', {}).get('installment_info', {})
+            payment_details.update(installment_info)
+            sale.payment_status = 'partial' if installment_info.get('down_payment', 0) > 0 else 'pending'
+
+        if payment_details:
+            sale.payment_details = json.dumps(payment_details)
+
+        db.session.add(sale)
+        db.session.flush()  # Get the sale ID
+
+        # Create sale items and update inventory
+        for item_data in data.get('items', []):
+            item = Item.query.get(item_data['id'])
+            if not item:
+                raise Exception(f"Item not found: {item_data['id']}")
+
+            if item.stock_quantity < item_data['quantity']:
+                raise Exception(f"Insufficient stock for {item.name}")
+
+            # Create sale item
+            sale_item = SaleItem(
+                sale_id=sale.id,
+                item_id=item.id,
+                quantity=item_data['quantity'],
+                unit_price=float(item_data['price']),
+                unit_cost=float(item.buying_price or 0),
+                total_price=float(item_data['total'])
+            )
+            db.session.add(sale_item)
+
+            # Update item stock
+            item.stock_quantity -= item_data['quantity']
+
+            # Create stock movement
+            stock_movement = StockMovement(
+                movement_type='out',
+                quantity=item_data['quantity'],
+                reason=f'Sale {sale_number}',
+                item_id=item.id,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(stock_movement)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'sale_id': sale.id,
+            'sale_number': sale_number,
+            'message': 'Sale created successfully'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/performance/top')
 @login_required
-def categories():
-    """Categories management page"""
-    return render_template('categories.html')
+def api_top_selling_items():
+    """API endpoint for top selling items"""
+    try:
+        # Get top selling items for current user
+        top_items = db.session.query(
+            Item.id,
+            Item.name,
+            Category.name.label('category'),
+            func.sum(SaleItem.quantity).label('units_sold'),
+            func.sum(SaleItem.total_price).label('revenue')
+        ).join(SaleItem).join(Sale).outerjoin(Category, Item.category_id == Category.id)\
+        .filter(Sale.user_id == current_user.id)\
+        .group_by(Item.id, Item.name, Category.name)\
+        .order_by(func.sum(SaleItem.quantity).desc())\
+        .limit(10).all()
+
+        result = []
+        for item in top_items:
+            result.append({
+                'id': item.id,
+                'name': item.name,
+                'category': item.category or 'Uncategorized',
+                'units_sold': int(item.units_sold),
+                'revenue': float(item.revenue)
+            })
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify([])
+
+@app.route('/api/sales/performance/slow')
+@login_required
+def api_slow_moving_items():
+    """API endpoint for slow moving items"""
+    try:
+        # Get items with low sales in the last 30 days
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+        slow_items = db.session.query(
+            Item.id,
+            Item.name,
+            Category.name.label('category'),
+            Item.stock_quantity,
+            func.coalesce(func.sum(SaleItem.quantity), 0).label('units_sold')
+        ).outerjoin(SaleItem).outerjoin(Sale, and_(
+            SaleItem.sale_id == Sale.id,
+            Sale.user_id == current_user.id,
+            Sale.created_at >= thirty_days_ago
+        )).outerjoin(Category, Item.category_id == Category.id)\
+        .filter(Item.user_id == current_user.id, Item.is_active == True)\
+        .group_by(Item.id, Item.name, Category.name, Item.stock_quantity)\
+        .having(func.coalesce(func.sum(SaleItem.quantity), 0) <= 5)\
+        .order_by(func.coalesce(func.sum(SaleItem.quantity), 0))\
+        .limit(10).all()
+
+        result = []
+        for item in slow_items:
+            result.append({
+                'id': item.id,
+                'name': item.name,
+                'category': item.category or 'Uncategorized',
+                'stock_quantity': item.stock_quantity,
+                'units_sold': int(item.units_sold)
+            })
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify([])
 
 @app.route('/sales')
 @login_required
 def sales():
-    """Sales management page"""
-    return render_template('sales.html')
+    """Enhanced sales overview with payment types and installment management"""
+    page = request.args.get('page', 1, type=int)
+    from models import Sale
+    from sqlalchemy import desc
+    sales = Sale.query.filter_by(user_id=current_user.id).order_by(desc(Sale.created_at)).paginate(
+        page=page, per_page=20, error_out=False
+    )
+
+    # Calculate metrics by payment type
+    all_sales = Sale.query.filter_by(user_id=current_user.id).all()
+    total_sales = sum(float(sale.total_amount) for sale in all_sales)
+    cash_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'cash')
+    installment_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'installment')
+    other_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'other')
+
+    # Get installment plans summary
+    from models import InstallmentPlan
+    from datetime import datetime
+    active_plans = InstallmentPlan.query.join(Sale).filter(
+        Sale.user_id == current_user.id,
+        InstallmentPlan.status == 'active'
+    ).all()
+
+    # Calculate outstanding amounts
+    total_outstanding = sum(plan.outstanding_amount for plan in active_plans)
+    overdue_count = sum(1 for plan in active_plans if plan.next_due_date and plan.next_due_date < datetime.now().date())
+
+    return render_template('sales.html', 
+                         sales=sales, 
+                         total_sales=total_sales,
+                         cash_sales=cash_sales,
+                         installment_sales=installment_sales, 
+                         other_sales=other_sales,
+                         active_plans=active_plans,
+                         total_outstanding=total_outstanding,
+                         overdue_count=overdue_count)
+
+@app.route('/new_sale')
+@login_required
+def new_sale():
+    """Create a new sale with payment options"""
+    from models import Item, Customer
+    items = Item.query.filter_by(user_id=current_user.id, is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
+    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    return render_template('sales.html', items=items, customers=customers)
 
 @app.route('/margin')
 @login_required
@@ -3018,14 +3239,15 @@ def on_demand():
 def admin_users():
     """Admin users management page"""
     user_id = session.get('user_id')
+    from models import User
     if not user_id:
         return redirect(url_for('login'))
-    
+
     user = User.query.get(user_id)
     if not user or not user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('admin_users.html')
 
 @app.route('/settings')
@@ -3082,24 +3304,24 @@ def handle_exception(e):
     # Pass through HTTP errors
     if hasattr(e, 'code'):
         return e
-    
+
     # Handle BuildError for missing routes more gracefully
     if 'Could not build url for endpoint' in str(e):
         # Only log once per unique error to avoid spam
         error_msg = str(e)
         if not hasattr(app, '_logged_build_errors'):
             app._logged_build_errors = set()
-        
+
         if error_msg not in app._logged_build_errors:
             logger.error(f"Missing route endpoint: {error_msg}")
             app._logged_build_errors.add(error_msg)
-        
+
         # Try to redirect to dashboard instead of showing error
         try:
             return redirect(url_for('dashboard'))
         except:
             return "Application Error - Please check route configuration", 500
-    
+
     # Handle other exceptions
     logger.error(f"Unhandled exception: {str(e)}")
     try:

@@ -184,6 +184,10 @@ class Sale(db.Model):
     payment_status = db.Column(db.String(20), default='completed')
     sale_number = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    sale_items = db.relationship('SaleItem', backref='sale', lazy=True, cascade='all, delete-orphan')
+    customer = db.relationship('Customer', backref='sales', lazy=True)
 
     def to_dict(self):
         return {
@@ -199,6 +203,19 @@ class Sale(db.Model):
             'payment_status': self.payment_status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+class SaleItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    unit_cost = db.Column(db.Float, default=0.0)
+    total_price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    item = db.relationship('Item', backref='sale_items', lazy=True)
 
 # Add relationship after Sale model definition
 Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
