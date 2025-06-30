@@ -3262,6 +3262,19 @@ def security_management():
     """Security and management dashboard"""
     return render_template('security_management.html')
 
+@app.route('/')
+def index():
+    """Root route - redirect to dashboard if logged in, else login"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Main dashboard page"""
+    return render_template('dashboard.html')
+
 @app.route('/login')
 def login():
     """Login page route"""
