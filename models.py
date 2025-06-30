@@ -430,7 +430,20 @@ class PurchaseOrder(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# These models are already defined earlier in the file
+class InstallmentPlan(db.Model):
+    __tablename__ = 'installment_plan'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
+    total_amount = db.Column(db.Float, nullable=False)
+    down_payment = db.Column(db.Float, default=0.0)
+    monthly_payment = db.Column(db.Float, nullable=False)
+    number_of_payments = db.Column(db.Integer, nullable=False)
+    interest_rate = db.Column(db.Float, default=0.0)
+    start_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), default='active')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Enhanced Security Models
 class SecurityAudit(db.Model):
