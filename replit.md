@@ -76,7 +76,13 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
-- June 29, 2025. Initial setup
+- June 30, 2025: Fixed critical database and JavaScript errors
+  - Added missing customer_id foreign key to Sale model
+  - Fixed database schema issues with Category table (added parent_id, sort_order, user_id columns)
+  - Resolved JavaScript syntax error in dashboard.js 
+  - Added sample categories and inventory items to resolve empty data issues
+  - Installed missing numpy and pandas dependencies for predictive analytics
+- June 29, 2025: Initial setup
 
 ## User Preferences
 

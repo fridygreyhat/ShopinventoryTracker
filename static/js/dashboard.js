@@ -1068,13 +1068,14 @@ function loadDashboardData() {
         fetch('/api/shop/details')
             .then(response => response.json())
             .then(data => {
-                if (data.success){
-                const user = data.user;
+                if (data.success) {
+                    const user = data.user;
 
-                // Update DOM elements
-                const shopNameElement = document.getElementById('shop-name');
-                if (shopNameElement) {
-                    shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    // Update DOM elements
+                    const shopNameElement = document.getElementById('shop-name');
+                    if (shopNameElement) {
+                        shopNameElement.textContent = user.shop_name || 'Your Shop';
+                    }
                 }
             })
             .catch(error => {
