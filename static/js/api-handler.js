@@ -88,19 +88,42 @@ class APIHandler {
     }
 
     /**
+     * Get slow moving items
+     */
+    async getSlowMovingItems() {
+        try {
+            const response = await this.fetchWithAuth('/api/sales/performance/slow');
+            return response.ok ? await response.json() : [];
+        } catch (error) {
+            console.error('Error loading slow moving items:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get on-demand products
      */
     async getOnDemandProducts() {
-        const result = await this.fetchWithAuth('/api/on-demand?active_only=true');
-        return result.success ? result.data : [];
+        try {
+            const response = await this.fetchWithAuth('/api/on-demand?active_only=true');
+            return response.ok ? await response.json() : [];
+        } catch (error) {
+            console.error('Error loading on-demand products:', error);
+            return [];
+        }
     }
 
     /**
      * Get financial summary
      */
     async getFinancialSummary() {
-        const result = await this.fetchWithAuth('/api/finance/summaries/monthly');
-        return result.success ? result.data : null;
+        try {
+            const response = await this.fetchWithAuth('/api/finance/summaries/monthly');
+            return response.ok ? await response.json() : null;
+        } catch (error) {
+            console.error('Error loading financial summary:', error);
+            return null;
+        }
     }
 }
 
