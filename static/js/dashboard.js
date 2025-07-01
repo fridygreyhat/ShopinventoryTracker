@@ -237,56 +237,88 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadSalesPerformance() {
     // Load top selling items
     fetch('/api/sales/performance/top')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 302) {
+                    return [];
+                }
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             const tableBody = document.getElementById('top-selling-table');
-            if (data && data.length > 0) {
-                let html = '';
-                data.forEach(item => {
-                    html += `
-                    <tr>
-                        <td>
-                            <a href="/item/${item.id}" class="text-decoration-none">
-                                ${item.name}
-                            </a>
-                        </td>
-                        <td>${item.category || 'Uncategorized'}</td>
-                        <td>${item.units_sold}</td>
-                        <td><span class="currency-symbol">TZS</span> ${item.revenue.toLocaleString()}</td>
-                    </tr>`;
-                });
-                tableBody.innerHTML = html;
+            if (tableBody) {
+                if (data && data.length > 0) {
+                    let html = '';
+                    data.forEach(item => {
+                        html += `
+                        <tr>
+                            <td>
+                                <a href="/item/${item.id}" class="text-decoration-none">
+                                    ${item.name}
+                                </a>
+                            </td>
+                            <td>${item.category || 'Uncategorized'}</td>
+                            <td>${item.units_sold}</td>
+                            <td><span class="currency-symbol">TZS</span> ${item.revenue.toLocaleString()}</td>
+                        </tr>`;
+                    });
+                    tableBody.innerHTML = html;
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No sales data available</td></tr>';
+                }
             }
         })
         .catch(error => {
             console.error('Error loading top selling items:', error);
+            const tableBody = document.getElementById('top-selling-table');
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
+            }
         });
 
     // Load slow moving items
     fetch('/api/sales/performance/slow')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 302) {
+                    return [];
+                }
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             const tableBody = document.getElementById('slow-moving-table');
-            if (data && data.length > 0) {
-                let html = '';
-                data.forEach(item => {
-                    html += `
-                    <tr>
-                        <td>
-                            <a href="/item/${item.id}" class="text-decoration-none">
-                                ${item.name}
-                            </a>
-                        </td>
-                        <td>${item.category || 'Uncategorized'}</td>
-                        <td>${item.days_in_stock}</td>
-                        <td>${item.quantity}</td>
-                    </tr>`;
-                });
-                tableBody.innerHTML = html;
+            if (tableBody) {
+                if (data && data.length > 0) {
+                    let html = '';
+                    data.forEach(item => {
+                        html += `
+                        <tr>
+                            <td>
+                                <a href="/item/${item.id}" class="text-decoration-none">
+                                    ${item.name}
+                                </a>
+                            </td>
+                            <td>${item.category || 'Uncategorized'}</td>
+                            <td>${item.stock_quantity || 0}</td>
+                            <td>${item.units_sold || 0}</td>
+                        </tr>`;
+                    });
+                    tableBody.innerHTML = html;
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No slow moving items found</td></tr>';
+                }
             }
         })
         .catch(error => {
             console.error('Error loading slow moving items:', error);
+            const tableBody = document.getElementById('slow-moving-table');
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
+            }
         });
 }
 
@@ -315,14 +347,22 @@ function loadDashboardData() {
         fetch('/api/reports/category-breakdown')
             .then(response => {
                 if (!response.ok) {
+                    if (response.status === 401 || response.status === 302) {
+                        return {};
+                    }
                     throw new Error('Network response was not ok');
                 }
                 return response.json();
             })
             .then(data => {
                 console.log('Category breakdown data loaded:', data);
-                createStockChart(data);
-                createValueChart(data);
+                if (Object.keys(data).length > 0) {
+                    createStockChart(data);
+                    createValueChart(data);
+                } else {
+                    // Handle empty data case
+                    console.log('No category data available');
+                }
             })
             .catch(error => {
                 console.error('Error loading category breakdown:', error);
@@ -822,19 +862,30 @@ function loadDashboardData() {
     function loadOnDemandProducts() {
         // Fetch active on-demand products
         fetch('/api/on-demand?active_only=true')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 302) {
+                        return [];
+                    }
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(products => {
                 displayOnDemandProducts(products);
             })
             .catch(error => {
                 console.error('Error loading on-demand products:', error);
-                onDemandProductsTableElement.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center text-danger">
-                            <i class="fas fa-exclamation-circle me-2"></i> Error loading on-demand products
-                        </td>
-                    </tr>
-                `;
+                const onDemandProductsTableElement = document.querySelector('#on-demand-products-table tbody');
+                if (onDemandProductsTableElement) {
+                    onDemandProductsTableElement.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-info-circle me-2"></i> Unable to load on-demand products
+                            </td>
+                        </tr>
+                    `;
+                }
             });
     }
 
