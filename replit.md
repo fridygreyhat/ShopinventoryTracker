@@ -1,0 +1,89 @@
+# Inventory Management System
+
+## Overview
+
+This is a comprehensive Flask-based inventory management system designed for small to medium businesses. The application provides complete inventory tracking, sales management, financial reporting, and user management capabilities with a modern web interface.
+
+## System Architecture
+
+The system follows a traditional MVC architecture with Flask as the web framework:
+
+- **Frontend**: Bootstrap 5 with responsive design, Font Awesome icons, and JavaScript for dynamic interactions
+- **Backend**: Flask web framework with SQLAlchemy ORM
+- **Database**: PostgreSQL (configured to work with Replit's database service)
+- **Authentication**: Custom authentication system with session management
+- **Email**: Flask-Mail for email notifications and user verification
+
+## Key Components
+
+### Core Models
+- **User**: User account management with admin roles and authentication
+- **Item**: Product/inventory item management with categories and stock tracking  
+- **Sale**: Sales transaction management with line items
+- **Category**: Product categorization system
+- **FinancialTransaction**: Financial record keeping
+- **Customer**: Customer management and loyalty tracking
+
+### Service Layer
+- **AuthService**: Authentication and authorization logic
+- **AccountingService**: Basic accounting functionality and chart of accounts
+- **EmailService**: Email notifications and password reset functionality
+- **NotificationService**: SMS and email notification system (Twilio/SendGrid integration)
+- **Various Analytics Services**: Business intelligence, predictive analytics, and reporting
+
+### Admin Portal
+- **User Management**: Admin interface for managing users and permissions
+- **System Monitoring**: Dashboard for system statistics and user activity
+- **Role-based Access Control**: Admin-only sections with proper authorization
+
+## Data Flow
+
+1. **User Registration/Login**: Users register through the web interface, with email verification
+2. **Inventory Management**: Users add/edit items through forms, data persisted to PostgreSQL
+3. **Sales Processing**: Sales are recorded with automatic inventory updates and financial entries
+4. **Reporting**: Analytics services query the database to generate business intelligence reports
+5. **Notifications**: System monitors stock levels and sends alerts via email/SMS
+
+## External Dependencies
+
+### Required Services
+- **PostgreSQL Database**: Primary data storage (DATABASE_URL environment variable)
+- **Email Provider**: SMTP configuration for email notifications
+- **Optional Integrations**:
+  - Twilio for SMS notifications
+  - SendGrid for enhanced email delivery
+  - Firebase for authentication (placeholder implementation)
+
+### Python Packages
+- Flask ecosystem (Flask, SQLAlchemy, Mail)
+- Authentication libraries (werkzeug for password hashing)
+- Data processing (pandas for analytics)
+- External API clients (requests, twilio, firebase-admin)
+
+## Deployment Strategy
+
+The application is designed for Replit deployment with the following considerations:
+
+1. **Database Setup**: Uses Replit's PostgreSQL service via DATABASE_URL
+2. **Environment Variables**: All sensitive configuration via environment variables
+3. **Static Files**: Served directly by Flask (suitable for development/small scale)
+4. **Session Management**: File-based sessions (appropriate for single-instance deployment)
+
+### Configuration Files
+- `main.py`: Entry point for Replit
+- `wsgi.py`: WSGI application entry point
+- `requirements.txt`: Python dependencies
+- Database initialization scripts for PostgreSQL setup
+
+## Changelog
+- June 30, 2025: Fixed critical database and JavaScript errors
+  - Added missing customer_id foreign key to Sale model
+  - Fixed database schema issues with Category table (added parent_id, sort_order, user_id columns)
+  - Resolved JavaScript syntax error in dashboard.js 
+  - Added sample categories and inventory items to resolve empty data issues
+  - Installed missing numpy and pandas dependencies for predictive analytics
+- June 29, 2025: Initial setup
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.

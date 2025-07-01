@@ -69,7 +69,7 @@
                     <div class="nav-section-title">Main</div>
                     <ul class="nav-menu">
                         <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">
+                            <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
                                 <i class="nav-icon fas fa-chart-line"></i>
                                 <span class="nav-text">Dashboard</span>
                             </a>
@@ -138,6 +138,12 @@
                             <a class="nav-link {% if request.path == url_for('on_demand') %}active{% endif %}" href="{{ url_for('on_demand') }}">
                                 <i class="nav-icon fas fa-magic"></i>
                                 <span class="nav-text">On-Demand</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/security-management">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Security & Management</span>
                             </a>
                         </li>
                     </ul>

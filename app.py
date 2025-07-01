@@ -45,7 +45,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 mail = Mail(app)
 
-
 # Helper function to get settings
 def get_setting_value(key, default=None):
     """
@@ -62,7 +61,6 @@ def get_setting_value(key, default=None):
     setting = Setting.query.filter_by(key=key).first()
     return setting.value if setting else default
 
-
 # Import auth service after models are imported
 try:
     from auth_service import login_required
@@ -73,7 +71,10 @@ except ImportError:
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
-                return redirect(url_for('login'))
+                try:
+                    return redirect(url_for('login'))
+                except:
+                    return redirect('/login')
             return f(*args, **kwargs)
         return decorated_function
 
@@ -98,7 +99,6 @@ def inject_current_user():
 
     return dict(get_current_user=get_current_user)
 
-
 # Import models
 from models import (
     User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
@@ -112,15 +112,31 @@ try:
 except ImportError:
     logger.warning("Admin portal not available")
 
+# Import new services
+from services.localization_service import LocalizationService
+from services.payment_service import PaymentService
+from services.supply_chain_service import SupplyChainService
+from services.business_intelligence import BusinessIntelligenceService
+
 # Initialize database tables
 with app.app_context():
+    try:
+        # When we have schema changes, we need to reset the database
+        # Comment out the line below to avoid data loss in production
+        # db.drop_all()  # Commented out to prevent data loss
 
-    # When we have schema changes, we need to reset the database
-    # Comment out the line below to avoid data loss in production
-    # db.drop_all()  # Commented out to prevent data loss
+        # First, create all tables
+        db.create_all()
+        logger.info("Database tables created successfully")
 
-    # First, create all tables
-    db.create_all()
+        # Test database connection
+        db.session.execute(db.text("SELECT 1"))
+        db.session.commit()
+        logger.info("Database connection test successful")
+
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+        # Continue anyway - the app might still work
 
     # Then, handle migrations for existing databases
     # Helper function to check if column exists
@@ -213,14 +229,35 @@ with app.app_context():
         if result.fetchone():
             # Add missing sale columns
             add_column_safely('sale', 'user_id', 'INTEGER')
+            add_column_safely('sale', 'customer_id', 'INTEGER')
             add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
+            add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", "'cash'")
+            add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", "'completed'")
+            add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
 
-        # Initialize SMS notification settings if they don't exist
+        # Check if customer table exists and add foreign key constraints
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'customer' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            logger.info("Customer table exists, checking foreign key constraints")
+
+        # Check if financial_transaction table exists
+        result = db.session.execute(
+            db.text(
+                "SELECT table_name FROM information_schema.tables WHERE table_name = 'financial_transaction' AND table_schema = 'public';"
+            ))
+        if result.fetchone():
+            # Add missing financial_transaction columns
+            add_column_safely('financial_transaction', 'user_id', 'INTEGER')
+
+        # Initialize default settings if they don't exist
         try:
             from models import Setting
 
-            # Default SMS settings
-            default_sms_settings = [
+            # Default settings
+            default_settings = [
                 ('sms_notifications_enabled', 'false', 'Enable SMS notifications for low stock alerts', 'notifications'),
                 ('notification_phone', '', 'Phone number to receive SMS notifications (include country code)', 'notifications'),
                 ('low_stock_threshold', '10', 'Quantity threshold for low stock alerts', 'notifications'),
@@ -229,7 +266,7 @@ with app.app_context():
                 ('sender_email', 'inventory@yourbusiness.com', 'Email address to send notifications from', 'notifications')
             ]
 
-            for key, value, description, category in default_sms_settings:
+            for key, value, description, category in default_settings:
                 existing_setting = Setting.query.filter_by(key=key).first()
                 if not existing_setting:
                     new_setting = Setting(
@@ -241,10 +278,10 @@ with app.app_context():
                     db.session.add(new_setting)
 
             db.session.commit()
-            logger.info("SMS notification settings initialized")
+            logger.info("Default settings initialized successfully")
 
         except Exception as e:
-            logger.warning(f"Could not initialize SMS settings: {str(e)}")
+            logger.warning(f"Could not initialize default settings: {str(e)}")
             db.session.rollback()
 
     except Exception as e:
@@ -257,6 +294,10 @@ def api_login():
     """API endpoint for user login"""
     try:
         data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
 
@@ -264,35 +305,55 @@ def api_login():
             return jsonify({'error': 'Email and password are required'}), 400
 
         # Check user credentials
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email, is_active=True).first()
 
         if user and user.check_password(password):
-            # Create session
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            session['user_name'] = f"{user.first_name} {user.last_name}"
+            try:
+                # Update last login
+                user.last_login = datetime.utcnow()
 
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name
-                }
-            }), 200
+                # Create session
+                session.clear()  # Clear any existing session data
+                session['user_id'] = user.id
+                session['user_email'] = user.email
+                session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+
+                db.session.commit()
+
+                logger.info(f"User {email} logged in successfully")
+
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'username': user.username,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name
+                    }
+                }), 200
+            except Exception as session_error:
+                logger.error(f"Session creation error: {str(session_error)}")
+                db.session.rollback()
+                return jsonify({'error': 'Login failed during session creation'}), 500
         else:
+            logger.warning(f"Failed login attempt for email: {email}")
             return jsonify({'error': 'Invalid email or password'}), 401
 
     except Exception as e:
         logger.error(f"API login error: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
+        db.session.rollback()
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
     """API endpoint for user registration"""
     try:
         data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         username = data.get('username', '').strip()
@@ -303,11 +364,28 @@ def api_register():
         product_categories = data.get('product_categories', '')
 
         # Validate required fields
-        if not all([email, password, username, first_name, last_name]):
-            return jsonify({'error': 'All required fields must be filled'}), 400
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        if not first_name:
+            return jsonify({'error': 'First name is required'}), 400
+        if not last_name:
+            return jsonify({'error': 'Last name is required'}), 400
+
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'error': 'Invalid email format'}), 400
 
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+
+        if len(username) < 3:
+            return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
@@ -328,17 +406,34 @@ def api_register():
             phone=phone if phone else None,
             shop_name=shop_name if shop_name else None,
             product_categories=product_categories if product_categories else None,
-            is_active=True
+            is_active=True,
+            is_admin=False,
+            email_verified=False
         )
+        
+        # Set password hash
         new_user.set_password(password)
+        
+        # Verify password was set correctly
+        if not new_user.password_hash:
+            return jsonify({'error': 'Failed to set password'}), 500
 
         db.session.add(new_user)
-        db.session.commit()
+        db.session.flush()  # Get the user ID without committing
+
+        # Verify user was created
+        if not new_user.id:
+            return jsonify({'error': 'Failed to create user'}), 500
 
         # Create session
+        session.clear()  # Clear any existing session
         session['user_id'] = new_user.id
         session['user_email'] = new_user.email
-        session['user_name'] = f"{new_user.first_name} {new_user.last_name}"
+        session['user_name'] = f"{new_user.first_name} {new_user.last_name}".strip()
+
+        db.session.commit()
+
+        logger.info(f"New user registered: {email}")
 
         return jsonify({
             'success': True,
@@ -354,7 +449,7 @@ def api_register():
     except Exception as e:
         db.session.rollback()
         logger.error(f"API registration error: {str(e)}")
-        return jsonify({'error': 'Registration failed'}), 500
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
 def api_create_session():
@@ -495,6 +590,35 @@ def get_inventory():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
+@app.route('/api/shop/details', methods=['GET'])
+@login_required
+def get_shop_details():
+    """API endpoint to get shop/user details for the dashboard"""
+    try:
+        user_id = session.get('user_id')
+        from models import User
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'shop_name': user.shop_name or f"{user.first_name}'s Shop" if user.first_name else "Your Shop",
+                'phone': user.phone,
+                'is_admin': user.is_admin,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting shop details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/inventory', methods=['POST'])
 def add_item():
@@ -613,7 +737,6 @@ def add_item():
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": "Failed to add item"}), 500
 
-
 @app.route('/api/inventory/<int:item_id>', methods=['GET'])
 def get_item(item_id):
     """API endpoint to get a specific inventory item"""
@@ -625,7 +748,6 @@ def get_item(item_id):
         return jsonify({"error": "Item not found"}), 404
 
     return jsonify(item.to_dict())
-
 
 @app.route('/api/inventory/<int:item_id>', methods=['PUT'])
 def update_item(item_id):
@@ -723,7 +845,6 @@ def update_item(item_id):
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": "Failed to update item"}), 500
 
-
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
     """API endpoint to delete an inventory item"""
@@ -749,7 +870,6 @@ def delete_item(item_id):
         db.session.rollback()
         logger.error(f"Error deleting item: {str(e)}")
         return jsonify({"error": "Failed to delete item"}), 500
-
 
 @app.route('/api/inventory/bulk-import', methods=['POST'])
 def bulk_import_inventory():
@@ -779,7 +899,6 @@ def bulk_import_inventory():
         logger.error(f"Bulk import failed: {str(e)}")
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
 
-
 @app.route('/api/inventory/csv-template', methods=['GET'])
 def get_csv_template():
     """API endpoint to get CSV template and format information"""
@@ -802,7 +921,6 @@ def get_csv_template():
         format_info = CSVTemplateGenerator.get_format_instructions()
         return jsonify(format_info)
 
-
 @app.route('/api/inventory/categories', methods=['GET'])
 def get_inventory_categories():
     """API endpoint to get all unique inventory categories"""
@@ -815,7 +933,6 @@ def get_inventory_categories():
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
-
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
@@ -859,7 +976,6 @@ def get_products():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
-
 @app.route('/api/reports/stock-status', methods=['GET'])
 def stock_status_report():
     """API endpoint to get stock status report"""
@@ -898,7 +1014,6 @@ def stock_status_report():
     }
 
     return jsonify(report)
-
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])
 def category_breakdown_report():
@@ -944,7 +1059,6 @@ def category_breakdown_report():
 
     return jsonify(categories)
 
-
 @app.route('/api/export/csv', methods=['GET'])
 def export_csv():
     """API endpoint to export inventory as CSV"""
@@ -980,7 +1094,6 @@ def export_csv():
         download_name=
         f'inventory_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
 
-
 # On-Demand Products API endpoints
 @app.route('/api/on-demand', methods=['GET'])
 def get_on_demand_products():
@@ -1011,7 +1124,6 @@ def get_on_demand_products():
     # Execute query and convert to dictionary
     products = [product.to_dict() for product in query.all()]
     return jsonify(products)
-
 
 @app.route('/api/on-demand', methods=['POST'])
 def add_on_demand_product():
@@ -1049,7 +1161,6 @@ def add_on_demand_product():
         logger.error(f"Error adding on-demand product: {str(e)}")
         return jsonify({"error": "Failed to add on-demand product"}), 500
 
-
 @app.route('/api/on-demand/<int:product_id>', methods=['GET'])
 def get_on_demand_product(product_id):
     """API endpoint to get a specific on-demand product"""
@@ -1061,7 +1172,6 @@ def get_on_demand_product(product_id):
         return jsonify({"error": "Product not found"}), 404
 
     return jsonify(product.to_dict())
-
 
 @app.route('/api/on-demand/<int:product_id>', methods=['PUT'])
 def update_on_demand_product(product_id):
@@ -1090,7 +1200,6 @@ def update_on_demand_product(product_id):
         db.session.rollback()
         logger.error(f"Error updating on-demand product: {str(e)}")
         return jsonify({"error": "Failed to update on-demand product"}), 500
-
 
 @app.route('/api/on-demand/<int:product_id>', methods=['DELETE'])
 def delete_on_demand_product(product_id):
@@ -1121,7 +1230,6 @@ def delete_on_demand_product(product_id):
         logger.error(f"Error deleting on-demand product: {str(e)}")
         return jsonify({"error": "Failed to delete on-demand product"}), 500
 
-
 @app.route('/api/on-demand/categories', methods=['GET'])
 def get_on_demand_product_categories():
     """API endpoint to get all unique on-demand product categories"""
@@ -1134,7 +1242,6 @@ def get_on_demand_product_categories():
                       'Uncategorized').label('category')).distinct().all()
 
     return jsonify([c.category for c in categories])
-
 
 # Settings API endpoints
 @app.route('/api/settings', methods=['GET'])
@@ -1166,7 +1273,6 @@ def get_settings():
 
     return jsonify(settings)
 
-
 @app.route('/api/settings/<string:key>', methods=['GET'])
 def get_setting(key):
     """API endpoint to get a specific setting"""
@@ -1178,7 +1284,6 @@ def get_setting(key):
         return jsonify({"error": "Setting not found"}), 404
 
     return jsonify(setting.to_dict())
-
 
 @app.route('/api/settings/get/user_theme', methods=['GET'])
 def get_user_theme():
@@ -1205,7 +1310,6 @@ def get_user_theme():
         'success': True,
         'value': 'tanzanite'  # Default theme
     })
-
 
 @app.route('/api/settings', methods=['POST'])
 def add_setting():
@@ -1251,7 +1355,6 @@ def add_setting():
         logger.error(f"Error adding/updating setting: {str(e)}")
         return jsonify({"error": "Failed to add/update setting"}), 500
 
-
 @app.route('/api/settings/<string:key>', methods=['PUT'])
 def update_setting(key):
     """API endpoint to update a setting"""
@@ -1281,7 +1384,6 @@ def update_setting(key):
         logger.error(f"Error updating setting: {str(e)}")
         return jsonify({"error": "Failed to update setting"}), 500
 
-
 @app.route('/api/settings/<string:key>', methods=['DELETE'])
 def delete_setting(key):
     """API endpoint to delete a setting"""
@@ -1310,7 +1412,6 @@ def delete_setting(key):
         logger.error(f"Error deleting setting: {str(e)}")
         return jsonify({"error": "Failed to delete setting"}), 500
 
-
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
@@ -1319,6 +1420,11 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('login'))
 
+@app.route('/account')
+@login_required
+def account():
+    """User account management page"""
+    return render_template('account.html')
 
 # Financial Statement Routes
 @app.route('/finance')
@@ -1326,7 +1432,6 @@ def logout():
 def finance():
     """Render the financial statement page"""
     return render_template('finance.html')
-
 
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
@@ -1404,7 +1509,6 @@ def get_transactions():
         }
     })
 
-
 @app.route('/api/finance/transactions', methods=['POST'])
 def add_transaction():
     """API endpoint to add a new financial transaction"""
@@ -1453,7 +1557,6 @@ def add_transaction():
         db.session.rollback()
         return jsonify({"error": f"Failed to add transaction: {str(e)}"}), 500
 
-
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['GET'])
 def get_transaction(transaction_id):
     """API endpoint to get a specific financial transaction"""
@@ -1464,7 +1567,6 @@ def get_transaction(transaction_id):
         return jsonify({"error": "Transaction not found"}), 404
 
     return jsonify(transaction.to_dict())
-
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
 def update_transaction(transaction_id):
@@ -1520,7 +1622,6 @@ def update_transaction(transaction_id):
         db.session.rollback()
         return jsonify({"error":
                         f"Failed to update transaction: {str(e)}"}), 500
-
 
 @app.route('/api/finance/transactions/<int:transaction_id>',
            methods=['DELETE'])
@@ -1659,6 +1760,1165 @@ def get_monthly_summaries():
         logger.error(f"Error getting monthly summaries: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Additional imports for enhanced functionality
+import uuid
+from werkzeug.utils import secure_filename
+from datetime import date
+from services.predictive_analytics import PredictiveAnalyticsService
+from services.smart_inventory import SmartInventoryService
+
+# ===== CATEGORIES API ROUTES =====
+
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def get_categories_api():
+    """Get all categories for current user"""
+    try:
+        from models import Category
+        user_id = session.get('user_id')
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        
+        categories_data = []
+        for category in categories:
+            categories_data.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'parent_id': category.parent_id,
+                'sort_order': category.sort_order,
+                'is_active': category.is_active,
+                'created_at': category.created_at.isoformat() if category.created_at else None
+            })
+        
+        return jsonify({'success': True, 'categories': categories_data})
+    except Exception as e:
+        logger.error(f"Error getting categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+@login_required
+def create_category_api():
+    """Create a new category"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from models import Category, db
+        
+        category = Category(
+            name=data['name'],
+            description=data.get('description'),
+            parent_id=data.get('parent_id'),
+            sort_order=data.get('sort_order', 0),
+            user_id=user_id,
+            is_active=True
+        )
+        
+        db.session.add(category)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'category_id': category.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== ACCOUNTING API ROUTES =====
+
+@app.route('/api/accounting/chart-of-accounts', methods=['GET'])
+@login_required
+def get_chart_of_accounts_api():
+    """Get chart of accounts"""
+    try:
+        user_id = session.get('user_id')
+        from models import ChartOfAccounts
+        
+        accounts = ChartOfAccounts.query.filter_by(user_id=user_id, is_active=True).order_by(ChartOfAccounts.account_code).all()
+        
+        accounts_data = []
+        for account in accounts:
+            accounts_data.append({
+                'id': account.id,
+                'account_code': account.account_code,
+                'account_name': account.account_name,
+                'account_type': account.account_type,
+                'parent_account_id': account.parent_account_id,
+                'balance': float(account.balance) if account.balance else 0.0,
+                'is_active': account.is_active
+            })
+        
+        return jsonify({'success': True, 'accounts': accounts_data})
+    except Exception as e:
+        logger.error(f"Error getting chart of accounts: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/journal-entries', methods=['GET'])
+@login_required
+def get_journal_entries_api():
+    """Get journal entries"""
+    try:
+        user_id = session.get('user_id')
+        from models import Journal
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        journals = Journal.query.filter_by(user_id=user_id).order_by(Journal.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        journals_data = []
+        for journal in journals.items:
+            journals_data.append({
+                'id': journal.id,
+                'journal_number': journal.journal_number,
+                'description': journal.description,
+                'total_debit': float(journal.total_debit) if journal.total_debit else 0.0,
+                'total_credit': float(journal.total_credit) if journal.total_credit else 0.0,
+                'created_at': journal.created_at.isoformat() if journal.created_at else None
+            })
+        
+        return jsonify({
+            'success': True, 
+            'journals': journals_data,
+            'pagination': {
+                'page': page,
+                'pages': journals.pages,
+                'per_page': per_page,
+                'total': journals.total
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting journal entries: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/balance-sheet', methods=['GET'])
+@login_required
+def get_balance_sheet_api():
+    """Get balance sheet data"""
+    try:
+        user_id = session.get('user_id')
+        as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Mock balance sheet data for now
+        balance_sheet_data = {
+            'as_of_date': as_of_date,
+            'assets': {
+                'current_assets': {
+                    'cash': 50000.0,
+                    'accounts_receivable': 25000.0,
+                    'inventory': 75000.0,
+                    'total': 150000.0
+                },
+                'fixed_assets': {
+                    'equipment': 100000.0,
+                    'accumulated_depreciation': -20000.0,
+                    'total': 80000.0
+                },
+                'total_assets': 230000.0
+            },
+            'liabilities': {
+                'current_liabilities': {
+                    'accounts_payable': 30000.0,
+                    'short_term_debt': 20000.0,
+                    'total': 50000.0
+                },
+                'long_term_liabilities': {
+                    'long_term_debt': 80000.0,
+                    'total': 80000.0
+                },
+                'total_liabilities': 130000.0
+            },
+            'equity': {
+                'owners_equity': 100000.0,
+                'total_equity': 100000.0
+            }
+        }
+        
+        return jsonify({'success': True, 'balance_sheet': balance_sheet_data})
+    except Exception as e:
+        logger.error(f"Error getting balance sheet: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/trial-balance', methods=['GET'])
+@login_required
+def get_trial_balance_api():
+    """Get trial balance data"""
+    try:
+        user_id = session.get('user_id')
+        as_of_date = request.args.get('as_of_date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # Mock trial balance data
+        trial_balance_data = {
+            'as_of_date': as_of_date,
+            'accounts': [
+                {'account_name': 'Cash', 'debit': 50000.0, 'credit': 0.0},
+                {'account_name': 'Accounts Receivable', 'debit': 25000.0, 'credit': 0.0},
+                {'account_name': 'Inventory', 'debit': 75000.0, 'credit': 0.0},
+                {'account_name': 'Equipment', 'debit': 100000.0, 'credit': 0.0},
+                {'account_name': 'Accounts Payable', 'debit': 0.0, 'credit': 30000.0},
+                {'account_name': 'Long-term Debt', 'debit': 0.0, 'credit': 80000.0},
+                {'account_name': 'Owners Equity', 'debit': 0.0, 'credit': 100000.0},
+                {'account_name': 'Sales Revenue', 'debit': 0.0, 'credit': 40000.0}
+            ],
+            'total_debits': 250000.0,
+            'total_credits': 250000.0,
+            'is_balanced': True
+        }
+        
+        return jsonify({'success': True, 'trial_balance': trial_balance_data})
+    except Exception as e:
+        logger.error(f"Error getting trial balance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== INSTALLMENTS API ROUTES =====
+
+@app.route('/api/installment-sales/dashboard', methods=['GET'])
+@login_required
+def get_installment_dashboard():
+    """Get installment sales dashboard data"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Mock installment data
+        dashboard_data = {
+            'total_installment_sales': 150000.0,
+            'active_plans': 25,
+            'completed_plans': 15,
+            'overdue_payments': 3,
+            'total_outstanding': 45000.0,
+            'this_month_collections': 8500.0,
+            'upcoming_payments': [
+                {'customer_name': 'John Doe', 'amount': 1500.0, 'due_date': '2024-02-15'},
+                {'customer_name': 'Jane Smith', 'amount': 2000.0, 'due_date': '2024-02-20'},
+                {'customer_name': 'Bob Johnson', 'amount': 1200.0, 'due_date': '2024-02-25'}
+            ]
+        }
+        
+        return jsonify({'success': True, 'dashboard': dashboard_data})
+    except Exception as e:
+        logger.error(f"Error getting installment dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installment-sales', methods=['GET'])
+@login_required
+def get_installment_sales():
+    """Get installment sales"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Mock installment sales data
+        installment_sales = [
+            {
+                'id': 1,
+                'customer_name': 'John Doe',
+                'product_name': 'Laptop Computer',
+                'total_amount': 15000.0,
+                'down_payment': 3000.0,
+                'remaining_amount': 12000.0,
+                'monthly_payment': 2000.0,
+                'payments_made': 3,
+                'payments_remaining': 3,
+                'status': 'active',
+                'next_due_date': '2024-02-15'
+            },
+            {
+                'id': 2,
+                'customer_name': 'Jane Smith',
+                'product_name': 'Smartphone',
+                'total_amount': 8000.0,
+                'down_payment': 2000.0,
+                'remaining_amount': 6000.0,
+                'monthly_payment': 1500.0,
+                'payments_made': 2,
+                'payments_remaining': 2,
+                'status': 'active',
+                'next_due_date': '2024-02-20'
+            }
+        ]
+        
+        return jsonify({'success': True, 'installment_sales': installment_sales})
+    except Exception as e:
+        logger.error(f"Error getting installment sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== CUSTOMERS API ROUTES =====
+
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers_api():
+    """Get all customers for current user"""
+    try:
+        user_id = session.get('user_id')
+        from models import Customer
+        
+        customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
+        
+        customers_data = []
+        for customer in customers:
+            customers_data.append({
+                'id': customer.id,
+                'name': customer.name,
+                'email': customer.email,
+                'phone': customer.phone,
+                'address': customer.address,
+                'customer_type': customer.customer_type,
+                'credit_limit': float(customer.credit_limit) if customer.credit_limit else 0.0,
+                'loyalty_points': customer.loyalty_points,
+                'preferred_payment_method': customer.preferred_payment_method,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            })
+        
+        return jsonify({'success': True, 'customers': customers_data})
+    except Exception as e:
+        logger.error(f"Error getting customers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customers', methods=['POST'])
+@login_required
+def create_customer_api():
+    """Create a new customer"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from models import Customer, db
+        
+        customer = Customer(
+            name=data['name'],
+            email=data.get('email'),
+            phone=data.get('phone'),
+            address=data.get('address'),
+            customer_type=data.get('customer_type', 'retail'),
+            credit_limit=data.get('credit_limit', 0.0),
+            preferred_payment_method=data.get('preferred_payment_method'),
+            user_id=user_id
+        )
+        
+        db.session.add(customer)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'customer_id': customer.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating customer: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== PREDICTIVE ANALYTICS API ROUTES =====
+
+@app.route('/api/analytics/demand-forecast', methods=['GET'])
+def demand_forecast():
+    """Get demand forecast for items"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+        days_ahead = request.args.get('days_ahead', default=30, type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.demand_forecasting(item_id, days_ahead)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in demand forecast: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/seasonal-trends', methods=['GET'])
+def seasonal_trends():
+    """Get seasonal trend analysis"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.seasonal_trend_analysis(item_id)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in seasonal trends: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/price-optimization', methods=['GET'])
+def price_optimization():
+    """Get price optimization recommendations"""
+    try:
+        user_id = session.get('user_id')
+        item_id = request.args.get('item_id', type=int)
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.price_optimization_recommendations(item_id)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in price optimization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/customer-behavior', methods=['GET'])
+def customer_behavior():
+    """Get customer behavior analytics"""
+    try:
+        user_id = session.get('user_id')
+
+        analytics_service = PredictiveAnalyticsService(user_id)
+        result = analytics_service.customer_behavior_analytics()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in customer behavior analytics: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ===== SMART INVENTORY API ROUTES =====
+
+@app.route('/api/smart-inventory/auto-reorder', methods=['GET', 'POST'])
+def auto_reorder():
+    """Auto reorder system"""
+    try:
+        user_id = session.get('user_id')
+        supplier_integration = request.args.get('supplier_integration', 'false').lower() == 'true'
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.auto_reorder_system(supplier_integration)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in auto reorder: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/dynamic-pricing', methods=['GET'])
+def dynamic_pricing():
+    """Dynamic pricing engine"""
+    try:
+        user_id = session.get('user_id')
+        market_data = request.json if request.method == 'POST' else None
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.dynamic_pricing_engine(market_data)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in dynamic pricing: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/expiry-tracking', methods=['GET'])
+def expiry_tracking():
+    """Expiry date tracking for perishable goods"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.expiry_date_tracking()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in expiry tracking: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/abc-analysis', methods=['GET'])
+def abc_analysis():
+    """ABC analysis for inventory categorization"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.abc_analysis()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in ABC analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/smart-inventory/health-score', methods=['GET'])
+def inventory_health_score():
+    """Get inventory health score"""
+    try:
+        user_id = session.get('user_id')
+
+        smart_inventory = SmartInventoryService(user_id)
+        result = smart_inventory.inventory_health_score()
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error calculating health score: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# ===== LOCALIZATION API ROUTES =====
+
+@app.route('/api/localization/language', methods=['GET', 'POST'])
+def manage_language():
+    """Get or set user language preference"""
+    localization = LocalizationService()
+    
+    if request.method == 'GET':
+        return jsonify({
+            'current_language': localization.get_user_language(),
+            'supported_languages': localization.supported_languages
+        })
+    else:
+        data = request.get_json()
+        language = data.get('language')
+        
+        if localization.set_user_language(language):
+            return jsonify({'success': True, 'language': language})
+        else:
+            return jsonify({'error': 'Unsupported language'}), 400
+
+@app.route('/api/localization/currency/<amount>')
+def format_currency(amount):
+    """Format currency amount according to local preferences"""
+    try:
+        localization = LocalizationService()
+        currency = request.args.get('currency', 'TZS')
+        formatted = localization.format_currency(float(amount), currency)
+        return jsonify({'formatted_amount': formatted})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/localization/tax/vat', methods=['POST'])
+def calculate_vat():
+    """Calculate VAT for Tanzania"""
+    try:
+        data = request.get_json()
+        amount = data.get('amount')
+        include_vat = data.get('include_vat', True)
+        
+        localization = LocalizationService()
+        result = localization.calculate_vat(amount, include_vat)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ===== PAYMENT GATEWAY API ROUTES =====
+
+@app.route('/api/payments/mpesa/initiate', methods=['POST'])
+def initiate_mpesa_payment():
+    """Initiate M-Pesa STK Push payment"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.initiate_mpesa_payment(
+            phone_number=data['phone_number'],
+            amount=data['amount'],
+            reference=data['reference'],
+            description=data['description']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/mpesa/status/<checkout_request_id>')
+def check_mpesa_status(checkout_request_id):
+    """Check M-Pesa payment status"""
+    try:
+        payment_service = PaymentService()
+        result = payment_service.check_mpesa_payment_status(checkout_request_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/mobile-money', methods=['POST'])
+def process_mobile_money():
+    """Process mobile money payments"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_mobile_money_payment(
+            provider=data['provider'],
+            phone_number=data['phone_number'],
+            amount=data['amount'],
+            reference=data['reference']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/crypto', methods=['POST'])
+def process_crypto_payment():
+    """Process cryptocurrency payments"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_cryptocurrency_payment(
+            currency=data['currency'],
+            amount=data['amount'],
+            wallet_address=data['wallet_address']
+        )
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/payments/split', methods=['POST'])
+def process_split_payment():
+    """Process split payments across multiple methods"""
+    try:
+        data = request.get_json()
+        payment_service = PaymentService()
+        
+        result = payment_service.process_split_payment(data['payment_methods'])
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== SUPPLY CHAIN API ROUTES =====
+
+@app.route('/api/supply-chain/suppliers', methods=['GET', 'POST'])
+def manage_suppliers():
+    """Get or create suppliers"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        
+        if request.method == 'GET':
+            from models import Supplier
+            suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).all()
+            return jsonify([s.to_dict() for s in suppliers])
+        else:
+            data = request.get_json()
+            result = supply_chain.create_supplier(data)
+            return jsonify(result), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/purchase-orders', methods=['GET', 'POST'])
+def manage_purchase_orders():
+    """Get or create purchase orders"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        
+        if request.method == 'GET':
+            from models import PurchaseOrder
+            pos = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
+            return jsonify([po.to_dict() for po in pos])
+        else:
+            data = request.get_json()
+            result = supply_chain.create_purchase_order(data)
+            return jsonify(result), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/reorder-suggestions')
+def get_reorder_suggestions():
+    """Get automated reorder suggestions"""
+    try:
+        user_id = session.get('user_id')
+        supply_chain = SupplyChainService(user_id)
+        suggestions = supply_chain.automated_reorder_suggestions()
+        return jsonify(suggestions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===== ENHANCED SECURITY API ROUTES =====
+
+@app.route('/api/security/setup-2fa', methods=['POST'])
+@login_required
+def setup_2fa():
+    """Set up two-factor authentication"""
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        from services.security_service import SecurityService
+        security_service = SecurityService(user_id)
+        
+        result = security_service.setup_2fa(user.email)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error setting up 2FA: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/verify-2fa', methods=['POST'])
+@login_required
+def verify_2fa():
+    """Verify 2FA token"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        from services.security_service import SecurityService
+        security_service = SecurityService(user_id)
+        
+        is_valid = security_service.verify_2fa_token(data['secret'], data['token'])
+        
+        if is_valid:
+            # Update user 2FA status
+            from models import UserTwoFactor, db
+            
+            two_fa = UserTwoFactor.query.filter_by(user_id=user_id).first()
+            if not two_fa:
+                two_fa = UserTwoFactor(user_id=user_id, secret_key=data['secret'])
+                db.session.add(two_fa)
+            
+            two_fa.is_enabled = True
+            db.session.commit()
+        
+        return jsonify({'success': is_valid})
+        
+    except Exception as e:
+        logger.error(f"Error verifying 2FA: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/audit-logs')
+@login_required
+def get_audit_logs():
+    """Get security audit logs"""
+    try:
+        user_id = session.get('user_id')
+        
+        from models import SecurityAudit
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        audits = SecurityAudit.query.filter_by(user_id=user_id).order_by(
+            SecurityAudit.timestamp.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'audits': [audit.to_dict() for audit in audits.items],
+            'pagination': {
+                'page': page,
+                'pages': audits.pages,
+                'per_page': per_page,
+                'total': audits.total
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting audit logs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== DATA MANAGEMENT API ROUTES =====
+
+@app.route('/api/data/backup', methods=['POST'])
+@login_required
+def create_backup():
+    """Create data backup"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.create_automated_backup()
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating backup: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/data/export/<data_type>/<format_type>')
+@login_required
+def export_data_format(data_type, format_type):
+    """Export data in specified format"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.export_data_multiple_formats(data_type, format_type)
+        
+        if 'error' in result:
+            return jsonify(result), 400
+            
+        return send_file(
+            io.BytesIO(result['content'].encode() if format_type != 'excel' else result['content']),
+            mimetype='application/octet-stream',
+            as_attachment=True,
+            download_name=result['filename']
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/data/archive', methods=['POST'])
+@login_required
+def archive_old_data():
+    """Archive old records"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        archive_before = datetime.strptime(data['archive_before_date'], '%Y-%m-%d').date()
+        
+        from services.data_management_service import DataManagementService
+        data_service = DataManagementService(user_id)
+        
+        result = data_service.archive_old_records(archive_before)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error archiving data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== TEAM MANAGEMENT API ROUTES =====
+
+@app.route('/api/team/employees', methods=['GET', 'POST'])
+@login_required
+def manage_employees():
+    """Get or create employees"""
+    try:
+        user_id = session.get('user_id')
+        
+        if request.method == 'GET':
+            from models import Employee
+            employees = Employee.query.filter_by(user_id=user_id, is_active=True).all()
+            return jsonify([emp.to_dict() for emp in employees])
+        else:
+            data = request.get_json()
+            
+            from models import Employee, db
+            
+            employee = Employee(
+                user_id=user_id,
+                employee_code=data['employee_code'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data.get('email'),
+                phone=data.get('phone'),
+                position=data.get('position'),
+                department=data.get('department'),
+                hire_date=datetime.strptime(data['hire_date'], '%Y-%m-%d').date() if data.get('hire_date') else None,
+                salary=data.get('salary'),
+                commission_rate=data.get('commission_rate', 0.0)
+            )
+            
+            db.session.add(employee)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'employee_id': employee.id}), 201
+            
+    except Exception as e:
+        logger.error(f"Error managing employees: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/performance/<int:employee_id>')
+@login_required
+def get_employee_performance(employee_id):
+    """Get employee performance metrics"""
+    try:
+        user_id = session.get('user_id')
+        
+        period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
+        period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        performance = team_service.track_employee_performance(employee_id, period_start, period_end)
+        return jsonify(performance)
+        
+    except Exception as e:
+        logger.error(f"Error getting performance: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/commission/<int:employee_id>')
+@login_required
+def calculate_employee_commission(employee_id):
+    """Calculate employee commission"""
+    try:
+        user_id = session.get('user_id')
+        
+        period_start = datetime.strptime(request.args.get('start_date', ''), '%Y-%m-%d')
+        period_end = datetime.strptime(request.args.get('end_date', ''), '%Y-%m-%d')
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        commission = team_service.calculate_commission(employee_id, period_start, period_end)
+        return jsonify(commission)
+        
+    except Exception as e:
+        logger.error(f"Error calculating commission: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/team/shifts', methods=['POST'])
+@login_required
+def schedule_shift():
+    """Schedule employee shift"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.team_management_service import TeamManagementService
+        team_service = TeamManagementService(user_id)
+        
+        result = team_service.manage_shifts(data['employee_id'], data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error scheduling shift: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== MARKETING API ROUTES =====
+
+@app.route('/api/marketing/email-campaign', methods=['POST'])
+@login_required
+def create_email_campaign():
+    """Create email marketing campaign"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.create_email_campaign(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating email campaign: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/sms-promotion', methods=['POST'])
+@login_required
+def send_sms_promotion():
+    """Send SMS promotion"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.send_sms_promotion(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error sending SMS promotion: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/feedback', methods=['POST'])
+@login_required
+def collect_feedback():
+    """Collect customer feedback"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.collect_customer_feedback(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error collecting feedback: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/marketing/social-media', methods=['POST'])
+@login_required
+def schedule_social_post():
+    """Schedule social media post"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.schedule_social_media_post(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error scheduling social post: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ecommerce/store', methods=['POST'])
+@login_required
+def create_online_store():
+    """Create online store"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.create_online_store(data)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating online store: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ecommerce/sync-catalog/<int:store_id>', methods=['POST'])
+@login_required
+def sync_store_catalog(store_id):
+    """Sync product catalog with online store"""
+    try:
+        user_id = session.get('user_id')
+        
+        from services.marketing_service import MarketingService
+        marketing_service = MarketingService(user_id)
+        
+        result = marketing_service.sync_product_catalog(store_id)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error syncing catalog: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== DASHBOARD API ROUTES =====
+
+@app.route('/api/dashboard/summary', methods=['GET'])
+@login_required
+def get_dashboard_summary():
+    """Get dashboard summary data"""
+    try:
+        user_id = session.get('user_id')
+        from models import Item, Sale, Customer, FinancialTransaction
+        from sqlalchemy import func
+        
+        # Get basic counts
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        total_customers = Customer.query.filter_by(user_id=user_id).count()
+        
+        # Get stock information
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        total_stock = sum(item.stock_quantity or 0 for item in items)
+        low_stock_items = [item for item in items if (item.stock_quantity or 0) <= (item.minimum_stock or 0)]
+        
+        # Calculate inventory value
+        inventory_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
+        
+        # Get recent sales
+        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(10).all()
+        
+        # Financial summary for current month
+        today = datetime.now()
+        start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        monthly_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'Income',
+            FinancialTransaction.created_at >= start_of_month
+        ).scalar() or 0
+        
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'Expense',
+            FinancialTransaction.created_at >= start_of_month
+        ).scalar() or 0
+        
+        monthly_profit = monthly_income - monthly_expenses
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_items': total_items,
+                'total_stock': total_stock,
+                'low_stock_count': len(low_stock_items),
+                'inventory_value': float(inventory_value),
+                'total_customers': total_customers,
+                'monthly_income': float(monthly_income),
+                'monthly_expenses': float(monthly_expenses),
+                'monthly_profit': float(monthly_profit)
+            },
+            'low_stock_items': [
+                {
+                    'id': item.id,
+                    'name': item.name,
+                    'sku': item.sku,
+                    'category': item.category.name if item.category else 'Uncategorized',
+                    'stock_quantity': item.stock_quantity or 0,
+                    'minimum_stock': item.minimum_stock or 0,
+                    'retail_price': float(item.retail_price or 0)
+                } for item in low_stock_items[:10]
+            ],
+            'recent_sales': [
+                {
+                    'id': sale.id,
+                    'sale_number': sale.sale_number,
+                    'total_amount': float(sale.total_amount or 0),
+                    'payment_type': sale.payment_type,
+                    'payment_status': sale.payment_status,
+                    'created_at': sale.created_at.isoformat() if sale.created_at else None,
+                    'customer_name': sale.customer.name if sale.customer else 'Walk-in Customer'
+                } for sale in recent_sales
+            ]
+        })
+    except Exception as e:
+        logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== BUSINESS INTELLIGENCE API ROUTES =====
+
+@app.route('/api/bi/kpis')
+def get_real_time_kpis():
+    """Get real-time KPI data"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        kpis = bi_service.get_real_time_kpis()
+        return jsonify(kpis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/comparative-analysis')
+def get_comparative_analysis():
+    """Get comparative analysis (YoY, MoM)"""
+    try:
+        user_id = session.get('user_id')
+        period = request.args.get('period', 'monthly')
+        bi_service = BusinessIntelligenceService(user_id)
+        analysis = bi_service.get_comparative_analysis(period)
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/profit-margins')
+def get_profit_margins():
+    """Get profit margin analysis"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        margins = bi_service.get_profit_margin_analysis()
+        return jsonify(margins)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/cash-flow-forecast')
+def get_cash_flow_forecast():
+    """Get cash flow forecasting"""
+    try:
+        user_id = session.get('user_id')
+        days_ahead = request.args.get('days_ahead', 30, type=int)
+        bi_service = BusinessIntelligenceService(user_id)
+        forecast = bi_service.get_cash_flow_forecast(days_ahead)
+        return jsonify(forecast)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bi/dashboard')
+def get_bi_dashboard():
+    """Get all BI dashboard data in one call"""
+    try:
+        user_id = session.get('user_id')
+        bi_service = BusinessIntelligenceService(user_id)
+        dashboard_data = bi_service.get_dashboard_widgets()
+        return jsonify(dashboard_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Main routes
 @app.route('/')
 def index():
@@ -1671,7 +2931,114 @@ def index():
 @login_required
 def dashboard():
     """Dashboard route for authenticated users"""
-    return render_template('index.html')
+    try:
+        user_id = session.get('user_id')
+        from models import User
+        user = User.query.get(user_id)
+        
+        # Get basic dashboard data
+        from models import Item, Sale
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).limit(5).all()
+        
+        # Calculate total inventory value
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        total_value = sum((item.retail_price or 0) * (item.stock_quantity or 0) for item in items)
+        
+        return render_template('index.html', 
+                             user=user,
+                             total_items=total_items,
+                             total_value=total_value,
+                             recent_sales=recent_sales)
+    except Exception as e:
+        logger.error(f"Error loading dashboard: {str(e)}")
+        return render_template('index.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    try:
+        user_id = session.get('user_id')
+        from models import Item, Category
+        
+        # Get items and categories for the user
+        items = Item.query.filter_by(user_id=user_id, is_active=True).order_by(Item.name).all()
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        
+        return render_template('inventory.html', items=items, categories=categories)
+    except Exception as e:
+        logger.error(f"Error loading inventory: {str(e)}")
+        return render_template('inventory.html', items=[], categories=[])
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales management page"""
+    return render_template('sales.html')
+
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting dashboard page"""
+    return render_template('accounting.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments management page"""
+    return render_template('installments.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page"""
+    return render_template('on_demand.html')
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """Admin users management page"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(user_id)
+    if not user or not user.is_admin:
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('admin_users.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
+@app.route('/security-management')
+@login_required
+def security_management():
+    """Security and management dashboard"""
+    return render_template('security_management.html')
 
 @app.route('/login')
 def login():
@@ -1687,11 +3054,11 @@ def register():
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
-# Main page routes are defined in routes.py
-
-# Import routes module which contains all route definitions
+# Import routes module which contains additional route definitions
+# Note: Main routes are defined above to ensure they're available
 try:
-    from routes import *
+    # Only import specific functions to avoid conflicts
+    pass  # Routes are now defined directly in app.py
 except ImportError:
     logger.warning("Routes module not found, using basic route definitions")
 
@@ -1702,7 +3069,6 @@ def not_found_error(error):
     logger.error(f"404 error: {request.url}")
     return render_template('404.html'), 404
 
-
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
@@ -1710,16 +3076,36 @@ def internal_error(error):
     db.session.rollback()
     return render_template('500.html'), 500
 
-
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle general exceptions"""
-    logger.error(f"Unhandled exception: {str(e)}")
     # Pass through HTTP errors
     if hasattr(e, 'code'):
         return e
-    # Handle non-HTTP exceptions
-    db.session.rollback()
+    
+    # Handle BuildError for missing routes more gracefully
+    if 'Could not build url for endpoint' in str(e):
+        # Only log once per unique error to avoid spam
+        error_msg = str(e)
+        if not hasattr(app, '_logged_build_errors'):
+            app._logged_build_errors = set()
+        
+        if error_msg not in app._logged_build_errors:
+            logger.error(f"Missing route endpoint: {error_msg}")
+            app._logged_build_errors.add(error_msg)
+        
+        # Try to redirect to dashboard instead of showing error
+        try:
+            return redirect(url_for('dashboard'))
+        except:
+            return "Application Error - Please check route configuration", 500
+    
+    # Handle other exceptions
+    logger.error(f"Unhandled exception: {str(e)}")
+    try:
+        db.session.rollback()
+    except:
+        pass
     return render_template('500.html'), 500
 
 if __name__ == '__main__':

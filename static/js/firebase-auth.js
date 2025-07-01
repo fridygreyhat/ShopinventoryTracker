@@ -14,25 +14,41 @@ export async function loginWithEmailPassword(email, password) {
     try {
         console.log('Attempting to sign in with:', email);
         
+        if (!email || !password) {
+            throw new Error('Email and password are required');
+        }
+        
         const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                email: email,
+                email: email.trim().toLowerCase(),
                 password: password
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Login failed');
+        let responseData;
+        try {
+            responseData = await response.json();
+        } catch (jsonError) {
+            console.error('Failed to parse response as JSON:', jsonError);
+            throw new Error('Server response was not valid JSON');
         }
 
-        const userData = await response.json();
-        console.log('Sign in successful, user:', userData.user.email);
-        return userData;
+        if (!response.ok) {
+            const errorMessage = responseData.error || `Login failed with status ${response.status}`;
+            console.error('Login failed:', errorMessage);
+            throw new Error(errorMessage);
+        }
+
+        if (!responseData.success) {
+            throw new Error(responseData.error || 'Login failed');
+        }
+
+        console.log('Sign in successful, user:', responseData.user.email);
+        return responseData;
     } catch (error) {
         console.error('Login error:', error);
         throw error;
@@ -50,11 +66,17 @@ export async function registerWithEmailPassword(email, password, userData) {
     try {
         console.log('Attempting to register with:', email);
         
+        if (!email || !password) {
+            throw new Error('Email and password are required');
+        }
+        
         const registrationData = {
             email: email,
             password: password,
             ...userData
         };
+
+        console.log('Registration data:', registrationData);
 
         const response = await fetch('/api/register', {
             method: 'POST',
@@ -64,15 +86,27 @@ export async function registerWithEmailPassword(email, password, userData) {
             body: JSON.stringify(registrationData)
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Registration failed');
+        let responseData;
+        try {
+            responseData = await response.json();
+        } catch (jsonError) {
+            console.error('Failed to parse response as JSON:', jsonError);
+            throw new Error('Server response was not valid JSON');
         }
 
-        const serverData = await response.json();
-        console.log('Registration successful, user:', serverData.user.email);
+        if (!response.ok) {
+            const errorMessage = responseData.error || `Registration failed with status ${response.status}`;
+            console.error('Registration failed:', errorMessage);
+            throw new Error(errorMessage);
+        }
 
-        return { userCredential: serverData, serverData };
+        if (!responseData.success) {
+            throw new Error(responseData.error || 'Registration failed');
+        }
+
+        console.log('Registration successful, user:', responseData.user.email);
+
+        return { userCredential: responseData, serverData: responseData };
     } catch (error) {
         console.error('Registration error:', error);
         throw error;

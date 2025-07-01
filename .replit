@@ -3,14 +3,14 @@ run = "python.py"
 
 [nix]
 channel = "stable-24_05"
-packages = ["iana-etc", "openssl", "postgresql"]
+packages = ["glibcLocales", "iana-etc", "openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Start Application"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
