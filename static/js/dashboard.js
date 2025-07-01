@@ -234,24 +234,15 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    function loadSalesPerformance() {
-    // Load top selling items
-    fetch('/api/sales/performance/top')
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 302) {
-                    return [];
-                }
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
+    async function loadSalesPerformance() {
+        // Load top selling items using API handler
+        try {
+            const topItems = await window.apiHandler.getTopSellingItems();
             const tableBody = document.getElementById('top-selling-table');
             if (tableBody) {
-                if (data && data.length > 0) {
+                if (topItems && topItems.length > 0) {
                     let html = '';
-                    data.forEach(item => {
+                    topItems.forEach(item => {
                         html += `
                         <tr>
                             <td>
@@ -269,32 +260,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No sales data available</td></tr>';
                 }
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error loading top selling items:', error);
             const tableBody = document.getElementById('top-selling-table');
             if (tableBody) {
                 tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
             }
-        });
+        }
 
-    // Load slow moving items
-    fetch('/api/sales/performance/slow')
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 302) {
-                    return [];
-                }
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
+        // Load slow moving items using API handler
+        try {
+            const slowItems = await window.apiHandler.getSlowMovingItems();
             const tableBody = document.getElementById('slow-moving-table');
             if (tableBody) {
-                if (data && data.length > 0) {
+                if (slowItems && slowItems.length > 0) {
                     let html = '';
-                    data.forEach(item => {
+                    slowItems.forEach(item => {
                         html += `
                         <tr>
                             <td>
@@ -312,61 +293,68 @@ document.addEventListener('DOMContentLoaded', function() {
                     tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No slow moving items found</td></tr>';
                 }
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error loading slow moving items:', error);
             const tableBody = document.getElementById('slow-moving-table');
             if (tableBody) {
                 tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
             }
-        });
+        }
 }
 
-function loadDashboardData() {
+async function loadDashboardData() {
         console.log('Loading dashboard data...');
+        
+        // Check if API handler is available
+        if (typeof window.apiHandler === 'undefined') {
+            console.warn('API handler not available, using fallback');
+            loadSalesPerformance();
+            return;
+        }
+
         loadSalesPerformance();
 
-        // Load stock status report
-        fetch('/api/reports/stock-status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Stock status data loaded:', data);
-                updateDashboardSummary(data);
-                updateLowStockTable(data.low_stock_items);
-            })
-            .catch(error => {
-                console.error('Error loading stock status report:', error);
-            });
+        // Load stock status report using API handler
+        try {
+            const stockData = await window.apiHandler.getDashboardSummary();
+            if (stockData) {
+                console.log('Stock status data loaded:', stockData);
+                updateDashboardSummary(stockData);
+                updateLowStockTable(stockData.low_stock_items || []);
+            } else {
+                console.log('No stock data available or user not authenticated');
+                setDefaultDashboardValues();
+            }
+        } catch (error) {
+            console.error('Error loading stock status report:', error);
+            setDefaultDashboardValues();
+        }
 
-        // Load category breakdown for charts
-        fetch('/api/reports/category-breakdown')
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 302) {
-                        return {};
-                    }
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Category breakdown data loaded:', data);
-                if (Object.keys(data).length > 0) {
-                    createStockChart(data);
-                    createValueChart(data);
-                } else {
-                    // Handle empty data case
-                    console.log('No category data available');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading category breakdown:', error);
-            });
+        // Load category breakdown for charts using API handler
+        try {
+            const categoryData = await window.apiHandler.getCategoryBreakdown();
+            if (categoryData && Object.keys(categoryData).length > 0) {
+                console.log('Category breakdown data loaded:', categoryData);
+                createStockChart(categoryData);
+                createValueChart(categoryData);
+            } else {
+                console.log('No category data available');
+            }
+        } catch (error) {
+            console.error('Error loading category breakdown:', error);
+        }
+    }
+
+    function setDefaultDashboardValues() {
+        const totalItemsElement = document.getElementById('total-items');
+        const totalStockElement = document.getElementById('total-stock');
+        const lowStockCountElement = document.getElementById('low-stock-count');
+        const inventoryValueElement = document.getElementById('inventory-value');
+        
+        if (totalItemsElement) totalItemsElement.textContent = '0';
+        if (totalStockElement) totalStockElement.textContent = '0';
+        if (lowStockCountElement) lowStockCountElement.textContent = '0';
+        if (inventoryValueElement) inventoryValueElement.textContent = '0';
     }
 
     function updateDashboardSummary(data) {
