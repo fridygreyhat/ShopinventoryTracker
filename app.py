@@ -3290,6 +3290,12 @@ def admin_users():
 
     return render_template('admin_users.html')
 
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
 @app.route('/settings')
 @login_required
 def settings():
