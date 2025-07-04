@@ -39,19 +39,24 @@ class APIHandler {
             if (response.status === 302 || response.status === 401) {
                 this.isAuthenticated = false;
                 console.warn(`Authentication required for ${url}`);
-                return { success: false, data: null, authenticated: false };
+                // Return a mock response that indicates auth failure
+                return {
+                    ok: false,
+                    status: 401,
+                    json: async () => ({ error: 'Authentication required' })
+                };
             }
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            return { success: true, data, authenticated: true };
+            return response;
             
         } catch (error) {
             console.error(`API Error for ${url}:`, error);
-            return { success: false, error: error.message, authenticated: this.isAuthenticated };
+            // Return a mock response that indicates network error
+            return {
+                ok: false,
+                status: 500,
+                json: async () => ({ error: error.message })
+            };
         }
     }
 
@@ -59,32 +64,52 @@ class APIHandler {
      * Get dashboard summary data
      */
     async getDashboardSummary() {
-        const result = await this.fetchWithAuth('/api/reports/stock-status');
-        return result.success ? result.data : null;
+        try {
+            const response = await this.fetchWithAuth('/api/reports/stock-status');
+            return response.ok ? await response.json() : null;
+        } catch (error) {
+            console.error('Error loading dashboard summary:', error);
+            return null;
+        }
     }
 
     /**
      * Get top selling items
      */
     async getTopSellingItems() {
-        const result = await this.fetchWithAuth('/api/sales/performance/top');
-        return result.success ? result.data : [];
+        try {
+            const response = await this.fetchWithAuth('/api/sales/performance/top');
+            return response.ok ? await response.json() : [];
+        } catch (error) {
+            console.error('Error loading top selling items:', error);
+            return [];
+        }
     }
 
     /**
      * Get slow moving items
      */
     async getSlowMovingItems() {
-        const result = await this.fetchWithAuth('/api/sales/performance/slow');
-        return result.success ? result.data : [];
+        try {
+            const response = await this.fetchWithAuth('/api/sales/performance/slow');
+            return response.ok ? await response.json() : [];
+        } catch (error) {
+            console.error('Error loading slow moving items:', error);
+            return [];
+        }
     }
 
     /**
      * Get category breakdown
      */
     async getCategoryBreakdown() {
-        const result = await this.fetchWithAuth('/api/reports/category-breakdown');
-        return result.success ? result.data : {};
+        try {
+            const response = await this.fetchWithAuth('/api/reports/category-breakdown');
+            return response.ok ? await response.json() : {};
+        } catch (error) {
+            console.error('Error loading category breakdown:', error);
+            return {};
+        }
     }
 
     /**

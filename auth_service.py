@@ -16,21 +16,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def verify_firebase_token(token):
-    """Verify Firebase ID token (placeholder implementation)"""
-    try:
-        # This is a placeholder - in a real implementation you would verify the token with Firebase
-        # For now, we'll just return a basic user structure
-        logger.info("Firebase token verification (placeholder)")
-        return {
-            'localId': 'firebase_user_id',
-            'email': 'user@example.com',
-            'displayName': 'Firebase User',
-            'emailVerified': True
-        }
-    except Exception as e:
-        logger.error(f"Firebase token verification failed: {str(e)}")
-        return None
+
 
 def create_or_update_user(user_data, extra_data=None):
     """Create or update user in database"""
@@ -50,8 +36,7 @@ def create_or_update_user(user_data, extra_data=None):
                 email=email,
                 username=email.split('@')[0],  # Use email prefix as username
                 is_active=True,
-                email_verified=user_data.get('emailVerified', False),
-                firebase_uid=user_data.get('localId')
+                email_verified=user_data.get('emailVerified', False)
             )
 
             # Set a default password (should be updated by user)

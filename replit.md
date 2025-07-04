@@ -52,7 +52,6 @@ The system follows a traditional MVC architecture with Flask as the web framewor
 - **Optional Integrations**:
   - Twilio for SMS notifications
   - SendGrid for enhanced email delivery
-  - Firebase for authentication (placeholder implementation)
 
 ### Python Packages
 - Flask ecosystem (Flask, SQLAlchemy, Mail)

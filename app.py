@@ -1050,6 +1050,7 @@ def stock_status_report():
     return jsonify(report)
 
 @app.route('/api/reports/category-breakdown', methods=['GET'])
+@login_required
 def category_breakdown_report():
     """API endpoint to get category breakdown report"""
     from models import Item
@@ -1130,6 +1131,7 @@ def export_csv():
 
 # On-Demand Products API endpoints
 @app.route('/api/on-demand', methods=['GET'])
+@login_required
 def get_on_demand_products():
     """API endpoint to get all on-demand products"""
     from models import OnDemandProduct
