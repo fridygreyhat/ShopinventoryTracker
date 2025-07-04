@@ -356,6 +356,7 @@ footer {
     transform: translateX(0);
     transition: transform 0.3s ease-in-out;
     overflow: hidden;
+    will-change: transform; /* Optimize for transformations */
 }
 
 .sidebar.collapsed {
@@ -783,7 +784,9 @@ footer {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    max-width: calc(100vw - 280px);
     transition: margin-left 0.3s ease-in-out;
+    overflow-x: hidden; /* Prevent horizontal overflow */
 }
 
 /* Top Header */
@@ -864,6 +867,78 @@ footer {
     flex: 1;
     padding: 2rem;
     overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Fix for tab navigation scrolling */
+.nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid var(--card-border);
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.nav-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.nav-tabs .nav-item {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    border-radius: 0;
+    padding: 0.75rem 1.25rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+    white-space: nowrap;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: transparent;
+    color: var(--primary-color);
+    background-color: var(--light-bg-alt);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    background-color: transparent;
+    border-color: transparent;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 2px 2px 0 0;
+}
+
+/* Card header tabs specific styling */
+.card-header-tabs {
+    margin-bottom: -1px;
+    border-bottom: none;
+}
+
+.card-header-tabs .nav-link {
+    margin-bottom: 0;
+    border: 1px solid transparent;
+    border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
+}
+
+.card-header-tabs .nav-link.active {
+    background-color: var(--card-bg);
+    border-color: var(--card-border) var(--card-border) var(--card-bg);
 }
 
 /* Content Footer */
@@ -889,6 +964,7 @@ footer {
 
     .main-content {
         margin-left: 0;
+        max-width: 100vw;
     }
 
     .content-wrapper {
@@ -897,6 +973,16 @@ footer {
 
     .top-header {
         padding: 1rem 1.5rem;
+    }
+
+    /* Improve tab navigation on mobile */
+    .nav-tabs {
+        padding: 0 0.5rem;
+    }
+
+    .nav-tabs .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
     }
 }
 
@@ -918,6 +1004,32 @@ footer {
         align-items: center;
         text-align: center;
         gap: 0.5rem;
+    }
+
+    /* Enhanced mobile tab navigation */
+    .nav-tabs {
+        padding: 0;
+        margin: 0 -0.5rem;
+    }
+
+    .nav-tabs .nav-link {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .nav-tabs .nav-link i {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 1rem;
+    }
+
+    /* Ensure tables don't cause horizontal scrolling */
+    .table-responsive {
+        border: none;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .nav-link {
