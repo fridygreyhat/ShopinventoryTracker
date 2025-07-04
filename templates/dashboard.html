@@ -1,0 +1,186 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Dashboard content for authenticated users -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1" data-translate="dashboard">Dashboard</h1>
+            <h5 class="text-muted" id="shop-name">Loading shop details...</h5>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Summary Cards -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Items</h5>
+                    <p class="display-4 mb-0" id="total-items">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Stock</h5>
+                    <p class="display-4 mb-0" id="total-stock">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Low Stock Items</h5>
+                    <p class="display-4 mb-0" id="low-stock-count">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card summary-card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Inventory Value</h5>
+                    <p class="display-4 mb-0">
+                        <span id="inventory-value">0</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary Section -->
+    <div class="card financial-card compact-chart mb-4">
+        <div class="card-header py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="card-title small mb-0">Financial Summary</h6>
+                <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt"></i> View Reports
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-2">
+            <div class="row">
+                <!-- Monthly Summary Chart -->
+                <div class="col-md-8">
+                    <div class="chart-container">
+                        <canvas id="financialSummaryChart" height="180"></canvas>
+                    </div>
+                </div>
+                <!-- Financial Metrics Cards -->
+                <div class="col-md-4">
+                    <div class="card finance-card mb-3 financial-summary income-card compact-chart">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Income</h6>
+                                </div>
+                                <i class="fas fa-arrow-circle-down text-success"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-income">0</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card finance-card mb-3 financial-summary expense-card compact-chart">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Expenses</h6>
+                                </div>
+                                <i class="fas fa-arrow-circle-up text-danger"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-expenses">0</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card finance-card financial-summary profit-card compact-chart mb-3">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle small">This Month</h6>
+                                    <h6 class="card-title mb-0">Net Profit</h6>
+                                </div>
+                                <i class="fas fa-chart-line text-info"></i>
+                            </div>
+                            <p class="mt-1 mb-0 fs-5">
+                                <span class="currency-symbol">TZS</span> <span id="monthly-profit">0</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Analytics -->
+    <div class="row">
+        <!-- Top Selling Items -->
+        <div class="col-lg-6 mb-4">
+            <div class="card data-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Top Selling Items</h5>
+                </div>
+                <div class="card-body">
+                    <div id="top-selling-items">
+                        <p class="text-center">Loading top selling items...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="col-lg-6 mb-4">
+            <div class="card data-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Category Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="categoryChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Items -->
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card data-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Low Stock Items</h5>
+                    <a href="{{ url_for('inventory') }}" class="btn btn-sm btn-primary">View All Inventory</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-table">
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading low stock items...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

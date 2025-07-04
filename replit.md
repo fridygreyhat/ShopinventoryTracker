@@ -76,6 +76,12 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
+- July 1, 2025: Resolved application startup and routing errors
+  - Fixed duplicate model definitions causing SQLAlchemy startup errors
+  - Added missing model classes (StockMovement, InstallmentPlan, ChartOfAccounts, Journal, Supplier, PurchaseOrder)
+  - Resolved database import issues and circular dependencies
+  - Added missing 'categories' route to fix navigation BuildError
+  - Application now starts successfully without errors on port 5000
 - June 30, 2025: Fixed critical database and JavaScript errors
   - Added missing customer_id foreign key to Sale model
   - Fixed database schema issues with Category table (added parent_id, sort_order, user_id columns)

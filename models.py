@@ -1,13 +1,9 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 import enum
 
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+# Import db from extensions to avoid circular imports
+from extensions import db
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -184,6 +180,10 @@ class Sale(db.Model):
     payment_status = db.Column(db.String(20), default='completed')
     sale_number = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    sale_items = db.relationship('SaleItem', backref='sale', lazy=True, cascade='all, delete-orphan')
+    customer = db.relationship('Customer', backref='sales', lazy=True)
 
     def to_dict(self):
         return {
@@ -200,27 +200,33 @@ class Sale(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-# Add relationship after Sale model definition
-Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
-
 class SaleItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
-    product_name = db.Column(db.String(100), nullable=False)
-    product_sku = db.Column(db.String(50))
-    price = db.Column(db.Float, default=0.0)
-    quantity = db.Column(db.Integer, default=1)
-    total = db.Column(db.Float,default=0.0)
-
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    unit_cost = db.Column(db.Float, default=0.0)
+    total_price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    item = db.relationship('Item', backref='sale_items', lazy=True)
+    
     def to_dict(self):
         return {
             'id': self.id,
-            'product_name': self.product_name,
+            'sale_id': self.sale_id,
+            'item_id': self.item_id,
             'quantity': self.quantity,
-            'price': self.price,
-            'total': self.total
+            'unit_price': self.unit_price,
+            'unit_cost': self.unit_cost,
+            'total_price': self.total_price,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+# Add relationship after Sale model definition
+Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
 
 class FinancialTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -353,6 +359,91 @@ class OnDemandProduct(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+# Missing models that are referenced in the app
+class StockMovement(db.Model):
+    __tablename__ = 'stock_movement'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    movement_type = db.Column(db.String(20), nullable=False)  # 'in' or 'out'
+    quantity = db.Column(db.Float, nullable=False)
+    reason = db.Column(db.String(200))
+    reference_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    item = db.relationship('Item', backref='movements', lazy=True)
+    user = db.relationship('User', backref='stock_movements', lazy=True)
+
+class ChartOfAccounts(db.Model):
+    __tablename__ = 'chart_of_accounts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_code = db.Column(db.String(20), unique=True, nullable=False)
+    account_name = db.Column(db.String(100), nullable=False)
+    account_type = db.Column(db.String(50), nullable=False)  # Asset, Liability, Equity, Revenue, Expense
+    parent_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'))
+    is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Journal(db.Model):
+    __tablename__ = 'journal'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False)
+    debit_amount = db.Column(db.Float, default=0.0)
+    credit_amount = db.Column(db.Float, default=0.0)
+    description = db.Column(db.String(200))
+    reference_type = db.Column(db.String(50))
+    transaction_group = db.Column(db.String(100))
+    entry_date = db.Column(db.Date, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Supplier(db.Model):
+    __tablename__ = 'supplier'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    contact_person = db.Column(db.String(100))
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    payment_terms = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PurchaseOrder(db.Model):
+    __tablename__ = 'purchase_order'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(50), unique=True, nullable=False)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    total_amount = db.Column(db.Float, default=0.0)
+    order_date = db.Column(db.Date, nullable=False)
+    expected_date = db.Column(db.Date)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class InstallmentPlan(db.Model):
+    __tablename__ = 'installment_plan'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
+    total_amount = db.Column(db.Float, nullable=False)
+    down_payment = db.Column(db.Float, default=0.0)
+    monthly_payment = db.Column(db.Float, nullable=False)
+    number_of_payments = db.Column(db.Integer, nullable=False)
+    interest_rate = db.Column(db.Float, default=0.0)
+    start_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), default='active')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Enhanced Security Models
 class SecurityAudit(db.Model):
