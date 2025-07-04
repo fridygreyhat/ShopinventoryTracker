@@ -573,6 +573,33 @@ def api_forgot_password():
         logger.error(f"Password reset error: {str(e)}")
         return jsonify({'error': 'Password reset failed'}), 500
 
+@app.route('/api/auth/validate-session', methods=['GET'])
+def api_validate_session():
+    """API endpoint to validate current session"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'No active session'}), 401
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Session validation error: {str(e)}")
+        return jsonify({'error': 'Session validation failed'}), 500
+
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
 @login_required
