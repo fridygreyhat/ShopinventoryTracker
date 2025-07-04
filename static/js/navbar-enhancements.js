@@ -94,8 +94,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle window resize
     window.addEventListener('resize', function() {
         if (window.innerWidth > 991.98) {
-            closeSidebar();
+            // Desktop view - show sidebar
+            sidebar.classList.remove('show', 'collapsed');
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.display = 'flex';
+            sidebarOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        } else {
+            // Mobile view - hide sidebar
+            sidebar.classList.add('collapsed');
+            sidebar.classList.remove('show');
+            sidebar.style.transform = 'translateX(-100%)';
         }
+        
+        // Recalculate sidebar body height
+        if (sidebarBody) {
+            const sidebarHeader = document.querySelector('.sidebar-header');
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            const userProfile = document.querySelector('.user-profile');
+            
+            let reservedHeight = 0;
+            if (sidebarHeader) reservedHeight += sidebarHeader.offsetHeight;
+            if (sidebarFooter) reservedHeight += sidebarFooter.offsetHeight;
+            if (userProfile) reservedHeight += userProfile.offsetHeight;
+            
+            const calculatedHeight = `calc(100vh - ${reservedHeight + 40}px)`;
+            sidebarBody.style.height = calculatedHeight;
+            sidebarBody.style.maxHeight = calculatedHeight;
+        }
+        
+        setTimeout(updateScrollIndicators, 100);
     });
 
     // Smooth scroll for nav links
@@ -151,10 +179,19 @@ document.addEventListener('DOMContentLoaded', function() {
         let isScrolling = false;
         
         function updateScrollIndicators() {
+            if (!sidebarBody) return;
+            
             const scrollTop = sidebarBody.scrollTop;
             const scrollHeight = sidebarBody.scrollHeight;
             const clientHeight = sidebarBody.clientHeight;
             const isScrollable = scrollHeight > clientHeight;
+            
+            console.log('Scroll Debug:', {
+                scrollTop,
+                scrollHeight,
+                clientHeight,
+                isScrollable
+            });
             
             // Only show indicators if content is scrollable
             if (!isScrollable) {
@@ -219,7 +256,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Initial setup
-        setTimeout(() => {
+        function initializeSidebar() {
+            // Ensure sidebar is visible on desktop
+            if (window.innerWidth >= 992) {
+                sidebar.classList.remove('collapsed');
+                sidebar.classList.remove('show');
+                sidebar.style.transform = 'translateX(0)';
+                sidebar.style.display = 'flex';
+            } else {
+                sidebar.classList.add('collapsed');
+                sidebar.style.transform = 'translateX(-100%)';
+            }
+            
+            // Force recalculate sidebar body height
+            if (sidebarBody) {
+                const sidebarHeader = document.querySelector('.sidebar-header');
+                const sidebarFooter = document.querySelector('.sidebar-footer');
+                const userProfile = document.querySelector('.user-profile');
+                
+                let reservedHeight = 0;
+                if (sidebarHeader) reservedHeight += sidebarHeader.offsetHeight;
+                if (sidebarFooter) reservedHeight += sidebarFooter.offsetHeight;
+                if (userProfile) reservedHeight += userProfile.offsetHeight;
+                
+                const calculatedHeight = `calc(100vh - ${reservedHeight + 40}px)`;
+                sidebarBody.style.height = calculatedHeight;
+                sidebarBody.style.maxHeight = calculatedHeight;
+                
+                console.log('Sidebar initialized with height:', calculatedHeight);
+            }
+            
             updateScrollIndicators();
             
             // Smooth scroll to active nav item
@@ -232,7 +298,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update indicators after scrolling to active item
                 setTimeout(updateScrollIndicators, 500);
             }
-        }, 200);
+        }
+        
+        // Initialize sidebar immediately
+        initializeSidebar();
+        
+        // Call initialization after a short delay to ensure DOM is ready
+        setTimeout(initializeSidebar, 100);
         
         // Update scroll indicators on resize and orientation change
         window.addEventListener('resize', () => {
