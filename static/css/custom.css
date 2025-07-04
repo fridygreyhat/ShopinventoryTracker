@@ -342,6 +342,7 @@ footer {
 /* Vertical Sidebar Navigation */
 .sidebar {
     width: 280px;
+    height: 100vh;
     min-height: 100vh;
     background: linear-gradient(180deg, var(--card-bg) 0%, rgba(248, 250, 253, 0.95) 100%);
     border-right: 1px solid var(--card-border);
@@ -354,6 +355,7 @@ footer {
     flex-direction: column;
     transform: translateX(0);
     transition: transform 0.3s ease-in-out;
+    overflow: hidden;
 }
 
 .sidebar.collapsed {
@@ -429,20 +431,21 @@ footer {
     position: relative;
     -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
     overscroll-behavior: contain; /* Prevent scroll chaining */
+    max-height: calc(100vh - 120px); /* Ensure proper height calculation */
 }
 
 .sidebar-body::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 .sidebar-body::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
 }
 
 .sidebar-body::-webkit-scrollbar-thumb {
     background: var(--primary-color);
-    border-radius: 3px;
+    border-radius: 4px;
     transition: background 0.3s ease;
 }
 
@@ -503,7 +506,7 @@ footer {
     box-shadow: 0 0 8px rgba(65, 193, 224, 0.3);
 }
 
-/* Enhanced scrollbar */
+/* Enhanced scrollbar - consolidated styles */
 .sidebar-body::-webkit-scrollbar {
     width: 8px;
     background: transparent;

@@ -151,10 +151,19 @@ document.addEventListener('DOMContentLoaded', function() {
         let isScrolling = false;
         
         function updateScrollIndicators() {
+            if (!sidebarBody) return;
+            
             const scrollTop = sidebarBody.scrollTop;
             const scrollHeight = sidebarBody.scrollHeight;
             const clientHeight = sidebarBody.clientHeight;
             const isScrollable = scrollHeight > clientHeight;
+            
+            console.log('Scroll Debug:', {
+                scrollTop,
+                scrollHeight,
+                clientHeight,
+                isScrollable
+            });
             
             // Only show indicators if content is scrollable
             if (!isScrollable) {
@@ -220,6 +229,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Initial setup
         setTimeout(() => {
+            // Force recalculate sidebar body height
+            if (sidebarBody) {
+                const sidebarHeader = document.querySelector('.sidebar-header');
+                const sidebarFooter = document.querySelector('.sidebar-footer');
+                const userProfile = document.querySelector('.user-profile');
+                
+                let reservedHeight = 0;
+                if (sidebarHeader) reservedHeight += sidebarHeader.offsetHeight;
+                if (sidebarFooter) reservedHeight += sidebarFooter.offsetHeight;
+                if (userProfile) reservedHeight += userProfile.offsetHeight;
+                
+                sidebarBody.style.maxHeight = `calc(100vh - ${reservedHeight + 40}px)`;
+                sidebarBody.style.height = `calc(100vh - ${reservedHeight + 40}px)`;
+            }
+            
             updateScrollIndicators();
             
             // Smooth scroll to active nav item
