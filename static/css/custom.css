@@ -432,8 +432,9 @@ footer {
     position: relative;
     -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
     overscroll-behavior: contain; /* Prevent scroll chaining */
-    height: calc(100vh - 200px); /* Fixed height calculation */
-    min-height: 400px; /* Minimum height to ensure content is visible */
+    height: auto; /* Let flexbox handle height */
+    max-height: calc(100vh - 280px); /* Maximum height with proper spacing */
+    min-height: 300px; /* Minimum height to ensure content is visible */
 }
 
 .sidebar-body::-webkit-scrollbar {
@@ -870,23 +871,43 @@ footer {
     overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
-/* Fix for tab navigation scrolling */
+/* Enhanced tab navigation scrolling */
 .nav-tabs {
+    display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
     border-bottom: 1px solid var(--card-border);
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--primary-color) transparent;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+    position: relative;
 }
 
 .nav-tabs::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    height: 4px;
+}
+
+.nav-tabs::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 2px;
+}
+
+.nav-tabs::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 2px;
+    transition: background 0.3s ease;
+}
+
+.nav-tabs::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
 }
 
 .nav-tabs .nav-item {
     flex-shrink: 0;
     white-space: nowrap;
+    min-width: fit-content;
 }
 
 .nav-tabs .nav-link {
@@ -898,6 +919,10 @@ footer {
     transition: all 0.2s ease;
     position: relative;
     white-space: nowrap;
+    min-width: fit-content;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .nav-tabs .nav-link:hover {
@@ -922,6 +947,43 @@ footer {
     height: 3px;
     background: var(--primary-color);
     border-radius: 2px 2px 0 0;
+}
+
+/* Tab scroll indicators */
+.nav-tabs-wrapper {
+    position: relative;
+}
+
+.nav-tabs-wrapper::before,
+.nav-tabs-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.nav-tabs-wrapper::before {
+    left: 0;
+    background: linear-gradient(to right, var(--card-bg), transparent);
+    opacity: 0;
+}
+
+.nav-tabs-wrapper::after {
+    right: 0;
+    background: linear-gradient(to left, var(--card-bg), transparent);
+    opacity: 0;
+}
+
+.nav-tabs-wrapper.can-scroll-left::before {
+    opacity: 1;
+}
+
+.nav-tabs-wrapper.can-scroll-right::after {
+    opacity: 1;
 }
 
 /* Card header tabs specific styling */
@@ -1009,20 +1071,34 @@ footer {
     /* Enhanced mobile tab navigation */
     .nav-tabs {
         padding: 0;
-        margin: 0 -0.5rem;
+        margin: 0;
+        border-bottom: 1px solid var(--card-border);
     }
 
     .nav-tabs .nav-link {
-        padding: 0.5rem;
-        font-size: 0.8rem;
-        min-width: 80px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+        min-width: fit-content;
         text-align: center;
+        flex-direction: column;
+        gap: 0.25rem;
     }
 
     .nav-tabs .nav-link i {
-        display: block;
-        margin-bottom: 0.25rem;
         font-size: 1rem;
+        margin-bottom: 0.1rem;
+    }
+
+    /* Tab scroll hint for mobile */
+    .nav-tabs::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 10px;
+        background: linear-gradient(to left, var(--card-bg), transparent);
+        pointer-events: none;
     }
 
     /* Ensure tables don't cause horizontal scrolling */
