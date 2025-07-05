@@ -75,6 +75,15 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
+- July 5, 2025: Sales Tab Product Visibility and API Authentication Fixes
+  - Fixed critical sales tab issue where products weren't visible due to authentication problems
+  - Enhanced inventory API with proper session-based authentication replacing current_user references
+  - Fixed category breakdown API by adding user filtering for proper data isolation
+  - Updated CSV import service with user_id support for secure data handling
+  - Added "Show All Products" functionality to sales interface for better user experience
+  - Enhanced product search to display all inventory when search field is empty
+  - Application now properly displays 6 inventory items with proper authentication
+  
 - July 5, 2025: Enhanced UI/UX Design and Navigation
   - Redesigned login page with modern glassmorphism effects, gradient animations, and enhanced visual appeal
   - Created comprehensive dashboard enhancements with gradient summary cards, quick action buttons, and improved layout

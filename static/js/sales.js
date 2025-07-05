@@ -60,6 +60,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Show all products button
+    const showAllProductsBtn = document.getElementById('showAllProductsBtn');
+    if (showAllProductsBtn) {
+        showAllProductsBtn.addEventListener('click', loadAllProducts);
+    }
+
     // Sale type selection
     saleTypeSelector.addEventListener('change', function() {
         saleType = this.value;
@@ -202,16 +208,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function searchProducts() {
         const query = productSearchInput.value.trim();
 
-        if (!query) {
-            productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Enter a search term</td></tr>';
-            return;
-        }
-
         // Show loading state
         productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
 
-        // Make API request to search inventory
-        fetch(`/api/inventory?search=${encodeURIComponent(query)}`)
+        // Make API request to search inventory (empty query returns all items)
+        const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
+        
+        fetch(searchUrl)
             .then(response => response.json())
             .then(items => {
                 searchResults = items;
@@ -221,6 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error searching products:', error);
                 productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
             });
+    }
+
+    // Function to load all products
+    function loadAllProducts() {
+        productSearchInput.value = ''; // Clear search input
+        searchProducts(); // This will now load all products since query is empty
     }
 
     function displaySearchResults(items) {
