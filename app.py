@@ -1089,13 +1089,19 @@ def category_breakdown_report():
     from models import Item
     from sqlalchemy import func
 
+    # Get current user ID for filtering
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify({})
+
     # Group items by category
     categories = {}
 
-    # First get all distinct categories
+    # First get all distinct categories for current user
     category_list = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        Item.user_id == current_user_id).distinct().all()
 
     # For each category, get the stats
     for cat in category_list:
@@ -1103,19 +1109,19 @@ def category_breakdown_report():
 
         # Get items count in this category
         count = db.session.query(func.count(Item.id)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == current_user_id).scalar() or 0
 
         # Get total quantity
         total_quantity = db.session.query(func.sum(Item.quantity)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == current_user_id).scalar() or 0
 
         # Get total value based on retail selling price
         total_value_query = db.session.query(
             func.sum(Item.quantity * Item.selling_price_retail)).filter(
-                func.coalesce(Item.category, 'Uncategorized') ==
-                category).scalar()
+                func.coalesce(Item.category, 'Uncategorized') == category,
+                Item.user_id == current_user_id).scalar()
         total_value = float(
             total_value_query) if total_value_query is not None else 0
 
