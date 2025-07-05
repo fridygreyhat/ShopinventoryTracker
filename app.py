@@ -933,6 +933,7 @@ def delete_item(item_id):
         return jsonify({"error": "Failed to delete item"}), 500
 
 @app.route('/api/inventory/bulk-import', methods=['POST'])
+@login_required
 def bulk_import_inventory():
     """API endpoint to handle bulk import of inventory items from CSV"""
     from services.csv_import_service import CSVImportService
@@ -943,8 +944,13 @@ def bulk_import_inventory():
     file = request.files['file']
 
     try:
-        # Initialize importservice
-        import_service = CSVImportService(db.session, Item)
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Initialize importservice with user_id
+        import_service = CSVImportService(db.session, Item, current_user_id)
 
         # Process the import
         result = import_service.process_csv_import(file)
@@ -1163,8 +1169,13 @@ def get_on_demand_products():
     """API endpoint to get all on-demand products"""
     from models import OnDemandProduct
 
-    # Start query
-    query = OnDemandProduct.query
+    # Get current user ID
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify([])
+
+    # Start query filtered by user
+    query = OnDemandProduct.query.filter_by(user_id=current_user_id)
 
     # Optional filtering
     category = request.args.get('category')
@@ -1203,6 +1214,11 @@ def add_on_demand_product():
                 return jsonify({"error":
                                 f"Missing required field: {field}"}), 400
 
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
         # Create new product
         new_product = OnDemandProduct(
             name=product_data["name"],
@@ -1211,7 +1227,8 @@ def add_on_demand_product():
             production_time=int(product_data.get("production_time", 0)),
             category=product_data.get("category", "Uncategorized"),
             materials=product_data.get("materials", ""),
-            is_active=product_data.get("is_active", True))
+            is_active=product_data.get("is_active", True),
+            user_id=current_user_id)
 
         # Add to database
         db.session.add(new_product)
@@ -2999,11 +3016,16 @@ def clear_cart():
 def api_inventory():
     """API endpoint to get inventory items for sales interface"""
     try:
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify([])
+
         search = request.args.get('search', '')
         category_id = request.args.get('category_id', type=int)
 
         # Build query
-        query = Item.query.filter_by(user_id=current_user.id, is_active=True)
+        query = Item.query.filter_by(user_id=current_user_id, is_active=True)
 
         if search:
             query = query.filter(

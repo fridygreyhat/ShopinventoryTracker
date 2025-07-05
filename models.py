@@ -343,6 +343,7 @@ class OnDemandProduct(db.Model):
     category = db.Column(db.String(50))
     materials = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

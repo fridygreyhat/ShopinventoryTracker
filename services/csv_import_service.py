@@ -18,9 +18,10 @@ class CSVImportService:
     ]
     VALID_SALES_TYPES = ['retail', 'wholesale', 'both']
     
-    def __init__(self, db_session, item_model):
+    def __init__(self, db_session, item_model, user_id=None):
         self.db = db_session
         self.Item = item_model
+        self.user_id = user_id
         
     def validate_file(self, file) -> Dict[str, Any]:
         """Validate uploaded file before processing"""
@@ -209,7 +210,8 @@ class CSVRowProcessor:
                 selling_price_retail=selling_price_retail,
                 selling_price_wholesale=selling_price_wholesale,
                 price=selling_price_retail,  # For backward compatibility
-                sales_type=sales_type
+                sales_type=sales_type,
+                user_id=self.user_id
             )
             return new_item
         except Exception as e:
