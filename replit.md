@@ -75,7 +75,7 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
-- July 5, 2025: Sales Transaction Processing Fix
+- July 5, 2025: Sales Transaction Processing Fix and Firebase Cleanup
   - Fixed critical transaction completion failure by implementing proper session-based authentication in sales API
   - Updated api_create_sale endpoint to use session.get('user_id') instead of current_user references
   - Added proper user authorization for item access during sales processing
@@ -84,6 +84,7 @@ The application is designed for Replit deployment with the following considerati
   - Fixed sales tab product visibility with proper authentication and user filtering
   - Enhanced inventory API with session-based user filtering for secure data isolation
   - Added "Show All Products" functionality to sales interface for better user experience
+  - Removed firebase-auth.js file to eliminate "Server response was not valid JSON" registration errors
   - Application now properly handles complete sales transactions with inventory updates
   
 - July 5, 2025: Enhanced UI/UX Design and Navigation
