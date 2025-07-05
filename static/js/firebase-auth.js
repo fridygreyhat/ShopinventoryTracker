@@ -314,3 +314,28 @@ export async function sendEmailVerification() {
         throw error;
     }
 }
+
+/**
+ * Validate session on page load
+ * @returns {Promise} User data if session is valid
+ */
+export async function validateSession() {
+    try {
+        const response = await fetch('/api/auth/validate-session', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (response.ok) {
+            const userData = await response.json();
+            return userData.user;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Session validation error:', error);
+        return null;
+    }
+}
