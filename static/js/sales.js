@@ -214,7 +214,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Make API request to search inventory (empty query returns all items)
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
         
-        fetch(searchUrl)
+        fetch(searchUrl, {
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(items => {
                 searchResults = items;
@@ -558,6 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify(transaction)
         })
         .then(response => {
