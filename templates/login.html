@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,71 +6,499 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Inventory Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/themes.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4C50C5;
+            --secondary-color: #41C1E0;
+            --accent-color: #FF7950;
+            --success-color: #32B873;
+            --danger-color: #F04A4A;
+            --light-bg: #F8FAFD;
+            --text-primary: #19213A;
+            --text-secondary: #455070;
+            --text-muted: #6E7A99;
+            --card-bg: #FFFFFF;
+            --card-shadow: 0 20px 60px rgba(76, 80, 197, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background elements */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            animation: slideInUp 0.8s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+        }
+
+        .brand-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .brand-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 10px 30px rgba(76, 80, 197, 0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .brand-logo i {
+            font-size: 40px;
+            color: white;
+        }
+
+        .brand-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .welcome-text {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-floating {
+            position: relative;
+        }
+
+        .form-control {
+            background: rgba(248, 250, 253, 0.5);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 20px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-control:focus {
+            background: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 6px rgba(76, 80, 197, 0.1);
+            outline: none;
+        }
+
+        .form-floating label {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 14px;
+            padding: 20px 24px;
+        }
+
+        .form-floating .form-control:focus ~ label,
+        .form-floating .form-control:not(:placeholder-shown) ~ label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            z-index: 5;
+            transition: color 0.3s ease;
+        }
+
+        .form-control:focus + .input-icon {
+            color: var(--primary-color);
+        }
+
+        .form-check {
+            margin: 24px 0;
+        }
+
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 2px solid var(--text-muted);
+            margin-top: 0;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .form-check-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 16px;
+            padding: 18px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(76, 80, 197, 0.4);
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 32px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--text-muted), transparent);
+            opacity: 0.3;
+        }
+
+        .divider span {
+            background: var(--card-bg);
+            padding: 0 16px;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .auth-links {
+            text-align: center;
+            margin-top: 32px;
+        }
+
+        .auth-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 0 8px;
+        }
+
+        .auth-link:hover {
+            color: var(--secondary-color);
+            transform: translateY(-1px);
+        }
+
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-weight: 500;
+            animation: slideInDown 0.5s ease-out;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-danger {
+            background: rgba(240, 74, 74, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .btn-close {
+            filter: none;
+            opacity: 0.7;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 32px 24px;
+                margin: 20px;
+                border-radius: 20px;
+            }
+
+            .brand-title {
+                font-size: 28px;
+            }
+
+            .welcome-title {
+                font-size: 20px;
+            }
+
+            .form-control {
+                padding: 18px 20px;
+            }
+
+            .form-floating label {
+                padding: 18px 20px;
+            }
+        }
+
+        /* Loading state */
+        .loading .login-btn {
+            pointer-events: none;
+        }
+
+        .loading .form-control {
+            opacity: 0.7;
+        }
+
+        /* Success animation */
+        @keyframes success {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .success .login-card {
+            animation: success 0.6s ease-out;
+        }
+    </style>
 </head>
-<body class="bg-primary">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-5">
-                <div class="card shadow-lg border-0 rounded-lg mt-5">
-                    <div class="card-header">
-                        <h3 class="text-center font-weight-light my-4">
-                            <i class="fas fa-sign-in-alt me-2"></i>Login
-                        </h3>
-                    </div>
-                    <div class="card-body">
-                        {% with messages = get_flashed_messages(with_categories=true) %}
-                            {% if messages %}
-                                {% for category, message in messages %}
-                                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                                        {{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                    </div>
-                                {% endfor %}
-                            {% endif %}
-                        {% endwith %}
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Brand Section -->
+            <div class="brand-section">
+                <div class="brand-logo">
+                    <i class="fas fa-boxes"></i>
+                </div>
+                <h1 class="brand-title">Inventory Pro</h1>
+                <p class="brand-subtitle">Smart Inventory Management</p>
+            </div>
 
-                        <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+            <!-- Welcome Text -->
+            <div class="welcome-text">
+                <h2 class="welcome-title">Welcome Back!</h2>
+                <p class="welcome-subtitle">Sign in to continue to your dashboard</p>
+            </div>
 
-                        <form id="loginForm" method="POST">
-                            <div class="form-floating mb-3">
-                                <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" required />
-                                <label for="email">Email address</label>
-                            </div>
-                            <div class="form-floating mb-3">
-                                <input class="form-control" id="password" name="password" type="password" placeholder="Password" required />
-                                <label for="password">Password</label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" id="remember" name="remember" type="checkbox" />
-                                <label class="form-check-label" for="remember">Remember Me</label>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">
-                                    <span class="btn-text">Login</span>
-                                    <span class="spinner-border spinner-border-sm d-none" role="status" id="loginSpinner"></span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="card-footer text-center py-3">
-                        <div class="small">
-                            <a href="{{ url_for('register') }}">Need an account? Sign up!</a>
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
-                        <div class="small mt-2">
-                            <a href="#" id="forgot-password-link">Forgot Password?</a>
-                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div id="auth-error" class="alert alert-danger d-none" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <span id="error-message"></span>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" method="POST">
+                <div class="form-group">
+                    <div class="form-floating">
+                        <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" required />
+                        <label for="email">Email address</label>
+                        <i class="fas fa-envelope input-icon"></i>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <div class="form-floating">
+                        <input class="form-control" id="password" name="password" type="password" placeholder="Password" required />
+                        <label for="password">Password</label>
+                        <i class="fas fa-lock input-icon"></i>
+                    </div>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" id="remember" name="remember" type="checkbox" />
+                    <label class="form-check-label" for="remember">
+                        Remember me for 30 days
+                    </label>
+                </div>
+
+                <button type="submit" class="btn login-btn" id="loginBtn">
+                    <span class="btn-text">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                        Sign In
+                    </span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status" id="loginSpinner"></span>
+                </button>
+            </form>
+
+            <div class="divider">
+                <span>or</span>
+            </div>
+
+            <!-- Auth Links -->
+            <div class="auth-links">
+                <a href="{{ url_for('register') }}" class="auth-link">
+                    <i class="fas fa-user-plus me-1"></i>
+                    Create Account
+                </a>
+                <span class="text-muted">•</span>
+                <a href="#" id="forgot-password-link" class="auth-link">
+                    <i class="fas fa-key me-1"></i>
+                    Forgot Password?
+                </a>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // Handle login form submission via AJAX
+    // Enhanced login form handling
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -77,9 +506,11 @@
         const loginBtn = document.getElementById('loginBtn');
         const loginSpinner = document.getElementById('loginSpinner');
         const authError = document.getElementById('auth-error');
+        const errorMessage = document.getElementById('error-message');
+        const body = document.body;
 
         function showError(message) {
-            authError.textContent = message;
+            errorMessage.textContent = message;
             authError.classList.remove('d-none');
             setTimeout(() => {
                 authError.classList.add('d-none');
@@ -87,18 +518,20 @@
         }
 
         function setLoading(loading) {
+            body.classList.toggle('loading', loading);
             if (loading) {
                 loginBtn.disabled = true;
-                loginBtn.querySelector('.btn-text').textContent = 'Signing in...';
+                loginBtn.querySelector('.btn-text').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing in...';
                 loginSpinner.classList.remove('d-none');
             } else {
                 loginBtn.disabled = false;
-                loginBtn.querySelector('.btn-text').textContent = 'Login';
+                loginBtn.querySelector('.btn-text').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign In';
                 loginSpinner.classList.add('d-none');
             }
         }
 
         setLoading(true);
+        authError.classList.add('d-none');
 
         try {
             const response = await fetch('/api/auth/login', {
@@ -116,33 +549,64 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                console.log('Login successful, redirecting...');
-                window.location.href = '/';
+                body.classList.add('success');
+                loginBtn.querySelector('.btn-text').innerHTML = '<i class="fas fa-check me-2"></i>Success! Redirecting...';
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
             } else {
-                showError(data.error || 'Login failed. Please try again.');
+                showError(data.error || 'Login failed. Please check your credentials and try again.');
             }
         } catch (error) {
             console.error('Login error:', error);
-            showError('Login failed. Please try again.');
+            showError('Unable to connect. Please check your internet connection and try again.');
         } finally {
-            setLoading(false);
+            if (!body.classList.contains('success')) {
+                setLoading(false);
+            }
         }
     });
 
-    // Handle forgot password
+    // Enhanced forgot password handling
     document.getElementById('forgot-password-link').addEventListener('click', function(e) {
         e.preventDefault();
 
         const email = document.getElementById('email').value.trim();
 
         if (!email) {
-            document.getElementById('auth-error').textContent = 'Please enter your email address first';
+            document.getElementById('error-message').textContent = 'Please enter your email address first';
             document.getElementById('auth-error').classList.remove('d-none');
+            document.getElementById('email').focus();
             return;
         }
 
-        // Simple redirect to forgot password page or show alert
-        alert('Password reset functionality will be implemented. Please contact administrator.');
+        // Enhanced forgot password flow
+        if (confirm(`Send password reset instructions to ${email}?`)) {
+            alert('Password reset functionality will be implemented soon. Please contact your administrator for assistance.');
+        }
+    });
+
+    // Add input animations
+    document.querySelectorAll('.form-control').forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.classList.add('focused');
+        });
+
+        input.addEventListener('blur', function() {
+            if (!this.value) {
+                this.parentElement.classList.remove('focused');
+            }
+        });
+    });
+
+    // Auto-hide alerts
+    document.querySelectorAll('.alert').forEach(alert => {
+        setTimeout(() => {
+            if (alert.classList.contains('show')) {
+                alert.classList.remove('show');
+                setTimeout(() => alert.remove(), 300);
+            }
+        }, 5000);
     });
     </script>
 </body>
