@@ -75,6 +75,21 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
+- July 5, 2025: Enhanced UI/UX Design and Navigation
+  - Redesigned login page with modern glassmorphism effects, gradient animations, and enhanced visual appeal
+  - Created comprehensive dashboard enhancements with gradient summary cards, quick action buttons, and improved layout
+  - Fixed vertical navigation bar positioning and tab scrolling issues with responsive design
+  - Added tab scroll indicators and smooth scrolling for better user experience
+  - Implemented navigation enhancements JavaScript for improved mobile experience
+  - Created .gitignore file to exclude environment variables from version control
+  - Added authentication protection to API endpoints that were missing login requirements
+
+- July 4, 2025: Authentication System Cleanup
+  - Completely removed Firebase authentication in favor of PostgreSQL-only authentication
+  - Cleaned up Firebase references from models, auth service, and documentation
+  - Fixed API handler inconsistencies causing repeated "Error loading on-demand products" and "Error loading category breakdown" errors
+  - Updated all API methods to use consistent response handling patterns
+
 - July 1, 2025: Resolved application startup and routing errors
   - Fixed duplicate model definitions causing SQLAlchemy startup errors
   - Added missing model classes (StockMovement, InstallmentPlan, ChartOfAccounts, Journal, Supplier, PurchaseOrder)

@@ -146,6 +146,41 @@
         </div>
     </div>
 
+    <!-- Quick Actions Section -->
+    <div class="quick-actions">
+        <a href="{{ url_for('add_item') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-plus"></i>
+            </div>
+            <h6 class="action-title">Add New Item</h6>
+            <p class="action-description">Quick add products to your inventory</p>
+        </a>
+        
+        <a href="{{ url_for('new_sale') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <h6 class="action-title">Make Sale</h6>
+            <p class="action-description">Process a new sale transaction</p>
+        </a>
+        
+        <a href="{{ url_for('reports') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <h6 class="action-title">View Reports</h6>
+            <p class="action-description">Analyze your business performance</p>
+        </a>
+        
+        <a href="{{ url_for('categories') }}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <h6 class="action-title">Manage Categories</h6>
+            <p class="action-description">Organize your product categories</p>
+        </a>
+    </div>
+
     <!-- Enhanced Financial Overview -->
     <div class="financial-overview">
         <div class="card modern-card">
