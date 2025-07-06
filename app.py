@@ -1089,13 +1089,19 @@ def category_breakdown_report():
     from models import Item
     from sqlalchemy import func
 
+    # Get current user ID for filtering
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        return jsonify({})
+
     # Group items by category
     categories = {}
 
-    # First get all distinct categories
+    # First get all distinct categories for current user
     category_list = db.session.query(
         func.coalesce(Item.category,
-                      'Uncategorized').label('category')).distinct().all()
+                      'Uncategorized').label('category')).filter(
+        Item.user_id == current_user_id).distinct().all()
 
     # For each category, get the stats
     for cat in category_list:
@@ -1103,19 +1109,19 @@ def category_breakdown_report():
 
         # Get items count in this category
         count = db.session.query(func.count(Item.id)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == current_user_id).scalar() or 0
 
         # Get total quantity
         total_quantity = db.session.query(func.sum(Item.quantity)).filter(
-            func.coalesce(Item.category, 'Uncategorized') ==
-            category).scalar() or 0
+            func.coalesce(Item.category, 'Uncategorized') == category,
+            Item.user_id == current_user_id).scalar() or 0
 
         # Get total value based on retail selling price
         total_value_query = db.session.query(
             func.sum(Item.quantity * Item.selling_price_retail)).filter(
-                func.coalesce(Item.category, 'Uncategorized') ==
-                category).scalar()
+                func.coalesce(Item.category, 'Uncategorized') == category,
+                Item.user_id == current_user_id).scalar()
         total_value = float(
             total_value_query) if total_value_query is not None else 0
 
@@ -3075,6 +3081,11 @@ def api_inventory():
 def api_create_sale():
     """API endpoint to create a new sale"""
     try:
+        # Validate user session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+        
         data = request.get_json()
 
         if not data or not data.get('items'):
@@ -3100,7 +3111,7 @@ def api_create_sale():
             payment_amount=float(data.get('payment', {}).get('amount', 0)),
             change_amount=float(data.get('payment', {}).get('change', 0)),
             notes=data.get('notes', ''),
-            user_id=current_user.id,
+            user_id=user_id,
             payment_status='paid',
             created_at=datetime.utcnow()
         )
@@ -3123,11 +3134,13 @@ def api_create_sale():
 
         # Create sale items and update inventory
         for item_data in data.get('items', []):
-            item = Item.query.get(item_data['id'])
+            item = Item.query.filter_by(id=item_data['id'], user_id=user_id).first()
             if not item:
                 raise Exception(f"Item not found: {item_data['id']}")
 
-            if item.stock_quantity < item_data['quantity']:
+            # Check stock availability (use quantity field as main stock tracker)
+            current_stock = item.quantity if item.quantity is not None else item.stock_quantity
+            if current_stock < item_data['quantity']:
                 raise Exception(f"Insufficient stock for {item.name}")
 
             # Create sale item
@@ -3141,8 +3154,10 @@ def api_create_sale():
             )
             db.session.add(sale_item)
 
-            # Update item stock
-            item.stock_quantity -= item_data['quantity']
+            # Update item stock (update both fields for consistency)
+            item.quantity = max(0, (item.quantity or 0) - item_data['quantity'])
+            if item.stock_quantity is not None:
+                item.stock_quantity = max(0, item.stock_quantity - item_data['quantity'])
 
             # Create stock movement
             stock_movement = StockMovement(
