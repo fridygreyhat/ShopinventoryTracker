@@ -536,6 +536,9 @@ class Employee(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Relationships
+    permissions = db.relationship('EmployeePermission', backref='employee', lazy=True, cascade='all, delete-orphan')
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -549,7 +552,27 @@ class Employee(db.Model):
             'hire_date': self.hire_date.isoformat() if self.hire_date else None,
             'salary': self.salary,
             'commission_rate': self.commission_rate,
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'permissions': [perm.permission for perm in self.permissions if perm.granted]
+        }
+
+class EmployeePermission(db.Model):
+    __tablename__ = 'employee_permissions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    permission = db.Column(db.String(50), nullable=False)
+    granted = db.Column(db.Boolean, default=True)
+    granted_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    granted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'permission': self.permission,
+            'granted': self.granted,
+            'granted_at': self.granted_at.isoformat() if self.granted_at else None
         }
 
 class Shift(db.Model):

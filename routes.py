@@ -8,7 +8,8 @@ from app import app, db
 from models import (User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, 
                     Location, LocationStock, StockTransfer, StockTransferItem, ChartOfAccounts, 
                     Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount,
-                    Customer, CustomerPurchaseHistory, LoyaltyTransaction, OnDemandProduct, OnDemandOrder)
+                    Customer, CustomerPurchaseHistory, LoyaltyTransaction, OnDemandProduct, OnDemandOrder,
+                    Employee, EmployeePermission)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 def calculate_financial_metrics(user_id, date_filter=None, period='all'):
@@ -2127,6 +2128,129 @@ def bulk_update_category_items(category_id):
         flash(f'Error updating items: {str(e)}', 'danger')
     
     return redirect(url_for('category_items', category_id=category_id))
+
+# Employee Management API Routes
+@app.route('/api/team/employees', methods=['GET', 'POST'])
+@login_required
+def employees_api():
+    if request.method == 'GET':
+        # Get all employees for current user
+        employees = Employee.query.filter_by(user_id=current_user.id).all()
+        return jsonify([emp.to_dict() for emp in employees])
+    
+    elif request.method == 'POST':
+        try:
+            data = request.json
+            
+            # Generate employee code if not provided
+            employee_code = data.get('employee_code') or f"EMP{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            # Create employee
+            employee = Employee(
+                user_id=current_user.id,
+                employee_code=employee_code,
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data.get('email'),
+                phone=data.get('phone'),
+                position=data.get('position'),
+                salary=data.get('salary'),
+                commission_rate=data.get('commission_rate', 0.0)
+            )
+            
+            db.session.add(employee)
+            db.session.flush()  # Get employee ID
+            
+            # Add permissions
+            permissions = data.get('permissions', [])
+            for permission in permissions:
+                emp_perm = EmployeePermission(
+                    employee_id=employee.id,
+                    permission=permission,
+                    granted=True,
+                    granted_by=current_user.id
+                )
+                db.session.add(emp_perm)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'employee': employee.to_dict(),
+                'message': 'Employee created successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/team/employees/<int:employee_id>/permissions', methods=['GET', 'PUT'])
+@login_required
+def employee_permissions_api(employee_id):
+    employee = Employee.query.filter_by(id=employee_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'GET':
+        permissions = [perm.permission for perm in employee.permissions if perm.granted]
+        return jsonify({
+            'success': True,
+            'permissions': permissions,
+            'employee': employee.to_dict()
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            permission = data['permission']
+            granted = data['granted']
+            
+            # Check if permission already exists
+            existing_perm = EmployeePermission.query.filter_by(
+                employee_id=employee_id,
+                permission=permission
+            ).first()
+            
+            if existing_perm:
+                existing_perm.granted = granted
+                existing_perm.granted_by = current_user.id
+                existing_perm.granted_at = datetime.utcnow()
+            else:
+                new_perm = EmployeePermission(
+                    employee_id=employee_id,
+                    permission=permission,
+                    granted=granted,
+                    granted_by=current_user.id
+                )
+                db.session.add(new_perm)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Permission {permission} {"granted" if granted else "revoked"} successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/team/employees/<int:employee_id>', methods=['DELETE'])
+@login_required
+def delete_employee_api(employee_id):
+    try:
+        employee = Employee.query.filter_by(id=employee_id, user_id=current_user.id).first_or_404()
+        
+        # Soft delete - mark as inactive
+        employee.is_active = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Employee deactivated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 # Call the function to create default data
 with app.app_context():
