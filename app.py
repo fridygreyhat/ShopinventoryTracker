@@ -13,320 +13,258 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
+from flask_login import LoginManager, UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
-load_dotenv()
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+# Import db from extensions to avoid circular imports
+from extensions import db, configure_database
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app
+# Create Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET",
-                                "shop_inventory_default_secret")
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Database configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "postgresql://inventory:password@localhost:5432/inventory_db")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Configure secret key
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 
-# Initialize database with app
-from extensions import db
+# Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
+configure_database(app)
+
+# Initialize extensions with app
 db.init_app(app)
 
-# Mail configuration
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-mail = Mail(app)
+# Configure Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
 
-# Helper function to get settings
-def get_setting_value(key, default=None):
-    """
-    Get setting value from database
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(int(user_id))
 
-    Args:
-        key (str): Setting key
-        default: Default value if setting not found
+# Make User inherit from UserMixin for Flask-Login
+class User(db.Model, UserMixin):
+    pass
 
-    Returns:
-        any: Setting value or default
-    """
-    from models import Setting
-    setting = Setting.query.filter_by(key=key).first()
-    return setting.value if setting else default
-
-# Import auth service after models are imported
-try:
-    from auth_service import login_required
-except ImportError:
-    # Simple auth decorator if service not available
-    from functools import wraps
-    def login_required(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if 'user_id' not in session:
-                try:
-                    return redirect(url_for('login'))
-                except:
-                    return redirect('/login')
-            return f(*args, **kwargs)
-        return decorated_function
-
-# Template helper function
-@app.context_processor
-def inject_current_user():
-    """Inject current user into all templates"""
-
-    def get_current_user():
-        if 'user_id' in session:
-            try:
-                from models import User
-                user = User.query.get(session['user_id'])
-                return user
-            except Exception as e:
-                # Handle database schema issues gracefully
-                logger.warning(f"Error getting current user: {str(e)}")
-                # Clear the invalid session
-                session.clear()
-                return None
-        return None
-
-    return dict(get_current_user=get_current_user)
-
-# Helper function to get current user for APIs
-def get_current_user():
-    """Get current user from session"""
-    if 'user_id' in session:
+# Database setup function
+def init_database():
+    """Initialize PostgreSQL database tables and default data"""
+    with app.app_context():
         try:
-            from models import User
-            user = User.query.get(session['user_id'])
-            return user
-        except Exception as e:
-            logger.warning(f"Error getting current user: {str(e)}")
-            session.clear()
-            return None
-    return None
+            # Create all tables
+            db.create_all()
+            logger.info("Database tables created successfully")
 
-# Create a pseudo current_user object for consistency with flask-login style code
-class CurrentUser:
-    @property
-    def id(self):
-        user = get_current_user()
-        return user.id if user else None
-    
-    @property
-    def is_authenticated(self):
-        return 'user_id' in session
-    
-    @property
-    def is_admin(self):
-        user = get_current_user()
-        return user.is_admin if user else False
-
-current_user = CurrentUser()
-
-# Import models
-from models import (
-    User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
-    Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
-    Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
-)
-
-# Import and register admin portal
-try:
-    from admin_portal import admin_bp
-    app.register_blueprint(admin_bp)
-except ImportError:
-    logger.warning("Admin portal not available")
-
-# Import new services
-from services.localization_service import LocalizationService
-from services.payment_service import PaymentService
-from services.supply_chain_service import SupplyChainService
-from services.business_intelligence import BusinessIntelligenceService
-
-# Initialize database tables
-with app.app_context():
-    try:
-        # When we have schema changes, we need to reset the database
-        # Comment out the line below to avoid data loss in production
-        # db.drop_all()  # Commented out to prevent data loss
-
-        # First, create all tables
-        db.create_all()
-        logger.info("Database tables created successfully")
-
-        # Test database connection
-        db.session.execute(db.text("SELECT 1"))
-        db.session.commit()
-        logger.info("Database connection test successful")
-
-    except Exception as e:
-        logger.error(f"Database initialization error: {str(e)}")
-        # Continue anyway - the app might still work
-
-    # Then, handle migrations for existing databases
-    # Helper function to check if column exists
-    def column_exists(table_name, column_name):
-        try:
-            # PostgreSQL query to check if column exists
-            result = db.session.execute(
-                db.text(f"""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = '{table_name}' 
-                    AND column_name = '{column_name}'
-                """))
-            return result.fetchone() is not None
-        except Exception:
-            return False
-
-    # Helper function to add column safely
-    def add_column_safely(table_name,
-                          column_name,
-                          column_definition,
-                          default_value=None):
-        try:
-            if not column_exists(table_name, column_name):
-                logger.info(
-                    f"Adding {column_name} column to {table_name} table")
-                db.session.execute(
-                    db.text(
-                        f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
-                    ))
-
-                if default_value:
-                    db.session.execute(
-                        db.text(
-                            f"UPDATE {table_name} SET {column_name} = {default_value}"
-                        ))
-
-                db.session.commit()
-                logger.info(
-                    f"Successfully added {column_name} column to {table_name}")
-                return True
-            else:
-                logger.info(
-                    f"{column_name} column already exists in {table_name}")
-                return False
-        except Exception as e:
-            logger.error(
-                f"Error adding {column_name} column to {table_name}: {str(e)}")
-            db.session.rollback()
-            return False
-
-    # Check if tables exist and add missing columns
-    try:
-        # Check if user table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'user' AND table_schema = 'public';"
-            ))
-        if result.fetchone():
-            # Add is_active column if missing
-            add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT true', 'true')
-            # Add phone column if missing
-            add_column_safely('user', 'phone', 'VARCHAR(20)')
-
-        # Check if item table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'item' AND table_schema = 'public';"
-            ))
-        if result.fetchone():
-            # Add missing item columns
-            add_column_safely('item', 'subcategory', 'VARCHAR(100)')
-            add_column_safely('item', 'unit_type',
-                              "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
-            add_column_safely('item', 'sell_by',
-                              "VARCHAR(20) DEFAULT 'quantity'", "'quantity'")
-            add_column_safely('item', 'category_id', 'INTEGER')
-            add_column_safely('item', 'user_id', 'INTEGER')
-            add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT true', 'true')
-            add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', '0')
-            add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', '0')
-            add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', '0')
-            add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', '0')
-
-        # Check if sale table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'sale' AND table_schema = 'public';"
-            ))
-        if result.fetchone():
-            # Add missing sale columns
-            add_column_safely('sale', 'user_id', 'INTEGER')
-            add_column_safely('sale', 'customer_id', 'INTEGER')
-            add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
-            add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", "'cash'")
-            add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", "'completed'")
-            add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
-
-        # Check if customer table exists and add foreign key constraints
-        result = db.session.execute(
-            db.text(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'customer' AND table_schema = 'public';"
-            ))
-        if result.fetchone():
-            logger.info("Customer table exists, checking foreign key constraints")
-
-        # Check if financial_transaction table exists
-        result = db.session.execute(
-            db.text(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'financial_transaction' AND table_schema = 'public';"
-            ))
-        if result.fetchone():
-            # Add missing financial_transaction columns
-            add_column_safely('financial_transaction', 'user_id', 'INTEGER')
-
-        # Initialize default settings if they don't exist
-        try:
-            from models import Setting
-
-            # Default settings
-            default_settings = [
-                ('sms_notifications_enabled', 'false', 'Enable SMS notifications for low stock alerts', 'notifications'),
-                ('notification_phone', '', 'Phone number to receive SMS notifications (include country code)', 'notifications'),
-                ('low_stock_threshold', '10', 'Quantity threshold for low stock alerts', 'notifications'),
-                ('email_notifications_enabled', 'false', 'Enable email notifications for low stock alerts', 'notifications'),
-                ('notification_email', '', 'Email address to receive notifications', 'notifications'),
-                ('sender_email', 'inventory@yourbusiness.com', 'Email address to send notifications from', 'notifications')
-            ]
-
-            for key, value, description, category in default_settings:
-                existing_setting = Setting.query.filter_by(key=key).first()
-                if not existing_setting:
-                    new_setting = Setting(
-                        key=key,
-                        value=value,
-                        description=description,
-                        category=category
-                    )
-                    db.session.add(new_setting)
-
+            # Test database connection
+            db.session.execute(db.text('SELECT 1'))
             db.session.commit()
-            logger.info("Default settings initialized successfully")
+            logger.info("Database connection test successful")
+
+            # Import all models to ensure they're registered
+            from models import (User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
+                Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
+                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
+            )
+            # Then, handle migrations for existing databases
+            # Helper function to check if column exists
+            def column_exists(table_name, column_name):
+                try:
+                    # PostgreSQL query to check if column exists
+                    result = db.session.execute(
+                        db.text(f"""
+                            SELECT column_name 
+                            FROM information_schema.columns 
+                            WHERE table_name = '{table_name}' 
+                            AND column_name = '{column_name}'
+                        """))
+                    return result.fetchone() is not None
+                except Exception:
+                    return False
+
+            # Helper function to add column safely
+            def add_column_safely(table_name,
+                                  column_name,
+                                  column_definition,
+                                  default_value=None):
+                try:
+                    if not column_exists(table_name, column_name):
+                        logger.info(
+                            f"Adding {column_name} column to {table_name} table")
+                        db.session.execute(
+                            db.text(
+                                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+                            ))
+
+                        if default_value:
+                            db.session.execute(
+                                db.text(
+                                    f"UPDATE {table_name} SET {column_name} = {default_value}"
+                                ))
+
+                        db.session.commit()
+                        logger.info(
+                            f"Successfully added {column_name} column to {table_name}")
+                        return True
+                    else:
+                        logger.info(
+                            f"{column_name} column already exists in {table_name}")
+                        return False
+                except Exception as e:
+                    logger.error(
+                        f"Error adding {column_name} column to {table_name}: {str(e)}")
+                    db.session.rollback()
+                    return False
+            # Add missing columns if they don't exist
+            def add_missing_columns():
+                try:
+                    # Add columns to user table
+                    add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT TRUE', 'true')
+                    add_column_safely('user', 'phone', 'VARCHAR(20)')
+
+                    # Add columns to item table  
+                    add_column_safely('item', 'subcategory', 'VARCHAR(100)')
+                    add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
+                    add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
+                    add_column_safely('item', 'category_id', 'INTEGER')
+                    add_column_safely('item', 'user_id', 'INTEGER')
+                    add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT TRUE', 'true')
+                    add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', '0')
+                    add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', '0')
+                    add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', '0')
+                    add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', '0')
+
+                    # Add columns to sale table
+                    add_column_safely('sale', 'user_id', 'INTEGER')
+                    add_column_safely('sale', 'customer_id', 'INTEGER')
+                    add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
+                    add_column_safely('sale', 'payment_type', 'VARCHAR(20) DEFAULT \'cash\'', "'cash'")
+                    add_column_safely('sale', 'payment_status', 'VARCHAR(20) DEFAULT \'completed\'", "'completed'")
+                    add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
+
+                    # Check if Customer table exists, if not create it
+                    check_and_create_customer_table()
+
+                    # Add columns to financial_transaction table
+                    add_column_safely('financial_transaction', 'user_id', 'INTEGER')
+
+                except Exception as e:
+                    logger.error(f"Error adding missing columns: {str(e)}")
+
+            def check_and_create_customer_table():
+                """Check if Customer table exists and create if not"""
+                try:
+                    from sqlalchemy import text
+                    result = db.session.execute(text("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_name = 'customer' AND table_schema = 'public'
+                    """))
+
+                    if not result.fetchone():
+                        # Create Customer table
+                        db.session.execute(text("""
+                            CREATE TABLE customer (
+                                id SERIAL PRIMARY KEY,
+                                name VARCHAR(100) NOT NULL,
+                                email VARCHAR(120),
+                                phone VARCHAR(20),
+                                address TEXT,
+                                customer_type VARCHAR(20) DEFAULT 'retail',
+                                credit_limit FLOAT DEFAULT 0.0,
+                                loyalty_points INTEGER DEFAULT 0,
+                                preferred_payment_method VARCHAR(50),
+                                user_id INTEGER NOT NULL,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """))
+                        logger.info("Customer table created")
+                    else:
+                        logger.info("Customer table exists, checking foreign key constraints")
+
+                except Exception as e:
+                    logger.error(f"Error checking/creating Customer table: {str(e)}")
+
+            # Initialize default settings
+            def initialize_default_settings():
+                """Initialize default application settings"""
+                try:
+                    from models import Setting
+
+                    default_settings = [
+                        {
+                            'key': 'sms_notifications_enabled',
+                            'value': 'false',
+                            'description': 'Enable SMS notifications for low stock alerts',
+                            'category': 'notifications'
+                        },
+                        {
+                            'key': 'notification_phone',
+                            'value': '',
+                            'description': 'Phone number to receive SMS notifications (include country code)',
+                            'category': 'notifications'
+                        },
+                        {
+                            'key': 'low_stock_threshold',
+                            'value': '10',
+                            'description': 'Quantity threshold for low stock alerts',
+                            'category': 'notifications'
+                        },
+                        {
+                            'key': 'email_notifications_enabled',
+                            'value': 'false',
+                            'description': 'Enable email notifications for low stock alerts',
+                            'category': 'notifications'
+                        },
+                        {
+                            'key': 'notification_email',
+                            'value': '',
+                            'description': 'Email address to receive notifications',
+                            'category': 'notifications'
+                        },
+                        {
+                            'key': 'sender_email',
+                            'value': 'inventory@yourbusiness.com',
+                            'description': 'Email address to send notifications from',
+                            'category': 'notifications'
+                        }
+                    ]
+
+                    for setting_data in default_settings:
+                        existing_setting = Setting.query.filter_by(key=setting_data['key']).first()
+                        if not existing_setting:
+                            from models import Setting
+                            new_setting = Setting(
+                                key=setting_data['key'],
+                                value=setting_data['value'],
+                                description=setting_data['description'],
+                                category=setting_data['category']
+                            )
+                            db.session.add(new_setting)
+
+                    db.session.commit()
+                    logger.info("Default settings initialized successfully")
+
+                except Exception as e:
+                    logger.warning(f"Could not initialize default settings: {str(e)}")
+                    db.session.rollback()
+
+            add_missing_columns()
+            initialize_default_settings()
 
         except Exception as e:
-            logger.warning(f"Could not initialize default settings: {str(e)}")
-            db.session.rollback()
-
-    except Exception as e:
-        logger.error(f"Error during database migration: {str(e)}")
-        db.session.rollback()
+            logger.error(f"Database initialization error: {str(e)}")
+init_database()
 
 # Auth API Routes
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    """API endpoint for user login"""
-   
+    """API endpoint for user login - authenticates against PostgreSQL"""
     try:
         data = request.get_json()
 
@@ -339,12 +277,13 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Check user credentials
+        # Check user credentials in PostgreSQL
+        from models import User
         user = User.query.filter_by(email=email, is_active=True).first()
 
         if user and user.check_password(password):
             try:
-                # Update last login
+                # Update last login in PostgreSQL
                 user.last_login = datetime.utcnow()
 
                 # Create session
@@ -353,12 +292,14 @@ def api_login():
                 session['user_email'] = user.email
                 session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
 
+                # Commit changes to PostgreSQL
                 db.session.commit()
 
-                logger.info(f"User {email} logged in successfully")
+                logger.info(f"User {email} logged in successfully from PostgreSQL (ID: {user.id})")
 
                 return jsonify({
                     'success': True,
+                    'message': 'Login successful - authenticated from PostgreSQL',
                     'user': {
                         'id': user.id,
                         'email': user.email,
@@ -372,17 +313,17 @@ def api_login():
                 db.session.rollback()
                 return jsonify({'error': 'Login failed during session creation'}), 500
         else:
-            logger.warning(f"Failed login attempt for email: {email}")
+            logger.warning(f"Failed login attempt for email: {email} - user not found in PostgreSQL or invalid password")
             return jsonify({'error': 'Invalid email or password'}), 401
 
     except Exception as e:
-        logger.error(f"API login error: {str(e)}")
+        logger.error(f"PostgreSQL login error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    """API endpoint for user registration"""
+    """API endpoint for user registration - stores users in PostgreSQL"""
     try:
         data = request.get_json()
 
@@ -422,7 +363,8 @@ def api_register():
         if len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
-        # Check if user already exists
+        # Check if user already exists in PostgreSQL
+        from models import User
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             return jsonify({'error': 'Email already registered'}), 400
@@ -432,7 +374,7 @@ def api_register():
         if existing_username:
             return jsonify({'error': 'Username already taken'}), 400
 
-        # Create new user
+        # Create new user in PostgreSQL
         new_user = User(
             username=username,
             email=email,
@@ -443,35 +385,39 @@ def api_register():
             product_categories=product_categories if product_categories else None,
             is_active=True,
             is_admin=False,
-            email_verified=False
+            email_verified=False,
+            created_at=datetime.utcnow()
         )
 
-        # Set password hash
+        # Set password hash using secure method
         new_user.set_password(password)
 
         # Verify password was set correctly
         if not new_user.password_hash:
             return jsonify({'error': 'Failed to set password'}), 500
 
+        # Save to PostgreSQL database
         db.session.add(new_user)
         db.session.flush()  # Get the user ID without committing
 
-        # Verify user was created
+        # Verify user was created in PostgreSQL
         if not new_user.id:
-            return jsonify({'error': 'Failed to create user'}), 500
+            return jsonify({'error': 'Failed to create user in PostgreSQL'}), 500
 
-        # Create session
+        # Create session for the new user
         session.clear()  # Clear any existing session
         session['user_id'] = new_user.id
         session['user_email'] = new_user.email
         session['user_name'] = f"{new_user.first_name} {new_user.last_name}".strip()
 
+        # Commit to PostgreSQL
         db.session.commit()
 
-        logger.info(f"New user registered: {email}")
+        logger.info(f"New user registered in PostgreSQL: {email} (ID: {new_user.id})")
 
         return jsonify({
             'success': True,
+            'message': 'Account created successfully in PostgreSQL',
             'user': {
                 'id': new_user.id,
                 'username': new_user.username,
@@ -483,7 +429,7 @@ def api_register():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"API registration error: {str(e)}")
+        logger.error(f"PostgreSQL registration error: {str(e)}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
@@ -902,6 +848,28 @@ def update_item(item_id):
 
         return jsonify(item.to_dict())
 
+
+def verify_postgresql_auth():
+    """Verify that PostgreSQL authentication is working properly"""
+    try:
+        # Test database connection
+        from models import User
+        user_count = User.query.count()
+        logger.info(f"✅ PostgreSQL authentication ready - {user_count} users in database")
+        return True
+    except Exception as e:
+        logger.error(f"❌ PostgreSQL authentication error: {str(e)}")
+        return False
+
+# Verify PostgreSQL authentication on startup
+with app.app_context():
+    if verify_postgresql_auth():
+        logger.info("🔐 PostgreSQL authentication system initialized successfully")
+    else:
+        logger.warning("⚠️ PostgreSQL authentication system may have issues")
+
+
+
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating item: {str(e)}")
@@ -954,7 +922,8 @@ def bulk_import_inventory():
         import_service = CSVImportService(db.session, Item, current_user_id)
 
         # Process the import
-        result = import_service.process_csv_import(file)
+        result = import_service```python
+.process_csv_import(file)
 
         # Return appropriate status code
         if result.get("success"):
@@ -1863,7 +1832,8 @@ def get_categories_api():
     try:
         from models import Category
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        categories = Category.query.filter_by(user_id=user_id,```python
+is_active=True).order_by(Category.name).all()
 
         categories_data = []
         for category in categories:

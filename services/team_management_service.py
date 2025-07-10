@@ -135,6 +135,76 @@ class TeamManagementService:
             db.session.rollback()
             return {'error': str(e)}
 
+    def manage_employee_permissions(self, employee_id, permissions_data):
+        """Manage employee access permissions"""
+        try:
+            from models import Employee, EmployeePermission, db
+            
+            # Verify employee belongs to current user
+            employee = Employee.query.filter_by(id=employee_id, user_id=self.user_id).first()
+            if not employee:
+                return {'error': 'Employee not found'}
+            
+            # Clear existing permissions
+            EmployeePermission.query.filter_by(employee_id=employee_id).delete()
+            
+            # Add new permissions
+            for permission_name in permissions_data:
+                permission = EmployeePermission(
+                    employee_id=employee_id,
+                    permission=permission_name,
+                    granted=True,
+                    granted_by=self.user_id,
+                    granted_at=datetime.utcnow()
+                )
+                db.session.add(permission)
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': 'Employee permissions updated successfully',
+                'permissions': permissions_data
+            }
+            
+        except Exception as e:
+            logger.error(f"Error managing employee permissions: {str(e)}")
+            db.session.rollback()
+            return {'error': str(e)}
+
+    def check_employee_permission(self, employee_id, permission_name):
+        """Check if employee has specific permission"""
+        try:
+            from models import EmployeePermission
+            
+            permission = EmployeePermission.query.filter_by(
+                employee_id=employee_id,
+                permission=permission_name,
+                granted=True
+            ).first()
+            
+            return permission is not None
+            
+        except Exception as e:
+            logger.error(f"Error checking employee permission: {str(e)}")
+            return False
+
+    def get_employee_permissions(self, employee_id):
+        """Get all permissions for an employee"""
+        try:
+            from models import EmployeePermission
+            
+            permissions = EmployeePermission.query.filter_by(
+                employee_id=employee_id,
+                granted=True
+            ).all()
+            
+            return [perm.permission for perm in permissions]
+            
+        except Exception as e:
+            logger.error(f"Error getting employee permissions: {str(e)}")
+            return []
+
     def process_inventory_transfer(self, from_location, to_location, items):
         """Process inter-store inventory transfers"""
         try:
