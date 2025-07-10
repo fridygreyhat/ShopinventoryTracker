@@ -167,63 +167,50 @@ def register():
                 flash('Passwords do not match', 'danger')
                 return render_template('register.html')
             
-            # Check if user already exists
+            # Check if user already exists in PostgreSQL
             existing_user = User.query.filter((User.email == email) | (User.username == email)).first()
             if existing_user:
                 flash('User with this email already exists', 'danger')
                 return render_template('register.html')
             
-            # Prepare user data
-            user_data = {
-                'email': email,
-                'password': password
-            }
+            # Create new user directly in PostgreSQL
+            new_user = User(
+                username=email.split('@')[0],  # Use email prefix as username
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone if phone else None,
+                shop_name=shop_name if shop_name else None,
+                is_active=True,
+                is_admin=False,
+                email_verified=False,
+                created_at=datetime.utcnow()
+            )
             
-            extra_data = {
-                'firstName': first_name,
-                'lastName': last_name,
-                'shopName': shop_name,
-                'phone': phone
-            }
+            # Set password hash
+            new_user.set_password(password)
             
-            # Create user using enhanced auth service
-            user, error = create_or_update_user(user_data, extra_data)
+            # Save to PostgreSQL
+            db.session.add(new_user)
+            db.session.flush()  # Get the user ID
             
-            if user:
-                # Ensure user is saved to PostgreSQL
-                db.session.add(user)
-                db.session.flush()  # Get the user ID
-                
-                # Create default location for new user
-                try:
-                    default_location = Location(
-                        name=shop_name or 'Main Store',
-                        address='',
-                        location_type='store',
-                        user_id=user.id
-                    )
-                    db.session.add(default_location)
-                    db.session.commit()
-                    
-                    # Log successful registration
-                    logging.info(f"New user registered successfully: {email} (ID: {user.id})")
-                    
-                except Exception as loc_error:
-                    logging.error(f"Error creating default location: {str(loc_error)}")
-                    db.session.rollback()
-                    # Still allow user creation even if location fails
-                    db.session.add(user)
-                    db.session.commit()
-                
-                login_user(user)
-                flash('Account created successfully! Welcome to your business management system.', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                flash(error or 'Error creating account', 'danger')
+            # Verify user was created in PostgreSQL
+            if not new_user.id:
+                raise Exception("Failed to create user in PostgreSQL")
+            
+            # Commit to PostgreSQL
+            db.session.commit()
+            
+            # Log successful registration
+            logging.info(f"New user registered in PostgreSQL: {email} (ID: {new_user.id})")
+            
+            login_user(new_user)
+            flash('Account created successfully in PostgreSQL! Welcome to your business management system.', 'success')
+            return redirect(url_for('dashboard'))
                 
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Registration error: {str(e)}")
+            logging.error(f"PostgreSQL registration error: {str(e)}")
             flash(f'Error creating account: {str(e)}', 'danger')
     
     return render_template('register.html')
