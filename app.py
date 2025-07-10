@@ -326,6 +326,7 @@ with app.app_context():
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
     """API endpoint for user login"""
+   
     try:
         data = request.get_json()
 
