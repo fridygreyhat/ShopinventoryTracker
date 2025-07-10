@@ -8,7 +8,8 @@ from app import app, db
 from models import (User, Category, Item, Sale, SaleItem, StockMovement, FinancialTransaction, 
                     Location, LocationStock, StockTransfer, StockTransferItem, ChartOfAccounts, 
                     Journal, JournalEntry, GeneralLedger, CashFlow, BalanceSheet, BankAccount,
-                    Customer, CustomerPurchaseHistory, LoyaltyTransaction, OnDemandProduct, OnDemandOrder)
+                    Customer, CustomerPurchaseHistory, LoyaltyTransaction, OnDemandProduct, OnDemandOrder,
+                    Employee, EmployeePermission)
 from auth_service import authenticate_user, create_or_update_user, validate_email_format, validate_password_strength
 
 def calculate_financial_metrics(user_id, date_filter=None, period='all'):
@@ -152,49 +153,78 @@ def register():
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        first_name = request.form.get('first_name', '').strip()
-        last_name = request.form.get('last_name', '').strip()
-        shop_name = request.form.get('shop_name', '').strip()
-        
-        # Validate password confirmation
-        if password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return render_template('register.html')
-        
-        # Prepare user data
-        user_data = {
-            'email': email,
-            'password': password
-        }
-        
-        extra_data = {
-            'firstName': first_name,
-            'lastName': last_name,
-            'shopName': shop_name
-        }
-        
-        # Create user using enhanced auth service
-        user, error = create_or_update_user(user_data, extra_data)
-        
-        if user:
-            # Create default location for new user
-            default_location = Location(
-                name=shop_name or 'Main Store',
-                address='',
-                location_type='store',
-                user_id=user.id
-            )
-            db.session.add(default_location)
-            db.session.commit()
+        try:
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            shop_name = request.form.get('shop_name', '').strip()
+            phone = request.form.get('phone', '').strip()
             
-            login_user(user)
-            flash('Account created successfully! Welcome to your business management system.', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash(error, 'danger')
+            # Validate password confirmation
+            if password != confirm_password:
+                flash('Passwords do not match', 'danger')
+                return render_template('register.html')
+            
+            # Check if user already exists
+            existing_user = User.query.filter((User.email == email) | (User.username == email)).first()
+            if existing_user:
+                flash('User with this email already exists', 'danger')
+                return render_template('register.html')
+            
+            # Prepare user data
+            user_data = {
+                'email': email,
+                'password': password
+            }
+            
+            extra_data = {
+                'firstName': first_name,
+                'lastName': last_name,
+                'shopName': shop_name,
+                'phone': phone
+            }
+            
+            # Create user using enhanced auth service
+            user, error = create_or_update_user(user_data, extra_data)
+            
+            if user:
+                # Ensure user is saved to PostgreSQL
+                db.session.add(user)
+                db.session.flush()  # Get the user ID
+                
+                # Create default location for new user
+                try:
+                    default_location = Location(
+                        name=shop_name or 'Main Store',
+                        address='',
+                        location_type='store',
+                        user_id=user.id
+                    )
+                    db.session.add(default_location)
+                    db.session.commit()
+                    
+                    # Log successful registration
+                    logging.info(f"New user registered successfully: {email} (ID: {user.id})")
+                    
+                except Exception as loc_error:
+                    logging.error(f"Error creating default location: {str(loc_error)}")
+                    db.session.rollback()
+                    # Still allow user creation even if location fails
+                    db.session.add(user)
+                    db.session.commit()
+                
+                login_user(user)
+                flash('Account created successfully! Welcome to your business management system.', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash(error or 'Error creating account', 'danger')
+                
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Registration error: {str(e)}")
+            flash(f'Error creating account: {str(e)}', 'danger')
     
     return render_template('register.html')
 
@@ -2127,6 +2157,302 @@ def bulk_update_category_items(category_id):
         flash(f'Error updating items: {str(e)}', 'danger')
     
     return redirect(url_for('category_items', category_id=category_id))
+
+@app.route('/performance')
+@login_required
+def performance_dashboard():
+    """Business performance dashboard"""
+    from services.business_intelligence import BusinessIntelligenceService
+    
+    bi_service = BusinessIntelligenceService(current_user.id)
+    
+    try:
+        # Get comprehensive dashboard data
+        dashboard_data = bi_service.get_dashboard_widgets()
+        
+        # Get financial metrics
+        financial_metrics = calculate_financial_metrics(current_user.id)
+        
+        # Get employee performance if available
+        employee_performance = []
+        try:
+            from services.team_management_service import TeamManagementService
+            team_service = TeamManagementService(current_user.id)
+            employees = Employee.query.filter_by(user_id=current_user.id, is_active=True).all()
+            
+            for employee in employees:
+                performance = team_service.track_employee_performance(employee.id)
+                if 'error' not in performance:
+                    employee_performance.append({
+                        'employee': employee,
+                        'performance': performance
+                    })
+        except Exception as e:
+            logging.error(f"Error loading employee performance: {str(e)}")
+        
+        return render_template('performance_dashboard.html',
+                             dashboard_data=dashboard_data,
+                             financial_metrics=financial_metrics,
+                             employee_performance=employee_performance)
+    
+    except Exception as e:
+        flash(f'Error loading performance dashboard: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/api/performance/summary')
+@login_required
+def performance_summary_api():
+    """API endpoint for performance summary data"""
+    from services.business_intelligence import BusinessIntelligenceService
+    
+    try:
+        bi_service = BusinessIntelligenceService(current_user.id)
+        
+        # Get real-time KPIs
+        kpis = bi_service.get_real_time_kpis()
+        
+        # Get comparative analysis
+        comparative = bi_service.get_comparative_analysis()
+        
+        # Get profit margins
+        profit_margins = bi_service.get_profit_margin_analysis()
+        
+        # Get cash flow forecast
+        cash_flow = bi_service.get_cash_flow_forecast()
+        
+        return jsonify({
+            'success': True,
+            'kpis': kpis,
+            'comparative': comparative,
+            'profit_margins': profit_margins,
+            'cash_flow': cash_flow
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/dashboard/summary')
+@login_required
+def dashboard_summary_api():
+    """API endpoint for dashboard summary"""
+    try:
+        # Get inventory summary
+        total_items = Item.query.filter_by(user_id=current_user.id, is_active=True).count()
+        total_stock = db.session.query(func.sum(Item.stock_quantity)).filter_by(user_id=current_user.id, is_active=True).scalar() or 0
+        low_stock_count = Item.query.filter(
+            Item.user_id == current_user.id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).count()
+        
+        # Calculate inventory value
+        inventory_value = db.session.query(
+            func.sum(Item.buying_price * Item.stock_quantity)
+        ).filter_by(user_id=current_user.id, is_active=True).scalar() or 0
+        
+        # Get low stock items
+        low_stock_items = Item.query.filter(
+            Item.user_id == current_user.id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_items': total_items,
+                'total_stock': int(total_stock),
+                'low_stock_count': low_stock_count,
+                'inventory_value': float(inventory_value)
+            },
+            'low_stock_items': [{
+                'name': item.name,
+                'current_stock': item.stock_quantity,
+                'minimum_stock': item.minimum_stock,
+                'category': item.category.name if item.category else 'Uncategorized'
+            } for item in low_stock_items]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/financial/summary')
+@login_required
+def financial_summary_api():
+    """API endpoint for financial summary"""
+    try:
+        # Get current month data
+        current_month = datetime.utcnow().replace(day=1).date()
+        
+        # Monthly income
+        monthly_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == current_user.id,
+            FinancialTransaction.transaction_type == 'income',
+            FinancialTransaction.date >= current_month
+        ).scalar() or 0
+        
+        # Monthly expenses
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == current_user.id,
+            FinancialTransaction.transaction_type == 'expense',
+            FinancialTransaction.date >= current_month
+        ).scalar() or 0
+        
+        # Monthly profit
+        monthly_profit = monthly_income - monthly_expenses
+        
+        return jsonify({
+            'success': True,
+            'monthly_income': float(monthly_income),
+            'monthly_expenses': float(monthly_expenses),
+            'monthly_profit': float(monthly_profit)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/on-demand-products/summary')
+@login_required
+def on_demand_products_summary_api():
+    """API endpoint for on-demand products summary"""
+    try:
+        products = OnDemandProduct.query.filter_by(user_id=current_user.id, is_active=True).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'products': [{
+                'name': product.name,
+                'selling_price': float(product.selling_price),
+                'estimated_delivery_days': product.estimated_delivery_days,
+                'status': 'active' if product.is_active else 'inactive'
+            } for product in products]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Employee Management API Routes
+@app.route('/api/team/employees', methods=['GET', 'POST'])
+@login_required
+def employees_api():
+    if request.method == 'GET':
+        # Get all employees for current user
+        employees = Employee.query.filter_by(user_id=current_user.id).all()
+        return jsonify([emp.to_dict() for emp in employees])
+    
+    elif request.method == 'POST':
+        try:
+            data = request.json
+            
+            # Generate employee code if not provided
+            employee_code = data.get('employee_code') or f"EMP{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            # Create employee
+            employee = Employee(
+                user_id=current_user.id,
+                employee_code=employee_code,
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data.get('email'),
+                phone=data.get('phone'),
+                position=data.get('position'),
+                salary=data.get('salary'),
+                commission_rate=data.get('commission_rate', 0.0)
+            )
+            
+            db.session.add(employee)
+            db.session.flush()  # Get employee ID
+            
+            # Add permissions
+            permissions = data.get('permissions', [])
+            for permission in permissions:
+                emp_perm = EmployeePermission(
+                    employee_id=employee.id,
+                    permission=permission,
+                    granted=True,
+                    granted_by=current_user.id
+                )
+                db.session.add(emp_perm)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'employee': employee.to_dict(),
+                'message': 'Employee created successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/team/employees/<int:employee_id>/permissions', methods=['GET', 'PUT'])
+@login_required
+def employee_permissions_api(employee_id):
+    employee = Employee.query.filter_by(id=employee_id, user_id=current_user.id).first_or_404()
+    
+    if request.method == 'GET':
+        permissions = [perm.permission for perm in employee.permissions if perm.granted]
+        return jsonify({
+            'success': True,
+            'permissions': permissions,
+            'employee': employee.to_dict()
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            permission = data['permission']
+            granted = data['granted']
+            
+            # Check if permission already exists
+            existing_perm = EmployeePermission.query.filter_by(
+                employee_id=employee_id,
+                permission=permission
+            ).first()
+            
+            if existing_perm:
+                existing_perm.granted = granted
+                existing_perm.granted_by = current_user.id
+                existing_perm.granted_at = datetime.utcnow()
+            else:
+                new_perm = EmployeePermission(
+                    employee_id=employee_id,
+                    permission=permission,
+                    granted=granted,
+                    granted_by=current_user.id
+                )
+                db.session.add(new_perm)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Permission {permission} {"granted" if granted else "revoked"} successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/team/employees/<int:employee_id>', methods=['DELETE'])
+@login_required
+def delete_employee_api(employee_id):
+    try:
+        employee = Employee.query.filter_by(id=employee_id, user_id=current_user.id).first_or_404()
+        
+        # Soft delete - mark as inactive
+        employee.is_active = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Employee deactivated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 # Call the function to create default data
 with app.app_context():

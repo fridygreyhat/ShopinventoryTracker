@@ -127,6 +127,38 @@ document.addEventListener('DOMContentLoaded', function() {
         if (totalStockElement) totalStockElement.textContent = summary.total_stock.toLocaleString();
         if (lowStockCountElement) lowStockCountElement.textContent = summary.low_stock_count.toLocaleString();
         if (inventoryValueElement) inventoryValueElement.textContent = summary.inventory_value.toLocaleString();
+    }
+
+    function updateLowStockTable(lowStockItems) {
+        const tableBody = document.getElementById('low-stock-table');
+        if (!tableBody) return;
+        
+        if (lowStockItems && lowStockItems.length > 0) {
+            let html = '';
+            lowStockItems.forEach(item => {
+                html += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.current_stock}</td>
+                        <td>${item.minimum_stock}</td>
+                        <td>
+                            <span class="badge bg-warning">Low Stock</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = html;
+        } else {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No low stock items</td></tr>';
+        }
+    }
+
+    function setDefaultDashboardValues() {
+        if (totalItemsElement) totalItemsElement.textContent = '0';
+        if (totalStockElement) totalStockElement.textContent = '0';
+        if (lowStockCountElement) lowStockCountElement.textContent = '0';
+        if (inventoryValueElement) inventoryValueElement.textContent = '0';
+    }
 
         // Update financial summary
         if (monthlyIncomeElement) monthlyIncomeElement.textContent = summary.monthly_income.toLocaleString();
@@ -264,6 +296,67 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading top selling items:', error);
             const tableBody = document.getElementById('top-selling-table');
             if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error loading sales data</td></tr>';
+            }
+        }
+    }
+
+    function loadOnDemandProducts() {
+        fetch('/api/on-demand-products/summary')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('on-demand-products-table');
+                if (tableBody && data.products) {
+                    let html = '';
+                    data.products.forEach(product => {
+                        html += `
+                            <tr>
+                                <td>${product.name}</td>
+                                <td>TZS ${product.selling_price.toLocaleString()}</td>
+                                <td>${product.estimated_delivery_days} days</td>
+                                <td>
+                                    <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">
+                                        ${product.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    tableBody.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading on-demand products:', error);
+            });
+    }
+
+    function loadFinancialSummary() {
+        fetch('/api/financial/summary')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (monthlyIncomeElement) monthlyIncomeElement.textContent = data.monthly_income.toLocaleString();
+                    if (monthlyExpensesElement) monthlyExpensesElement.textContent = data.monthly_expenses.toLocaleString();
+                    if (monthlyProfitElement) monthlyProfitElement.textContent = data.monthly_profit.toLocaleString();
+                    
+                    // Update financial chart if available
+                    if (financialChart) {
+                        updateFinancialChart(data);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading financial summary:', error);
+            });
+    }
+
+    function updateFinancialChart(data) {
+        if (financialChart && data.chart_data) {
+            financialChart.data.labels = data.chart_data.labels;
+            financialChart.data.datasets[0].data = data.chart_data.income;
+            financialChart.data.datasets[1].data = data.chart_data.expenses;
+            financialChart.update();
+        }
                 tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
             }
         }
