@@ -2129,6 +2129,179 @@ def bulk_update_category_items(category_id):
     
     return redirect(url_for('category_items', category_id=category_id))
 
+@app.route('/performance')
+@login_required
+def performance_dashboard():
+    """Business performance dashboard"""
+    from services.business_intelligence import BusinessIntelligenceService
+    
+    bi_service = BusinessIntelligenceService(current_user.id)
+    
+    try:
+        # Get comprehensive dashboard data
+        dashboard_data = bi_service.get_dashboard_widgets()
+        
+        # Get financial metrics
+        financial_metrics = calculate_financial_metrics(current_user.id)
+        
+        # Get employee performance if available
+        employee_performance = []
+        try:
+            from services.team_management_service import TeamManagementService
+            team_service = TeamManagementService(current_user.id)
+            employees = Employee.query.filter_by(user_id=current_user.id, is_active=True).all()
+            
+            for employee in employees:
+                performance = team_service.track_employee_performance(employee.id)
+                if 'error' not in performance:
+                    employee_performance.append({
+                        'employee': employee,
+                        'performance': performance
+                    })
+        except Exception as e:
+            logging.error(f"Error loading employee performance: {str(e)}")
+        
+        return render_template('performance_dashboard.html',
+                             dashboard_data=dashboard_data,
+                             financial_metrics=financial_metrics,
+                             employee_performance=employee_performance)
+    
+    except Exception as e:
+        flash(f'Error loading performance dashboard: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/api/performance/summary')
+@login_required
+def performance_summary_api():
+    """API endpoint for performance summary data"""
+    from services.business_intelligence import BusinessIntelligenceService
+    
+    try:
+        bi_service = BusinessIntelligenceService(current_user.id)
+        
+        # Get real-time KPIs
+        kpis = bi_service.get_real_time_kpis()
+        
+        # Get comparative analysis
+        comparative = bi_service.get_comparative_analysis()
+        
+        # Get profit margins
+        profit_margins = bi_service.get_profit_margin_analysis()
+        
+        # Get cash flow forecast
+        cash_flow = bi_service.get_cash_flow_forecast()
+        
+        return jsonify({
+            'success': True,
+            'kpis': kpis,
+            'comparative': comparative,
+            'profit_margins': profit_margins,
+            'cash_flow': cash_flow
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/dashboard/summary')
+@login_required
+def dashboard_summary_api():
+    """API endpoint for dashboard summary"""
+    try:
+        # Get inventory summary
+        total_items = Item.query.filter_by(user_id=current_user.id, is_active=True).count()
+        total_stock = db.session.query(func.sum(Item.stock_quantity)).filter_by(user_id=current_user.id, is_active=True).scalar() or 0
+        low_stock_count = Item.query.filter(
+            Item.user_id == current_user.id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).count()
+        
+        # Calculate inventory value
+        inventory_value = db.session.query(
+            func.sum(Item.buying_price * Item.stock_quantity)
+        ).filter_by(user_id=current_user.id, is_active=True).scalar() or 0
+        
+        # Get low stock items
+        low_stock_items = Item.query.filter(
+            Item.user_id == current_user.id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_items': total_items,
+                'total_stock': int(total_stock),
+                'low_stock_count': low_stock_count,
+                'inventory_value': float(inventory_value)
+            },
+            'low_stock_items': [{
+                'name': item.name,
+                'current_stock': item.stock_quantity,
+                'minimum_stock': item.minimum_stock,
+                'category': item.category.name if item.category else 'Uncategorized'
+            } for item in low_stock_items]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/financial/summary')
+@login_required
+def financial_summary_api():
+    """API endpoint for financial summary"""
+    try:
+        # Get current month data
+        current_month = datetime.utcnow().replace(day=1).date()
+        
+        # Monthly income
+        monthly_income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == current_user.id,
+            FinancialTransaction.transaction_type == 'income',
+            FinancialTransaction.date >= current_month
+        ).scalar() or 0
+        
+        # Monthly expenses
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == current_user.id,
+            FinancialTransaction.transaction_type == 'expense',
+            FinancialTransaction.date >= current_month
+        ).scalar() or 0
+        
+        # Monthly profit
+        monthly_profit = monthly_income - monthly_expenses
+        
+        return jsonify({
+            'success': True,
+            'monthly_income': float(monthly_income),
+            'monthly_expenses': float(monthly_expenses),
+            'monthly_profit': float(monthly_profit)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/on-demand-products/summary')
+@login_required
+def on_demand_products_summary_api():
+    """API endpoint for on-demand products summary"""
+    try:
+        products = OnDemandProduct.query.filter_by(user_id=current_user.id, is_active=True).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'products': [{
+                'name': product.name,
+                'selling_price': float(product.selling_price),
+                'estimated_delivery_days': product.estimated_delivery_days,
+                'status': 'active' if product.is_active else 'inactive'
+            } for product in products]
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Employee Management API Routes
 @app.route('/api/team/employees', methods=['GET', 'POST'])
 @login_required

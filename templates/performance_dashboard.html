@@ -1,0 +1,369 @@
+
+{% extends "layout.html" %}
+
+{% block page_title %}Performance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-chart-line me-2"></i>Performance Dashboard</h2>
+                <button class="btn btn-primary" onclick="refreshPerformanceData()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Today's Sales</h6>
+                            <h4 id="todaySales">TZS {{ "{:,.0f}".format(dashboard_data.kpis.sales.today) }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-cash-register fa-2x"></i>
+                        </div>
+                    </div>
+                    <small>{{ "{:+.1f}".format(dashboard_data.kpis.sales.growth_rate) }}% growth</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">This Month</h6>
+                            <h4 id="monthSales">TZS {{ "{:,.0f}".format(dashboard_data.kpis.sales.this_month) }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                    <small>Monthly performance</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Inventory Health</h6>
+                            <h4 id="inventoryHealth">{{ "{:.0f}".format(dashboard_data.kpis.inventory.stock_health) }}%</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-boxes fa-2x"></i>
+                        </div>
+                    </div>
+                    <small>{{ dashboard_data.kpis.inventory.low_stock_items }} items low stock</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Customers</h6>
+                            <h4 id="totalCustomers">{{ dashboard_data.kpis.customers.total }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                    <small>{{ dashboard_data.kpis.customers.new_today }} new today</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Sales vs Profit Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesProfitChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoriesChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6 class="text-muted">Gross Profit</h6>
+                                <h4 class="text-success">TZS {{ "{:,.0f}".format(financial_metrics.gross_profit) }}</h4>
+                                <small class="text-muted">{{ "{:.1f}".format(financial_metrics.gross_profit_margin) }}% margin</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6 class="text-muted">Net Profit</h6>
+                                <h4 class="text-{{ 'success' if financial_metrics.net_profit > 0 else 'danger' }}">
+                                    TZS {{ "{:,.0f}".format(financial_metrics.net_profit) }}
+                                </h4>
+                                <small class="text-muted">{{ "{:.1f}".format(financial_metrics.net_profit_margin) }}% margin</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Cash Flow Forecast</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="cashFlowChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Products Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top Performing Products</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Revenue</th>
+                                    <th>Profit</th>
+                                    <th>Margin %</th>
+                                    <th>Units Sold</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in dashboard_data.profit_margins.top_products %}
+                                <tr>
+                                    <td>{{ product.name }}</td>
+                                    <td>TZS {{ "{:,.0f}".format(product.revenue) }}</td>
+                                    <td>TZS {{ "{:,.0f}".format(product.profit) }}</td>
+                                    <td>{{ "{:.1f}".format(product.margin_percent) }}%</td>
+                                    <td>{{ product.total_sold }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Performance (if available) -->
+    {% if employee_performance %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Employee Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Sales Count</th>
+                                    <th>Total Sales</th>
+                                    <th>Items Sold</th>
+                                    <th>Avg Sales/Day</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emp_data in employee_performance %}
+                                <tr>
+                                    <td>{{ emp_data.employee.first_name }} {{ emp_data.employee.last_name }}</td>
+                                    <td>{{ emp_data.performance.sales_data.count }}</td>
+                                    <td>TZS {{ "{:,.0f}".format(emp_data.performance.sales_data.total_sales) }}</td>
+                                    <td>{{ emp_data.performance.sales_data.items_sold }}</td>
+                                    <td>{{ "{:.1f}".format(emp_data.performance.sales_data.sales_per_day) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts
+    initializeSalesProfitChart();
+    initializeCategoriesChart();
+    initializeCashFlowChart();
+    
+    // Load real-time data
+    loadPerformanceData();
+});
+
+function initializeSalesProfitChart() {
+    const ctx = document.getElementById('salesProfitChart').getContext('2d');
+    
+    // Sample data - will be replaced with real data
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ dashboard_data.comparative|map(attribute='period')|list|tojson }},
+            datasets: [{
+                label: 'Sales',
+                data: {{ dashboard_data.comparative|map(attribute='sales')|list|tojson }},
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Profit',
+                data: {{ dashboard_data.comparative|map(attribute='profit')|list|tojson }},
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function initializeCategoriesChart() {
+    const ctx = document.getElementById('categoriesChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ dashboard_data.profit_margins.categories|map(attribute='category')|list|tojson }},
+            datasets: [{
+                data: {{ dashboard_data.profit_margins.categories|map(attribute='revenue')|list|tojson }},
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function initializeCashFlowChart() {
+    const ctx = document.getElementById('cashFlowChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ dashboard_data.cash_flow.forecast[:7]|map(attribute='date')|list|tojson }},
+            datasets: [{
+                label: 'Projected Income',
+                data: {{ dashboard_data.cash_flow.forecast[:7]|map(attribute='projected_income')|list|tojson }},
+                backgroundColor: 'rgba(75, 192, 192, 0.6)'
+            }, {
+                label: 'Projected Expenses',
+                data: {{ dashboard_data.cash_flow.forecast[:7]|map(attribute='projected_expenses')|list|tojson }},
+                backgroundColor: 'rgba(255, 99, 132, 0.6)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function loadPerformanceData() {
+    fetch('/api/performance/summary')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updatePerformanceKPIs(data.kpis);
+            }
+        })
+        .catch(error => console.error('Error loading performance data:', error));
+}
+
+function updatePerformanceKPIs(kpis) {
+    document.getElementById('todaySales').textContent = 'TZS ' + kpis.sales.today.toLocaleString();
+    document.getElementById('monthSales').textContent = 'TZS ' + kpis.sales.this_month.toLocaleString();
+    document.getElementById('inventoryHealth').textContent = kpis.inventory.stock_health.toFixed(0) + '%';
+    document.getElementById('totalCustomers').textContent = kpis.customers.total;
+}
+
+function refreshPerformanceData() {
+    const refreshBtn = document.querySelector('button[onclick="refreshPerformanceData()"]');
+    const originalText = refreshBtn.innerHTML;
+    
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Refreshing...';
+    refreshBtn.disabled = true;
+    
+    loadPerformanceData();
+    
+    setTimeout(() => {
+        refreshBtn.innerHTML = originalText;
+        refreshBtn.disabled = false;
+    }, 2000);
+}
+</script>
+{% endblock %}
