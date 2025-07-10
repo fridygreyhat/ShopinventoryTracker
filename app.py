@@ -129,7 +129,7 @@ def init_database():
                     # Add columns to item table  
                     add_column_safely('item', 'subcategory', 'VARCHAR(100)')
                     add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
-                    add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT \'quantity\'", "'quantity'")
+                    add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
                     add_column_safely('item', 'category_id', 'INTEGER')
                     add_column_safely('item', 'user_id', 'INTEGER')
                     add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT TRUE', 'true')
@@ -264,7 +264,7 @@ init_database()
 # Auth API Routes
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    """API endpoint for user login"""
+    """API endpoint for user login - authenticates against PostgreSQL"""
     try:
         data = request.get_json()
 
@@ -277,12 +277,13 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Check user credentials
+        # Check user credentials in PostgreSQL
+        from models import User
         user = User.query.filter_by(email=email, is_active=True).first()
 
         if user and user.check_password(password):
             try:
-                # Update last login
+                # Update last login in PostgreSQL
                 user.last_login = datetime.utcnow()
 
                 # Create session
@@ -291,12 +292,14 @@ def api_login():
                 session['user_email'] = user.email
                 session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
 
+                # Commit changes to PostgreSQL
                 db.session.commit()
 
-                logger.info(f"User {email} logged in successfully")
+                logger.info(f"User {email} logged in successfully from PostgreSQL (ID: {user.id})")
 
                 return jsonify({
                     'success': True,
+                    'message': 'Login successful - authenticated from PostgreSQL',
                     'user': {
                         'id': user.id,
                         'email': user.email,
@@ -310,17 +313,17 @@ def api_login():
                 db.session.rollback()
                 return jsonify({'error': 'Login failed during session creation'}), 500
         else:
-            logger.warning(f"Failed login attempt for email: {email}")
+            logger.warning(f"Failed login attempt for email: {email} - user not found in PostgreSQL or invalid password")
             return jsonify({'error': 'Invalid email or password'}), 401
 
     except Exception as e:
-        logger.error(f"API login error: {str(e)}")
+        logger.error(f"PostgreSQL login error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    """API endpoint for user registration"""
+    """API endpoint for user registration - stores users in PostgreSQL"""
     try:
         data = request.get_json()
 
@@ -360,7 +363,8 @@ def api_register():
         if len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
-        # Check if user already exists
+        # Check if user already exists in PostgreSQL
+        from models import User
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             return jsonify({'error': 'Email already registered'}), 400
@@ -370,7 +374,7 @@ def api_register():
         if existing_username:
             return jsonify({'error': 'Username already taken'}), 400
 
-        # Create new user
+        # Create new user in PostgreSQL
         new_user = User(
             username=username,
             email=email,
@@ -381,35 +385,39 @@ def api_register():
             product_categories=product_categories if product_categories else None,
             is_active=True,
             is_admin=False,
-            email_verified=False
+            email_verified=False,
+            created_at=datetime.utcnow()
         )
 
-        # Set password hash
+        # Set password hash using secure method
         new_user.set_password(password)
 
         # Verify password was set correctly
         if not new_user.password_hash:
             return jsonify({'error': 'Failed to set password'}), 500
 
+        # Save to PostgreSQL database
         db.session.add(new_user)
         db.session.flush()  # Get the user ID without committing
 
-        # Verify user was created
+        # Verify user was created in PostgreSQL
         if not new_user.id:
-            return jsonify({'error': 'Failed to create user'}), 500
+            return jsonify({'error': 'Failed to create user in PostgreSQL'}), 500
 
-        # Create session
+        # Create session for the new user
         session.clear()  # Clear any existing session
         session['user_id'] = new_user.id
         session['user_email'] = new_user.email
         session['user_name'] = f"{new_user.first_name} {new_user.last_name}".strip()
 
+        # Commit to PostgreSQL
         db.session.commit()
 
-        logger.info(f"New user registered: {email}")
+        logger.info(f"New user registered in PostgreSQL: {email} (ID: {new_user.id})")
 
         return jsonify({
             'success': True,
+            'message': 'Account created successfully in PostgreSQL',
             'user': {
                 'id': new_user.id,
                 'username': new_user.username,
@@ -421,7 +429,7 @@ def api_register():
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"API registration error: {str(e)}")
+        logger.error(f"PostgreSQL registration error: {str(e)}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
@@ -839,6 +847,28 @@ def update_item(item_id):
                         f"Error triggering low stock notification: {str(e)}")
 
         return jsonify(item.to_dict())
+
+
+def verify_postgresql_auth():
+    """Verify that PostgreSQL authentication is working properly"""
+    try:
+        # Test database connection
+        from models import User
+        user_count = User.query.count()
+        logger.info(f"✅ PostgreSQL authentication ready - {user_count} users in database")
+        return True
+    except Exception as e:
+        logger.error(f"❌ PostgreSQL authentication error: {str(e)}")
+        return False
+
+# Verify PostgreSQL authentication on startup
+with app.app_context():
+    if verify_postgresql_auth():
+        logger.info("🔐 PostgreSQL authentication system initialized successfully")
+    else:
+        logger.warning("⚠️ PostgreSQL authentication system may have issues")
+
+
 
     except Exception as e:
         db.session.rollback()

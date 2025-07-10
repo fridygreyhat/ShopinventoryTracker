@@ -9,25 +9,29 @@ login_manager = LoginManager()
 
 # Ensure PostgreSQL configuration
 def configure_database(app):
-    """Configure PostgreSQL database settings"""
-    # Get database URL from environment
-    database_url = os.environ.get('DATABASE_URL')
+    """Configure database to use PostgreSQL exclusively"""
 
-    if database_url:
-        # Ensure we're using PostgreSQL
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    # Check for PostgreSQL configuration
+    postgres_url = os.environ.get('DATABASE_URL')
+    if postgres_url:
+        # Use PostgreSQL with optimized settings
+        app.config['SQLALCHEMY_DATABASE_URI'] = postgres_url
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_pre_ping': True,
             'pool_recycle': 300,
-            'echo': False
+            'connect_args': {
+                'sslmode': 'require'
+            }
         }
-
-        print(f"✅ Configured PostgreSQL database")
+        print("✅ Configured PostgreSQL database for authentication")
+        return True
     else:
-        print("❌ DATABASE_URL not found in environment variables")
+        # PostgreSQL is required - no fallback
+        print("❌ ERROR: PostgreSQL DATABASE_URL not found!")
+        print("Please set up PostgreSQL database in Replit:")
+        print("1. Open a new tab and type 'Database'")
+        print("2. Click 'create a database'")
+        print("3. This will set the DATABASE_URL environment variable")
+        raise Exception("PostgreSQL DATABASE_URL is required")
 
-    return app
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
