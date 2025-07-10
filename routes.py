@@ -153,49 +153,78 @@ def register():
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-        first_name = request.form.get('first_name', '').strip()
-        last_name = request.form.get('last_name', '').strip()
-        shop_name = request.form.get('shop_name', '').strip()
-        
-        # Validate password confirmation
-        if password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return render_template('register.html')
-        
-        # Prepare user data
-        user_data = {
-            'email': email,
-            'password': password
-        }
-        
-        extra_data = {
-            'firstName': first_name,
-            'lastName': last_name,
-            'shopName': shop_name
-        }
-        
-        # Create user using enhanced auth service
-        user, error = create_or_update_user(user_data, extra_data)
-        
-        if user:
-            # Create default location for new user
-            default_location = Location(
-                name=shop_name or 'Main Store',
-                address='',
-                location_type='store',
-                user_id=user.id
-            )
-            db.session.add(default_location)
-            db.session.commit()
+        try:
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            shop_name = request.form.get('shop_name', '').strip()
+            phone = request.form.get('phone', '').strip()
             
-            login_user(user)
-            flash('Account created successfully! Welcome to your business management system.', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash(error, 'danger')
+            # Validate password confirmation
+            if password != confirm_password:
+                flash('Passwords do not match', 'danger')
+                return render_template('register.html')
+            
+            # Check if user already exists
+            existing_user = User.query.filter((User.email == email) | (User.username == email)).first()
+            if existing_user:
+                flash('User with this email already exists', 'danger')
+                return render_template('register.html')
+            
+            # Prepare user data
+            user_data = {
+                'email': email,
+                'password': password
+            }
+            
+            extra_data = {
+                'firstName': first_name,
+                'lastName': last_name,
+                'shopName': shop_name,
+                'phone': phone
+            }
+            
+            # Create user using enhanced auth service
+            user, error = create_or_update_user(user_data, extra_data)
+            
+            if user:
+                # Ensure user is saved to PostgreSQL
+                db.session.add(user)
+                db.session.flush()  # Get the user ID
+                
+                # Create default location for new user
+                try:
+                    default_location = Location(
+                        name=shop_name or 'Main Store',
+                        address='',
+                        location_type='store',
+                        user_id=user.id
+                    )
+                    db.session.add(default_location)
+                    db.session.commit()
+                    
+                    # Log successful registration
+                    logging.info(f"New user registered successfully: {email} (ID: {user.id})")
+                    
+                except Exception as loc_error:
+                    logging.error(f"Error creating default location: {str(loc_error)}")
+                    db.session.rollback()
+                    # Still allow user creation even if location fails
+                    db.session.add(user)
+                    db.session.commit()
+                
+                login_user(user)
+                flash('Account created successfully! Welcome to your business management system.', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash(error or 'Error creating account', 'danger')
+                
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Registration error: {str(e)}")
+            flash(f'Error creating account: {str(e)}', 'danger')
     
     return render_template('register.html')
 
