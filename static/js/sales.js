@@ -72,11 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">Payment Method:</span>
-                                <span class="detail-value">${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
+                                <span class="detail-value">${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">Customer:</span>
-                                <span class="detail-value">${document.getElementById('customerName').value || 'Walk-in Customer'}</span>
+                                <span class="detail-value">${document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer'}</span>
                             </div>
                         </div>
                     </div>
@@ -161,8 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Print receipt function
     function printReceipt(saleNumber) {
         // Create a simple receipt
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const totalAmount = cartTotal ? parseFloat(cartTotal.textContent.replace(/,/g, '')) : 0;
 
         const receiptWindow = window.open('', '_blank');
         receiptWindow.document.write(`
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="detail">
                     <span>Payment:</span>
-                    <span>${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
+                    <span>${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
                 </div>
                 <div class="detail total">
                     <span>Total:</span>
@@ -1025,6 +1025,115 @@ document.addEventListener('DOMContentLoaded', function() {
     window.closeSuccessPopup = closeSuccessPopup;
     window.closeErrorPopup = closeErrorPopup;
     window.printReceipt = printReceipt;
+
+    // Enhanced features
+    function switchCamera() {
+        // Implementation for switching between front/back camera
+        if (codeReader && selectedDeviceId) {
+            stopScanner();
+            startScanner();
+        }
+    }
+
+    function holdTransaction() {
+        // Save current cart state for later
+        const heldTransaction = {
+            cart: [...cart],
+            customer: {
+                name: document.getElementById('customerName').value,
+                phone: document.getElementById('customerPhone').value
+            },
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem('heldTransaction', JSON.stringify(heldTransaction));
+        clearCart();
+        
+        // Show confirmation
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alert.innerHTML = `
+            <i class="fas fa-pause me-2"></i>
+            Transaction held successfully
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        setTimeout(() => {
+            if (alert.parentNode) alert.remove();
+        }, 3000);
+    }
+
+    function loadHeldTransaction() {
+        const held = localStorage.getItem('heldTransaction');
+        if (held) {
+            const transaction = JSON.parse(held);
+            cart = transaction.cart;
+            updateCartDisplay();
+            
+            if (transaction.customer.name) {
+                document.getElementById('customerName').value = transaction.customer.name;
+            }
+            if (transaction.customer.phone) {
+                document.getElementById('customerPhone').value = transaction.customer.phone;
+            }
+            
+            localStorage.removeItem('heldTransaction');
+        }
+    }
+
+    // Auto-save cart to prevent data loss
+    function autoSaveCart() {
+        if (cart.length > 0) {
+            localStorage.setItem('autoSaveCart', JSON.stringify({
+                cart: cart,
+                timestamp: new Date().toISOString()
+            }));
+        } else {
+            localStorage.removeItem('autoSaveCart');
+        }
+    }
+
+    function loadAutoSavedCart() {
+        const saved = localStorage.getItem('autoSaveCart');
+        if (saved) {
+            const data = JSON.parse(saved);
+            // Only load if saved within last hour
+            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            if (new Date(data.timestamp) > hourAgo) {
+                cart = data.cart;
+                updateCartDisplay();
+            } else {
+                localStorage.removeItem('autoSaveCart');
+            }
+        }
+    }
+
+    // Auto-save cart on changes
+    const originalUpdateCartDisplay = updateCartDisplay;
+    updateCartDisplay = function() {
+        originalUpdateCartDisplay.call(this);
+        autoSaveCart();
+    };
+
+    // Make functions global
+    window.switchCamera = switchCamera;
+    window.holdTransaction = holdTransaction;
+    window.loadHeldTransaction = loadHeldTransaction;
+
+    // Load auto-saved cart and held transactions on page load
+    loadAutoSavedCart();
+    
+    // Check for held transactions
+    if (localStorage.getItem('heldTransaction')) {
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'btn btn-warning btn-sm position-fixed';
+        loadBtn.style.cssText = 'top: 20px; left: 20px; z-index: 9999;';
+        loadBtn.innerHTML = '<i class="fas fa-play me-1"></i> Load Held Transaction';
+        loadBtn.onclick = loadHeldTransaction;
+        document.body.appendChild(loadBtn);
+    }
 
     // Initialize search on page load
     if (productSearchInput) {

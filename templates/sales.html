@@ -1,7 +1,9 @@
+
 {% extends 'layout.html' %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sales-modern.css') }}">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -11,172 +13,210 @@
         <div class="row align-items-center">
             <div class="col-lg-8">
                 <h1 class="sales-title">
-                    <i class="fas fa-cash-register me-3"></i> Sales Management
+                    <i class="fas fa-cash-register me-3"></i> Sales Point
                 </h1>
-                <p class="sales-subtitle">Process sales, scan barcodes, and manage transactions with modern tools</p>
+                <p class="sales-subtitle">Modern sales processing with barcode scanning and real-time inventory</p>
             </div>
             <div class="col-lg-4 text-lg-end">
-                <div class="quick-actions">
-                    <button class="quick-action-btn" onclick="loadAllProducts()">
+                <div class="quick-actions d-flex gap-2">
+                    <button class="quick-action-btn btn-modern" onclick="loadAllProducts()">
                         <i class="fas fa-boxes text-primary"></i>
-                        <div class="fw-bold">All Products</div>
+                        <div class="fw-bold small">All Products</div>
                     </button>
-                    <button class="quick-action-btn" onclick="clearCart()">
+                    <button class="quick-action-btn btn-modern" onclick="clearCart()">
                         <i class="fas fa-trash-alt text-danger"></i>
-                        <div class="fw-bold">Clear Cart</div>
+                        <div class="fw-bold small">Clear Cart</div>
+                    </button>
+                    <button class="quick-action-btn btn-modern" data-bs-toggle="modal" data-bs-target="#shortcutsModal">
+                        <i class="fas fa-keyboard text-info"></i>
+                        <div class="fw-bold small">Shortcuts</div>
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-<div class="row">
-    <!-- Left side - Cart and Product Selection -->
-    <div class="col-lg-7 slide-in-left">
-        <!-- Product Search & Barcode Scan -->
-        <div class="glass-card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">
-                    <i class="fas fa-search me-2 text-primary"></i> Add Products
-                </h5>
-                <button id="startScanBtn" class="btn btn-modern btn-outline-modern">
-                    <i class="fas fa-barcode me-1"></i> Scan Barcode
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-9">
-                        <div class="search-container">
-                            <input type="text" id="productSearchInput" class="form-control search-input" placeholder="Search by name or SKU">
-                            <div class="input-group mt-2">
-                                <button id="searchProductsBtn" class="btn btn-modern btn-primary-modern">
+    <div class="row g-4">
+        <!-- Left side - Product Selection and Cart -->
+        <div class="col-lg-8 slide-in-left">
+            <!-- Enhanced Product Search & Barcode Scanner -->
+            <div class="glass-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-search me-2 text-primary"></i> Product Search
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button id="startScanBtn" class="btn btn-modern btn-outline-modern">
+                            <i class="fas fa-barcode me-1"></i> Scan
+                        </button>
+                        <button class="btn btn-modern btn-outline-modern" data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+                            <i class="fas fa-filter me-1"></i> Filters
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Search Input -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="search-container">
+                                <input type="text" id="productSearchInput" class="form-control search-input" 
+                                       placeholder="Search by name, SKU, or barcode..." autofocus>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2 d-md-flex">
+                                <button id="searchProductsBtn" class="btn btn-modern btn-primary-modern flex-fill">
                                     <i class="fas fa-search me-1"></i> Search
                                 </button>
-                                <button id="showAllProductsBtn" class="btn btn-modern btn-outline-modern">
-                                    <i class="fas fa-list me-1"></i> Show All
+                                <button id="showAllProductsBtn" class="btn btn-modern btn-outline-modern flex-fill">
+                                    <i class="fas fa-list me-1"></i> All
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-                    </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="saleTypeSelector" class="form-label">Sale Type</label>
-                        <select id="saleTypeSelector" class="form-select">
-                            <option value="retail" selected>Retail</option>
-                            <option value="wholesale">Wholesale</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="unitTypeSelector" class="form-label">Unit Type</label>
-                        <select id="unitTypeSelector" class="form-select">
-                            <option value="quantity" selected>By Quantity (pcs)</option>
-                            <option value="weight">By Weight (kg)</option>
-                        </select>
-                    </div>
-                </div>
 
-                <!-- Barcode Scanner -->
-                <div id="scannerContainer" class="d-none mb-3">
-                    <div id="scanner-container" class="mb-2" style="width: 100%; height: 300px; background-color: #111; position: relative;">
-                        <video id="video" width="100%" height="100%" style="object-fit: cover;"></video>
-                        <div id="scannerOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px solid rgba(0,123,255,0.5); box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3);"></div>
+                    <!-- Advanced Filters -->
+                    <div class="collapse" id="advancedFilters">
+                        <div class="row mb-3 p-3 bg-light rounded">
+                            <div class="col-md-4">
+                                <label for="saleTypeSelector" class="form-label">Sale Type</label>
+                                <select id="saleTypeSelector" class="form-select">
+                                    <option value="retail" selected>Retail</option>
+                                    <option value="wholesale">Wholesale</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="unitTypeSelector" class="form-label">Unit Type</label>
+                                <select id="unitTypeSelector" class="form-select">
+                                    <option value="quantity" selected>By Quantity (pcs)</option>
+                                    <option value="weight">By Weight (kg)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="categoryFilter" class="form-label">Category</label>
+                                <select id="categoryFilter" class="form-select">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between">
-                        <button id="cancelScanBtn" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-times me-1"></i> Cancel
+
+                    <!-- Barcode Scanner -->
+                    <div id="scannerContainer" class="d-none mb-3">
+                        <div class="scanner-container mb-2">
+                            <video id="video" width="100%" height="300" style="object-fit: cover; border-radius: 10px;"></video>
+                            <div id="scannerOverlay" class="scanner-overlay"></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button id="cancelScanBtn" class="btn btn-modern btn-outline-danger">
+                                <i class="fas fa-times me-1"></i> Cancel
+                            </button>
+                            <div id="scanFeedback" class="text-muted fst-italic">Position barcode in the center</div>
+                            <button class="btn btn-modern btn-outline-modern" onclick="switchCamera()">
+                                <i class="fas fa-camera me-1"></i> Switch
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Results -->
+                    <div id="productSearchResults" class="mt-3">
+                        <div class="table-responsive">
+                            <table class="table table-modern table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>SKU</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                        <th width="80">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productResultsTable">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="fas fa-search fa-2x mb-2 opacity-50"></i>
+                                            <div>Search for products to add to sale</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Shopping Cart -->
+            <div class="glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-shopping-cart me-2 text-success"></i> Shopping Cart
+                    </h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-success fs-6" id="cartCount">0 items</span>
+                        <button class="btn btn-sm btn-outline-danger" id="clearCartBtn">
+                            <i class="fas fa-trash-alt me-1"></i> Clear
                         </button>
-                        <div id="scanFeedback" class="text-muted fst-italic">Position barcode in the center</div>
                     </div>
                 </div>
-
-                <!-- Product Results for Selection -->
-                <div id="productSearchResults" class="mt-3">
+                <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-modern table-hover">
+                        <table class="table table-modern">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>SKU</th>
-                                    <th>Category</th>
+                                    <th>Product</th>
                                     <th>Price</th>
-                                    <th>In Stock</th>
-                                    <th>Action</th>
+                                    <th width="180">Quantity</th>
+                                    <th>Total</th>
+                                    <th width="60"></th>
                                 </tr>
                             </thead>
-                            <tbody id="productResultsTable">
+                            <tbody id="cartTableBody">
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted">Search for products to add to sale</td>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-shopping-cart fa-2x mb-2 opacity-50"></i>
+                                        <div>No items in cart</div>
+                                        <small class="text-muted">Add products from the search results above</small>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Shopping Cart -->
-        <div class="glass-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">
-                    <i class="fas fa-shopping-cart me-2 text-success"></i> Shopping Cart
-                </h5>
-                <span class="badge bg-success" id="cartCount">0 items</span>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-modern">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Price</th>
-                                <th width="160">Amount</th>
-                                <th>Total</th>
-                                <th width="40"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="cartTableBody">
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No items in cart</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card-footer">
-                <div class="cart-summary">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="d-flex gap-2">
-                                <button id="clearCartBtn" class="btn btn-modern btn-outline-modern">
-                                    <i class="fas fa-trash-alt me-1"></i> Clear
-                                </button>
-                                <button id="applyDiscountBtn" class="btn btn-modern btn-outline-modern" data-bs-toggle="modal" data-bs-target="#discountModal">
-                                    <i class="fas fa-percent me-1"></i> Discount
-                                </button>
+                <div class="card-footer">
+                    <div class="cart-summary">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex gap-2">
+                                    <button id="applyDiscountBtn" class="btn btn-modern btn-outline-modern" data-bs-toggle="modal" data-bs-target="#discountModal">
+                                        <i class="fas fa-percent me-1"></i> Discount
+                                    </button>
+                                    <button class="btn btn-modern btn-outline-modern" data-bs-toggle="modal" data-bs-target="#cartNotesModal">
+                                        <i class="fas fa-sticky-note me-1"></i> Notes
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="text-md-end">
-                                <div class="d-flex justify-content-end align-items-center">
-                                    <div class="me-3">
-                                        <div class="text-muted small">Subtotal:</div>
-                                        <div class="text-muted small">Discount:</div>
-                                        <div class="fw-bold">Total:</div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="text-muted small">
-                                            <span class="currency-symbol">TZS</span>
-                                            <span id="cartSubtotal">0</span>
+                            <div class="col-md-6">
+                                <div class="text-md-end">
+                                    <div class="d-flex justify-content-end align-items-center">
+                                        <div class="me-4">
+                                            <div class="text-muted small">Subtotal:</div>
+                                            <div class="text-muted small">Discount:</div>
+                                            <div class="fw-bold fs-5">Total:</div>
                                         </div>
-                                        <div class="text-muted small">
-                                            <span id="cartDiscountType">-</span>
-                                            <span id="cartDiscount">0</span>
-                                        </div>
-                                        <div class="cart-total">
-                                            <span class="currency-symbol">TZS</span>
-                                            <span id="cartTotal">0</span>
+                                        <div class="text-end">
+                                            <div class="text-muted small">
+                                                <span class="currency-symbol">TZS</span>
+                                                <span id="cartSubtotal">0</span>
+                                            </div>
+                                            <div class="text-muted small">
+                                                <span id="cartDiscountType">-</span>
+                                                <span id="cartDiscount">0</span>
+                                            </div>
+                                            <div class="cart-total">
+                                                <span class="currency-symbol">TZS</span>
+                                                <span id="cartTotal">0</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -186,123 +226,244 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Right side - Transaction Details and Checkout -->
-    <div class="col-lg-5 slide-in-right">
-        <div class="glass-card">
-            <div class="card-header">
-                <h5 class="mb-0 fw-bold">
-                    <i class="fas fa-credit-card me-2 text-success"></i> Checkout
-                </h5>
-            </div>
-            <div class="card-body">
-                <form id="checkoutForm">
-                    <div class="mb-3">
-                        <label for="customerName" class="form-label">Customer Name</label>
-                        <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer">
-                    </div>
-                    <div class="mb-3">
-                        <label for="customerPhone" class="form-label">Customer Phone</label>
-                        <input type="text" class="form-control" id="customerPhone" placeholder="Optional">
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select" id="paymentMethod">
-                            <option value="cash" selected>Cash</option>
-                            <option value="mobile_money">Mobile Money</option>
-                            <option value="card">Debit/Credit Card</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="installment">Installment</option>
-                        </select>
-                    </div>
-                    <div id="mobileMoneyFields" class="d-none">
-                        <div class="mb-3">
-                            <label for="mobileProvider" class="form-label">Mobile Provider</label>
-                            <select class="form-select" id="mobileProvider">
-                                <option value="mpesa">M-Pesa</option>
-                                <option value="tigopesa">Tigo Pesa</option>
-                                <option value="airtelmoney">Airtel Money</option>
-                                <option value="halopesa">Halo Pesa</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="transactionReference" class="form-label">Transaction Reference</label>
-                            <input type="text" class="form-control" id="transactionReference">
-                        </div>
-                    </div>
-                    <div id="installmentFields" class="d-none">
-                        <div class="mb-3">
-                            <label for="downPayment" class="form-label">Down Payment</label>
-                            <div class="input-group">
-                                <span class="input-group-text">TZS</span>
-                                <input type="number" class="form-control" id="downPayment" min="0">
+        <!-- Right side - Enhanced Checkout -->
+        <div class="col-lg-4 slide-in-right">
+            <div class="glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-credit-card me-2 text-success"></i> Checkout
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="checkoutForm">
+                        <!-- Customer Information -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3">
+                                <i class="fas fa-user me-2"></i> Customer Information
+                            </h6>
+                            <div class="mb-3">
+                                <label for="customerName" class="form-label">Customer Name</label>
+                                <input type="text" class="form-control" id="customerName" placeholder="Walk-in Customer">
+                            </div>
+                            <div class="mb-3">
+                                <label for="customerPhone" class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="customerPhone" placeholder="Optional">
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="numberOfInstallments" class="form-label">Number of Installments</label>
-                            <select class="form-select" id="numberOfInstallments">
-                                <option value="3">3 Months</option>
-                                <option value="6">6 Months</option>
-                                <option value="12">12 Months</option>
-                                <option value="18">18 Months</option>
-                                <option value="24">24 Months</option>
+
+                        <!-- Payment Method -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3">
+                                <i class="fas fa-money-bill me-2"></i> Payment Method
+                            </h6>
+                            <div class="payment-methods">
+                                <div class="payment-method-card active" data-method="cash">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-money-bill-wave fa-2x text-success me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Cash</div>
+                                            <small class="text-muted">Physical cash payment</small>
+                                        </div>
+                                        <input type="radio" name="paymentMethod" value="cash" class="form-check-input ms-auto" checked>
+                                    </div>
+                                </div>
+                                <div class="payment-method-card" data-method="mobile_money">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-mobile-alt fa-2x text-primary me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Mobile Money</div>
+                                            <small class="text-muted">M-Pesa, Tigo Pesa, etc.</small>
+                                        </div>
+                                        <input type="radio" name="paymentMethod" value="mobile_money" class="form-check-input ms-auto">
+                                    </div>
+                                </div>
+                                <div class="payment-method-card" data-method="card">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-credit-card fa-2x text-info me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Card</div>
+                                            <small class="text-muted">Debit/Credit Card</small>
+                                        </div>
+                                        <input type="radio" name="paymentMethod" value="card" class="form-check-input ms-auto">
+                                    </div>
+                                </div>
+                                <div class="payment-method-card" data-method="installment">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-calendar-alt fa-2x text-warning me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Installment</div>
+                                            <small class="text-muted">Pay in installments</small>
+                                        </div>
+                                        <input type="radio" name="paymentMethod" value="installment" class="form-check-input ms-auto">
+                                    </div>
+                                </div>
+                            </div>
+                            <select class="form-select d-none" id="paymentMethod">
+                                <option value="cash" selected>Cash</option>
+                                <option value="mobile_money">Mobile Money</option>
+                                <option value="card">Debit/Credit Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="installment">Installment</option>
                             </select>
                         </div>
+
+                        <!-- Payment Details -->
+                        <div id="mobileMoneyFields" class="d-none mb-3">
+                            <div class="mb-3">
+                                <label for="mobileProvider" class="form-label">Mobile Provider</label>
+                                <select class="form-select" id="mobileProvider">
+                                    <option value="mpesa">M-Pesa</option>
+                                    <option value="tigopesa">Tigo Pesa</option>
+                                    <option value="airtelmoney">Airtel Money</option>
+                                    <option value="halopesa">Halo Pesa</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="transactionReference" class="form-label">Transaction Reference</label>
+                                <input type="text" class="form-control" id="transactionReference" placeholder="Enter transaction ID">
+                            </div>
+                        </div>
+
+                        <div id="installmentFields" class="d-none mb-3">
+                            <div class="mb-3">
+                                <label for="downPayment" class="form-label">Down Payment</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">TZS</span>
+                                    <input type="number" class="form-control" id="downPayment" min="0">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="numberOfInstallments" class="form-label">Installment Period</label>
+                                <select class="form-select" id="numberOfInstallments">
+                                    <option value="3">3 Months</option>
+                                    <option value="6">6 Months</option>
+                                    <option value="12">12 Months</option>
+                                    <option value="18">18 Months</option>
+                                    <option value="24">24 Months</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="customerAddress" class="form-label">Customer Address</label>
+                                <textarea class="form-control" id="customerAddress" rows="2" placeholder="Required for installment sales"></textarea>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label for="customerAddress" class="form-label">Customer Address</label>
-                            <textarea class="form-control" id="customerAddress" rows="2" placeholder="Required for installment sales"></textarea>
+                            <label for="paymentAmount" class="form-label">Payment Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">TZS</span>
+                                <input type="number" class="form-control" id="paymentAmount" min="0" step="0.01">
+                                <button class="btn btn-outline-secondary" type="button" onclick="setFullAmount()">Full</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="paymentAmount" class="form-label">Payment Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">TZS</span>
-                            <input type="number" class="form-control" id="paymentAmount" min="0">
+
+                        <div class="mb-4">
+                            <label for="saleNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="saleNotes" rows="2" placeholder="Optional notes for this sale"></textarea>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="saleNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="saleNotes" rows="2"></textarea>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="button" id="completeTransactionBtn" class="btn btn-modern btn-success-modern">
-                            <i class="fas fa-check-circle me-1"></i> Complete Transaction
-                        </button>
-                        <button type="button" id="createInvoiceBtn" class="btn btn-modern btn-primary-modern">
-                            <i class="fas fa-file-invoice me-1"></i> Create Invoice
-                        </button>
-                    </div>
-                </form>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="button" id="completeTransactionBtn" class="btn btn-modern btn-success-modern btn-lg">
+                                <i class="fas fa-check-circle me-2"></i> Complete Transaction
+                            </button>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="button" id="createInvoiceBtn" class="btn btn-modern btn-outline-modern w-100">
+                                        <i class="fas fa-file-invoice me-1"></i> Invoice
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-modern btn-outline-modern w-100" onclick="holdTransaction()">
+                                        <i class="fas fa-pause me-1"></i> Hold
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Discount Modal -->
+<!-- Enhanced Discount Modal -->
 <div class="modal fade" id="discountModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Apply Discount</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">
+                    <i class="fas fa-percent me-2"></i> Apply Discount
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="discountType" class="form-label">Discount Type</label>
-                    <select class="form-select" id="discountType">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="discountTypeRadio" id="percentageDiscount" value="percentage" checked>
+                        <label class="btn btn-outline-primary" for="percentageDiscount">Percentage (%)</label>
+                        
+                        <input type="radio" class="btn-check" name="discountTypeRadio" id="fixedDiscount" value="fixed">
+                        <label class="btn btn-outline-primary" for="fixedDiscount">Fixed Amount (TZS)</label>
+                    </div>
+                    <select class="form-select d-none" id="discountType">
                         <option value="percentage">Percentage (%)</option>
                         <option value="fixed">Fixed Amount (TZS)</option>
                     </select>
                 </div>
                 <div class="mb-3">
                     <label for="discountValue" class="form-label">Discount Value</label>
-                    <input type="number" class="form-control" id="discountValue" min="0" step="0.01">
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="discountValue" min="0" step="0.01" placeholder="Enter discount value">
+                        <span class="input-group-text" id="discountUnit">%</span>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="discountPreview">No discount applied</span>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" id="applyDiscountModalBtn" class="btn btn-primary" data-bs-dismiss="modal">Apply Discount</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Modal -->
+<div class="modal fade" id="shortcutsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-keyboard me-2"></i> Keyboard Shortcuts
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Search & Navigation</h6>
+                        <ul class="list-unstyled">
+                            <li><kbd>Ctrl</kbd> + <kbd>F</kbd> - Focus search</li>
+                            <li><kbd>F3</kbd> - Start barcode scan</li>
+                            <li><kbd>Esc</kbd> - Cancel scan</li>
+                            <li><kbd>Ctrl</kbd> + <kbd>L</kbd> - Show all products</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Transaction</h6>
+                        <ul class="list-unstyled">
+                            <li><kbd>F9</kbd> - Complete transaction</li>
+                            <li><kbd>Ctrl</kbd> + <kbd>D</kbd> - Apply discount</li>
+                            <li><kbd>Ctrl</kbd> + <kbd>K</kbd> - Clear cart</li>
+                            <li><kbd>F12</kbd> - Create invoice</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -314,4 +475,133 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
+<script>
+// Enhanced payment method selection
+document.addEventListener('DOMContentLoaded', function() {
+    // Payment method card selection
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const method = this.dataset.method;
+            const radio = this.querySelector('input[type="radio"]');
+            
+            // Remove active class from all cards
+            document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked card
+            this.classList.add('active');
+            
+            // Check the radio button
+            radio.checked = true;
+            
+            // Update hidden select
+            document.getElementById('paymentMethod').value = method;
+            
+            // Trigger change event
+            document.getElementById('paymentMethod').dispatchEvent(new Event('change'));
+        });
+    });
+
+    // Discount type radio buttons
+    document.querySelectorAll('input[name="discountTypeRadio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const unit = document.getElementById('discountUnit');
+            const select = document.getElementById('discountType');
+            
+            if (this.value === 'percentage') {
+                unit.textContent = '%';
+                select.value = 'percentage';
+            } else {
+                unit.textContent = 'TZS';
+                select.value = 'fixed';
+            }
+            
+            updateDiscountPreview();
+        });
+    });
+
+    // Discount value input
+    document.getElementById('discountValue').addEventListener('input', updateDiscountPreview);
+
+    function updateDiscountPreview() {
+        const type = document.querySelector('input[name="discountTypeRadio"]:checked').value;
+        const value = parseFloat(document.getElementById('discountValue').value) || 0;
+        const preview = document.getElementById('discountPreview');
+        
+        if (value > 0) {
+            if (type === 'percentage') {
+                preview.textContent = `${value}% discount will be applied`;
+            } else {
+                preview.textContent = `TZS ${value.toLocaleString()} discount will be applied`;
+            }
+        } else {
+            preview.textContent = 'No discount applied';
+        }
+    }
+
+    // Set full payment amount
+    window.setFullAmount = function() {
+        const totalElement = document.getElementById('cartTotal');
+        const paymentInput = document.getElementById('paymentAmount');
+        
+        if (totalElement && paymentInput) {
+            const total = parseFloat(totalElement.textContent.replace(/,/g, '')) || 0;
+            paymentInput.value = total;
+        }
+    };
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+F - Focus search
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('productSearchInput').focus();
+        }
+        
+        // F3 - Start barcode scan
+        if (e.key === 'F3') {
+            e.preventDefault();
+            document.getElementById('startScanBtn').click();
+        }
+        
+        // Esc - Cancel scan
+        if (e.key === 'Escape') {
+            const scannerContainer = document.getElementById('scannerContainer');
+            if (!scannerContainer.classList.contains('d-none')) {
+                document.getElementById('cancelScanBtn').click();
+            }
+        }
+        
+        // F9 - Complete transaction
+        if (e.key === 'F9') {
+            e.preventDefault();
+            document.getElementById('completeTransactionBtn').click();
+        }
+        
+        // Ctrl+K - Clear cart
+        if (e.ctrlKey && e.key === 'k') {
+            e.preventDefault();
+            document.getElementById('clearCartBtn').click();
+        }
+        
+        // Ctrl+D - Apply discount
+        if (e.ctrlKey && e.key === 'd') {
+            e.preventDefault();
+            const discountModal = new bootstrap.Modal(document.getElementById('discountModal'));
+            discountModal.show();
+        }
+        
+        // F12 - Create invoice
+        if (e.key === 'F12') {
+            e.preventDefault();
+            document.getElementById('createInvoiceBtn').click();
+        }
+        
+        // Ctrl+L - Show all products
+        if (e.ctrlKey && e.key === 'l') {
+            e.preventDefault();
+            document.getElementById('showAllProductsBtn').click();
+        }
+    });
+});
+</script>
 {% endblock %}
