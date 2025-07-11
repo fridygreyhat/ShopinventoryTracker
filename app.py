@@ -13,7 +13,7 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager, UserMixin, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import db from extensions to avoid circular imports
@@ -47,9 +47,7 @@ def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
 
-# Make User inherit from UserMixin for Flask-Login
-class User(db.Model, UserMixin):
-    pass
+# User model is imported from models.py
 
 # Database setup function
 def init_database():
@@ -847,9 +845,6 @@ def update_item(item_id):
                         f"Error triggering low stock notification: {str(e)}")
 
         return jsonify(item.to_dict())
-
-
-return jsonify(item.to_dict())
 
     except Exception as e:
         db.session.rollback()
