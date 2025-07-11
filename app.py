@@ -13,7 +13,7 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin, login_required
+from flask_login import LoginManager, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import db from extensions to avoid circular imports
@@ -22,6 +22,18 @@ from extensions import db, configure_database
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Custom login_required decorator for session-based authentication
+def login_required(f):
+    """Custom login required decorator that works with session-based authentication"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Create Flask app
 app = Flask(__name__)
@@ -48,6 +60,19 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # User model is imported from models.py
+
+# Context processor to inject current user into templates
+@app.context_processor
+def inject_current_user():
+    """Inject current user into all templates"""
+    def get_current_user():
+        user_id = session.get('user_id')
+        if user_id:
+            from models import User
+            return User.query.get(user_id)
+        return None
+    
+    return dict(get_current_user=get_current_user)
 
 # Database setup function
 def init_database():
@@ -3269,7 +3294,7 @@ def api_top_selling_items():
             func.sum(SaleItem.quantity).label('units_sold'),
             func.sum(SaleItem.total_price).label('revenue')
         ).join(SaleItem).join(Sale).outerjoin(Category, Item.category_id == Category.id)\
-        .filter(Sale.user_id == current_user.id)\
+        .filter(Sale.user_id == session.get('user_id'))\
         .group_by(Item.id, Item.name, Category.name)\
         .order_by(func.sum(SaleItem.quantity).desc())\
         .limit(10).all()
@@ -3305,10 +3330,10 @@ def api_slow_moving_items():
             func.coalesce(func.sum(SaleItem.quantity), 0).label('units_sold')
         ).outerjoin(SaleItem).outerjoin(Sale, and_(
             SaleItem.sale_id == Sale.id,
-            Sale.user_id == current_user.id,
+            Sale.user_id == session.get('user_id'),
             Sale.created_at >= thirty_days_ago
         )).outerjoin(Category, Item.category_id == Category.id)\
-        .filter(Item.user_id == current_user.id, Item.is_active == True)\
+        .filter(Item.user_id == session.get('user_id'), Item.is_active == True)\
         .group_by(Item.id, Item.name, Category.name, Item.stock_quantity)\
         .having(func.coalesce(func.sum(SaleItem.quantity), 0) <= 5)\
         .order_by(func.coalesce(func.sum(SaleItem.quantity), 0))\
@@ -3336,12 +3361,12 @@ def sales():
     page = request.args.get('page', 1, type=int)
     from models import Sale
     from sqlalchemy import desc
-    sales = Sale.query.filter_by(user_id=current_user.id).order_by(desc(Sale.created_at)).paginate(
+    sales = Sale.query.filter_by(user_id=session.get('user_id')).order_by(desc(Sale.created_at)).paginate(
         page=page, per_page=20, error_out=False
     )
 
     # Calculate metrics by payment type
-    all_sales = Sale.query.filter_by(user_id=current_user.id).all()
+    all_sales = Sale.query.filter_by(user_id=session.get('user_id')).all()
     total_sales = sum(float(sale.total_amount) for sale in all_sales)
     cash_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'cash')
     installment_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'installment')
@@ -3351,7 +3376,7 @@ def sales():
     from models import InstallmentPlan
     from datetime import datetime
     active_plans = InstallmentPlan.query.join(Sale).filter(
-        Sale.user_id == current_user.id,
+        Sale.user_id == session.get('user_id'),
         InstallmentPlan.status == 'active'
     ).all()
 
@@ -3374,8 +3399,8 @@ def sales():
 def new_sale():
     """Create a new sale with payment options"""
     from models import Item, Customer
-    items = Item.query.filter_by(user_id=current_user.id, is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
-    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    items = Item.query.filter_by(user_id=session.get('user_id'), is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
+    customers = Customer.query.filter_by(user_id=session.get('user_id')).order_by(Customer.name).all()
     return render_template('sales.html', items=items, customers=customers)
 
 @app.route('/margin')

@@ -75,13 +75,16 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
-- July 11, 2025: Critical Syntax and Database Model Fixes
+- July 11, 2025: Critical Syntax and Database Model Fixes + Redirect Loop Resolution
   - Fixed duplicate return statement syntax error in app.py line 852
   - Removed duplicate User model definition that was causing SQLAlchemy primary key conflicts
   - Added missing login_required import from flask_login
   - Resolved "expected 'except' or 'finally' block" syntax error
+  - Fixed infinite redirect loop by replacing Flask-Login's login_required with custom session-based decorator
+  - Updated all current_user references to use session.get('user_id') for consistent authentication
+  - Added get_current_user() context processor for template access to current user data
   - Application now starts successfully with proper PostgreSQL authentication
-  - Database initialization and all API endpoints are working correctly
+  - All navigation works correctly without redirect loops, login and dashboard pages load properly
 
 - July 5, 2025: Sales Transaction Processing Fix and Firebase Cleanup
   - Fixed critical transaction completion failure by implementing proper session-based authentication in sales API
