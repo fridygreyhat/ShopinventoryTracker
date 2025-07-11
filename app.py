@@ -25,6 +25,9 @@ from flask_migrate import Migrate
 # Import db from extensions to avoid circular imports
 from extensions import db, configure_database
 
+# Import models to ensure they're available
+from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -3256,6 +3259,9 @@ def api_inventory():
 def api_create_sale():
     """API endpoint to create a new sale"""
     try:
+        # Import models here to ensure they are available
+        from models import Item, Sale, SaleItem, StockMovement
+        
         # Validate user session
         user_id = session.get('user_id')
         if not user_id:
@@ -3355,12 +3361,13 @@ def api_create_sale():
             if item.stock_quantity is not None:
                 item.stock_quantity = max(0, item.stock_quantity - item_data['quantity'])
 
-            # Create stock movement
+            # Create stock movement with user_id
             stock_movement = StockMovement(
                 movement_type='out',
                 quantity=item_data['quantity'],
                 reason=f'Sale {sale_number}',
                 item_id=item.id,
+                user_id=user_id,
                 created_at=datetime.utcnow()
             )
             db.session.add(stock_movement)

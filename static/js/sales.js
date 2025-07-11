@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create a simple receipt
         const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        
+
         const receiptWindow = window.open('', '_blank');
         receiptWindow.document.write(`
             <!DOCTYPE html>
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </html>
         `);
         receiptWindow.document.close();
-        
+
         // Close success popup
         closeSuccessPopup();
     }
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hide all payment-specific fields first
         mobileMoneyFields.classList.add('d-none');
         document.getElementById('installmentFields').classList.add('d-none');
-        
+
         if (this.value === 'mobile_money') {
             mobileMoneyFields.classList.remove('d-none');
         } else if (this.value === 'installment') {
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Make API request to search inventory (empty query returns all items)
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
-        
+
         fetch(searchUrl, {
             credentials: 'same-origin'
         })
@@ -644,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let mobileInfo = {};
         let installmentInfo = {};
-        
+
         if (payment === 'mobile_money') {
             mobileInfo = {
                 provider: document.getElementById('mobileProvider').value,
@@ -661,7 +661,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Customer phone number is required for installment sales');
                 return;
             }
-            
+
             installmentInfo = {
                 down_payment: parseFloat(document.getElementById('downPayment').value) || 0,
                 number_of_installments: parseInt(document.getElementById('numberOfInstallments').value),
@@ -731,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             console.log('Transaction response status:', response.status);
-            
+
             if (!response.ok) {
                 // If it's a redirect (like 302), log the issue
                 if (response.status === 302) {
@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Transaction response data:', data);
-            
+
             if (data.success) {
                 // Show modern success popup
                 showSuccessPopup(data);
@@ -753,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cart = [];
                 updateCartDisplay();
                 document.getElementById('checkoutForm').reset();
-                
+
                 // Reset payment fields
                 paymentAmount.value = '';
                 mobileMoneyFields.classList.add('d-none');
@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error completing transaction:', error);
-            
+
             // Show more specific error message
             if (error.message.includes('Authentication required')) {
                 showErrorPopup('Your session has expired. Please log in again.');
@@ -932,4 +932,11 @@ document.addEventListener('DOMContentLoaded', function() {
         `);
         invoiceWindow.document.close();
     }
+
+    // Make functions global for popup access
+    window.closeSuccessPopup = closeSuccessPopup;
+    window.closeErrorPopup = closeErrorPopup;
+    window.printThis commit fixes the javascript syntax issues that caused the transaction failures.
+
+Receipt = printReceipt;
 });
