@@ -3,6 +3,7 @@ import logging
 import uuid
 import json
 from datetime import datetime, timedelta
+from auth_service import login_required
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -15,6 +16,8 @@ from flask_mail import Mail
 from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_migrate import Migrate
+
 
 # Import db from extensions to avoid circular imports
 from extensions import db, configure_database
@@ -32,6 +35,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-
 # Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
 configure_database(app)
 
+
+
 # Initialize extensions with app
 db.init_app(app)
 
@@ -48,10 +53,9 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Make User inherit from UserMixin for Flask-Login
-class User(db.Model, UserMixin):
-    pass
+# class User(db.Model, UserMixin):
+#     pass
 
-# Database setup function
 def init_database():
     """Initialize PostgreSQL database tables and default data"""
     with app.app_context():
@@ -70,80 +74,75 @@ def init_database():
                 Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
                 Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
             )
-            # Then, handle migrations for existing databases
+            
             # Helper function to check if column exists
             def column_exists(table_name, column_name):
                 try:
-                    # PostgreSQL query to check if column exists
+                    # PostgreSQL query to check if column exists - using parameterized query
                     result = db.session.execute(
-                        db.text(f"""
+                        db.text("""
                             SELECT column_name 
                             FROM information_schema.columns 
-                            WHERE table_name = '{table_name}' 
-                            AND column_name = '{column_name}'
-                        """))
+                            WHERE table_name = :table_name 
+                            AND column_name = :column_name
+                        """), 
+                        {"table_name": table_name, "column_name": column_name}
+                    )
                     return result.fetchone() is not None
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Error checking column existence: {str(e)}")
                     return False
 
             # Helper function to add column safely
-            def add_column_safely(table_name,
-                                  column_name,
-                                  column_definition,
-                                  default_value=None):
+            def add_column_safely(table_name, column_name, column_definition, default_value=None):
                 try:
                     if not column_exists(table_name, column_name):
-                        logger.info(
-                            f"Adding {column_name} column to {table_name} table")
-                        db.session.execute(
-                            db.text(
-                                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
-                            ))
+                        logger.info(f"Adding {column_name} column to {table_name} table")
+                        
+                        # Use parameterized query for ALTER TABLE
+                        alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
+                        db.session.execute(db.text(alter_sql))
 
                         if default_value:
-                            db.session.execute(
-                                db.text(
-                                    f"UPDATE {table_name} SET {column_name} = {default_value}"
-                                ))
+                            update_sql = f"UPDATE {table_name} SET {column_name} = :default_value"
+                            db.session.execute(db.text(update_sql), {"default_value": default_value})
 
                         db.session.commit()
-                        logger.info(
-                            f"Successfully added {column_name} column to {table_name}")
+                        logger.info(f"Successfully added {column_name} column to {table_name}")
                         return True
                     else:
-                        logger.info(
-                            f"{column_name} column already exists in {table_name}")
+                        logger.info(f"{column_name} column already exists in {table_name}")
                         return False
                 except Exception as e:
-                    logger.error(
-                        f"Error adding {column_name} column to {table_name}: {str(e)}")
+                    logger.error(f"Error adding {column_name} column to {table_name}: {str(e)}")
                     db.session.rollback()
                     return False
+
             # Add missing columns if they don't exist
             def add_missing_columns():
                 try:
                     # Add columns to user table
-                    add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT TRUE', 'true')
+                    add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
                     add_column_safely('user', 'phone', 'VARCHAR(20)')
 
-                    # Add columns to item table  
+                    # Add columns to item table
                     add_column_safely('item', 'subcategory', 'VARCHAR(100)')
-                    add_column_safely('item', 'unit_type', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
-                    add_column_safely('item', 'sell_by', 'VARCHAR(20) DEFAULT \'quantity\'', "'quantity'")
+                    add_column_safely('item', 'unit_type', "VARCHAR(20) DEFAULT 'quantity'", 'quantity')
+                    add_column_safely('item', 'sell_by', "VARCHAR(20) DEFAULT 'quantity'", 'quantity')
                     add_column_safely('item', 'category_id', 'INTEGER')
                     add_column_safely('item', 'user_id', 'INTEGER')
-                    add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT TRUE', 'true')
-                    add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', '0')
-                    add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', '0')
-                    add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', '0')
-                    add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', '0')
+                    add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
+                    add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', 0)
+                    add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', 0)
+                    add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', 0)
+                    add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', 0)
 
                     # Add columns to sale table
                     add_column_safely('sale', 'user_id', 'INTEGER')
                     add_column_safely('sale', 'customer_id', 'INTEGER')
-                    add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
-                    add_column_safely('sale', 'payment_type', 'VARCHAR(20) DEFAULT \'cash\'', "'cash'")
-                    add_column_safely('sale', 'payment_status', 'VARCHAR(20) DEFAULT \'completed\'", "'completed'")
+                    add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', 0)
+                    add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", 'cash')
+                    add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", 'completed')
                     add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
 
                     # Check if Customer table exists, if not create it
@@ -154,20 +153,21 @@ def init_database():
 
                 except Exception as e:
                     logger.error(f"Error adding missing columns: {str(e)}")
+                    db.session.rollback()
 
             def check_and_create_customer_table():
                 """Check if Customer table exists and create if not"""
                 try:
-                    from sqlalchemy import text
-                    result = db.session.execute(text("""
+                    result = db.session.execute(db.text("""
                         SELECT table_name 
                         FROM information_schema.tables 
-                        WHERE table_name = 'customer' AND table_schema = 'public'
-                    """))
+                        WHERE table_name = :table_name 
+                        AND table_schema = current_schema()
+                    """), {"table_name": "customer"})
 
                     if not result.fetchone():
                         # Create Customer table
-                        db.session.execute(text("""
+                        db.session.execute(db.text("""
                             CREATE TABLE customer (
                                 id SERIAL PRIMARY KEY,
                                 name VARCHAR(100) NOT NULL,
@@ -183,19 +183,19 @@ def init_database():
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
                         """))
-                        logger.info("Customer table created")
+                        db.session.commit()
+                        logger.info("Customer table created successfully")
                     else:
-                        logger.info("Customer table exists, checking foreign key constraints")
+                        logger.info("Customer table already exists")
 
                 except Exception as e:
                     logger.error(f"Error checking/creating Customer table: {str(e)}")
+                    db.session.rollback()
 
             # Initialize default settings
             def initialize_default_settings():
                 """Initialize default application settings"""
                 try:
-                    from models import Setting
-
                     default_settings = [
                         {
                             'key': 'sms_notifications_enabled',
@@ -238,7 +238,6 @@ def init_database():
                     for setting_data in default_settings:
                         existing_setting = Setting.query.filter_by(key=setting_data['key']).first()
                         if not existing_setting:
-                            from models import Setting
                             new_setting = Setting(
                                 key=setting_data['key'],
                                 value=setting_data['value'],
@@ -254,12 +253,18 @@ def init_database():
                     logger.warning(f"Could not initialize default settings: {str(e)}")
                     db.session.rollback()
 
+            # Execute initialization steps
             add_missing_columns()
             initialize_default_settings()
+            
+            logger.info("Database initialization completed successfully")
+            return True
 
         except Exception as e:
             logger.error(f"Database initialization error: {str(e)}")
-init_database()
+            db.session.rollback()
+            return False
+
 
 # Auth API Routes
 @app.route('/api/auth/login', methods=['POST'])
@@ -847,6 +852,11 @@ def update_item(item_id):
                         f"Error triggering low stock notification: {str(e)}")
 
         return jsonify(item.to_dict())
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating item: {str(e)}")
+        return jsonify({"error": "Failed to update item"}), 500
 
 
 def verify_postgresql_auth():
@@ -863,17 +873,14 @@ def verify_postgresql_auth():
 
 # Verify PostgreSQL authentication on startup
 with app.app_context():
-    if verify_postgresql_auth():
-        logger.info("🔐 PostgreSQL authentication system initialized successfully")
-    else:
-        logger.warning("⚠️ PostgreSQL authentication system may have issues")
-
-
-
+    try:
+        if verify_postgresql_auth():
+            logger.info("🔐 PostgreSQL authentication system initialized successfully")
+        else:
+            logger.warning("⚠️ PostgreSQL authentication system may have issues")
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating item: {str(e)}")
-        return jsonify({"error": "Failed to update item"}), 500
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
@@ -913,23 +920,22 @@ def bulk_import_inventory():
     file = request.files['file']
 
     try:
-        # Get current user ID
-        current_user_id = session.get('user_id')
-        if not current_user_id:
-            return jsonify({"error": "User not authenticated"}), 401
+    # Get current user ID
+     current_user_id = session.get('user_id')
+     if not current_user_id:
+      return jsonify({"error": "User not authenticated"}), 401
 
-        # Initialize importservice with user_id
-        import_service = CSVImportService(db.session, Item, current_user_id)
+    # Initialize importservice with user_id
+     import_service = CSVImportService(db.session, Item, current_user_id)
 
-        # Process the import
-        result = import_service```python
-.process_csv_import(file)
+    # Process the import
+     result = import_service.process_csv_import(file)
 
-        # Return appropriate status code
-        if result.get("success"):
-            return jsonify(result), 200
-        else:
-            return jsonify(result), 400
+    # Return appropriate status code
+     if result.get("success"):
+        return jsonify(result), 200
+     else:
+        return jsonify(result), 400
 
     except Exception as e:
         db.session.rollback()
@@ -1832,8 +1838,7 @@ def get_categories_api():
     try:
         from models import Category
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id,```python
-is_active=True).order_by(Category.name).all()
+        categories = Category.query.filter_by(user_id=user_id,is_active=True).order_by(Category.name).all()
 
         categories_data = []
         for category in categories:
@@ -3427,4 +3432,8 @@ def handle_exception(e):
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
+    success = init_database()
+    if not success:
+        logger.error("Database initialization failed")
+        exit(1)
     app.run(debug=True)

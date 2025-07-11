@@ -1,11 +1,13 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import enum
+from flask_login import UserMixin
+
 
 # Import db from extensions to avoid circular imports
 from extensions import db
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'user'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -28,12 +30,10 @@ class User(db.Model):
 
     def set_password(self, password):
         """Set password hash using werkzeug's secure method"""
-        from werkzeug.security import generate_password_hash
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         """Check if provided password matches hash"""
-        from werkzeug.security import check_password_hash
         return check_password_hash(self.password_hash, password)
 
     def get_username(self):
@@ -41,19 +41,26 @@ class User(db.Model):
         return self.username if hasattr(self, 'username') and self.username else self.email
 
     def to_dict(self):
+        """Convert user to dictionary with complete information"""
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone': self.phone,
             'shop_name': self.shop_name,
+            'product_categories': self.product_categories,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'email_verified': self.email_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
