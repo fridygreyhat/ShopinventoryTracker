@@ -29,6 +29,18 @@ from extensions import db, configure_database
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Custom login_required decorator for session-based authentication
+def login_required(f):
+    """Custom login required decorator that works with session-based authentication"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Create Flask app
 app = Flask(__name__)
 
@@ -1486,6 +1498,70 @@ def delete_setting(key):
         db.session.rollback()
         logger.error(f"Error deleting setting: {str(e)}")
         return jsonify({"error": "Failed to delete setting"}), 500
+
+@app.route('/api/settings/appearance', methods=['POST'])
+@login_required
+def update_appearance_settings():
+    """API endpoint to update appearance settings"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        from models import Setting
+        
+        # Update theme setting
+        if 'theme' in data:
+            theme_key = f"user_{user_id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            
+            if not theme_setting:
+                theme_setting = Setting(
+                    key=theme_key,
+                    value=data['theme'],
+                    description='User theme preference',
+                    category='appearance'
+                )
+                db.session.add(theme_setting)
+            else:
+                theme_setting.value = data['theme']
+            
+            # Also update session
+            session['user_theme'] = data['theme']
+        
+        # Update other appearance settings
+        settings_to_update = [
+            ('items_per_page', data.get('itemsPerPage')),
+            ('date_format', data.get('dateFormat'))
+        ]
+        
+        for key, value in settings_to_update:
+            if value is not None:
+                setting = Setting.query.filter_by(key=key).first()
+                if not setting:
+                    setting = Setting(
+                        key=key,
+                        value=str(value),
+                        description=f'User {key} preference',
+                        category='appearance'
+                    )
+                    db.session.add(setting)
+                else:
+                    setting.value = str(value)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Appearance settings updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating appearance settings: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/logout')
 def logout():
@@ -3183,12 +3259,26 @@ def api_create_sale():
         # Validate user session
         user_id = session.get('user_id')
         if not user_id:
+            logger.error("Sale creation failed: No user session found")
             return jsonify({'error': 'Authentication required'}), 401
 
         data = request.get_json()
+        logger.info(f"Sale creation request: {data}")
 
         if not data or not data.get('items'):
+            logger.error("Sale creation failed: No items provided")
             return jsonify({'error': 'No items provided'}), 400
+
+        # Validate that all items belong to the user
+        item_ids = [item['id'] for item in data.get('items', [])]
+        if not item_ids:
+            logger.error("Sale creation failed: No items provided")
+            return jsonify({'error': 'No items provided'}), 400
+            
+        items_check = Item.query.filter(Item.id.in_(item_ids), Item.user_id == user_id).count()
+        if items_check != len(item_ids):
+            logger.error(f"Sale creation failed: Items don't belong to user {user_id}")
+            return jsonify({'error': 'Invalid items selected'}), 400
 
         # Generate sale number
         sale_number = f"SALE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
@@ -3233,14 +3323,21 @@ def api_create_sale():
 
         # Create sale items and update inventory
         for item_data in data.get('items', []):
+            logger.info(f"Processing item: {item_data}")
             item = Item.query.filter_by(id=item_data['id'], user_id=user_id).first()
             if not item:
+                logger.error(f"Item not found: {item_data['id']} for user {user_id}")
                 raise Exception(f"Item not found: {item_data['id']}")
 
             # Check stock availability (use quantity field as main stock tracker)
             current_stock = item.quantity if item.quantity is not None else item.stock_quantity
+            if current_stock is None:
+                current_stock = 0
+                
+            logger.info(f"Current stock for {item.name}: {current_stock}, requested: {item_data['quantity']}")
             if current_stock < item_data['quantity']:
-                raise Exception(f"Insufficient stock for {item.name}")
+                logger.error(f"Insufficient stock for {item.name}: {current_stock} < {item_data['quantity']}")
+                raise Exception(f"Insufficient stock for {item.name}. Available: {current_stock}, Requested: {item_data['quantity']}")
 
             # Create sale item
             sale_item = SaleItem(
@@ -3267,19 +3364,24 @@ def api_create_sale():
                 created_at=datetime.utcnow()
             )
             db.session.add(stock_movement)
+            logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
 
         db.session.commit()
+        
+        logger.info(f"Sale completed successfully: {sale_number} for user {user_id}")
 
         return jsonify({
             'success': True,
             'sale_id': sale.id,
             'sale_number': sale_number,
+            'total_amount': float(sale.total_amount),
             'message': 'Sale created successfully'
         })
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Sale creation failed: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/sales/performance/top')
 @login_required
@@ -3294,7 +3396,7 @@ def api_top_selling_items():
             func.sum(SaleItem.quantity).label('units_sold'),
             func.sum(SaleItem.total_price).label('revenue')
         ).join(SaleItem).join(Sale).outerjoin(Category, Item.category_id == Category.id)\
-        .filter(Sale.user_id == current_user.id)\
+        .filter(Sale.user_id == session.get('user_id'))\
         .group_by(Item.id, Item.name, Category.name)\
         .order_by(func.sum(SaleItem.quantity).desc())\
         .limit(10).all()
@@ -3330,10 +3432,10 @@ def api_slow_moving_items():
             func.coalesce(func.sum(SaleItem.quantity), 0).label('units_sold')
         ).outerjoin(SaleItem).outerjoin(Sale, and_(
             SaleItem.sale_id == Sale.id,
-            Sale.user_id == current_user.id,
+            Sale.user_id == session.get('user_id'),
             Sale.created_at >= thirty_days_ago
         )).outerjoin(Category, Item.category_id == Category.id)\
-        .filter(Item.user_id == current_user.id, Item.is_active == True)\
+        .filter(Item.user_id == session.get('user_id'), Item.is_active == True)\
         .group_by(Item.id, Item.name, Category.name, Item.stock_quantity)\
         .having(func.coalesce(func.sum(SaleItem.quantity), 0) <= 5)\
         .order_by(func.coalesce(func.sum(SaleItem.quantity), 0))\
@@ -3362,12 +3464,12 @@ def sales():
     page = request.args.get('page', 1, type=int)
     from models import Sale
     from sqlalchemy import desc
-    sales = Sale.query.filter_by(user_id=current_user.id).order_by(desc(Sale.created_at)).paginate(
+    sales = Sale.query.filter_by(user_id=session.get('user_id')).order_by(desc(Sale.created_at)).paginate(
         page=page, per_page=20, error_out=False
     )
 
     # Calculate metrics by payment type
-    all_sales = Sale.query.filter_by(user_id=current_user.id).all()
+    all_sales = Sale.query.filter_by(user_id=session.get('user_id')).all()
     total_sales = sum(float(sale.total_amount) for sale in all_sales)
     cash_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'cash')
     installment_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'installment')
@@ -3377,7 +3479,7 @@ def sales():
     from models import InstallmentPlan
     from datetime import datetime
     active_plans = InstallmentPlan.query.join(Sale).filter(
-        Sale.user_id == current_user.id,
+        Sale.user_id == session.get('user_id'),
         InstallmentPlan.status == 'active'
     ).all()
 
@@ -3400,8 +3502,8 @@ def sales():
 def new_sale():
     """Create a new sale with payment options"""
     from models import Item, Customer
-    items = Item.query.filter_by(user_id=current_user.id, is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
-    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name).all()
+    items = Item.query.filter_by(user_id=session.get('user_id'), is_active=True).filter(Item.stock_quantity > 0).order_by(Item.name).all()
+    customers = Customer.query.filter_by(user_id=session.get('user_id')).order_by(Customer.name).all()
     return render_template('sales.html', items=items, customers=customers)
 
 @app.route('/margin')
@@ -3476,10 +3578,15 @@ def security_management():
 
 @app.route('/')
 def index():
-    """Root route - redirect to dashboard if logged in, else login"""
+    """Root route - show cover page for new visitors, redirect to dashboard if logged in"""
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    return render_template('cover.html')
+
+@app.route('/cover')
+def cover():
+    """Cover page route"""
+    return render_template('cover.html')
 
 @app.route('/dashboard')
 @login_required

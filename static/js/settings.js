@@ -964,8 +964,10 @@ function showAlert(message, type) {
         if (alertDiv.parentNode) {
             alertDiv.remove();
         }
-    }, 5000);
-}// Load all settings when page loads
+    }, 5000);}
+
+// Load all settings when page loads
+document.addEventListener('DOMContentLoaded', function() {
     loadAllSettings();
 });
 
@@ -1069,14 +1071,14 @@ function showConfigurationStatus(html) {
         statusDiv = document.createElement('div');
         statusDiv.id = 'sms-config-status';
         statusDiv.className = 'card mt-3';
-        
+
         // Insert after SMS settings section
         const smsSection = document.querySelector('#sms_notifications_enabled').closest('.card');
         if (smsSection) {
             smsSection.parentNode.insertBefore(statusDiv, smsSection.nextSibling);
         }
     }
-    
+
     statusDiv.innerHTML = `
         <div class="card-body">
             <h6 class="card-title">SMS Configuration Status</h6>
@@ -1085,7 +1087,7 @@ function showConfigurationStatus(html) {
     `;
 }
 
-function sendLowStockAlert() {
+function sendLowStockAlert(event) {
     const button = event.target;
     const originalText = button.innerHTML;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
