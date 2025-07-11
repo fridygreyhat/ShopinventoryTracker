@@ -3259,6 +3259,10 @@ def api_create_sale():
 
         # Validate that all items belong to the user
         item_ids = [item['id'] for item in data.get('items', [])]
+        if not item_ids:
+            logger.error("Sale creation failed: No items provided")
+            return jsonify({'error': 'No items provided'}), 400
+            
         items_check = Item.query.filter(Item.id.in_(item_ids), Item.user_id == user_id).count()
         if items_check != len(item_ids):
             logger.error(f"Sale creation failed: Items don't belong to user {user_id}")
@@ -3315,10 +3319,13 @@ def api_create_sale():
 
             # Check stock availability (use quantity field as main stock tracker)
             current_stock = item.quantity if item.quantity is not None else item.stock_quantity
+            if current_stock is None:
+                current_stock = 0
+                
             logger.info(f"Current stock for {item.name}: {current_stock}, requested: {item_data['quantity']}")
             if current_stock < item_data['quantity']:
                 logger.error(f"Insufficient stock for {item.name}: {current_stock} < {item_data['quantity']}")
-                raise Exception(f"Insufficient stock for {item.name}")
+                raise Exception(f"Insufficient stock for {item.name}. Available: {current_stock}, Requested: {item_data['quantity']}")
 
             # Create sale item
             sale_item = SaleItem(
@@ -3348,11 +3355,14 @@ def api_create_sale():
             logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
 
         db.session.commit()
+        
+        logger.info(f"Sale completed successfully: {sale_number} for user {user_id}")
 
         return jsonify({
             'success': True,
             'sale_id': sale.id,
             'sale_number': sale_number,
+            'total_amount': float(sale.total_amount),
             'message': 'Sale created successfully'
         })
 

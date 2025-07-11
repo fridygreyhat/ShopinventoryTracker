@@ -129,7 +129,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set payment amount to match cart total when cart changes
     paymentAmount.addEventListener('focus', function() {
-        this.value = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, '')) || 0;
+        if (totalAmount > 0) {
+            this.value = totalAmount;
+        }
     });
 
     // Checkout
@@ -505,13 +508,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
 
-        // For installment, only check if down payment is reasonable
+        // Validate payment amount
         if (payment === 'installment') {
             if (amount < totalAmount * 0.1) { // Minimum 10% down payment
                 alert('Down payment should be at least 10% of the total amount');
                 return;
             }
-        } else if (amount < totalAmount) {
+        } else if (payment !== 'credit' && amount < totalAmount) {
             alert('Payment amount is less than the total');
             return;
         }
@@ -565,7 +568,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             console.log('Transaction response status:', response.status);
-            console.log('Transaction response headers:', response.headers);
             
             if (!response.ok) {
                 // If it's a redirect (like 302), log the issue
@@ -601,10 +603,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show more specific error message
             if (error.message.includes('Authentication required')) {
-                alert('Please log in again and try the transaction.');
+                alert('Your session has expired. Please log in again.');
                 window.location.href = '/login';
+            } else if (error.message.includes('Failed to fetch')) {
+                alert('Network error. Please check your connection and try again.');
             } else {
-                alert(`Failed to complete transaction: ${error.message}`);
+                alert(`Transaction failed: ${error.message}`);
             }
 
             // Reset button
