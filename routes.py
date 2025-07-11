@@ -223,6 +223,7 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/dashboard')
+
 @login_required
 def dashboard():
     # Get summary statistics
@@ -245,7 +246,9 @@ def dashboard():
                          low_stock_items=low_stock_items,
                          recent_sales=recent_sales,
                          today_sales=today_sales,
-                         recent_transactions=recent_transactions)
+                         recent_transactions=recent_transactions,
+                         get_current_user=current_user 
+                         )
 
 @app.route('/inventory')
 @login_required

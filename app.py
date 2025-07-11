@@ -14,9 +14,12 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager, UserMixin,login_user,current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
+
+
+
 
 
 # Import db from extensions to avoid circular imports
@@ -55,6 +58,21 @@ def load_user(user_id):
 # Make User inherit from UserMixin for Flask-Login
 # class User(db.Model, UserMixin):
 #     pass
+
+
+@app.context_processor
+def inject_user():
+    def get_current_user():
+        return current_user
+    return dict(get_current_user=get_current_user)
+
+@app.route('/debug')
+def debug():
+    print(f"Session: {session}")
+    print(f"Current user: {current_user}")
+    print(f"Is authenticated: {current_user.is_authenticated}")
+    print(f"User ID in session: {session.get('_user_id')}")
+    return "Check console"
 
 def init_database():
     """Initialize PostgreSQL database tables and default data"""
@@ -299,7 +317,7 @@ def api_login():
 
                 # Commit changes to PostgreSQL
                 db.session.commit()
-
+                login_user(user)
                 logger.info(f"User {email} logged in successfully from PostgreSQL (ID: {user.id})")
 
                 return jsonify({
@@ -858,14 +876,6 @@ def update_item(item_id):
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": "Failed to update item"}), 500
 
-
-return jsonify(item.to_dict())
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating item: {str(e)}")
-        return jsonify({"error": "Failed to update item"}), 500
-
 def verify_postgresql_auth():
     """Verify that PostgreSQL authentication is working properly"""
     try:
@@ -929,10 +939,10 @@ def bulk_import_inventory():
       return jsonify({"error": "User not authenticated"}), 401
 
         # Initialize import service with user_id
-        import_service = CSVImportService(db.session, Item, current_user_id)
+     import_service = CSVImportService(db.session, Item, current_user_id)
 
         # Process the import
-        result = import_service.process_csv_import(file)
+     result = import_service.process_csv_import(file)
 
     # Return appropriate status code
      if result.get("success"):
@@ -3347,6 +3357,7 @@ def api_slow_moving_items():
 @app.route('/sales')
 @login_required
 def sales():
+     
     """Enhanced sales overview with payment types and installment management"""
     page = request.args.get('page', 1, type=int)
     from models import Sale
@@ -3473,6 +3484,7 @@ def index():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    print("here we are")
     """Main dashboard page"""
     return render_template('dashboard.html')
 
