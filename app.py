@@ -3368,7 +3368,8 @@ def api_create_sale():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Sale creation failed: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/sales/performance/top')
 @login_required

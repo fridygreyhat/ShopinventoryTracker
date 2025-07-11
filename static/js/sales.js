@@ -46,6 +46,169 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     updateCartDisplay();
 
+    // Modern Success Popup Function
+    function showSuccessPopup(data) {
+        // Create popup HTML
+        const popupHTML = `
+            <div class="success-popup-overlay" id="successPopupOverlay">
+                <div class="success-popup-modal">
+                    <div class="success-popup-header">
+                        <div class="success-icon-container">
+                            <i class="fas fa-check-circle success-icon"></i>
+                        </div>
+                        <h3 class="success-title">Transaction Completed!</h3>
+                        <p class="success-subtitle">Your sale has been processed successfully</p>
+                    </div>
+                    <div class="success-popup-body">
+                        <div class="transaction-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Sale Number:</span>
+                                <span class="detail-value">${data.sale_number || 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Total Amount:</span>
+                                <span class="detail-value">TZS ${(data.total_amount || 0).toLocaleString()}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Payment Method:</span>
+                                <span class="detail-value">${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Customer:</span>
+                                <span class="detail-value">${document.getElementById('customerName').value || 'Walk-in Customer'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="success-popup-footer">
+                        <button class="btn btn-primary success-btn" onclick="closeSuccessPopup()">
+                            <i class="fas fa-thumbs-up me-2"></i>Continue Shopping
+                        </button>
+                        <button class="btn btn-outline-primary success-btn" onclick="printReceipt('${data.sale_number}')">
+                            <i class="fas fa-print me-2"></i>Print Receipt
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add popup to body
+        document.body.insertAdjacentHTML('beforeend', popupHTML);
+
+        // Show popup with animation
+        setTimeout(() => {
+            document.getElementById('successPopupOverlay').classList.add('show');
+        }, 100);
+
+        // Auto-close after 5 seconds
+        setTimeout(() => {
+            closeSuccessPopup();
+        }, 5000);
+    }
+
+    // Close success popup
+    function closeSuccessPopup() {
+        const overlay = document.getElementById('successPopupOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+    }
+
+    // Error popup function
+    function showErrorPopup(message) {
+        const errorPopupHTML = `
+            <div class="error-popup-overlay" id="errorPopupOverlay">
+                <div class="error-popup-modal">
+                    <div class="error-popup-header">
+                        <div class="error-icon-container">
+                            <i class="fas fa-exclamation-triangle error-icon"></i>
+                        </div>
+                        <h3 class="error-title">Transaction Error</h3>
+                    </div>
+                    <div class="error-popup-body">
+                        <p class="error-message">${message}</p>
+                    </div>
+                    <div class="error-popup-footer">
+                        <button class="btn btn-danger error-btn" onclick="closeErrorPopup()">
+                            <i class="fas fa-times me-2"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', errorPopupHTML);
+
+        setTimeout(() => {
+            document.getElementById('errorPopupOverlay').classList.add('show');
+        }, 100);
+    }
+
+    // Close error popup
+    function closeErrorPopup() {
+        const overlay = document.getElementById('errorPopupOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+    }
+
+    // Print receipt function
+    function printReceipt(saleNumber) {
+        // Create a simple receipt
+        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        
+        const receiptWindow = window.open('', '_blank');
+        receiptWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Receipt - ${saleNumber}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                    .detail { display: flex; justify-content: space-between; margin: 5px 0; }
+                    .total { font-weight: bold; border-top: 1px solid #333; padding-top: 10px; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>RECEIPT</h2>
+                    <p>${saleNumber}</p>
+                    <p>${new Date().toLocaleDateString()}</p>
+                </div>
+                <div class="detail">
+                    <span>Customer:</span>
+                    <span>${customerName}</span>
+                </div>
+                <div class="detail">
+                    <span>Payment:</span>
+                    <span>${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
+                </div>
+                <div class="detail total">
+                    <span>Total:</span>
+                    <span>TZS ${totalAmount.toLocaleString()}</span>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <p>Thank you for your business!</p>
+                    <button onclick="window.print()">Print</button>
+                    <button onclick="window.close()">Close</button>
+                </div>
+            </body>
+            </html>
+        `);
+        receiptWindow.document.close();
+        
+        // Close success popup
+        closeSuccessPopup();
+    }
+
     // Event Listeners
 
     // Barcode scanner
@@ -583,13 +746,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Transaction response data:', data);
             
             if (data.success) {
-                // Show success message
-                alert('Transaction completed successfully!');
+                // Show modern success popup
+                showSuccessPopup(data);
 
                 // Clear the cart and reset form
                 cart = [];
                 updateCartDisplay();
                 document.getElementById('checkoutForm').reset();
+                
+                // Reset payment fields
+                paymentAmount.value = '';
+                mobileMoneyFields.classList.add('d-none');
+                document.getElementById('installmentFields').classList.add('d-none');
             } else {
                 throw new Error(data.error || 'Transaction failed');
             }
@@ -603,12 +771,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show more specific error message
             if (error.message.includes('Authentication required')) {
-                alert('Your session has expired. Please log in again.');
-                window.location.href = '/login';
+                showErrorPopup('Your session has expired. Please log in again.');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
             } else if (error.message.includes('Failed to fetch')) {
-                alert('Network error. Please check your connection and try again.');
+                showErrorPopup('Network error. Please check your connection and try again.');
             } else {
-                alert(`Transaction failed: ${error.message}`);
+                showErrorPopup(`Transaction failed: ${error.message}`);
             }
 
             // Reset button
