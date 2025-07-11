@@ -564,19 +564,33 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify(transaction)
         })
         .then(response => {
+            console.log('Transaction response status:', response.status);
+            console.log('Transaction response headers:', response.headers);
+            
             if (!response.ok) {
+                // If it's a redirect (like 302), log the issue
+                if (response.status === 302) {
+                    console.error('Transaction failed - user not authenticated');
+                    throw new Error('Authentication required. Please log in again.');
+                }
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            // Show success message
-            alert('Transaction completed successfully!');
+            console.log('Transaction response data:', data);
+            
+            if (data.success) {
+                // Show success message
+                alert('Transaction completed successfully!');
 
-            // Clear the cart and reset form
-            cart = [];
-            updateCartDisplay();
-            document.getElementById('checkoutForm').reset();
+                // Clear the cart and reset form
+                cart = [];
+                updateCartDisplay();
+                document.getElementById('checkoutForm').reset();
+            } else {
+                throw new Error(data.error || 'Transaction failed');
+            }
 
             // Reset button
             completeTransactionBtn.disabled = false;
@@ -584,7 +598,14 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error completing transaction:', error);
-            alert('Failed to complete transaction. Please try again.');
+            
+            // Show more specific error message
+            if (error.message.includes('Authentication required')) {
+                alert('Please log in again and try the transaction.');
+                window.location.href = '/login';
+            } else {
+                alert(`Failed to complete transaction: ${error.message}`);
+            }
 
             // Reset button
             completeTransactionBtn.disabled = false;

@@ -3233,13 +3233,17 @@ def api_create_sale():
 
         # Create sale items and update inventory
         for item_data in data.get('items', []):
+            logger.info(f"Processing item: {item_data}")
             item = Item.query.filter_by(id=item_data['id'], user_id=user_id).first()
             if not item:
+                logger.error(f"Item not found: {item_data['id']} for user {user_id}")
                 raise Exception(f"Item not found: {item_data['id']}")
 
             # Check stock availability (use quantity field as main stock tracker)
             current_stock = item.quantity if item.quantity is not None else item.stock_quantity
+            logger.info(f"Current stock for {item.name}: {current_stock}, requested: {item_data['quantity']}")
             if current_stock < item_data['quantity']:
+                logger.error(f"Insufficient stock for {item.name}: {current_stock} < {item_data['quantity']}")
                 raise Exception(f"Insufficient stock for {item.name}")
 
             # Create sale item
@@ -3267,6 +3271,7 @@ def api_create_sale():
                 created_at=datetime.utcnow()
             )
             db.session.add(stock_movement)
+            logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
 
         db.session.commit()
 
