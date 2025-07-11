@@ -3475,10 +3475,15 @@ def security_management():
 
 @app.route('/')
 def index():
-    """Root route - redirect to dashboard if logged in, else login"""
+    """Root route - show cover page for new visitors, redirect to dashboard if logged in"""
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    return render_template('cover.html')
+
+@app.route('/cover')
+def cover():
+    """Cover page route"""
+    return render_template('cover.html')
 
 @app.route('/dashboard')
 @login_required
