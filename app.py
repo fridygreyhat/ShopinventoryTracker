@@ -918,12 +918,11 @@ def bulk_import_inventory():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Initialize importservice with user_id
+        # Initialize import service with user_id
         import_service = CSVImportService(db.session, Item, current_user_id)
 
         # Process the import
-        result = import_service```python
-.process_csv_import(file)
+        result = import_service.process_csv_import(file)
 
         # Return appropriate status code
         if result.get("success"):
@@ -1799,8 +1798,7 @@ def get_monthly_summaries():
                 FinancialTransaction.transaction_type == 'Expense'
             ).scalar() or 0
 
-            monthly_data.append({
-                'month': month_num,
+            monthly_data.append({                'month': month_num,
                 'month_name': months[month_num - 1],
                 'income': float(income),
                 'expenses': float(expenses),
@@ -1832,7 +1830,7 @@ def get_categories_api():
     try:
         from models import Category
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id,```python
+        categories = Category.query.filter_by(user_id=user_id,
 is_active=True).order_by(Category.name).all()
 
         categories_data = []
@@ -1936,7 +1934,7 @@ def get_journal_entries_api():
             })
 
         return jsonify({
-            'success': True, 
+            'success': True,
             'journals': journals_data,
             'pagination': {
                 'page': page,
@@ -3056,7 +3054,7 @@ def api_create_sale():
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         data = request.get_json()
 
         if not data or not data.get('items'):
