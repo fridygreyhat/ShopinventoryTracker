@@ -1013,6 +1013,128 @@ function testSMS() {
     });
 }
 
+function checkSMSConfiguration() {
+    fetch('/api/sms/config/check', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        let statusHtml = '<div class="mt-3">';
+        statusHtml += '<h6>SMS Configuration Status:</h6>';
+        statusHtml += `<div class="mb-2">
+            <span class="badge ${data.twilio_account_sid ? 'bg-success' : 'bg-danger'}">
+                Twilio Account SID: ${data.twilio_account_sid ? 'Configured' : 'Missing'}
+            </span>
+        </div>`;
+        statusHtml += `<div class="mb-2">
+            <span class="badge ${data.twilio_auth_token ? 'bg-success' : 'bg-danger'}">
+                Twilio Auth Token: ${data.twilio_auth_token ? 'Configured' : 'Missing'}
+            </span>
+        </div>`;
+        statusHtml += `<div class="mb-2">
+            <span class="badge ${data.twilio_phone_number ? 'bg-success' : 'bg-danger'}">
+                Twilio Phone Number: ${data.twilio_phone_number ? 'Configured' : 'Missing'}
+            </span>
+        </div>`;
+        statusHtml += `<div class="mb-2">
+            <span class="badge ${data.configuration_complete ? 'bg-success' : 'bg-warning'}">
+                Overall Status: ${data.configuration_complete ? 'Ready' : 'Incomplete'}
+            </span>
+        </div>`;
+        statusHtml += '</div>';
+
+        // Display in modal or alert
+        if (!data.configuration_complete) {
+            statusHtml += '<div class="alert alert-warning mt-3">';
+            statusHtml += '<strong>Setup Required:</strong> Please configure missing Twilio credentials in your environment variables.';
+            statusHtml += '</div>';
+        }
+
+        // Show in a modal or replace content in settings
+        showConfigurationStatus(statusHtml);
+    })
+    .catch(error => {
+        console.error('Error checking SMS configuration:', error);
+        showAlert('Error checking SMS configuration', 'danger');
+    });
+}
+
+function showConfigurationStatus(html) {
+    // Create or update configuration status section
+    let statusDiv = document.getElementById('sms-config-status');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'sms-config-status';
+        statusDiv.className = 'card mt-3';
+        
+        // Insert after SMS settings section
+        const smsSection = document.querySelector('#sms_notifications_enabled').closest('.card');
+        if (smsSection) {
+            smsSection.parentNode.insertBefore(statusDiv, smsSection.nextSibling);
+        }
+    }
+    
+    statusDiv.innerHTML = `
+        <div class="card-body">
+            <h6 class="card-title">SMS Configuration Status</h6>
+            ${html}
+        </div>
+    `;
+}
+
+function sendLowStockAlert() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    button.disabled = true;
+
+    fetch('/api/notifications/low-stock-alert', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = 'Low stock alert processed successfully!';
+            if (data.low_stock_count > 0) {
+                message += ` Found ${data.low_stock_count} items with low stock.`;
+                if (data.sms_sent) message += ' SMS notification sent.';
+                if (data.email_sent) message += ' Email notification sent.';
+            } else {
+                message += ' No items found with low stock.';
+            }
+            showAlert(message, 'success');
+        } else {
+            let errorMessage = 'Failed to send low stock alert.';
+            if (data.errors && data.errors.length > 0) {
+                errorMessage += ' Errors: ' + data.errors.join(', ');
+            }
+            showAlert(errorMessage, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending low stock alert:', error);
+        showAlert('Error sending low stock alert', 'danger');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Load SMS configuration status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check SMS configuration when page loads
+    setTimeout(() => {
+        checkSMSConfiguration();
+    }, 1000);
+});
+
 // Send low stock alert function
 function sendLowStockAlert() {
     fetch('/api/notifications/send-low-stock-alert', {
