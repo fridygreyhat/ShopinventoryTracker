@@ -1487,6 +1487,70 @@ def delete_setting(key):
         logger.error(f"Error deleting setting: {str(e)}")
         return jsonify({"error": "Failed to delete setting"}), 500
 
+@app.route('/api/settings/appearance', methods=['POST'])
+@login_required
+def update_appearance_settings():
+    """API endpoint to update appearance settings"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        from models import Setting
+        
+        # Update theme setting
+        if 'theme' in data:
+            theme_key = f"user_{user_id}_theme"
+            theme_setting = Setting.query.filter_by(key=theme_key).first()
+            
+            if not theme_setting:
+                theme_setting = Setting(
+                    key=theme_key,
+                    value=data['theme'],
+                    description='User theme preference',
+                    category='appearance'
+                )
+                db.session.add(theme_setting)
+            else:
+                theme_setting.value = data['theme']
+            
+            # Also update session
+            session['user_theme'] = data['theme']
+        
+        # Update other appearance settings
+        settings_to_update = [
+            ('items_per_page', data.get('itemsPerPage')),
+            ('date_format', data.get('dateFormat'))
+        ]
+        
+        for key, value in settings_to_update:
+            if value is not None:
+                setting = Setting.query.filter_by(key=key).first()
+                if not setting:
+                    setting = Setting(
+                        key=key,
+                        value=str(value),
+                        description=f'User {key} preference',
+                        category='appearance'
+                    )
+                    db.session.add(setting)
+                else:
+                    setting.value = str(value)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Appearance settings updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating appearance settings: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/logout')
 def logout():
     """Logout route to clear session data"""
