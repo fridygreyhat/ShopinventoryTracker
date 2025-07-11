@@ -20,7 +20,7 @@ def configure_database(app):
             'pool_pre_ping': True,
             'pool_recycle': 300,
             'connect_args': {
-                'sslmode': 'require'
+                'sslmode': 'prefer'
             }
         }
         print("✅ Configured PostgreSQL database for authentication")

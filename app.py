@@ -143,7 +143,7 @@ def init_database():
                     add_column_safely('sale', 'customer_id', 'INTEGER')
                     add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', '0')
                     add_column_safely('sale', 'payment_type', 'VARCHAR(20) DEFAULT \'cash\'', "'cash'")
-                    add_column_safely('sale', 'payment_status', 'VARCHAR(20) DEFAULT \'completed\'", "'completed'")
+                    add_column_safely('sale', 'payment_status', 'VARCHAR(20) DEFAULT \'completed\'', "'completed'")
                     add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
 
                     # Check if Customer table exists, if not create it
