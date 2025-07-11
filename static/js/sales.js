@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const startScanBtn = document.getElementById('startScanBtn');
@@ -212,16 +213,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event Listeners
 
     // Barcode scanner
-    startScanBtn.addEventListener('click', startScanner);
-    cancelScanBtn.addEventListener('click', stopScanner);
+    if (startScanBtn) {
+        startScanBtn.addEventListener('click', startScanner);
+    }
+    if (cancelScanBtn) {
+        cancelScanBtn.addEventListener('click', stopScanner);
+    }
 
     // Product search
-    searchProductsBtn.addEventListener('click', searchProducts);
-    productSearchInput.addEventListener('keyup', function(e) {
-        if (e.key === 'Enter') {
-            searchProducts();
-        }
-    });
+    if (searchProductsBtn) {
+        searchProductsBtn.addEventListener('click', searchProducts);
+    }
+    if (productSearchInput) {
+        productSearchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                searchProducts();
+            }
+        });
+    }
 
     // Show all products button
     const showAllProductsBtn = document.getElementById('showAllProductsBtn');
@@ -230,85 +239,118 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Sale type selection
-    saleTypeSelector.addEventListener('change', function() {
-        saleType = this.value;
+    if (saleTypeSelector) {
+        saleTypeSelector.addEventListener('change', function() {
+            saleType = this.value;
 
-        // If there are items in the cart, update their prices based on the new sale type
-        if (cart.length > 0) {
-            cart.forEach(item => {
-                if (saleType === 'retail') {
-                    item.price = item.selling_price_retail;
-                } else {
-                    item.price = item.selling_price_wholesale;
-                }
-                item.total = item.price * item.quantity;
-            });
-            updateCartDisplay();
-        }
+            // If there are items in the cart, update their prices based on the new sale type
+            if (cart.length > 0) {
+                cart.forEach(item => {
+                    if (saleType === 'retail') {
+                        item.price = item.selling_price_retail;
+                    } else {
+                        item.price = item.selling_price_wholesale;
+                    }
+                    item.total = item.price * item.quantity;
+                });
+                updateCartDisplay();
+            }
 
-        // If there are search results displayed, update their displayed prices
-        if (searchResults.length > 0) {
-            displaySearchResults(searchResults);
-        }
-    });
+            // If there are search results displayed, update their displayed prices
+            if (searchResults.length > 0) {
+                displaySearchResults(searchResults);
+            }
+        });
+    }
 
     // Unit type selection
     const unitTypeSelector = document.getElementById('unitTypeSelector');
-    unitTypeSelector.addEventListener('change', function() {
-        unitType = this.value;
-        // Update quantity input step and min values based on unit type
-        document.querySelectorAll('.item-qty').forEach(input => {
-            if (unitType === 'weight') {
-                input.setAttribute('step', '0.1');
-                input.setAttribute('min', '0.1');
-            } else {
-                input.setAttribute('step', '1');
-                input.setAttribute('min', '1');
-            }
+    if (unitTypeSelector) {
+        unitTypeSelector.addEventListener('change', function() {
+            unitType = this.value;
+            // Update quantity input step and min values based on unit type
+            document.querySelectorAll('.item-qty').forEach(input => {
+                if (unitType === 'weight') {
+                    input.setAttribute('step', '0.1');
+                    input.setAttribute('min', '0.1');
+                } else {
+                    input.setAttribute('step', '1');
+                    input.setAttribute('min', '1');
+                }
+            });
         });
-    });
+    }
 
     // Cart management
-    clearCartBtn.addEventListener('click', clearCart);
+    if (clearCartBtn) {
+        clearCartBtn.addEventListener('click', clearCart);
+    }
 
     // Payment method toggle
-    paymentMethod.addEventListener('change', function() {
-        // Hide all payment-specific fields first
-        mobileMoneyFields.classList.add('d-none');
-        document.getElementById('installmentFields').classList.add('d-none');
+    if (paymentMethod) {
+        paymentMethod.addEventListener('change', function() {
+            // Hide all payment-specific fields first
+            if (mobileMoneyFields) {
+                mobileMoneyFields.classList.add('d-none');
+            }
+            const installmentFields = document.getElementById('installmentFields');
+            if (installmentFields) {
+                installmentFields.classList.add('d-none');
+            }
 
-        if (this.value === 'mobile_money') {
-            mobileMoneyFields.classList.remove('d-none');
-        } else if (this.value === 'installment') {
-            document.getElementById('installmentFields').classList.remove('d-none');
-            // Set payment amount to down payment when installment is selected
-            const downPaymentInput = document.getElementById('downPayment');
-            const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-            const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
-            downPaymentInput.value = suggestedDownPayment;
-            paymentAmount.value = suggestedDownPayment;
-        }
-    });
+            if (this.value === 'mobile_money') {
+                if (mobileMoneyFields) {
+                    mobileMoneyFields.classList.remove('d-none');
+                }
+            } else if (this.value === 'installment') {
+                if (installmentFields) {
+                    installmentFields.classList.remove('d-none');
+                    // Set payment amount to down payment when installment is selected
+                    const downPaymentInput = document.getElementById('downPayment');
+                    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+                    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
+                    if (downPaymentInput) {
+                        downPaymentInput.value = suggestedDownPayment;
+                    }
+                    if (paymentAmount) {
+                        paymentAmount.value = suggestedDownPayment;
+                    }
+                }
+            }
+        });
+    }
 
     // Set payment amount to match cart total when cart changes
-    paymentAmount.addEventListener('focus', function() {
-        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, '')) || 0;
-        if (totalAmount > 0) {
-            this.value = totalAmount;
-        }
-    });
+    if (paymentAmount) {
+        paymentAmount.addEventListener('focus', function() {
+            const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, '')) || 0;
+            if (totalAmount > 0) {
+                this.value = totalAmount;
+            }
+        });
+    }
 
     // Checkout
-    completeTransactionBtn.addEventListener('click', completeTransaction);
-    createInvoiceBtn.addEventListener('click', createInvoice);
+    if (completeTransactionBtn) {
+        completeTransactionBtn.addEventListener('click', completeTransaction);
+    }
+    if (createInvoiceBtn) {
+        createInvoiceBtn.addEventListener('click', createInvoice);
+    }
 
     // Discount application
-    applyDiscountModalBtn.addEventListener('click', applyDiscount);
+    if (applyDiscountModalBtn) {
+        applyDiscountModalBtn.addEventListener('click', applyDiscount);
+    }
 
     // Barcode Scanner Functions
     function startScanner() {
-        scannerContainer.classList.remove('d-none');
-        scanFeedback.textContent = 'Initializing camera...';
+        if (scannerContainer) {
+            scannerContainer.classList.remove('d-none');
+        }
+        if (scanFeedback) {
+            scanFeedback.textContent = 'Initializing camera...';
+        }
 
         if (!codeReader) {
             codeReader = new ZXing.BrowserMultiFormatReader();
@@ -317,7 +359,9 @@ document.addEventListener('DOMContentLoaded', function() {
         codeReader.listVideoInputDevices()
             .then((videoInputDevices) => {
                 if (videoInputDevices.length === 0) {
-                    scanFeedback.textContent = 'No camera detected';
+                    if (scanFeedback) {
+                        scanFeedback.textContent = 'No camera detected';
+                    }
                     return;
                 }
 
@@ -336,7 +380,9 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error('Error accessing camera:', err);
-                scanFeedback.textContent = 'Camera access denied or error';
+                if (scanFeedback) {
+                    scanFeedback.textContent = 'Camera access denied or error';
+                }
             });
     }
 
@@ -344,38 +390,50 @@ document.addEventListener('DOMContentLoaded', function() {
         codeReader.decodeFromVideoDevice(deviceId, videoElement, (result, err) => {
             if (result) {
                 // Successfully scanned a barcode
-                scanFeedback.textContent = `Scanned: ${result.text}`;
+                if (scanFeedback) {
+                    scanFeedback.textContent = `Scanned: ${result.text}`;
+                }
 
                 // Stop scanning
                 stopScanner();
 
                 // Search for the product with this barcode/SKU
-                productSearchInput.value = result.text;
+                if (productSearchInput) {
+                    productSearchInput.value = result.text;
+                }
                 searchProducts();
             }
 
             if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error('Scanning error:', err);
-                scanFeedback.textContent = 'Error during scanning';
+                if (scanFeedback) {
+                    scanFeedback.textContent = 'Error during scanning';
+                }
             }
         });
 
-        scanFeedback.textContent = 'Position barcode in the center';
+        if (scanFeedback) {
+            scanFeedback.textContent = 'Position barcode in the center';
+        }
     }
 
     function stopScanner() {
         if (codeReader) {
             codeReader.reset();
-            scannerContainer.classList.add('d-none');
+            if (scannerContainer) {
+                scannerContainer.classList.add('d-none');
+            }
         }
     }
 
     // Product Search Functions
     function searchProducts() {
-        const query = productSearchInput.value.trim();
+        const query = productSearchInput ? productSearchInput.value.trim() : '';
 
         // Show loading state
-        productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
+        if (productResultsTable) {
+            productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
+        }
 
         // Make API request to search inventory (empty query returns all items)
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
@@ -390,17 +448,23 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error searching products:', error);
-                productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                if (productResultsTable) {
+                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                }
             });
     }
 
     // Function to load all products
     function loadAllProducts() {
-        productSearchInput.value = ''; // Clear search input
+        if (productSearchInput) {
+            productSearchInput.value = ''; // Clear search input
+        }
         searchProducts(); // This will now load all products since query is empty
     }
 
     function displaySearchResults(items) {
+        if (!productResultsTable) return;
+
         if (items.length === 0) {
             productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found</td></tr>';
             return;
@@ -478,6 +542,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateCartDisplay() {
+        if (!cartTableBody || !cartCount || !cartSubtotal || !cartTotal) return;
+
         if (cart.length === 0) {
             cartTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No items in cart</td></tr>';
             cartCount.textContent = '0 items';
@@ -533,17 +599,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentDiscount.type !== 'none') {
             if (currentDiscount.type === 'percentage') {
                 const discountAmount = subtotal * (currentDiscount.value / 100);
-                cartDiscountType.textContent = currentDiscount.value + '%';
-                cartDiscount.textContent = discountAmount.toLocaleString();
+                if (cartDiscountType) cartDiscountType.textContent = currentDiscount.value + '%';
+                if (cartDiscount) cartDiscount.textContent = discountAmount.toLocaleString();
                 finalTotal = subtotal - discountAmount;
             } else if (currentDiscount.type === 'fixed') {
-                cartDiscountType.textContent = 'TZS';
-                cartDiscount.textContent = currentDiscount.value.toLocaleString();
+                if (cartDiscountType) cartDiscountType.textContent = 'TZS';
+                if (cartDiscount) cartDiscount.textContent = currentDiscount.value.toLocaleString();
                 finalTotal = subtotal - currentDiscount.value;
             }
         } else {
-            cartDiscountType.textContent = '-';
-            cartDiscount.textContent = '0';
+            if (cartDiscountType) cartDiscountType.textContent = '-';
+            if (cartDiscount) cartDiscount.textContent = '0';
         }
 
         cartTotal.textContent = finalTotal.toLocaleString();
@@ -614,6 +680,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Discount Functions
     function applyDiscount() {
+        if (!discountType || !discountValue) return;
+
         const type = discountType.value;
         let value = parseFloat(discountValue.value);
 
@@ -636,24 +704,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const customerPhone = document.getElementById('customerPhone').value || '';
-        const payment = document.getElementById('paymentMethod').value;
-        const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
-        const notes = document.getElementById('saleNotes').value || '';
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone') ? document.getElementById('customerPhone').value || '' : '';
+        const payment = paymentMethod ? paymentMethod.value : 'cash';
+        const amount = paymentAmount ? parseFloat(paymentAmount.value) || 0 : 0;
+        const notes = document.getElementById('saleNotes') ? document.getElementById('saleNotes').value || '' : '';
 
         let mobileInfo = {};
         let installmentInfo = {};
 
         if (payment === 'mobile_money') {
+            const mobileProvider = document.getElementById('mobileProvider');
+            const transactionReference = document.getElementById('transactionReference');
             mobileInfo = {
-                provider: document.getElementById('mobileProvider').value,
-                reference: document.getElementById('transactionReference').value
+                provider: mobileProvider ? mobileProvider.value : '',
+                reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
             // Validate installment fields
-            const customerAddress = document.getElementById('customerAddress').value.trim();
-            if (!customerAddress) {
+            const customerAddress = document.getElementById('customerAddress');
+            if (!customerAddress || !customerAddress.value.trim()) {
                 alert('Customer address is required for installment sales');
                 return;
             }
@@ -662,10 +732,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            const downPayment = document.getElementById('downPayment');
+            const numberOfInstallments = document.getElementById('numberOfInstallments');
             installmentInfo = {
-                down_payment: parseFloat(document.getElementById('downPayment').value) || 0,
-                number_of_installments: parseInt(document.getElementById('numberOfInstallments').value),
-                customer_address: customerAddress
+                down_payment: downPayment ? parseFloat(downPayment.value) || 0 : 0,
+                number_of_installments: numberOfInstallments ? parseInt(numberOfInstallments.value) : 12,
+                customer_address: customerAddress.value
             };
         }
 
@@ -709,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
             discount: {
                 type: currentDiscount.type,
                 value: currentDiscount.value,
-                amount: parseFloat(cartDiscount.textContent.replace(/,/g, ''))
+                amount: cartDiscount ? parseFloat(cartDiscount.textContent.replace(/,/g, '')) : 0
             },
             total: totalAmount,
             notes: notes,
@@ -717,8 +789,10 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         // Show loading state
-        completeTransactionBtn.disabled = true;
-        completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        if (completeTransactionBtn) {
+            completeTransactionBtn.disabled = true;
+            completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        }
 
         // Send transaction data to the server
         fetch('/api/sales', {
@@ -752,19 +826,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear the cart and reset form
                 cart = [];
                 updateCartDisplay();
-                document.getElementById('checkoutForm').reset();
+                const checkoutForm = document.getElementById('checkoutForm');
+                if (checkoutForm) {
+                    checkoutForm.reset();
+                }
 
                 // Reset payment fields
-                paymentAmount.value = '';
-                mobileMoneyFields.classList.add('d-none');
-                document.getElementById('installmentFields').classList.add('d-none');
+                if (paymentAmount) {
+                    paymentAmount.value = '';
+                }
+                if (mobileMoneyFields) {
+                    mobileMoneyFields.classList.add('d-none');
+                }
+                const installmentFields = document.getElementById('installmentFields');
+                if (installmentFields) {
+                    installmentFields.classList.add('d-none');
+                }
             } else {
                 throw new Error(data.error || 'Transaction failed');
             }
 
             // Reset button
-            completeTransactionBtn.disabled = false;
-            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            if (completeTransactionBtn) {
+                completeTransactionBtn.disabled = false;
+                completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            }
         })
         .catch(error => {
             console.error('Error completing transaction:', error);
@@ -782,8 +868,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Reset button
-            completeTransactionBtn.disabled = false;
-            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            if (completeTransactionBtn) {
+                completeTransactionBtn.disabled = false;
+                completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            }
         });
     }
 
@@ -794,8 +882,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Prepare invoice data
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const customerPhone = document.getElementById('customerPhone').value || '';
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone') ? document.getElementById('customerPhone').value || '' : '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
 
         // Create a printable invoice in a new window
@@ -908,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </tr>
                             <tr>
                                 <td colspan="3" class="text-right">Discount:</td>
-                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + (cartDiscount ? parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString() : '0')}</td>
                             </tr>
                             <tr class="total-row">
                                 <td colspan="3" class="text-right">Total:</td>
@@ -936,7 +1024,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make functions global for popup access
     window.closeSuccessPopup = closeSuccessPopup;
     window.closeErrorPopup = closeErrorPopup;
-    window.printThis commit fixes the javascript syntax issues that caused the transaction failures.
+    window.printReceipt = printReceipt;
 
-Receipt = printReceipt;
+    // Initialize search on page load
+    if (productSearchInput) {
+        loadAllProducts();
+    }
 });
