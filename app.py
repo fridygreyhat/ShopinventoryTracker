@@ -3183,12 +3183,22 @@ def api_create_sale():
         # Validate user session
         user_id = session.get('user_id')
         if not user_id:
+            logger.error("Sale creation failed: No user session found")
             return jsonify({'error': 'Authentication required'}), 401
 
         data = request.get_json()
+        logger.info(f"Sale creation request: {data}")
 
         if not data or not data.get('items'):
+            logger.error("Sale creation failed: No items provided")
             return jsonify({'error': 'No items provided'}), 400
+
+        # Validate that all items belong to the user
+        item_ids = [item['id'] for item in data.get('items', [])]
+        items_check = Item.query.filter(Item.id.in_(item_ids), Item.user_id == user_id).count()
+        if items_check != len(item_ids):
+            logger.error(f"Sale creation failed: Items don't belong to user {user_id}")
+            return jsonify({'error': 'Invalid items selected'}), 400
 
         # Generate sale number
         sale_number = f"SALE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
