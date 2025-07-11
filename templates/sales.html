@@ -386,6 +386,141 @@
             </div>
         </div>
     </div>
+
+    <!-- Completed Transactions Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="glass-card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="salesTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pos-tab" data-bs-toggle="tab" data-bs-target="#pos-section" type="button" role="tab" aria-controls="pos-section" aria-selected="true">
+                                <i class="fas fa-cash-register me-2"></i>Point of Sale
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-transactions" type="button" role="tab" aria-controls="completed-transactions" aria-selected="false">
+                                <i class="fas fa-check-circle me-2"></i>Completed Transactions
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="salesTabsContent">
+                        <!-- POS Tab (move existing content here) -->
+                        <div class="tab-pane fade show active" id="pos-section" role="tabpanel" aria-labelledby="pos-tab">
+                            <!-- The existing POS content will be moved here by JavaScript -->
+                        </div>
+                        
+                        <!-- Completed Transactions Tab -->
+                        <div class="tab-pane fade" id="completed-transactions" role="tabpanel" aria-labelledby="completed-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="dateFromFilter" class="form-label">From Date</label>
+                                    <input type="date" class="form-control" id="dateFromFilter">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dateToFilter" class="form-label">To Date</label>
+                                    <input type="date" class="form-control" id="dateToFilter">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="paymentMethodFilter" class="form-label">Payment Method</label>
+                                    <select class="form-select" id="paymentMethodFilter">
+                                        <option value="">All Methods</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="mobile_money">Mobile Money</option>
+                                        <option value="card">Card</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary me-2" id="filterCompletedBtn">
+                                        <i class="fas fa-filter me-1"></i>Filter
+                                    </button>
+                                    <button class="btn btn-outline-secondary" id="clearFiltersBtn">
+                                        <i class="fas fa-times me-1"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Summary Cards -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-receipt fa-2x text-primary mb-2"></i>
+                                            <h6 class="text-muted">Total Transactions</h6>
+                                            <h4 id="totalCompletedCount">0</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-money-bill-wave fa-2x text-success mb-2"></i>
+                                            <h6 class="text-muted">Total Revenue</h6>
+                                            <h4 id="totalCompletedRevenue">TZS 0</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                                            <h6 class="text-muted">Average Transaction</h6>
+                                            <h4 id="averageTransactionValue">TZS 0</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-calendar-day fa-2x text-warning mb-2"></i>
+                                            <h6 class="text-muted">Today's Sales</h6>
+                                            <h4 id="todaysSalesCount">0</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Transactions Table -->
+                            <div class="table-responsive">
+                                <table class="table table-modern table-hover" id="completedTransactionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Sale #</th>
+                                            <th>Date & Time</th>
+                                            <th>Customer</th>
+                                            <th>Items</th>
+                                            <th>Payment Method</th>
+                                            <th>Total Amount</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="completedTransactionsBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4">
+                                                <i class="fas fa-spinner fa-spin fa-2x text-muted mb-2"></i>
+                                                <div>Loading completed transactions...</div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            <nav aria-label="Transactions pagination" id="transactionsPagination" class="d-none">
+                                <ul class="pagination justify-content-center">
+                                    <!-- Pagination will be populated by JavaScript -->
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Enhanced Discount Modal -->

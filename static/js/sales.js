@@ -1139,4 +1139,332 @@ document.addEventListener('DOMContentLoaded', function() {
     if (productSearchInput) {
         loadAllProducts();
     }
+
+    // Initialize completed transactions tab
+    initializeCompletedTransactions();
 });
+
+// Completed Transactions Functionality
+function initializeCompletedTransactions() {
+    // Move existing POS content to the POS tab
+    const posContent = document.querySelector('.sales-dashboard .row');
+    const posSection = document.getElementById('pos-section');
+    if (posContent && posSection && posContent.parentNode.classList.contains('sales-dashboard')) {
+        posSection.appendChild(posContent);
+    }
+
+    // Event listeners for completed transactions
+    const completedTab = document.getElementById('completed-tab');
+    const filterBtn = document.getElementById('filterCompletedBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+    if (completedTab) {
+        completedTab.addEventListener('click', function() {
+            loadCompletedTransactions();
+        });
+    }
+
+    if (filterBtn) {
+        filterBtn.addEventListener('click', function() {
+            loadCompletedTransactions();
+        });
+    }
+
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            document.getElementById('paymentMethodFilter').value = '';
+            loadCompletedTransactions();
+        });
+    }
+}
+
+function loadCompletedTransactions(page = 1) {
+    const dateFrom = document.getElementById('dateFromFilter')?.value || '';
+    const dateTo = document.getElementById('dateToFilter')?.value || '';
+    const paymentMethod = document.getElementById('paymentMethodFilter')?.value || '';
+
+    // Build query parameters
+    const params = new URLSearchParams({
+        page: page,
+        per_page: 20
+    });
+
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (paymentMethod) params.append('payment_method', paymentMethod);
+
+    // Show loading state
+    const tbody = document.getElementById('completedTransactionsBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-muted mb-2"></i>
+                    <div>Loading completed transactions...</div>
+                </td>
+            </tr>
+        `;
+    }
+
+    fetch(`/api/sales/completed?${params.toString()}`, {
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            displayCompletedTransactions(data);
+        } else {
+            throw new Error(data.error || 'Failed to load transactions');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading completed transactions:', error);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <div>Error loading transactions: ${error.message}</div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+}
+
+function displayCompletedTransactions(data) {
+    const tbody = document.getElementById('completedTransactionsBody');
+    const pagination = document.getElementById('transactionsPagination');
+
+    // Update summary cards
+    updateTransactionsSummary(data.summary);
+
+    if (!data.sales || data.sales.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                    <div>No completed transactions found</div>
+                </td>
+            </tr>
+        `;
+        pagination.classList.add('d-none');
+        return;
+    }
+
+    // Display transactions
+    let html = '';
+    data.sales.forEach(sale => {
+        const date = new Date(sale.created_at);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        
+        html += `
+            <tr>
+                <td>
+                    <span class="fw-bold text-primary">${sale.sale_number}</span>
+                </td>
+                <td>
+                    <div class="small">${formattedDate}</div>
+                </td>
+                <td>
+                    <div class="fw-bold">${sale.customer_name}</div>
+                    ${sale.customer_phone ? `<div class="small text-muted">${sale.customer_phone}</div>` : ''}
+                </td>
+                <td>
+                    <div class="fw-bold">${sale.items_count} item${sale.items_count !== 1 ? 's' : ''}</div>
+                    <div class="small text-muted">
+                        ${sale.items.slice(0, 2).map(item => `${item.name} (${item.quantity})`).join(', ')}
+                        ${sale.items.length > 2 ? `... +${sale.items.length - 2} more` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary">${formatPaymentMethod(sale.payment_method)}</span>
+                </td>
+                <td>
+                    <span class="fw-bold text-success">TZS ${sale.total_amount.toLocaleString()}</span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="viewTransactionDetails('${sale.id}')" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="printTransactionReceipt('${sale.sale_number}')" title="Print Receipt">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    // Update pagination
+    if (data.pagination.pages > 1) {
+        displayPagination(data.pagination);
+        pagination.classList.remove('d-none');
+    } else {
+        pagination.classList.add('d-none');
+    }
+}
+
+function updateTransactionsSummary(summary) {
+    const totalCount = document.getElementById('totalCompletedCount');
+    const totalRevenue = document.getElementById('totalCompletedRevenue');
+    const averageTransaction = document.getElementById('averageTransactionValue');
+    const todaysCount = document.getElementById('todaysSalesCount');
+
+    if (totalCount) totalCount.textContent = summary.total_completed_sales.toLocaleString();
+    if (totalRevenue) totalRevenue.textContent = `TZS ${summary.total_revenue.toLocaleString()}`;
+    if (averageTransaction) averageTransaction.textContent = `TZS ${summary.average_transaction.toLocaleString()}`;
+    
+    // Calculate today's sales from current data (simplified)
+    if (todaysCount) {
+        const today = new Date().toISOString().split('T')[0];
+        // This would need additional API call for accurate today's count
+        todaysCount.textContent = '0'; // Placeholder
+    }
+}
+
+function formatPaymentMethod(method) {
+    const methods = {
+        'cash': 'Cash',
+        'mobile_money': 'Mobile Money',
+        'card': 'Card',
+        'bank_transfer': 'Bank Transfer',
+        'installment': 'Installment'
+    };
+    return methods[method] || method.charAt(0).toUpperCase() + method.slice(1);
+}
+
+function displayPagination(pagination) {
+    const paginationContainer = document.querySelector('#transactionsPagination .pagination');
+    if (!paginationContainer) return;
+
+    let html = '';
+
+    // Previous button
+    if (pagination.has_prev) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.page - 1}); return false;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        `;
+    }
+
+    // Page numbers
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.pages, pagination.page + 2);
+
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadCompletedTransactions(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+
+    if (endPage < pagination.pages) {
+        if (endPage < pagination.pages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.pages}); return false;">${pagination.pages}</a></li>`;
+    }
+
+    // Next button
+    if (pagination.has_next) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.page + 1}); return false;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        `;
+    }
+
+    paginationContainer.innerHTML = html;
+}
+
+function viewTransactionDetails(saleId) {
+    // Create and show a modal with transaction details
+    const modalHtml = `
+        <div class="modal fade" id="transactionDetailsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Transaction Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <div class="mt-2">Loading transaction details...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('transactionDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
+    modal.show();
+
+    // Load transaction details
+    fetch(`/api/sales/${saleId}`, {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayTransactionDetailsInModal(data.sale);
+        } else {
+            throw new Error(data.error || 'Failed to load transaction details');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading transaction details:', error);
+        const modalBody = document.querySelector('#transactionDetailsModal .modal-body');
+        modalBody.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                <div class="mt-2">Error loading transaction details</div>
+            </div>
+        `;
+    });
+}
+
+function printTransactionReceipt(saleNumber) {
+    // Simple receipt printing functionality
+    window.open(`/api/sales/receipt/${saleNumber}`, '_blank');
+}
+
+// Make functions global
+window.loadCompletedTransactions = loadCompletedTransactions;
+window.viewTransactionDetails = viewTransactionDetails;
+window.printTransactionReceipt = printTransactionReceipt;
