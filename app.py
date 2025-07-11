@@ -859,6 +859,13 @@ def update_item(item_id):
         return jsonify({"error": "Failed to update item"}), 500
 
 
+return jsonify(item.to_dict())
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating item: {str(e)}")
+        return jsonify({"error": "Failed to update item"}), 500
+
 def verify_postgresql_auth():
     """Verify that PostgreSQL authentication is working properly"""
     try:
@@ -873,14 +880,10 @@ def verify_postgresql_auth():
 
 # Verify PostgreSQL authentication on startup
 with app.app_context():
-    try:
-        if verify_postgresql_auth():
-            logger.info("🔐 PostgreSQL authentication system initialized successfully")
-        else:
-            logger.warning("⚠️ PostgreSQL authentication system may have issues")
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating item: {str(e)}")
+    if verify_postgresql_auth():
+        logger.info("🔐 PostgreSQL authentication system initialized successfully")
+    else:
+        logger.warning("⚠️ PostgreSQL authentication system may have issues")
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
@@ -925,11 +928,11 @@ def bulk_import_inventory():
      if not current_user_id:
       return jsonify({"error": "User not authenticated"}), 401
 
-    # Initialize importservice with user_id
-     import_service = CSVImportService(db.session, Item, current_user_id)
+        # Initialize import service with user_id
+        import_service = CSVImportService(db.session, Item, current_user_id)
 
-    # Process the import
-     result = import_service.process_csv_import(file)
+        # Process the import
+        result = import_service.process_csv_import(file)
 
     # Return appropriate status code
      if result.get("success"):
@@ -1805,8 +1808,7 @@ def get_monthly_summaries():
                 FinancialTransaction.transaction_type == 'Expense'
             ).scalar() or 0
 
-            monthly_data.append({
-                'month': month_num,
+            monthly_data.append({                'month': month_num,
                 'month_name': months[month_num - 1],
                 'income': float(income),
                 'expenses': float(expenses),
@@ -1838,7 +1840,8 @@ def get_categories_api():
     try:
         from models import Category
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id,is_active=True).order_by(Category.name).all()
+        categories = Category.query.filter_by(user_id=user_id,
+is_active=True).order_by(Category.name).all()
 
         categories_data = []
         for category in categories:
@@ -1941,7 +1944,7 @@ def get_journal_entries_api():
             })
 
         return jsonify({
-            'success': True, 
+            'success': True,
             'journals': journals_data,
             'pagination': {
                 'page': page,
@@ -2730,6 +2733,116 @@ def schedule_shift():
         logger.error(f"Error scheduling shift: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# ===== SMS API ROUTES =====
+
+@app.route('/api/sms/test', methods=['POST'])
+@login_required
+def test_sms_api():
+    """Test SMS API functionality"""
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        message = data.get('message', 'Test SMS from your Inventory Management System')
+
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+
+        # Import SMS service
+        from notifications.sms_service import send_sms
+        
+        # Send test SMS
+        success = send_sms(phone_number, message)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Test SMS sent successfully',
+                'phone_number': phone_number
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send SMS. Check your Twilio credentials and phone number format.'
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Error testing SMS: {str(e)}")
+        return jsonify({'error': f'SMS test failed: {str(e)}'}), 500
+
+@app.route('/api/sms/config/check', methods=['GET'])
+@login_required
+def check_sms_config():
+    """Check SMS configuration status"""
+    try:
+        import os
+        
+        config_status = {
+            'twilio_account_sid': bool(os.environ.get('TWILIO_ACCOUNT_SID')),
+            'twilio_auth_token': bool(os.environ.get('TWILIO_AUTH_TOKEN')),
+            'twilio_phone_number': bool(os.environ.get('TWILIO_PHONE_NUMBER')),
+            'configuration_complete': False
+        }
+        
+        config_status['configuration_complete'] = all([
+            config_status['twilio_account_sid'],
+            config_status['twilio_auth_token'],
+            config_status['twilio_phone_number']
+        ])
+        
+        return jsonify(config_status)
+
+    except Exception as e:
+        logger.error(f"Error checking SMS config: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/test-sms', methods=['POST'])
+@login_required
+def test_notification_sms():
+    """Test SMS notification system"""
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        message = data.get('message', 'Test notification from your Inventory Management System')
+
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+
+        # Import notification service
+        from notifications.sms_service import send_sms
+        
+        # Send test SMS
+        success = send_sms(phone_number, message)
+        
+        return jsonify({
+            'success': success,
+            'message': 'Test SMS sent successfully' if success else 'Failed to send SMS',
+            'phone_number': phone_number
+        })
+
+    except Exception as e:
+        logger.error(f"Error in notification SMS test: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/notifications/low-stock-alert', methods=['POST'])
+@login_required
+def send_low_stock_alert():
+    """Manually trigger low stock SMS alert"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Import required services
+        from models import Item, Setting
+        from notifications.notification_manager import check_low_stock_and_notify
+        
+        # Trigger low stock notification
+        result = check_low_stock_and_notify(db, Item, Setting)
+        
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error sending low stock alert: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ===== MARKETING API ROUTES =====
 
 @app.route('/api/marketing/email-campaign', methods=['POST'])
@@ -3061,7 +3174,7 @@ def api_create_sale():
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         data = request.get_json()
 
         if not data or not data.get('items'):

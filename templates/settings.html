@@ -396,10 +396,42 @@
                                 <div class="form-text">The email address that will appear as the sender</div>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="notification_phone" class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" id="notification_phone" name="notification_phone" placeholder="+255XXXXXXXXX">
-                                <div class="form-text">Phone number to receive SMS notifications (include country code, e.g., +255)</div>
+                            <div class="row mb-3">
+                            <div class="col-md-6">
+                                <input type="tel" class="form-control" id="notification_phone" name="notification_phone" placeholder="+1234567890">
+                                <div class="form-text">Include country code (e.g., +1 for US, +255 for Tanzania)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="testSMS()">
+                                        <i class="fas fa-paper-plane"></i> Test SMS
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="checkSMSConfiguration()">
+                                        <i class="fas fa-cog"></i> Check Config
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="sendLowStockAlert()">
+                                        <i class="fas fa-exclamation-triangle"></i> Test Alert
+                                    </button>
+                                </div>
+                            </div></div>
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <strong>SMS Setup Instructions:</strong>
+                                    <ol class="mb-0 mt-2">
+                                        <li>Sign up for a Twilio account at <a href="https://www.twilio.com" target="_blank">twilio.com</a></li>
+                                        <li>Get your Account SID, Auth Token, and Phone Number from Twilio Console</li>
+                                        <li>Add these as Secrets in Replit:
+                                            <ul>
+                                                <li><code>TWILIO_ACCOUNT_SID</code></li>
+                                                <li><code>TWILIO_AUTH_TOKEN</code></li>
+                                                <li><code>TWILIO_PHONE_NUMBER</code> (in E.164 format, e.g., +1234567890)</li>
+                                            </ul>
+                                        </li>
+                                        <li>Use the "Check Config" button to verify your setup</li>
+                                    </ol>
+                                </div>
                             </div>
 
                             <hr class="my-4">
