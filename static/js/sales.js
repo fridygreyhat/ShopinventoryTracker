@@ -165,45 +165,43 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalAmount = cartTotal ? parseFloat(cartTotal.textContent.replace(/,/g, '')) : 0;
 
         const receiptWindow = window.open('', '_blank');
-        receiptWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Receipt - ${saleNumber}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }
-                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                    .detail { display: flex; justify-content: space-between; margin: 5px 0; }
-                    .total { font-weight: bold; border-top: 1px solid #333; padding-top: 10px; }
-                    @media print { body { margin: 0; } }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h2>RECEIPT</h2>
-                    <p>${saleNumber}</p>
-                    <p>${new Date().toLocaleDateString()}</p>
-                </div>
-                <div class="detail">
-                    <span>Customer:</span>
-                    <span>${customerName}</span>
-                </div>
-                <div class="detail">
-                    <span>Payment:</span>
-                    <span>${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
-                </div>
-                <div class="detail total">
-                    <span>Total:</span>
-                    <span>TZS ${totalAmount.toLocaleString()}</span>
-                </div>
-                <div style="text-align: center; margin-top: 20px;">
-                    <p>Thank you for your business!</p>
-                    <button onclick="window.print()">Print</button>
-                    <button onclick="window.close()">Close</button>
-                </div>
-            </body>
-            </html>
-        `);
+        receiptWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt - ${saleNumber}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .detail { display: flex; justify-content: space-between; margin: 5px 0; }
+        .total { font-weight: bold; border-top: 1px solid #333; padding-top: 10px; }
+        @media print { body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>RECEIPT</h2>
+        <p>${saleNumber}</p>
+        <p>${new Date().toLocaleDateString()}</p>
+    </div>
+    <div class="detail">
+        <span>Customer:</span>
+        <span>${customerName}</span>
+    </div>
+    <div class="detail">
+        <span>Payment:</span>
+        <span>${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
+    </div>
+    <div class="detail total">
+        <span>Total:</span>
+        <span>TZS ${totalAmount.toLocaleString()}</span>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <p>Thank you for your business!</p>
+        <button onclick="window.print()">Print</button>
+        <button onclick="window.close()">Close</button>
+    </div>
+</body>
+</html>`);
         receiptWindow.document.close();
 
         // Close success popup
