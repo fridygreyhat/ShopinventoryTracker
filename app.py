@@ -3343,6 +3343,24 @@ def sync_store_catalog(store_id):
 
 # ===== DASHBOARD API ROUTES =====
 
+def column_exists(table_name, column_name):
+    """Helper function to check if column exists"""
+    try:
+        # PostgreSQL query to check if column exists - using parameterized query
+        result = db.session.execute(
+            db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = :table_name 
+                AND column_name = :column_name
+            """), 
+            {"table_name": table_name, "column_name": column_name}
+        )
+        return result.fetchone() is not None
+    except Exception as e:
+        logger.error(f"Error checking column existence: {str(e)}")
+        return False
+
 @app.route('/api/health/database', methods=['GET'])
 @login_required
 def database_health_check():
@@ -4045,43 +4063,106 @@ def api_slow_moving_items():
 @app.route('/sales')
 @login_required
 def sales():
-     
     """Enhanced sales overview with payment types and installment management"""
-    page = request.args.get('page', 1, type=int)
-    from models import Sale
-    from sqlalchemy import desc
-    sales = Sale.query.filter_by(user_id=session.get('user_id')).order_by(desc(Sale.created_at)).paginate(
-        page=page, per_page=20, error_out=False
-    )
+    try:
+        page = request.args.get('page', 1, type=int)
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            logger.error("Sales route: No user_id in session")
+            flash('Please log in to access sales data', 'error')
+            return redirect(url_for('login'))
 
-    # Calculate metrics by payment type
-    all_sales = Sale.query.filter_by(user_id=session.get('user_id')).all()
-    total_sales = sum(float(sale.total_amount) for sale in all_sales)
-    cash_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'cash')
-    installment_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'installment')
-    other_sales = sum(float(sale.total_amount) for sale in all_sales if sale.payment_type == 'other')
+        from models import Sale
+        from sqlalchemy import desc
+        
+        # Get paginated sales with error handling
+        try:
+            sales = Sale.query.filter_by(user_id=user_id).order_by(desc(Sale.created_at)).paginate(
+                page=page, per_page=20, error_out=False
+            )
+        except Exception as e:
+            logger.error(f"Error querying sales: {str(e)}")
+            # Return empty pagination object if query fails
+            sales = type('obj', (object,), {
+                'items': [],
+                'pages': 1,
+                'page': 1,
+                'total': 0,
+                'has_prev': False,
+                'has_next': False
+            })()
 
-    # Get installment plans summary
-    from models import InstallmentPlan
-    from datetime import datetime
-    active_plans = InstallmentPlan.query.join(Sale).filter(
-        Sale.user_id == session.get('user_id'),
-        InstallmentPlan.status == 'active'
-    ).all()
+        # Calculate metrics by payment type with error handling
+        try:
+            all_sales = Sale.query.filter_by(user_id=user_id).all()
+            total_sales = sum(float(sale.total_amount or 0) for sale in all_sales)
+            cash_sales = sum(float(sale.total_amount or 0) for sale in all_sales if (sale.payment_type == 'cash' or sale.payment_method == 'cash'))
+            installment_sales = sum(float(sale.total_amount or 0) for sale in all_sales if (sale.payment_type == 'installment' or sale.payment_method == 'installment'))
+            other_sales = sum(float(sale.total_amount or 0) for sale in all_sales if sale.payment_type not in ['cash', 'installment'] and sale.payment_method not in ['cash', 'installment'])
+        except Exception as e:
+            logger.error(f"Error calculating sales metrics: {str(e)}")
+            total_sales = cash_sales = installment_sales = other_sales = 0
 
-    # Calculate outstanding amounts
-    total_outstanding = sum(plan.outstanding_amount for plan in active_plans)
-    overdue_count = sum(1 for plan in active_plans if plan.next_due_date and plan.next_due_date < datetime.now().date())
+        # Get installment plans summary with error handling
+        try:
+            from models import InstallmentPlan
+            from datetime import datetime
+            
+            # Check if InstallmentPlan table exists
+            active_plans = []
+            total_outstanding = 0
+            overdue_count = 0
+            
+            try:
+                active_plans = InstallmentPlan.query.join(Sale).filter(
+                    Sale.user_id == user_id,
+                    InstallmentPlan.status == 'active'
+                ).all()
+                
+                # Calculate outstanding amounts
+                total_outstanding = sum(plan.outstanding_amount for plan in active_plans)
+                overdue_count = sum(1 for plan in active_plans if plan.next_due_date and plan.next_due_date < datetime.now().date())
+            except Exception as plan_error:
+                logger.warning(f"InstallmentPlan query failed: {str(plan_error)}")
+                # Continue with empty values if InstallmentPlan table doesn't exist
+                
+        except Exception as e:
+            logger.error(f"Error getting installment plans: {str(e)}")
+            active_plans = []
+            total_outstanding = 0
+            overdue_count = 0
 
-    return render_template('sales.html', 
-                         sales=sales, 
-                         total_sales=total_sales,
-                         cash_sales=cash_sales,
-                         installment_sales=installment_sales, 
-                         other_sales=other_sales,
-                         active_plans=active_plans,
-                         total_outstanding=total_outstanding,
-                         overdue_count=overdue_count)
+        return render_template('sales.html', 
+                             sales=sales, 
+                             total_sales=total_sales,
+                             cash_sales=cash_sales,
+                             installment_sales=installment_sales, 
+                             other_sales=other_sales,
+                             active_plans=active_plans,
+                             total_outstanding=total_outstanding,
+                             overdue_count=overdue_count)
+                             
+    except Exception as e:
+        logger.error(f"Sales route error: {str(e)}")
+        db.session.rollback()
+        flash('Error loading sales data. Please try again.', 'error')
+        return render_template('sales.html', 
+                             sales=type('obj', (object,), {
+                                 'items': [],
+                                 'pages': 1,
+                                 'page': 1,
+                                 'total': 0,
+                                 'has_prev': False,
+                                 'has_next': False
+                             })(), 
+                             total_sales=0,
+                             cash_sales=0,
+                             installment_sales=0, 
+                             other_sales=0,
+                             active_plans=[],
+                             total_outstanding=0,
+                             overdue_count=0)
 
 @app.route('/new_sale')
 @login_required
