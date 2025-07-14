@@ -1618,6 +1618,8 @@ def finance():
 
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
+@app.route('/api/transactions', methods=['GET'])
+@login_required
 def get_transactions():
     """API endpoint to get financial transactions with optional filtering"""
     from models import FinancialTransaction
@@ -1657,10 +1659,16 @@ def get_transactions():
     elif not start_date and end_date:
         start_date = end_date - timedelta(days=30)
 
-    # Build query
+    # Get current user and filter transactions
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Build query with user filtering
     query = FinancialTransaction.query.filter(
-        FinancialTransaction.date >= start_date, FinancialTransaction.date
-        <= end_date)
+        FinancialTransaction.user_id == user_id,
+        FinancialTransaction.date >= start_date, 
+        FinancialTransaction.date <= end_date)
 
     if transaction_type:
         query = query.filter(
@@ -1693,9 +1701,16 @@ def get_transactions():
     })
 
 @app.route('/api/finance/transactions', methods=['POST'])
+@app.route('/api/transactions', methods=['POST'])
+@login_required
 def add_transaction():
     """API endpoint to add a new financial transaction"""
     from models import FinancialTransaction
+    
+    # Get current user
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
 
     data = request.json
 
@@ -1731,7 +1746,7 @@ def add_transaction():
         reference_id=data.get('reference_id'),
         payment_method=data.get('payment_method'),
         notes=data.get('notes'),
-        user_id=session.get('user_id'))
+        user_id=user_id)
 
     try:
         db.session.add(transaction)
@@ -1753,11 +1768,17 @@ def get_transaction(transaction_id):
     return jsonify(transaction.to_dict())
 
 @app.route('/api/finance/transactions/<int:transaction_id>', methods=['PUT'])
+@app.route('/api/transactions/<int:transaction_id>', methods=['PUT'])
+@login_required
 def update_transaction(transaction_id):
     """API endpoint to update a financial transaction"""
     from models import FinancialTransaction
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
 
-    transaction = FinancialTransaction.query.get(transaction_id)
+    transaction = FinancialTransaction.query.filter_by(id=transaction_id, user_id=user_id).first()
     if not transaction:
         return jsonify({"error": "Transaction not found"}), 404
 
@@ -3954,6 +3975,252 @@ def api_inventory():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== ITEMS/INVENTORY CRUD API ROUTES =====
+
+@app.route('/api/items', methods=['GET', 'POST'])
+@login_required
+def api_items():
+    """API endpoint for Items CRUD operations"""
+    from models import Item, Category, db
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    if request.method == 'GET':
+        # Get all items for current user
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        items_data = []
+        for item in items:
+            items_data.append(item.to_dict())
+        return jsonify({'success': True, 'items': items_data})
+    
+    elif request.method == 'POST':
+        # Create new item
+        try:
+            data = request.get_json()
+            
+            # Generate SKU if not provided
+            sku = data.get('sku')
+            if not sku:
+                # Simple SKU generation
+                import re
+                clean_name = re.sub(r'[^a-zA-Z0-9]', '', data['name'][:10]).upper()
+                sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
+            
+            # Check if SKU already exists
+            existing_item = Item.query.filter_by(sku=sku, user_id=user_id).first()
+            if existing_item:
+                return jsonify({'error': f'SKU "{sku}" already exists'}), 400
+            
+            # Create new item
+            item = Item(
+                name=data['name'],
+                description=data.get('description'),
+                sku=sku,
+                stock_quantity=int(data.get('stock_quantity', 0)),
+                minimum_stock=int(data.get('minimum_stock', 0)),
+                buying_price=float(data.get('buying_price', 0)),
+                retail_price=float(data.get('retail_price', 0)),
+                wholesale_price=float(data.get('wholesale_price', 0)),
+                sales_type=data.get('sales_type', 'both'),
+                category=data.get('category', 'Uncategorized'),
+                subcategory=data.get('subcategory'),
+                category_id=data.get('category_id'),
+                user_id=user_id,
+                is_active=True
+            )
+            
+            db.session.add(item)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'item': item.to_dict()}), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error creating item: {str(e)}')
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/api/items/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_item_by_id(item_id):
+    """API endpoint for single Item CRUD operations"""
+    from models import Item, db
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+    
+    if request.method == 'GET':
+        return jsonify({'success': True, 'item': item.to_dict()})
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            # Update item fields
+            if 'name' in data:
+                item.name = data['name']
+            if 'description' in data:
+                item.description = data['description']
+            if 'stock_quantity' in data:
+                item.stock_quantity = int(data['stock_quantity'])
+            if 'minimum_stock' in data:
+                item.minimum_stock = int(data['minimum_stock'])
+            if 'buying_price' in data:
+                item.buying_price = float(data['buying_price'])
+            if 'retail_price' in data:
+                item.retail_price = float(data['retail_price'])
+            if 'wholesale_price' in data:
+                item.wholesale_price = float(data['wholesale_price'])
+            if 'sales_type' in data:
+                item.sales_type = data['sales_type']
+            if 'category' in data:
+                item.category = data['category']
+            if 'subcategory' in data:
+                item.subcategory = data['subcategory']
+            if 'category_id' in data:
+                item.category_id = data['category_id']
+            
+            item.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({'success': True, 'item': item.to_dict()})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error updating item: {str(e)}')
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        try:
+            # Soft delete - mark as inactive
+            item.is_active = False
+            item.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': 'Item deleted successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error deleting item: {str(e)}')
+            return jsonify({'error': str(e)}), 500
+
+# ===== CUSTOMERS CRUD API ROUTES =====
+
+@app.route('/api/customers/<int:customer_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required 
+def api_customer_by_id(customer_id):
+    """API endpoint for single Customer CRUD operations"""
+    from models import Customer, db
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+    if not customer:
+        return jsonify({'error': 'Customer not found'}), 404
+    
+    if request.method == 'GET':
+        return jsonify({'success': True, 'customer': customer.to_dict()})
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            # Update customer fields
+            if 'name' in data:
+                customer.name = data['name']
+            if 'email' in data:
+                customer.email = data['email']
+            if 'phone' in data:
+                customer.phone = data['phone']
+            if 'address' in data:
+                customer.address = data['address']
+            if 'customer_type' in data:
+                customer.customer_type = data['customer_type']
+            if 'credit_limit' in data:
+                customer.credit_limit = float(data['credit_limit'])
+            if 'preferred_payment_method' in data:
+                customer.preferred_payment_method = data['preferred_payment_method']
+            
+            customer.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({'success': True, 'customer': customer.to_dict()})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error updating customer: {str(e)}')
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(customer)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': 'Customer deleted successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f'Error deleting customer: {str(e)}')
+            return jsonify({'error': str(e)}), 500
+
+# ===== SALES CRUD API ROUTES =====
+
+@app.route('/api/sales', methods=['GET'])
+@login_required
+def api_sales():
+    """API endpoint to get all sales for the current user"""
+    from models import Sale
+    
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Get sales with pagination
+        sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Format sales data
+        sales_data = []
+        for sale in sales.items:
+            sale_dict = sale.to_dict()
+            # Add sale items
+            sale_items = []
+            for item in sale.sale_items:
+                sale_items.append(item.to_dict())
+            sale_dict['items'] = sale_items
+            sales_data.append(sale_dict)
+        
+        return jsonify({
+            'success': True,
+            'sales': sales_data,
+            'pagination': {
+                'page': sales.page,
+                'pages': sales.pages,
+                'per_page': sales.per_page,
+                'total': sales.total,
+                'has_next': sales.has_next,
+                'has_prev': sales.has_prev
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f'Error getting sales: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/sales', methods=['POST'])
 @login_required
 def api_create_sale():
@@ -3976,7 +4243,7 @@ def api_create_sale():
             return jsonify({'error': 'No items provided'}), 400
 
         # Validate that all items belong to the user
-        item_ids = [item.get('item_id') for item in data.get('items', [])]
+        item_ids = [item.get('id') or item.get('item_id') for item in data.get('items', [])]
         if not item_ids:
             logger.error("Sale creation failed: No items provided")
             return jsonify({'error': 'No items provided'}), 400
@@ -4029,10 +4296,11 @@ def api_create_sale():
         # Create sale items and update inventory
         for item_data in data.get('items', []):
             logger.info(f"Processing item: {item_data}")
-            item = Item.query.filter_by(id=item_data['item_id'], user_id=user_id).first()
+            item_id = item_data.get('id') or item_data.get('item_id')
+            item = Item.query.filter_by(id=item_id, user_id=user_id).first()
             if not item:
-                logger.error(f"Item not found: {item_data['item_id']} for user {user_id}")
-                raise Exception(f"Item not found: {item_data['item_id']}")
+                logger.error(f"Item not found: {item_id} for user {user_id}")
+                raise Exception(f"Item not found: {item_id}")
 
             # Check stock availability (use stock_quantity field as main stock tracker)
             current_stock = item.stock_quantity if item.stock_quantity is not None else 0
