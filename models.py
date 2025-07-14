@@ -442,25 +442,61 @@ class ChartOfAccounts(db.Model):
     account_code = db.Column(db.String(20), unique=True, nullable=False)
     account_name = db.Column(db.String(100), nullable=False)
     account_type = db.Column(db.String(50), nullable=False)  # Asset, Liability, Equity, Revenue, Expense
-    parent_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'))
+    parent_account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'))
+    balance = db.Column(db.Float, default=0.0)
     is_active = db.Column(db.Boolean, default=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='chart_accounts')
+    parent_account = db.relationship('ChartOfAccounts', remote_side=[id], backref='child_accounts')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'account_code': self.account_code,
+            'account_name': self.account_name,
+            'account_type': self.account_type,
+            'parent_account_id': self.parent_account_id,
+            'balance': float(self.balance or 0),
+            'is_active': self.is_active,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 class Journal(db.Model):
     __tablename__ = 'journal'
     
     id = db.Column(db.Integer, primary_key=True)
-    account_id = db.Column(db.Integer, db.ForeignKey('chart_of_accounts.id'), nullable=False)
-    debit_amount = db.Column(db.Float, default=0.0)
-    credit_amount = db.Column(db.Float, default=0.0)
+    journal_number = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(200))
     reference_type = db.Column(db.String(50))
     transaction_group = db.Column(db.String(100))
     entry_date = db.Column(db.Date, nullable=False)
+    total_debit = db.Column(db.Float, default=0.0)
+    total_credit = db.Column(db.Float, default=0.0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref='journals')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'journal_number': self.journal_number,
+            'description': self.description,
+            'reference_type': self.reference_type,
+            'transaction_group': self.transaction_group,
+            'entry_date': self.entry_date.isoformat() if self.entry_date else None,
+            'total_debit': float(self.total_debit or 0),
+            'total_credit': float(self.total_credit or 0),
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 class Supplier(db.Model):
     __tablename__ = 'supplier'
@@ -472,8 +508,28 @@ class Supplier(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.Text)
     payment_terms = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='suppliers')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'contact_person': self.contact_person,
+            'email': self.email,
+            'phone': self.phone,
+            'address': self.address,
+            'payment_terms': self.payment_terms,
+            'is_active': self.is_active,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 class PurchaseOrder(db.Model):
     __tablename__ = 'purchase_order'
@@ -487,6 +543,26 @@ class PurchaseOrder(db.Model):
     expected_date = db.Column(db.Date)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    supplier = db.relationship('Supplier', backref='purchase_orders')
+    user = db.relationship('User', backref='purchase_orders')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'po_number': self.po_number,
+            'supplier_id': self.supplier_id,
+            'supplier_name': self.supplier.name if self.supplier else None,
+            'status': self.status,
+            'total_amount': float(self.total_amount or 0),
+            'order_date': self.order_date.isoformat() if self.order_date else None,
+            'expected_date': self.expected_date.isoformat() if self.expected_date else None,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 class InstallmentPlan(db.Model):
     __tablename__ = 'installment_plan'
@@ -497,11 +573,43 @@ class InstallmentPlan(db.Model):
     down_payment = db.Column(db.Float, default=0.0)
     monthly_payment = db.Column(db.Float, nullable=False)
     number_of_payments = db.Column(db.Integer, nullable=False)
+    payments_made = db.Column(db.Integer, default=0)
     interest_rate = db.Column(db.Float, default=0.0)
     start_date = db.Column(db.Date, nullable=False)
+    next_due_date = db.Column(db.Date)
     status = db.Column(db.String(20), default='active')
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    sale = db.relationship('Sale', backref='installment_plan')
+    user = db.relationship('User', backref='installment_plans')
+    
+    @property
+    def outstanding_amount(self):
+        """Calculate outstanding amount"""
+        paid_amount = self.down_payment + (self.monthly_payment * self.payments_made)
+        return max(0, self.total_amount - paid_amount)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'sale_id': self.sale_id,
+            'total_amount': float(self.total_amount or 0),
+            'down_payment': float(self.down_payment or 0),
+            'monthly_payment': float(self.monthly_payment or 0),
+            'number_of_payments': self.number_of_payments,
+            'payments_made': self.payments_made,
+            'interest_rate': float(self.interest_rate or 0),
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'next_due_date': self.next_due_date.isoformat() if self.next_due_date else None,
+            'status': self.status,
+            'outstanding_amount': float(self.outstanding_amount),
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 # Enhanced Security Models
 class SecurityAudit(db.Model):

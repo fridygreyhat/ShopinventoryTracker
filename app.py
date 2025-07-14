@@ -101,6 +101,12 @@ def init_database():
     """Initialize PostgreSQL database tables and default data"""
     with app.app_context():
         try:
+            # Import all models to ensure they're registered
+            from models import (User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
+                Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
+                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
+            )
+            
             # Create all tables
             db.create_all()
             logger.info("Database tables created successfully")
@@ -109,12 +115,6 @@ def init_database():
             db.session.execute(db.text('SELECT 1'))
             db.session.commit()
             logger.info("Database connection test successful")
-
-            # Import all models to ensure they're registered
-            from models import (User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
-                Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
-                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
-            )
             
             # Helper function to check if column exists
             def column_exists(table_name, column_name):
@@ -185,6 +185,27 @@ def init_database():
                     add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", 'cash')
                     add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", 'completed')
                     add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
+
+                    # Add columns to supplier table
+                    add_column_safely('supplier', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
+                    add_column_safely('supplier', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+
+                    # Add columns to purchase_order table
+                    add_column_safely('purchase_order', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+
+                    # Add columns to installment_plan table
+                    add_column_safely('installment_plan', 'payments_made', 'INTEGER DEFAULT 0', 0)
+                    add_column_safely('installment_plan', 'next_due_date', 'DATE')
+                    add_column_safely('installment_plan', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+
+                    # Add columns to chart_of_accounts table
+                    add_column_safely('chart_of_accounts', 'parent_account_id', 'INTEGER')
+                    add_column_safely('chart_of_accounts', 'balance', 'FLOAT DEFAULT 0', 0)
+
+                    # Add columns to journal table
+                    add_column_safely('journal', 'journal_number', 'VARCHAR(50)')
+                    add_column_safely('journal', 'total_debit', 'FLOAT DEFAULT 0', 0)
+                    add_column_safely('journal', 'total_credit', 'FLOAT DEFAULT 0', 0)
 
                     # Check if Customer table exists, if not create it
                     check_and_create_customer_table()
@@ -2652,39 +2673,197 @@ def process_split_payment():
 # ===== SUPPLY CHAIN API ROUTES =====
 
 @app.route('/api/supply-chain/suppliers', methods=['GET', 'POST'])
+@login_required
 def manage_suppliers():
     """Get or create suppliers"""
     try:
         user_id = session.get('user_id')
-        supply_chain = SupplyChainService(user_id)
 
         if request.method == 'GET':
             from models import Supplier
             suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).all()
-            return jsonify([s.to_dict() for s in suppliers])
+            return jsonify({
+                'success': True,
+                'suppliers': [s.to_dict() for s in suppliers]
+            })
         else:
             data = request.get_json()
-            result = supply_chain.create_supplier(data)
-            return jsonify(result), 201
+            
+            # Validate required fields
+            required_fields = ['name']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            # Create supplier
+            supplier = Supplier(
+                name=data['name'],
+                contact_person=data.get('contact_person'),
+                email=data.get('email'),
+                phone=data.get('phone'),
+                address=data.get('address'),
+                payment_terms=data.get('payment_terms'),
+                user_id=user_id
+            )
+            
+            db.session.add(supplier)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'supplier': supplier.to_dict()
+            }), 201
     except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error managing suppliers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/suppliers/<int:supplier_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def manage_supplier(supplier_id):
+    """Get, update, or delete a specific supplier"""
+    try:
+        user_id = session.get('user_id')
+        supplier = Supplier.query.filter_by(id=supplier_id, user_id=user_id).first()
+        
+        if not supplier:
+            return jsonify({'error': 'Supplier not found'}), 404
+        
+        if request.method == 'GET':
+            return jsonify({
+                'success': True,
+                'supplier': supplier.to_dict()
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            
+            # Update fields
+            updatable_fields = ['name', 'contact_person', 'email', 'phone', 'address', 'payment_terms']
+            for field in updatable_fields:
+                if field in data:
+                    setattr(supplier, field, data[field])
+            
+            supplier.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'supplier': supplier.to_dict()
+            })
+        
+        elif request.method == 'DELETE':
+            supplier.is_active = False
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Supplier {supplier.name} deleted successfully'
+            })
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error managing supplier: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/supply-chain/purchase-orders', methods=['GET', 'POST'])
+@login_required
 def manage_purchase_orders():
     """Get or create purchase orders"""
     try:
         user_id = session.get('user_id')
-        supply_chain = SupplyChainService(user_id)
 
         if request.method == 'GET':
             from models import PurchaseOrder
             pos = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
-            return jsonify([po.to_dict() for po in pos])
+            return jsonify({
+                'success': True,
+                'purchase_orders': [po.to_dict() for po in pos]
+            })
         else:
             data = request.get_json()
-            result = supply_chain.create_purchase_order(data)
-            return jsonify(result), 201
+            
+            # Validate required fields
+            required_fields = ['supplier_id', 'order_date', 'total_amount']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            # Generate PO number
+            po_number = f"PO-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            # Create purchase order
+            po = PurchaseOrder(
+                po_number=po_number,
+                supplier_id=data['supplier_id'],
+                total_amount=float(data['total_amount']),
+                order_date=datetime.strptime(data['order_date'], '%Y-%m-%d').date(),
+                expected_date=datetime.strptime(data['expected_date'], '%Y-%m-%d').date() if data.get('expected_date') else None,
+                status=data.get('status', 'pending'),
+                user_id=user_id
+            )
+            
+            db.session.add(po)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'purchase_order': po.to_dict()
+            }), 201
     except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error managing purchase orders: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/supply-chain/purchase-orders/<int:po_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def manage_purchase_order(po_id):
+    """Get, update, or delete a specific purchase order"""
+    try:
+        user_id = session.get('user_id')
+        po = PurchaseOrder.query.filter_by(id=po_id, user_id=user_id).first()
+        
+        if not po:
+            return jsonify({'error': 'Purchase order not found'}), 404
+        
+        if request.method == 'GET':
+            return jsonify({
+                'success': True,
+                'purchase_order': po.to_dict()
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            
+            # Update fields
+            updatable_fields = ['status', 'total_amount', 'expected_date']
+            for field in updatable_fields:
+                if field in data:
+                    if field == 'expected_date' and data[field]:
+                        setattr(po, field, datetime.strptime(data[field], '%Y-%m-%d').date())
+                    else:
+                        setattr(po, field, data[field])
+            
+            po.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'purchase_order': po.to_dict()
+            })
+        
+        elif request.method == 'DELETE':
+            db.session.delete(po)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Purchase order {po.po_number} deleted successfully'
+            })
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error managing purchase order: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/supply-chain/reorder-suggestions')
@@ -3164,6 +3343,69 @@ def sync_store_catalog(store_id):
 
 # ===== DASHBOARD API ROUTES =====
 
+@app.route('/api/health/database', methods=['GET'])
+@login_required
+def database_health_check():
+    """Check database health and table status"""
+    try:
+        health_status = {
+            'database_connected': False,
+            'tables_exist': {},
+            'missing_columns': {},
+            'relationships_ok': True,
+            'errors': []
+        }
+        
+        # Test database connection
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            health_status['database_connected'] = True
+        except Exception as e:
+            health_status['errors'].append(f"Database connection failed: {str(e)}")
+        
+        # Check if all required tables exist
+        required_tables = [
+            'user', 'item', 'sale', 'sale_item', 'customer', 'category', 
+            'financial_transaction', 'stock_movement', 'setting', 'supplier',
+            'purchase_order', 'installment_plan', 'chart_of_accounts', 'journal'
+        ]
+        
+        for table in required_tables:
+            try:
+                result = db.session.execute(db.text(f"SELECT COUNT(*) FROM {table}"))
+                health_status['tables_exist'][table] = True
+            except Exception as e:
+                health_status['tables_exist'][table] = False
+                health_status['errors'].append(f"Table {table} issue: {str(e)}")
+        
+        # Check for missing columns in key tables
+        table_columns = {
+            'item': ['stock_quantity', 'minimum_stock', 'retail_price', 'wholesale_price', 'user_id'],
+            'sale': ['user_id', 'customer_id', 'total_amount', 'payment_status', 'sale_number'],
+            'supplier': ['is_active', 'updated_at'],
+            'journal': ['journal_number', 'total_debit', 'total_credit']
+        }
+        
+        for table, columns in table_columns.items():
+            health_status['missing_columns'][table] = []
+            for column in columns:
+                if not column_exists(table, column):
+                    health_status['missing_columns'][table].append(column)
+        
+        # Overall health score
+        total_checks = len(required_tables) + 1  # tables + connection
+        passed_checks = sum(1 for exists in health_status['tables_exist'].values() if exists)
+        passed_checks += 1 if health_status['database_connected'] else 0
+        
+        health_status['health_score'] = (passed_checks / total_checks) * 100
+        health_status['status'] = 'healthy' if health_status['health_score'] >= 90 else 'needs_attention'
+        
+        return jsonify(health_status)
+        
+    except Exception as e:
+        logger.error(f"Error checking database health: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/dashboard/summary', methods=['GET'])
 @login_required
 def get_dashboard_summary():
@@ -3243,6 +3485,227 @@ def get_dashboard_summary():
         })
     except Exception as e:
         logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== SALES MANAGEMENT API ROUTES =====
+
+@app.route('/api/sales/completed', methods=['GET'])
+@login_required
+def get_completed_sales():
+    """Get completed sales with pagination and filtering"""
+    try:
+        user_id = session.get('user_id')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Date filters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Build query
+        query = Sale.query.filter_by(user_id=user_id)
+        
+        if start_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(Sale.created_at >= start_date)
+            except ValueError:
+                pass
+                
+        if end_date:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d')
+                query = query.filter(Sale.created_at <= end_date)
+            except ValueError:
+                pass
+        
+        # Execute query with pagination
+        sales = query.order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Format response
+        sales_data = []
+        for sale in sales.items:
+            sale_dict = sale.to_dict()
+            # Add customer name if available
+            if sale.customer:
+                sale_dict['customer'] = sale.customer.to_dict()
+            # Add sale items
+            sale_dict['items'] = [item.to_dict() for item in sale.sale_items]
+            sales_data.append(sale_dict)
+        
+        return jsonify({
+            'success': True,
+            'sales': sales_data,
+            'pagination': {
+                'page': page,
+                'pages': sales.pages,
+                'per_page': per_page,
+                'total': sales.total,
+                'has_next': sales.has_next,
+                'has_prev': sales.has_prev
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting completed sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/<int:sale_id>', methods=['GET'])
+@login_required
+def get_sale_details(sale_id):
+    """Get detailed information for a specific sale"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+        
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+        
+        sale_dict = sale.to_dict()
+        # Add customer details
+        if sale.customer:
+            sale_dict['customer'] = sale.customer.to_dict()
+        # Add sale items with product details
+        sale_dict['items'] = []
+        for item in sale.sale_items:
+            item_dict = item.to_dict()
+            if item.item:
+                item_dict['product'] = item.item.to_dict()
+            sale_dict['items'].append(item_dict)
+        
+        return jsonify({
+            'success': True,
+            'sale': sale_dict
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting sale details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/receipt/<sale_number>', methods=['GET'])
+@login_required
+def get_receipt(sale_number):
+    """Generate and return receipt for a sale"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(sale_number=sale_number, user_id=user_id).first()
+        
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+        
+        # Get user details for receipt header
+        user = User.query.get(user_id)
+        
+        # Format receipt data
+        receipt_data = {
+            'business_name': user.shop_name or f"{user.first_name}'s Shop",
+            'business_phone': user.phone,
+            'business_email': user.email,
+            'sale_number': sale.sale_number,
+            'date': sale.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'customer_name': sale.customer_name or 'Walk-in Customer',
+            'customer_phone': sale.customer_phone,
+            'items': [],
+            'subtotal': float(sale.subtotal),
+            'discount_amount': float(sale.discount_amount),
+            'total_amount': float(sale.total_amount),
+            'payment_method': sale.payment_method,
+            'payment_amount': float(sale.payment_amount),
+            'change_amount': float(sale.change_amount)
+        }
+        
+        # Add items
+        for item in sale.sale_items:
+            receipt_data['items'].append({
+                'name': item.item.name if item.item else 'Unknown Item',
+                'quantity': item.quantity,
+                'unit_price': float(item.unit_price),
+                'total_price': float(item.total_price)
+            })
+        
+        return jsonify({
+            'success': True,
+            'receipt': receipt_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating receipt: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/<int:sale_id>', methods=['PUT'])
+@login_required
+def update_sale(sale_id):
+    """Update a sale (limited fields)"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+        
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+        
+        data = request.get_json()
+        
+        # Only allow updating certain fields
+        updatable_fields = ['customer_name', 'customer_phone', 'notes', 'payment_status']
+        
+        for field in updatable_fields:
+            if field in data:
+                setattr(sale, field, data[field])
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'sale': sale.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating sale: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/<int:sale_id>', methods=['DELETE'])
+@login_required
+def delete_sale(sale_id):
+    """Delete a sale and restore inventory"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+        
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+        
+        # Restore inventory for each item
+        for sale_item in sale.sale_items:
+            item = sale_item.item
+            if item:
+                item.stock_quantity += sale_item.quantity
+                
+                # Create stock movement record
+                stock_movement = StockMovement(
+                    movement_type='in',
+                    quantity=sale_item.quantity,
+                    reason=f'Sale deletion - {sale.sale_number}',
+                    item_id=item.id,
+                    user_id=user_id,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(stock_movement)
+        
+        # Delete the sale (cascade will handle sale_items)
+        db.session.delete(sale)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Sale {sale.sale_number} deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting sale: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ===== BUSINESS INTELLIGENCE API ROUTES =====
