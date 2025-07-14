@@ -26,17 +26,25 @@ function loadCategories() {
     })
         .then(response => {
             if (!response.ok) {
+                if (response.status === 401) {
+                    showAlert('Please log in to view categories', 'warning');
+                    return [];
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
-        .then(categories => {
-            console.log('Categories loaded:', categories);
-            displayCategories(categories);
+        .then(categoriesData => {
+            console.log('Categories loaded:', categoriesData);
+            // Store globally for other functions
+            categories = categoriesData || [];
+            displayCategories(categoriesData);
         })
         .catch(error => {
             console.error('Error loading categories:', error);
             showAlert('Failed to load categories: ' + error.message, 'error');
+            // Show empty state on error
+            displayCategories([]);
         });
 }
 

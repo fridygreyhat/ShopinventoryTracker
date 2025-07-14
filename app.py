@@ -1919,6 +1919,7 @@ def add_transaction_category():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/finance/summaries/monthly', methods=['GET'])
+@login_required
 def get_monthly_summaries():
     """API endpoint to get monthly financial summaries for charts"""
     try:
@@ -1933,6 +1934,11 @@ def get_monthly_summaries():
         except ValueError:
             return jsonify({'error': 'Invalid year format'}), 400
 
+        # Get current user for filtering
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
         # Query monthly summaries
         monthly_data = []
         months = [
@@ -1945,14 +1951,16 @@ def get_monthly_summaries():
             income = db.session.query(func.sum(FinancialTransaction.amount)).filter(
                 extract('year', FinancialTransaction.date) == year,
                 extract('month', FinancialTransaction.date) == month_num,
-                FinancialTransaction.transaction_type == 'Income'
+                FinancialTransaction.transaction_type == 'Income',
+                FinancialTransaction.user_id == user_id
             ).scalar() or 0
 
             # Get expenses for this month
             expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
                 extract('year', FinancialTransaction.date) == year,
                 extract('month', FinancialTransaction.date) == month_num,
-                FinancialTransaction.transaction_type == 'Expense'
+                FinancialTransaction.transaction_type == 'Expense',
+                FinancialTransaction.user_id == user_id
             ).scalar() or 0
 
             monthly_data.append({                'month': month_num,
@@ -4248,6 +4256,52 @@ def api_sales():
     except Exception as e:
         logger.error(f'Error getting sales: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/performance/top', methods=['GET'])
+@login_required
+def api_top_selling_items():
+    """API endpoint for top selling items"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Get top selling items for current user
+        from sqlalchemy import func
+        
+        top_items_query = db.session.query(
+            Item.id,
+            Item.name,
+            Item.category,
+            func.sum(SaleItem.quantity).label('units_sold'),
+            func.sum(SaleItem.total_price).label('revenue')
+        ).join(SaleItem).join(Sale).filter(
+            Sale.user_id == user_id
+        ).group_by(Item.id, Item.name, Item.category).order_by(
+            func.sum(SaleItem.quantity).desc()
+        ).limit(10)
+
+        top_items = []
+        for item in top_items_query.all():
+            top_items.append({
+                'id': item.id,
+                'name': item.name,
+                'category': item.category or 'Uncategorized',
+                'units_sold': int(item.units_sold or 0),
+                'revenue': float(item.revenue or 0)
+            })
+
+        return jsonify({
+            'success': True,
+            'top_items': top_items
+        })
+        
+    except Exception as e:
+        logger.error(f'Error getting top selling items: {str(e)}')
+        return jsonify({
+            'success': True,
+            'top_items': []  # Return empty array on error to prevent frontend crashes
+        })
 
 @app.route('/api/sales', methods=['POST'])
 @login_required

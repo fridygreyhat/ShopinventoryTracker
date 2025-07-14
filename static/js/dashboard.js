@@ -103,49 +103,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOnDemandProducts();
     loadFinancialSummary();
 
-// Dashboard functionality
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dashboard loading...');
+// Remove duplicate dashboard initialization - already handled below
 
-    // Load dashboard data with error handling
-    loadDashboardSummary();
-    loadRecentSales();
-    loadTopProducts();
-    loadLowStockItems();
-
-    // Refresh data every 5 minutes
-    setInterval(loadDashboardSummary, 300000);
-});
-
-function loadDashboardSummary() {
-    fetch('/api/dashboard/summary', {
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Dashboard summary loaded:', data);
-            if (data.success) {
-                updateDashboardMetrics(data.summary);
-                updateLowStockAlert(data.low_stock_items);
-                updateRecentSales(data.recent_sales);
-            } else {
-                console.error('Dashboard API returned error:', data.error);
-                showDashboardError('Failed to load dashboard data');
-            }
-        })
-        .catch(error => {
-            console.error('Error loading dashboard:', error);
-            showDashboardError('Error connecting to server');
-        });
-}
+// Function removed - handled by main loadDashboardData function
 
 function updateDashboardMetrics(summary) {
     if (!summary) {
@@ -401,9 +361,22 @@ function updateRecentSales(recentSales) {
     }
 
     async function loadSalesPerformance() {
-        // Load top selling items using API handler
+        // Load top selling items from reports API
         try {
-            const topItems = await window.apiHandler.getTopSellingItems();
+            const response = await fetch('/api/sales/performance/top', {
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const topItems = data.top_items || [];
+            
             const tableBody = document.getElementById('top-selling-table');
             if (tableBody) {
                 if (topItems && topItems.length > 0) {
@@ -412,13 +385,13 @@ function updateRecentSales(recentSales) {
                         html += `
                         <tr>
                             <td>
-                                <a href="/item/${item.id}" class="text-decoration-none">
-                                    ${item.name}
+                                <a href="/inventory" class="text-decoration-none">
+                                    ${item.name || 'Unknown Item'}
                                 </a>
                             </td>
                             <td>${item.category || 'Uncategorized'}</td>
-                            <td>${item.units_sold}</td>
-                            <td><span class="currency-symbol">TZS</span> ${item.revenue.toLocaleString()}</td>
+                            <td>${item.units_sold || 0}</td>
+                            <td><span class="currency-symbol">TZS</span> ${(item.revenue || 0).toLocaleString()}</td>
                         </tr>`;
                     });
                     tableBody.innerHTML = html;
@@ -501,24 +474,24 @@ function updateRecentSales(recentSales) {
     async function loadDashboardData() {
         console.log('Loading dashboard data...');
 
-        // Check if API handler is available
-        if (typeof window.apiHandler === 'undefined') {
-            console.warn('API handler not available, using fallback');
-            loadSalesPerformance();
-            return;
-        }
-
         loadSalesPerformance();
 
-        // Load stock status report using API handler
+        // Load stock status report directly from API
         try {
-            const stockData = await window.apiHandler.getDashboardSummary();
-            if (stockData) {
+            const response = await fetch('/api/reports/stock-status', {
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const stockData = await response.json();
                 console.log('Stock status data loaded:', stockData);
                 updateDashboardSummary(stockData);
                 updateLowStockTable(stockData.low_stock_items || []);
             } else {
-                console.log('No stock data available or user not authenticated');
+                console.log('Stock data not available or user not authenticated');
                 setDefaultDashboardValues();
             }
         } catch (error) {
@@ -526,15 +499,24 @@ function updateRecentSales(recentSales) {
             setDefaultDashboardValues();
         }
 
-        // Load category breakdown for charts using API handler
+        // Load category breakdown for charts
         try {
-            const categoryData = await window.apiHandler.getCategoryBreakdown();
-            if (categoryData && Object.keys(categoryData).length > 0) {
-                console.log('Category breakdown data loaded:', categoryData);
-                createStockChart(categoryData);
-                createValueChart(categoryData);
-            } else {
-                console.log('No category data available');
+            const response = await fetch('/api/reports/category-breakdown', {
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const categoryData = await response.json();
+                if (categoryData && Object.keys(categoryData).length > 0) {
+                    console.log('Category breakdown data loaded:', categoryData);
+                    createStockChart(categoryData);
+                    createValueChart(categoryData);
+                } else {
+                    console.log('No category data available');
+                }
             }
         } catch (error) {
             console.error('Error loading category breakdown:', error);
@@ -1028,31 +1010,28 @@ function updateRecentSales(recentSales) {
 
     function loadOnDemandProducts() {
         // Fetch active on-demand products
-        fetch('/api/on-demand?active_only=true')
+        fetch('/api/on-demand?active_only=true', {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
             .then(response => {
                 if (!response.ok) {
                     if (response.status === 401 || response.status === 302) {
                         return [];
                     }
-                    throw new Error('Network response was not ok');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(products => {
-                displayOnDemandProducts(products);
+                displayOnDemandProducts(products || []);
             })
             .catch(error => {
                 console.error('Error loading on-demand products:', error);
-                const onDemandProductsTableElement = document.querySelector('#on-demand-products-table tbody');
-                if (onDemandProductsTableElement) {
-                    onDemandProductsTableElement.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">
-                                <i class="fas fa-info-circle me-2"></i> Unable to load on-demand products
-                            </td>
-                        </tr>
-                    `;
-                }
+                // Don't show error in UI, just silently fail with empty state
+                displayOnDemandProducts([]);
             });
     }
 
@@ -1148,12 +1127,19 @@ function updateRecentSales(recentSales) {
         fetch(`/api/finance/summaries/monthly?year=${year}`, {
             credentials: 'same-origin',
             headers: {
-                'Accept': 'application/json'
+                'Content-Type': 'application/json'
             }
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                createFinancialChart(data);
+                if (data && data.monthly_data) {
+                    createFinancialChart(data);
+                }
             })
             .catch(error => {
                 console.error('Error loading monthly financial data:', error);
