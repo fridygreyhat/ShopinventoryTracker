@@ -436,21 +436,26 @@ function updateRecentSales(recentSales) {
     }
 
     function loadOnDemandProducts() {
-        fetch('/api/on-demand-products/summary')
+        fetch('/api/on-demand', {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 const tableBody = document.getElementById('on-demand-products-table');
-                if (tableBody && data.products) {
+                if (tableBody && Array.isArray(data)) {
                     let html = '';
-                    data.products.forEach(product => {
+                    data.forEach(product => {
                         html += `
                             <tr>
                                 <td>${product.name}</td>
-                                <td>TZS ${product.selling_price.toLocaleString()}</td>
-                                <td>${product.estimated_delivery_days} days</td>
+                                <td>TZS ${(product.selling_price || 0).toLocaleString()}</td>
+                                <td>${product.estimated_delivery_days || 0} days</td>
                                 <td>
-                                    <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">
-                                        ${product.status}
+                                    <span class="badge bg-${product.is_active ? 'success' : 'secondary'}">
+                                        ${product.is_active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
                             </tr>
@@ -465,7 +470,7 @@ function updateRecentSales(recentSales) {
     }
 
     function loadFinancialSummary() {
-        fetch('/api/financial/summary')
+        fetch('/api/finance/summaries/monthly')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -668,25 +673,8 @@ function updateRecentSales(recentSales) {
         }
     }
 
-    function loadOnDemandProducts() {
-        // Mock function for now
-        if (onDemandProductsTableElement) {
-            onDemandProductsTableElement.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No on-demand products configured</td></tr>';
-        }
-    }
-
-    function loadFinancialSummary() {
-        fetch('/api/finance/summaries/monthly')
-            .then(response => response.json())
-            .then(data => {
-                if (data.monthly_data && financialSummaryChartElement) {
-                    createFinancialChart(data.monthly_data);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
-    }
+    // Removed duplicate loadOnDemandProducts - using the version defined above
+    // Removed duplicate loadFinancialSummary - using the version defined above
 
     function createFinancialChart(monthlyData) {
         if (!financialSummaryChartElement) return;
@@ -1142,7 +1130,12 @@ function updateRecentSales(recentSales) {
         const endDate = lastDay.toISOString().slice(0, 10);
 
         // Load monthly transactions data
-        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`, {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 updateFinancialSummary(data.summary);
@@ -1152,7 +1145,12 @@ function updateRecentSales(recentSales) {
             });
 
         // Load yearly data for chart
-        fetch(`/api/finance/summaries/monthly?year=${year}`)
+        fetch(`/api/finance/summaries/monthly?year=${year}`, {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 createFinancialChart(data);
