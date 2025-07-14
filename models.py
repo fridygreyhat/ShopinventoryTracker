@@ -112,14 +112,20 @@ class Item(db.Model):
             'description': self.description,
             'sku': self.sku,
             'stock_quantity': self.stock_quantity,
+            'quantity': self.stock_quantity,  # Backward compatibility
             'minimum_stock': self.minimum_stock,
-            'buying_price': self.buying_price,
-            'retail_price': self.retail_price,
-            'wholesale_price': self.wholesale_price,
+            'buying_price': float(self.buying_price or 0),
+            'retail_price': float(self.retail_price or 0),
+            'wholesale_price': float(self.wholesale_price or 0),
+            'price': float(self.retail_price or 0),  # Backward compatibility
+            'selling_price_retail': float(self.retail_price or 0),  # Frontend expects this
+            'selling_price_wholesale': float(self.wholesale_price or 0),  # Frontend expects this
             'sales_type': self.sales_type,
             'category': self.category,
             'subcategory': self.subcategory,
             'category_id': self.category_id,
+            'unit_type': self.unit_type,
+            'sell_by': self.sell_by,
             'user_id': self.user_id,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,

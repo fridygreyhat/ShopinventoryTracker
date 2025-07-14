@@ -619,51 +619,63 @@ def api_validate_session():
 @login_required
 def get_inventory():
     """Get all inventory items with optional filtering"""
-    from models import Item
+    try:
+        from models import Item
 
-    # Get current user ID
-    current_user_id = session.get('user_id')
-    if not current_user_id:
-        return jsonify([])
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify([])
 
-    # Start query filtered by user
-    query = Item.query.filter(
-        db.or_(Item.user_id == current_user_id, Item.user_id.is_(None))
-    )
+        # Start query filtered by user only
+        query = Item.query.filter(Item.user_id == current_user_id, Item.is_active == True)
 
-    # Optional filtering
-    category = request.args.get('category')
-    search_term = request.args.get('search', '').lower()
-    min_stock = request.args.get('min_stock')
-    max_stock = request.args.get('max_stock')
+        # Optional filtering
+        category = request.args.get('category')
+        search_term = request.args.get('search', '').lower()
+        min_stock = request.args.get('min_stock')
+        max_stock = request.args.get('max_stock')
 
-    # Apply filters if provided
-    if category:
-        query = query.filter(Item.category == category)
+        # Apply filters if provided
+        if category:
+            query = query.filter(Item.category == category)
 
-    if search_term:
-        search_filter = (Item.name.ilike(f'%{search_term}%')
-                         | Item.sku.ilike(f'%{search_term}%')
-                         | Item.description.ilike(f'%{search_term}%'))
-        query = query.filter(search_filter)
+        if search_term:
+            search_filter = (Item.name.ilike(f'%{search_term}%')
+                             | Item.sku.ilike(f'%{search_term}%')
+                             | Item.description.ilike(f'%{search_term}%'))
+            query = query.filter(search_filter)
 
-    if min_stock:
-        try:
-            min_stock = int(min_stock)
-            query = query.filter(Item.quantity >= min_stock)
-        except ValueError:
-            pass
+        if min_stock:
+            try:
+                min_stock = int(min_stock)
+                query = query.filter(Item.stock_quantity >= min_stock)
+            except ValueError:
+                pass
 
-    if max_stock:
-        try:
-            max_stock = int(max_stock)
-            query = query.filter(Item.quantity <= max_stock)
-        except ValueError:
-            pass
+        if max_stock:
+            try:
+                max_stock = int(max_stock)
+                query = query.filter(Item.stock_quantity <= max_stock)
+            except ValueError:
+                pass
 
-    # Execute query and convert to dictionary
-    items = [item.to_dict() for item in query.all()]
-    return jsonify(items)
+        # Execute query and convert to dictionary
+        items = query.order_by(Item.name).all()
+        items_data = []
+        
+        for item in items:
+            item_dict = item.to_dict()
+            # Ensure backward compatibility with frontend expecting 'quantity' field
+            item_dict['quantity'] = item.stock_quantity
+            item_dict['price'] = item.retail_price or 0
+            items_data.append(item_dict)
+            
+        return jsonify(items_data)
+        
+    except Exception as e:
+        logger.error(f"Error getting inventory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shop/details', methods=['GET'])
 @login_required
@@ -696,123 +708,99 @@ def get_shop_details():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/inventory', methods=['POST'])
+@login_required
 def add_item():
     """API endpoint to add a new inventory item"""
-    from models import Item
-    import string
-    import random
-
     try:
-        item_data = request.json
+        from models import Item
+        
+        item_data = request.get_json()
+        if not item_data:
+            return jsonify({"error": "No data provided"}), 400
 
         # Validate required fields
-        required_fields = ['name']
-        for field in required_fields:
-            if field not in item_data:
-                return jsonify({"error":
-                                f"Missing required field: {field}"}), 400
+        if not item_data.get('name'):
+            return jsonify({"error": "Item name is required"}), 400
         
-        # Handle quantity field mapping
-        quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
-        if quantity is None:
-            quantity = 0
-
-        # Generate SKU if not provided
-        if 'sku' not in item_data or not item_data['sku']:
-            item_data['sku'] = Item.generate_sku(item_data["name"],
-                                                 item_data.get("category", ""))
-
-        # Handle price fields
-        buying_price = float(item_data.get("buying_price", 0))
-        selling_price_retail = float(item_data.get("selling_price_retail", 0))
-        selling_price_wholesale = float(
-            item_data.get("selling_price_wholesale", 0))
-
-        # Use retail price as default price for backward compatibility
-        price = selling_price_retail
-
         # Get current user ID
         current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
 
-        # Create new item with aligned field names
+        # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
+        quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+        try:
+            quantity = int(quantity) if quantity is not None else 0
+        except (ValueError, TypeError):
+            quantity = 0
+
+        # Handle price fields with proper validation
+        buying_price = item_data.get("buying_price", 0)
+        selling_price_retail = item_data.get("selling_price_retail", item_data.get("retail_price", 0))
+        selling_price_wholesale = item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0))
+
+        try:
+            buying_price = float(buying_price) if buying_price else 0.0
+            selling_price_retail = float(selling_price_retail) if selling_price_retail else 0.0
+            selling_price_wholesale = float(selling_price_wholesale) if selling_price_wholesale else 0.0
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid price format"}), 400
+
+        # Generate SKU if not provided
+        sku = item_data.get("sku")
+        if not sku:
+            sku = Item.generate_sku(item_data["name"], item_data.get("category", ""))
+
+        # Check if SKU already exists
+        existing_item = Item.query.filter_by(sku=sku, user_id=current_user_id).first()
+        if existing_item:
+            return jsonify({"error": f"SKU '{sku}' already exists"}), 400
+
+        # Create new item
         new_item = Item(
-            name=item_data["name"],
-            description=item_data.get("description", ""),
-            stock_quantity=int(quantity),
+            name=item_data["name"].strip(),
+            description=item_data.get("description", "").strip(),
+            sku=sku,
+            stock_quantity=quantity,
             minimum_stock=int(item_data.get("minimum_stock", 5)),
             buying_price=buying_price,
             retail_price=selling_price_retail,
             wholesale_price=selling_price_wholesale,
             sales_type=item_data.get("sales_type", "both"),
             category=item_data.get("category", "Uncategorized"),
+            subcategory=item_data.get("subcategory"),
+            unit_type=item_data.get("unit_type", "quantity"),
+            sell_by=item_data.get("sell_by", "quantity"),
             user_id=current_user_id,
-            sku=item_data.get("sku", Item.generate_sku(item_data["name"], item_data.get("category", "")))
+            is_active=True
         )
 
         # Add to database
         db.session.add(new_item)
         db.session.commit()
+        
+        logger.info(f"New item created: {new_item.name} (ID: {new_item.id}) by user {current_user_id}")
 
-        # Check if quantity is below threshold
-        quantity = int(item_data["quantity"])
-        from models import Setting
-
-        # Get threshold
-        low_stock_threshold = 10
-        try:
-            setting = Setting.query.filter_by(
-                key='low_stock_threshold').first()
-            if setting and setting.value:
-                try:
-                    low_stock_threshold = int(setting.value)
-                except (ValueError, TypeError):
-                    pass
-        except Exception as e:
-            logger.error(f"Error getting low stock threshold: {str(e)}")
-
-        # Check if notifications are enabled
-        notifications_enabled = False
-        try:
-            email_setting = Setting.query.filter_by(
-                key='email_notifications_enabled').first()
-            sms_setting = Setting.query.filter_by(
-                key='sms_notifications_enabled').first()
-
-            email_enabled = email_setting and email_setting.value.lower(
-            ) == 'true'
-            sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
-
-            notifications_enabled = email_enabled or sms_enabled
-        except Exception as e:
-            logger.error(f"Error checking notification settings: {str(e)}")
-
-        # If item quantity is below threshold and notifications are enabled
-        if quantity <= low_stock_threshold and notifications_enabled:
+        # Check for low stock notification (if applicable)
+        if quantity <= int(item_data.get("minimum_stock", 5)):
             try:
-                # Import here to avoid circular imports
                 from notifications.notification_manager import check_low_stock_and_notify
-
-                # Run in a separate thread to avoid blocking
                 import threading
+                
                 notification_thread = threading.Thread(
                     target=check_low_stock_and_notify,
                     args=(db, Item, Setting))
                 notification_thread.daemon = True
                 notification_thread.start()
-
-                logger.info(
-                    f"Low stock notification triggered for new item {new_item.name}"
-                )
             except Exception as e:
-                logger.error(
-                    f"Error triggering low stock notification: {str(e)}")
+                logger.warning(f"Could not trigger low stock notification: {str(e)}")
 
         return jsonify(new_item.to_dict()), 201
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error adding item: {str(e)}")
-        return jsonify({"error": "Failed to add item"}), 500
+        return jsonify({"error": f"Failed to add item: {str(e)}"}), 500
 
 @app.route('/api/inventory/<int:item_id>', methods=['GET'])
 def get_item(item_id):
@@ -827,100 +815,110 @@ def get_item(item_id):
     return jsonify(item.to_dict())
 
 @app.route('/api/inventory/<int:item_id>', methods=['PUT'])
+@login_required
 def update_item(item_id):
     """API endpoint to update an inventory item"""
-    from models import Item
-
     try:
-        item_data = request.json
-        item = Item.query.get(item_id)
+        from models import Item, Setting
+        
+        item_data = request.get_json()
+        if not item_data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
 
-        if item is None:
+        # Get item and verify ownership
+        item = Item.query.filter_by(id=item_id, user_id=current_user_id).first()
+        if not item:
             return jsonify({"error": "Item not found"}), 404
 
-        # Handle price fields if present
-        if "selling_price_retail" in item_data:
-            item_data["selling_price_retail"] = float(
-                item_data["selling_price_retail"])
-            # Update the legacy price field to keep compatibility
-            item_data["price"] = item_data["selling_price_retail"]
+        # Handle quantity field mapping
+        if 'quantity' in item_data and 'stock_quantity' not in item_data:
+            item_data['stock_quantity'] = item_data['quantity']
+        elif 'stock_quantity' in item_data and 'quantity' not in item_data:
+            item_data['quantity'] = item_data['stock_quantity']
 
-        if "selling_price_wholesale" in item_data:
-            item_data["selling_price_wholesale"] = float(
-                item_data["selling_price_wholesale"])
+        # Handle price field mappings
+        price_mappings = {
+            'selling_price_retail': 'retail_price',
+            'selling_price_wholesale': 'wholesale_price',
+            'price': 'retail_price'  # Legacy support
+        }
 
-        if "buying_price" in item_data:
-            item_data["buying_price"] = float(item_data["buying_price"])
+        for old_field, new_field in price_mappings.items():
+            if old_field in item_data:
+                try:
+                    item_data[new_field] = float(item_data[old_field])
+                except (ValueError, TypeError):
+                    return jsonify({"error": f"Invalid {old_field} format"}), 400
 
-        # Update the item with new data
+        # Update allowed fields only
+        allowed_fields = [
+            'name', 'description', 'sku', 'stock_quantity', 'minimum_stock',
+            'buying_price', 'retail_price', 'wholesale_price', 'sales_type',
+            'category', 'subcategory', 'unit_type', 'sell_by', 'is_active'
+        ]
+
+        # Validate and update fields
         for key, value in item_data.items():
-            if key not in ['id',
-                           'created_at']:  # Don't allow changing these fields
+            if key in allowed_fields:
+                # Special handling for numeric fields
+                if key in ['stock_quantity', 'minimum_stock']:
+                    try:
+                        value = int(value) if value is not None else 0
+                    except (ValueError, TypeError):
+                        return jsonify({"error": f"Invalid {key} format"}), 400
+                elif key in ['buying_price', 'retail_price', 'wholesale_price']:
+                    try:
+                        value = float(value) if value is not None else 0.0
+                    except (ValueError, TypeError):
+                        return jsonify({"error": f"Invalid {key} format"}), 400
+                elif key == 'name' and not value:
+                    return jsonify({"error": "Item name cannot be empty"}), 400
+                
                 setattr(item, key, value)
+
+        # Update timestamp
+        item.updated_at = datetime.utcnow()
+
+        # Check SKU uniqueness if changed
+        if 'sku' in item_data and item_data['sku'] != item.sku:
+            existing_item = Item.query.filter_by(
+                sku=item_data['sku'], 
+                user_id=current_user_id
+            ).filter(Item.id != item_id).first()
+            
+            if existing_item:
+                return jsonify({"error": f"SKU '{item_data['sku']}' already exists"}), 400
 
         # Save to database
         db.session.commit()
+        
+        logger.info(f"Item updated: {item.name} (ID: {item.id}) by user {current_user_id}")
 
-        # Check if quantity was updated and is below threshold
-        if 'quantity' in item_data:
-            from models import Setting
-
-            # Get threshold
-            low_stock_threshold = 10
+        # Check for low stock notification
+        if item.stock_quantity <= item.minimum_stock:
             try:
-                setting = Setting.query.filter_by(
-                    key='low_stock_threshold').first()
-                if setting and setting.value:
-                    try:
-                        low_stock_threshold = int(setting.value)
-                    except (ValueError, TypeError):
-                        pass
+                from notifications.notification_manager import check_low_stock_and_notify
+                import threading
+                
+                notification_thread = threading.Thread(
+                    target=check_low_stock_and_notify,
+                    args=(db, Item, Setting))
+                notification_thread.daemon = True
+                notification_thread.start()
             except Exception as e:
-                logger.error(f"Error getting low stock threshold: {str(e)}")
-
-            # Check if notifications are enabled
-            notifications_enabled = False
-            try:
-                email_setting = Setting.query.filter_by(
-                    key='email_notifications_enabled').first()
-                sms_setting = Setting.query.filter_by(
-                    key='sms_notifications_enabled').first()
-
-                email_enabled = email_setting and email_setting.value.lower(
-                ) == 'true'
-                sms_enabled = sms_setting and sms_setting.value.lower() == 'true'
-
-                notifications_enabled = email_enabled or sms_enabled
-            except Exception as e:
-                logger.error(f"Error checking notification settings: {str(e)}")
-
-            # If item quantity is now below threshold and notifications are enabled
-            if item.quantity <= low_stock_threshold and notifications_enabled:
-                try:
-                    # Import here to avoid circular imports
-                    from notifications.notification_manager import check_low_stock_and_notify
-
-                    # Run in a separate thread to avoid blocking
-                    import threading
-                    notification_thread = threading.Thread(
-                        target=check_low_stock_and_notify,
-                        args=(db, Item, Setting))
-                    notification_thread.daemon = True
-                    notification_thread.start()
-
-                    logger.info(
-                        f"Low stock notification triggered for item {item.name}"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error triggering low stock notification: {str(e)}")
+                logger.warning(f"Could not trigger low stock notification: {str(e)}")
 
         return jsonify(item.to_dict())
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating item: {str(e)}")
-        return jsonify({"error": "Failed to update item"}), 500
+        return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
 
 def verify_postgresql_auth():
     """Verify that PostgreSQL authentication is working properly"""
@@ -2032,8 +2030,18 @@ def get_categories_api():
         from models import Category
         user_id = session.get('user_id')
         
-        # Get all categories for the user
-        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        # Get all active categories for the user
+        categories = Category.query.filter_by(
+            user_id=user_id, 
+            is_active=True
+        ).order_by(Category.sort_order, Category.name).all()
+        
+        if not categories:
+            # Return empty array instead of error to allow frontend to handle gracefully
+            return jsonify([])
         
         # Separate parent and child categories
         parent_categories = [cat for cat in categories if not cat.parent_id]
@@ -2047,23 +2055,43 @@ def get_categories_api():
             category_dict = {
                 'id': parent.id,
                 'name': parent.name,
-                'description': parent.description,
+                'description': parent.description or '',
                 'parent_id': parent.parent_id,
                 'sort_order': parent.sort_order,
                 'is_active': parent.is_active,
+                'user_id': parent.user_id,
                 'created_at': parent.created_at.isoformat() if parent.created_at else None,
                 'subcategories': [
                     {
                         'id': sub.id,
                         'name': sub.name,
-                        'description': sub.description,
+                        'description': sub.description or '',
                         'parent_id': sub.parent_id,
                         'sort_order': sub.sort_order,
                         'is_active': sub.is_active,
+                        'user_id': sub.user_id,
                         'created_at': sub.created_at.isoformat() if sub.created_at else None
                     }
-                    for sub in subcategories
+                    for sub in sorted(subcategories, key=lambda x: (x.sort_order, x.name))
                 ]
+            }
+            categories_data.append(category_dict)
+        
+        # Add any orphaned subcategories (subcategories without valid parents)
+        orphaned_subs = [child for child in child_categories 
+                        if not any(parent.id == child.parent_id for parent in parent_categories)]
+        
+        for orphaned in orphaned_subs:
+            category_dict = {
+                'id': orphaned.id,
+                'name': orphaned.name,
+                'description': orphaned.description or '',
+                'parent_id': orphaned.parent_id,
+                'sort_order': orphaned.sort_order,
+                'is_active': orphaned.is_active,
+                'user_id': orphaned.user_id,
+                'created_at': orphaned.created_at.isoformat() if orphaned.created_at else None,
+                'subcategories': []
             }
             categories_data.append(category_dict)
         
@@ -2071,7 +2099,8 @@ def get_categories_api():
         
     except Exception as e:
         logger.error(f"Error getting categories: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        return jsonify({'error': f'Failed to load categories: {str(e)}'}), 500
 
 @app.route('/api/categories', methods=['POST'])
 @login_required
@@ -2079,27 +2108,72 @@ def create_category_api():
     """Create a new category"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
         user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
 
-        from models import Category, db
+        # Validate required fields
+        if not data.get('name'):
+            return jsonify({'error': 'Category name is required'}), 400
+        
+        category_name = data['name'].strip()
+        if not category_name:
+            return jsonify({'error': 'Category name cannot be empty'}), 400
 
-        category = Category(
-            name=data['name'],
-            description=data.get('description'),
-            parent_id=data.get('parent_id'),
-            sort_order=data.get('sort_order', 0),
+        from models import Category
+
+        # Check if category name already exists for this user
+        existing_category = Category.query.filter_by(
+            name=category_name,
             user_id=user_id,
+            parent_id=data.get('parent_id'),
             is_active=True
+        ).first()
+        
+        if existing_category:
+            return jsonify({'error': f'Category "{category_name}" already exists'}), 400
+
+        # Validate parent category if specified
+        parent_id = data.get('parent_id')
+        if parent_id:
+            parent_category = Category.query.filter_by(
+                id=parent_id,
+                user_id=user_id,
+                is_active=True
+            ).first()
+            if not parent_category:
+                return jsonify({'error': 'Invalid parent category'}), 400
+
+        # Create new category
+        category = Category(
+            name=category_name,
+            description=data.get('description', '').strip(),
+            parent_id=parent_id,
+            sort_order=int(data.get('sort_order', 0)),
+            user_id=user_id,
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
         db.session.add(category)
         db.session.commit()
+        
+        logger.info(f"Category created: {category.name} (ID: {category.id}) by user {user_id}")
 
-        return jsonify({'success': True, 'category_id': category.id}), 201
+        return jsonify({
+            'success': True, 
+            'category_id': category.id,
+            'category': category.to_dict()
+        }), 201
+        
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating category: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Failed to create category: {str(e)}'}), 500
 
 # ===== ACCOUNTING API ROUTES =====
 

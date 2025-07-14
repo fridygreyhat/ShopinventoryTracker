@@ -103,6 +103,146 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOnDemandProducts();
     loadFinancialSummary();
 
+// Dashboard functionality
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loading...');
+
+    // Load dashboard data with error handling
+    loadDashboardSummary();
+    loadRecentSales();
+    loadTopProducts();
+    loadLowStockItems();
+
+    // Refresh data every 5 minutes
+    setInterval(loadDashboardSummary, 300000);
+});
+
+function loadDashboardSummary() {
+    fetch('/api/dashboard/summary', {
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Dashboard summary loaded:', data);
+            if (data.success) {
+                updateDashboardMetrics(data.summary);
+                updateLowStockAlert(data.low_stock_items);
+                updateRecentSales(data.recent_sales);
+            } else {
+                console.error('Dashboard API returned error:', data.error);
+                showDashboardError('Failed to load dashboard data');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading dashboard:', error);
+            showDashboardError('Error connecting to server');
+        });
+}
+
+function updateDashboardMetrics(summary) {
+    if (!summary) {
+        console.warn('No summary data provided');
+        return;
+    }
+
+    // Update metric cards with safe fallbacks
+    updateMetricCard('total-items', summary.total_items || 0);
+    updateMetricCard('total-stock', summary.total_stock || 0);
+    updateMetricCard('low-stock-count', summary.low_stock_count || 0);
+    updateMetricCard('inventory-value', formatCurrency(summary.inventory_value || 0));
+    updateMetricCard('total-customers', summary.total_customers || 0);
+    updateMetricCard('monthly-income', formatCurrency(summary.monthly_income || 0));
+    updateMetricCard('monthly-expenses', formatCurrency(summary.monthly_expenses || 0));
+    updateMetricCard('monthly-profit', formatCurrency(summary.monthly_profit || 0));
+}
+
+function updateMetricCard(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value;
+    } else {
+        console.warn(`Element with ID '${elementId}' not found`);
+    }
+}
+
+function formatCurrency(amount) {
+    try {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0
+        }).format(amount || 0);
+    } catch (error) {
+        console.error('Error formatting currency:', error);
+        return '$' + (amount || 0).toFixed(2);
+    }
+}
+
+function showDashboardError(message) {
+    // Create or update error alert
+    let errorAlert = document.getElementById('dashboard-error');
+    if (!errorAlert) {
+        errorAlert = document.createElement('div');
+        errorAlert.id = 'dashboard-error';
+        errorAlert.className = 'alert alert-warning alert-dismissible fade show';
+        errorAlert.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="error-message">${message}</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        const container = document.querySelector('.container-fluid') || document.body;
+        container.insertBefore(errorAlert, container.firstChild);
+    } else {
+        document.getElementById('error-message').textContent = message;
+        errorAlert.style.display = 'block';
+    }
+}
+
+function updateLowStockAlert(lowStockItems) {
+    const alertContainer = document.getElementById('low-stock-alert');
+    if (!alertContainer) return;
+
+    if (lowStockItems && lowStockItems.length > 0) {
+        alertContainer.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>${lowStockItems.length}</strong> item(s) are running low on stock
+                <a href="/inventory" class="alert-link ms-2">View Details</a>
+            </div>
+        `;
+    } else {
+        alertContainer.innerHTML = '';
+    }
+}
+
+function updateRecentSales(recentSales) {
+    const salesContainer = document.getElementById('recent-sales-list');
+    if (!salesContainer) return;
+
+    if (recentSales && recentSales.length > 0) {
+        salesContainer.innerHTML = recentSales.map(sale => `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span>${sale.sale_number || 'N/A'}</span>
+                    <span class="text-success">${formatCurrency(sale.total_amount)}</span>
+                </div>
+                <small class="text-muted">${sale.customer_name || 'Walk-in Customer'}</small>
+            </div>
+        `).join('');
+    } else {
+        salesContainer.innerHTML = '<div class="text-muted">No recent sales</div>';
+    }
+}
+
     function loadDashboardData() {
         fetch('/api/dashboard/summary')
             .then(response => response.json())
@@ -132,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateLowStockTable(lowStockItems) {
         const tableBody = document.getElementById('low-stock-table');
         if (!tableBody) return;
-        
+
         if (lowStockItems && lowStockItems.length > 0) {
             let html = '';
             lowStockItems.forEach(item => {
@@ -338,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (monthlyIncomeElement) monthlyIncomeElement.textContent = data.monthly_income.toLocaleString();
                     if (monthlyExpensesElement) monthlyExpensesElement.textContent = data.monthly_expenses.toLocaleString();
                     if (monthlyProfitElement) monthlyProfitElement.textContent = data.monthly_profit.toLocaleString();
-                    
+
                     // Update financial chart if available
                     if (financialChart) {
                         updateFinancialChart(data);
@@ -397,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadDashboardData() {
         console.log('Loading dashboard data...');
-        
+
         // Check if API handler is available
         if (typeof window.apiHandler === 'undefined') {
             console.warn('API handler not available, using fallback');
@@ -443,7 +583,7 @@ async function loadDashboardData() {
         const totalStockElement = document.getElementById('total-stock');
         const lowStockCountElement = document.getElementById('low-stock-count');
         const inventoryValueElement = document.getElementById('inventory-value');
-        
+
         if (totalItemsElement) totalItemsElement.textContent = '0';
         if (totalStockElement) totalStockElement.textContent = '0';
         if (lowStockCountElement) lowStockCountElement.textContent = '0';

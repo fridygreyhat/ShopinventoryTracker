@@ -16,42 +16,87 @@ let categories = [];
 let editingCategory = null;
 let editingSubcategory = null;
 
-/**
- * Load all categories from the server
- */
-async function loadCategories() {
-    try {
-        showLoading(true);
-
-        const response = await fetch('/api/categories');
-        if (!response.ok) {
-            throw new Error('Failed to load categories');
+// Fix categories loading
+function loadCategories() {
+    fetch('/api/categories', {
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
         }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(categories => {
+            console.log('Categories loaded:', categories);
+            displayCategories(categories);
+        })
+        .catch(error => {
+            console.error('Error loading categories:', error);
+            showAlert('Failed to load categories: ' + error.message, 'error');
+        });
+}
 
-        const responseData = await response.json();
-        
-        // Handle both old format (with success/categories) and new format (direct array)
-        if (responseData.success && responseData.categories) {
-            categories = responseData.categories;
-        } else if (Array.isArray(responseData)) {
-            categories = responseData;
-        } else {
-            categories = [];
-        }
-        
-        renderCategories();
-
-    } catch (error) {
-        console.error('Error loading categories:', error);
-        showAlert('Failed to load categories', 'danger');
-    } finally {
-        showLoading(false);
+function displayCategories(categories) {
+    const categoriesContainer = document.getElementById('categoriesContainer');
+    if (!categoriesContainer) {
+        console.warn('Categories container not found');
+        return;
     }
+
+    if (!categories || categories.length === 0) {
+        categoriesContainer.innerHTML = '<div class="alert alert-info">No categories found. Create your first category!</div>';
+        return;
+    }
+
+    let html = '';
+    categories.forEach(category => {
+        const subcategoriesCount = (category.subcategories && Array.isArray(category.subcategories)) ? category.subcategories.length : 0;
+
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card category-card">
+                    <div class="card-body">
+                        <h5 class="card-title">${escapeHtml(category.name)}</h5>
+                        <p class="card-text">${escapeHtml(category.description || 'No description')}</p>
+                        <div class="d-flex justify-content-between">
+                            <span class="badge bg-primary">${subcategoriesCount} subcategories</span>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${category.id})" title="Edit Category">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${category.id})" title="Delete Category">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    categoriesContainer.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text ? text.replace(/[&<>"']/g, function(m) { return map[m]; }) : '';
 }
 
 /**
  * Render categories in the UI
  */
+/*
 function renderCategories() {
     const container = document.getElementById('categories-container');
 
@@ -76,6 +121,7 @@ function renderCategories() {
     // Categories already come with subcategories from the API
     container.innerHTML = categories.map(category => createCategoryCard(category)).join('');
 }
+*/
 
 /**
  * Create HTML for a category card
