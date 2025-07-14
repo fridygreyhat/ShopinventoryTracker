@@ -437,17 +437,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
 
         fetch(searchUrl, {
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(items => {
+                console.log('Products loaded:', items);
                 searchResults = items;
                 displaySearchResults(items);
             })
             .catch(error => {
                 console.error('Error searching products:', error);
                 if (productResultsTable) {
-                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products. Please try again.</td></tr>';
                 }
             });
     }
