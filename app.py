@@ -2031,22 +2031,44 @@ def get_categories_api():
     try:
         from models import Category
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id,
-is_active=True).order_by(Category.name).all()
-
+        
+        # Get all categories for the user
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).order_by(Category.name).all()
+        
+        # Separate parent and child categories
+        parent_categories = [cat for cat in categories if not cat.parent_id]
+        child_categories = [cat for cat in categories if cat.parent_id]
+        
+        # Build categories with subcategories
         categories_data = []
-        for category in categories:
-            categories_data.append({
-                'id': category.id,
-                'name': category.name,
-                'description': category.description,
-                'parent_id': category.parent_id,
-                'sort_order': category.sort_order,
-                'is_active': category.is_active,
-                'created_at': category.created_at.isoformat() if category.created_at else None
-            })
-
-        return jsonify({'success': True, 'categories': categories_data})
+        for parent in parent_categories:
+            subcategories = [child for child in child_categories if child.parent_id == parent.id]
+            
+            category_dict = {
+                'id': parent.id,
+                'name': parent.name,
+                'description': parent.description,
+                'parent_id': parent.parent_id,
+                'sort_order': parent.sort_order,
+                'is_active': parent.is_active,
+                'created_at': parent.created_at.isoformat() if parent.created_at else None,
+                'subcategories': [
+                    {
+                        'id': sub.id,
+                        'name': sub.name,
+                        'description': sub.description,
+                        'parent_id': sub.parent_id,
+                        'sort_order': sub.sort_order,
+                        'is_active': sub.is_active,
+                        'created_at': sub.created_at.isoformat() if sub.created_at else None
+                    }
+                    for sub in subcategories
+                ]
+            }
+            categories_data.append(category_dict)
+        
+        return jsonify(categories_data)
+        
     except Exception as e:
         logger.error(f"Error getting categories: {str(e)}")
         return jsonify({'error': str(e)}), 500

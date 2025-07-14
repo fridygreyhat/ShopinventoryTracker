@@ -28,7 +28,17 @@ async function loadCategories() {
             throw new Error('Failed to load categories');
         }
 
-        categories = await response.json();
+        const responseData = await response.json();
+        
+        // Handle both old format (with success/categories) and new format (direct array)
+        if (responseData.success && responseData.categories) {
+            categories = responseData.categories;
+        } else if (Array.isArray(responseData)) {
+            categories = responseData;
+        } else {
+            categories = [];
+        }
+        
         renderCategories();
 
     } catch (error) {
@@ -45,7 +55,7 @@ async function loadCategories() {
 function renderCategories() {
     const container = document.getElementById('categories-container');
 
-    if (categories.length === 0) {
+    if (!categories || categories.length === 0) {
         container.innerHTML = `
             <div class="col-12">
                 <div class="card text-center p-5">
@@ -63,28 +73,17 @@ function renderCategories() {
         return;
     }
 
-    // Separate parent and child categories
-    const parentCategories = categories.filter(cat => !cat.parent_id);
-    const childCategories = categories.filter(cat => cat.parent_id);
-
-    // Create category objects with their subcategories
-    const categoryData = parentCategories.map(parent => {
-        const subcategories = childCategories.filter(child => child.parent_id === parent.id);
-        return {
-            ...parent,
-            subcategories: subcategories || []
-        };
-    });
-
-    container.innerHTML = categoryData.map(category => createCategoryCard(category)).join('');
+    // Categories already come with subcategories from the API
+    container.innerHTML = categories.map(category => createCategoryCard(category)).join('');
 }
 
 /**
  * Create HTML for a category card
  */
 function createCategoryCard(category) {
-    const subcategoriesHtml = category.subcategories.length > 0 
-        ? category.subcategories.map(sub => `
+    const subcategories = category.subcategories || [];
+    const subcategoriesHtml = subcategories.length > 0 
+        ? subcategories.map(sub => `
             <div class="subcategory-item d-flex justify-content-between align-items-center mb-1">
                 <span class="text-muted small">
                     <i class="fas fa-chevron-right me-1"></i>${sub.name}
@@ -130,7 +129,7 @@ function createCategoryCard(category) {
                 <div class="card-body">
                     ${category.description ? `<p class="text-muted small">${category.description}</p>` : ''}
                     <div class="mb-3">
-                        <small class="text-muted">Items: ${category.items ? category.items.length : 0}</small>
+                        <small class="text-muted">Items: 0</small>
                     </div>
 
                     <h6 class="mb-2">Subcategories:</h6>
