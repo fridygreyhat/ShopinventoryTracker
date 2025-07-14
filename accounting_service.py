@@ -6,10 +6,10 @@ logger = logging.getLogger(__name__)
 
 class AccountingService:
     @staticmethod
-    def initialize_chart_of_accounts():
+    def initialize_chart_of_accounts(user_id=None):
         """Initialize basic chart of accounts"""
         try:
-            from models import Account, db
+            from models import ChartOfAccounts, db
 
             # Basic accounts
             accounts = [
@@ -22,9 +22,14 @@ class AccountingService:
             ]
 
             for account_data in accounts:
-                existing = Account.query.filter_by(code=account_data['code']).first()
+                existing = ChartOfAccounts.query.filter_by(account_code=account_data['code']).first()
                 if not existing:
-                    account = Account(**account_data)
+                    account = ChartOfAccounts(
+                        account_code=account_data['code'],
+                        account_name=account_data['name'],
+                        account_type=account_data['account_type'],
+                        user_id=user_id
+                    )
                     db.session.add(account)
 
             db.session.commit()

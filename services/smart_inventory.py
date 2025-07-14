@@ -1,6 +1,7 @@
 
 from datetime import datetime, timedelta
 from models import db, Item, Sale, SaleItem
+from sqlalchemy import func
 from services.predictive_analytics import PredictiveAnalyticsService
 import logging
 
@@ -113,7 +114,7 @@ class SmartInventoryService:
                         'item_id': item.id,
                         'name': item.name,
                         'category': item.category,
-                        'current_stock': item.quantity,
+                        'current_stock': item.stock_quantity,
                         'estimated_expiry_date': estimated_expiry.isoformat(),
                         'days_until_expiry': days_until_expiry,
                         'urgency': urgency,
@@ -142,7 +143,7 @@ class SmartInventoryService:
                 Item.id,
                 Item.name,
                 Item.category,
-                Item.quantity,
+                Item.stock_quantity,
                 Item.buying_price,
                 func.sum(SaleItem.quantity * SaleItem.price).label('total_revenue'),
                 func.sum(SaleItem.quantity).label('total_quantity_sold')
@@ -155,7 +156,7 @@ class SmartInventoryService:
             
             revenue_analysis = revenue_analysis.filter(
                 db.or_(Sale.created_at >= six_months_ago, Sale.created_at.is_(None))
-            ).group_by(Item.id, Item.name, Item.category, Item.quantity, Item.buying_price).all()
+            ).group_by(Item.id, Item.name, Item.category, Item.stock_quantity, Item.buying_price).all()
             
             # Calculate ABC classification
             abc_analysis = self._classify_abc_items(revenue_analysis)
@@ -197,17 +198,17 @@ class SmartInventoryService:
             
             for item in items:
                 # Stock level analysis
-                if item.quantity <= 0:
+                if item.stock_quantity <= 0:
                     health_metrics['out_of_stock'] += 1
-                elif item.quantity <= (item.minimum_stock or 5):
+                elif item.stock_quantity <= (item.minimum_stock or 5):
                     health_metrics['low_stock'] += 1
-                elif item.quantity <= (item.minimum_stock or 5) * 3:
+                elif item.stock_quantity <= (item.minimum_stock or 5) * 3:
                     health_metrics['optimal_stock'] += 1
                 else:
                     health_metrics['overstock'] += 1
                 
                 # Value calculation
-                health_metrics['total_value'] += (item.buying_price or 0) * item.quantity
+                health_metrics['total_value'] += (item.buying_price or 0) * item.stock_quantity
                 
                 # Movement analysis (simplified)
                 sales_velocity = self._calculate_sales_velocity(item.id)
@@ -263,9 +264,9 @@ class SmartInventoryService:
             demand_factor = 1.0
         
         # Calculate stock factor
-        if item.quantity <= 5:  # Low stock
+        if item.stock_quantity <= 5:  # Low stock
             stock_factor = 1.05
-        elif item.quantity > 50:  # High stock
+        elif item.stock_quantity > 50:  # High stock
             stock_factor = 0.98
         else:  # Normal stock
             stock_factor = 1.0
@@ -371,7 +372,7 @@ class SmartInventoryService:
                 'item_id': item.id,
                 'name': item.name,
                 'category': item.category,
-                'current_stock': item.quantity,
+                'current_stock': item.stock_quantity,
                 'buying_price': item.buying_price or 0,
                 'total_revenue': item_revenue,
                 'total_quantity_sold': item.total_quantity_sold or 0,

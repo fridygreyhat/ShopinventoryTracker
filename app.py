@@ -1364,33 +1364,40 @@ def get_on_demand_product_categories():
 
 # Settings API endpoints
 @app.route('/api/settings', methods=['GET'])
+@login_required
 def get_settings():
     """API endpoint to get all settings or settings by category"""
     from models import Setting
 
-    category = request.args.get('category')
+    try:
+        user_id = session.get('user_id')
+        category = request.args.get('category')
 
-    # Start query
-    query = Setting.query
+        # Start query - filter by user
+        query = Setting.query.filter_by(user_id=user_id)
 
-    # Filter by category if provided
-    if category:
-        query = query.filter(Setting.category == category)
+        # Filter by category if provided
+        if category:
+            query = query.filter(Setting.category == category)
 
-    # Execute query
-    settings = [setting.to_dict() for setting in query.all()]
+        # Execute query
+        settings = [setting.to_dict() for setting in query.all()]
 
-    # Group settings by category for easier UI rendering
-    if not request.args.get('format') == 'flat':
-        grouped_settings = {}
-        for setting in settings:
-            cat = setting['category']
-            if cat not in grouped_settings:
-                grouped_settings[cat] = []
-            grouped_settings[cat].append(setting)
-        return jsonify(grouped_settings)
+        # Group settings by category for easier UI rendering
+        if not request.args.get('format') == 'flat':
+            grouped_settings = {}
+            for setting in settings:
+                cat = setting['category']
+                if cat not in grouped_settings:
+                    grouped_settings[cat] = []
+                grouped_settings[cat].append(setting)
+            return jsonify(grouped_settings)
 
-    return jsonify(settings)
+        return jsonify(settings)
+        
+    except Exception as e:
+        logger.error(f"Error getting settings: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/settings/<string:key>', methods=['GET'])
 def get_setting(key):
@@ -1970,6 +1977,10 @@ from werkzeug.utils import secure_filename
 from datetime import date
 from services.predictive_analytics import PredictiveAnalyticsService
 from services.smart_inventory import SmartInventoryService
+from services.business_intelligence import BusinessIntelligenceService
+from services.supply_chain_service import SupplyChainService
+from services.localization_service import LocalizationService
+from services.marketing_service import MarketingService
 
 # ===== CATEGORIES API ROUTES =====
 
@@ -2223,6 +2234,25 @@ def get_chart_of_accounts_api():
         return jsonify({'success': True, 'accounts': accounts_data})
     except Exception as e:
         logger.error(f"Error getting chart of accounts: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/accounting/initialize', methods=['POST'])
+@login_required
+def initialize_accounting():
+    """Initialize chart of accounts"""
+    try:
+        from accounting_service import AccountingService
+        user_id = session.get('user_id')
+        
+        success = AccountingService.initialize_chart_of_accounts(user_id)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Chart of accounts initialized successfully'})
+        else:
+            return jsonify({'error': 'Failed to initialize chart of accounts'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error initializing accounting: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/accounting/journal-entries', methods=['GET'])
@@ -2806,6 +2836,7 @@ def manage_suppliers():
                 'suppliers': [s.to_dict() for s in suppliers]
             })
         else:
+            from models import Supplier
             data = request.get_json()
             
             # Validate required fields
@@ -3162,16 +3193,13 @@ def manage_employees():
 
             employee = Employee(
                 user_id=user_id,
-                employee_code=data['employee_code'],
-                first_name=data['first_name'],
-                last_name=data['last_name'],
+                name=data['name'],
                 email=data.get('email'),
                 phone=data.get('phone'),
-                position=data.get('position'),
-                department=data.get('department'),
+                role=data.get('role'),
+                commission_rate=data.get('commission_rate', 0.0),
                 hire_date=datetime.strptime(data['hire_date'], '%Y-%m-%d').date() if data.get('hire_date') else None,
-                salary=data.get('salary'),
-                commission_rate=data.get('commission_rate', 0.0)
+                is_active=True
             )
 
             db.session.add(employee)
