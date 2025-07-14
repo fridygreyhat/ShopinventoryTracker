@@ -1,4 +1,3 @@
-javascript
 /**
  * Categories Management JavaScript
  * Handles CRUD operations for categories and subcategories
@@ -64,7 +63,20 @@ function renderCategories() {
         return;
     }
 
-    container.innerHTML = categories.map(category => createCategoryCard(category)).join('');
+    // Separate parent and child categories
+    const parentCategories = categories.filter(cat => !cat.parent_id);
+    const childCategories = categories.filter(cat => cat.parent_id);
+
+    // Create category objects with their subcategories
+    const categoryData = parentCategories.map(parent => {
+        const subcategories = childCategories.filter(child => child.parent_id === parent.id);
+        return {
+            ...parent,
+            subcategories: subcategories || []
+        };
+    });
+
+    container.innerHTML = categoryData.map(category => createCategoryCard(category)).join('');
 }
 
 /**
@@ -75,7 +87,7 @@ function createCategoryCard(category) {
         ? category.subcategories.map(sub => `
             <div class="subcategory-item d-flex justify-content-between align-items-center mb-1">
                 <span class="text-muted small">
-                    <i class="fas fa-chevron-right me-1"></i>${sub.name} (${sub.item_count} items)
+                    <i class="fas fa-chevron-right me-1"></i>${sub.name}
                 </span>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary btn-sm" onclick="editSubcategory(${sub.id})" title="Edit">
@@ -91,10 +103,10 @@ function createCategoryCard(category) {
 
     return `
         <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 category-card" style="border-left: 4px solid ${category.color}">
-                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: ${category.color}10">
+            <div class="card h-100 category-card" style="border-left: 4px solid ${category.color || '#007bff'}">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: ${category.color || '#007bff'}10">
                     <div class="d-flex align-items-center">
-                        <i class="${category.icon} me-2" style="color: ${category.color}"></i>
+                        <i class="${category.icon || 'fas fa-folder'} me-2" style="color: ${category.color || '#007bff'}"></i>
                         <h5 class="mb-0">${category.name}</h5>
                     </div>
                     <div class="dropdown">
@@ -118,7 +130,7 @@ function createCategoryCard(category) {
                 <div class="card-body">
                     ${category.description ? `<p class="text-muted small">${category.description}</p>` : ''}
                     <div class="mb-3">
-                        <small class="text-muted">Items: ${category.item_count}</small>
+                        <small class="text-muted">Items: ${category.items ? category.items.length : 0}</small>
                     </div>
 
                     <h6 class="mb-2">Subcategories:</h6>

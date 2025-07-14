@@ -94,7 +94,7 @@ class Item(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
-    category_rel = db.relationship('Category', backref=db.backref('items', lazy=True))
+    category_rel = db.relationship('Category', backref='items')
     user = db.relationship('User', backref=db.backref('items', lazy=True))
 
     @staticmethod
@@ -325,6 +325,7 @@ class Category(db.Model):
     # Relationships
     user = db.relationship('User', backref=db.backref('categories', lazy=True))
     parent = db.relationship('Category', remote_side=[id], backref='children')
+    # Items relationship handled by foreign key in Item model
 
     def get_descendants(self):
         """Get all descendant categories"""

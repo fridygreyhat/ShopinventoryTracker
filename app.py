@@ -1970,6 +1970,8 @@ def add_subcategory(category_id):
         return jsonify({'error': 'Subcategory name is required'}), 400
 
     try:
+        from models import Category
+        
         # Check if parent category exists and belongs to the current user
         parent_category = Category.query.filter_by(
             id=category_id, 
