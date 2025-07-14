@@ -1922,6 +1922,74 @@ from services.smart_inventory import SmartInventoryService
 
 # ===== CATEGORIES API ROUTES =====
 
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
+@login_required
+def add_subcategory(category_id):
+    """API endpoint to add a subcategory to a given category."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description', '')
+
+    if not name:
+        return jsonify({'error': 'Subcategory name is required'}), 400
+
+    try:
+        # Check if parent category exists and belongs to the current user
+        parent_category = Category.query.filter_by(
+            id=category_id, 
+            user_id=user_id, 
+            is_active=True
+        ).first()
+        
+        if not parent_category:
+            return jsonify({'error': 'Parent category does not exist or access denied'}), 404
+
+        # Check if subcategory with same name already exists under this parent
+        existing_subcategory = Category.query.filter_by(
+            name=name,
+            parent_id=category_id,
+            user_id=user_id,
+            is_active=True
+        ).first()
+        
+        if existing_subcategory:
+            return jsonify({'error': 'Subcategory with this name already exists'}), 400
+
+        # Create the subcategory
+        new_subcategory = Category(
+            name=name,
+            description=description,
+            parent_id=parent_category.id,
+            user_id=user_id,  # Set the user_id
+            sort_order=0,  # Default sort order
+            is_active=True
+        )
+        
+        db.session.add(new_subcategory)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'subcategory': {
+                'id': new_subcategory.id,
+                'name': new_subcategory.name,
+                'description': new_subcategory.description,
+                'parent_id': new_subcategory.parent_id,
+                'user_id': new_subcategory.user_id,
+                'is_active': new_subcategory.is_active,
+                'created_at': new_subcategory.created_at.isoformat() if new_subcategory.created_at else None
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/categories', methods=['GET'])
 @login_required
 def get_categories_api():

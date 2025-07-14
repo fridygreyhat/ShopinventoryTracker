@@ -1,4 +1,4 @@
-
+javascript
 /**
  * Categories Management JavaScript
  * Handles CRUD operations for categories and subcategories
@@ -7,7 +7,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize page
     loadCategories();
-    
+
     // Event listeners
     document.getElementById('categoryForm').addEventListener('submit', handleCategorySubmit);
     document.getElementById('subcategoryForm').addEventListener('submit', handleSubcategorySubmit);
@@ -23,15 +23,15 @@ let editingSubcategory = null;
 async function loadCategories() {
     try {
         showLoading(true);
-        
+
         const response = await fetch('/api/categories');
         if (!response.ok) {
             throw new Error('Failed to load categories');
         }
-        
+
         categories = await response.json();
         renderCategories();
-        
+
     } catch (error) {
         console.error('Error loading categories:', error);
         showAlert('Failed to load categories', 'danger');
@@ -45,7 +45,7 @@ async function loadCategories() {
  */
 function renderCategories() {
     const container = document.getElementById('categories-container');
-    
+
     if (categories.length === 0) {
         container.innerHTML = `
             <div class="col-12">
@@ -63,7 +63,7 @@ function renderCategories() {
         `;
         return;
     }
-    
+
     container.innerHTML = categories.map(category => createCategoryCard(category)).join('');
 }
 
@@ -88,7 +88,7 @@ function createCategoryCard(category) {
             </div>
         `).join('')
         : '<p class="text-muted small">No subcategories</p>';
-    
+
     return `
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card h-100 category-card" style="border-left: 4px solid ${category.color}">
@@ -120,12 +120,12 @@ function createCategoryCard(category) {
                     <div class="mb-3">
                         <small class="text-muted">Items: ${category.item_count}</small>
                     </div>
-                    
+
                     <h6 class="mb-2">Subcategories:</h6>
                     <div class="subcategories-list">
                         ${subcategoriesHtml}
                     </div>
-                    
+
                     <div class="mt-3">
                         <button class="btn btn-sm btn-outline-primary w-100" onclick="addSubcategory(${category.id})">
                             <i class="fas fa-plus me-2"></i>Add Subcategory
@@ -142,24 +142,24 @@ function createCategoryCard(category) {
  */
 async function handleCategorySubmit(event) {
     event.preventDefault();
-    
+
     const formData = {
         name: document.getElementById('categoryName').value.trim(),
         description: document.getElementById('categoryDescription').value.trim(),
         icon: document.getElementById('categoryIcon').value,
         color: document.getElementById('categoryColor').value
     };
-    
+
     if (!formData.name) {
         showAlert('Category name is required', 'danger');
         return;
     }
-    
+
     try {
         const categoryId = document.getElementById('categoryId').value;
         const url = categoryId ? `/api/categories/${categoryId}` : '/api/categories';
         const method = categoryId ? 'PUT' : 'POST';
-        
+
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -167,22 +167,22 @@ async function handleCategorySubmit(event) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to save category');
         }
-        
+
         // Close modal and reload categories
         const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
         modal.hide();
-        
+
         document.getElementById('categoryForm').reset();
         document.getElementById('categoryId').value = '';
-        
+
         showAlert(categoryId ? 'Category updated successfully' : 'Category created successfully', 'success');
         loadCategories();
-        
+
     } catch (error) {
         console.error('Error saving category:', error);
         showAlert(error.message, 'danger');
@@ -194,21 +194,21 @@ async function handleCategorySubmit(event) {
  */
 async function handleSubcategorySubmit(event) {
     event.preventDefault();
-    
+
     const formData = {
         name: document.getElementById('subcategoryName').value.trim(),
         description: document.getElementById('subcategoryDescription').value.trim()
     };
-    
+
     if (!formData.name) {
         showAlert('Subcategory name is required', 'danger');
         return;
     }
-    
+
     try {
         const subcategoryId = document.getElementById('subcategoryId').value;
         const categoryId = document.getElementById('parentCategoryId').value;
-        
+
         let url, method;
         if (subcategoryId) {
             url = `/api/subcategories/${subcategoryId}`;
@@ -217,7 +217,7 @@ async function handleSubcategorySubmit(event) {
             url = `/api/categories/${categoryId}/subcategories`;
             method = 'POST';
         }
-        
+
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -225,23 +225,23 @@ async function handleSubcategorySubmit(event) {
             },
             body: JSON.stringify(formData)
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to save subcategory');
         }
-        
+
         // Close modal and reload categories
         const modal = bootstrap.Modal.getInstance(document.getElementById('subcategoryModal'));
         modal.hide();
-        
+
         document.getElementById('subcategoryForm').reset();
         document.getElementById('subcategoryId').value = '';
         document.getElementById('parentCategoryId').value = '';
-        
+
         showAlert(subcategoryId ? 'Subcategory updated successfully' : 'Subcategory created successfully', 'success');
         loadCategories();
-        
+
     } catch (error) {
         console.error('Error saving subcategory:', error);
         showAlert(error.message, 'danger');
@@ -254,15 +254,15 @@ async function handleSubcategorySubmit(event) {
 function editCategory(categoryId) {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
-    
+
     document.getElementById('categoryId').value = category.id;
     document.getElementById('categoryName').value = category.name;
     document.getElementById('categoryDescription').value = category.description || '';
     document.getElementById('categoryIcon').value = category.icon || 'fas fa-box';
     document.getElementById('categoryColor').value = category.color || '#007bff';
-    
+
     document.getElementById('categoryModalLabel').textContent = 'Edit Category';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
     modal.show();
 }
@@ -271,12 +271,72 @@ function editCategory(categoryId) {
  * Add a subcategory to a category
  */
 function addSubcategory(categoryId) {
+    // Set the parent category ID
     document.getElementById('parentCategoryId').value = categoryId;
-    document.getElementById('subcategoryModalLabel').textContent = 'Add Subcategory';
-    
+
+    // Clear the form
+    document.getElementById('subcategoryForm').reset();
+    document.getElementById('subcategoryId').value = '';
+
+    // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('subcategoryModal'));
     modal.show();
 }
+
+// Handle subcategory form submission
+document.getElementById('subcategoryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const subcategoryId = document.getElementById('subcategoryId').value;
+    const parentCategoryId = document.getElementById('parentCategoryId').value;
+    const formData = {
+        name: document.getElementById('subcategoryName').value,
+        description: document.getElementById('subcategoryDescription').value
+    };
+
+    try {
+        let response;
+
+        if (subcategoryId) {
+            // Update existing subcategory
+            response = await fetch(`/api/categories/${subcategoryId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // Create new subcategory
+            response = await fetch(`/api/categories/${parentCategoryId}/subcategories`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('subcategoryModal'));
+            modal.hide();
+
+            // Show success message
+            showAlert('success', subcategoryId ? 'Subcategory updated successfully!' : 'Subcategory created successfully!');
+
+            // Reload categories
+            loadCategories();
+        } else {
+            showAlert('danger', result.error || 'Failed to save subcategory');
+        }
+    } catch (error) {
+        console.error('Error saving subcategory:', error);
+        showAlert('danger', 'An error occurred while saving the subcategory');
+    }
+});
 
 /**
  * Edit a subcategory
@@ -287,19 +347,19 @@ async function editSubcategory(subcategoryId) {
         if (!response.ok) {
             throw new Error('Failed to load subcategory');
         }
-        
+
         const subcategory = await response.json();
-        
+
         document.getElementById('subcategoryId').value = subcategory.id;
         document.getElementById('parentCategoryId').value = subcategory.category_id;
         document.getElementById('subcategoryName').value = subcategory.name;
         document.getElementById('subcategoryDescription').value = subcategory.description || '';
-        
+
         document.getElementById('subcategoryModalLabel').textContent = 'Edit Subcategory';
-        
+
         const modal = new bootstrap.Modal(document.getElementById('subcategoryModal'));
         modal.show();
-        
+
     } catch (error) {
         console.error('Error loading subcategory:', error);
         showAlert('Failed to load subcategory', 'danger');
@@ -312,24 +372,24 @@ async function editSubcategory(subcategoryId) {
 async function deleteCategory(categoryId) {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
-    
+
     if (!confirm(`Are you sure you want to delete the category "${category.name}"? This action cannot be undone.`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/categories/${categoryId}`, {
             method: 'DELETE'
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to delete category');
         }
-        
+
         showAlert('Category deleted successfully', 'success');
         loadCategories();
-        
+
     } catch (error) {
         console.error('Error deleting category:', error);
         showAlert(error.message, 'danger');
@@ -343,20 +403,20 @@ async function deleteSubcategory(subcategoryId) {
     if (!confirm('Are you sure you want to delete this subcategory? This action cannot be undone.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/subcategories/${subcategoryId}`, {
             method: 'DELETE'
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to delete subcategory');
         }
-        
+
         showAlert('Subcategory deleted successfully', 'success');
         loadCategories();
-        
+
     } catch (error) {
         console.error('Error deleting subcategory:', error);
         showAlert(error.message, 'danger');
@@ -369,7 +429,7 @@ async function deleteSubcategory(subcategoryId) {
 function showLoading(show) {
     const spinner = document.getElementById('loading-spinner');
     const container = document.getElementById('categories-container');
-    
+
     if (show) {
         spinner.classList.remove('d-none');
         container.classList.add('d-none');
@@ -386,7 +446,7 @@ function showAlert(message, type = 'info') {
     // Remove existing alerts
     const existingAlerts = document.querySelectorAll('.alert-dismissible');
     existingAlerts.forEach(alert => alert.remove());
-    
+
     // Create new alert
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
@@ -394,11 +454,11 @@ function showAlert(message, type = 'info') {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
+
     // Insert at the top of the page
     const container = document.querySelector('.container-fluid');
     container.insertBefore(alertDiv, container.firstChild);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
         alertDiv.remove();
