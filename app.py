@@ -3,7 +3,6 @@ import logging
 import uuid
 import json
 from datetime import datetime, timedelta
-from auth_service import login_required
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -14,9 +13,10 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin,login_user,current_user
+from flask_login import LoginManager, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
+from functools import wraps
 
 
 
@@ -35,11 +35,11 @@ logger = logging.getLogger(__name__)
 # Custom login_required decorator for session-based authentication
 def login_required(f):
     """Custom login required decorator that works with session-based authentication"""
-    from functools import wraps
-    
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            if request.is_json:
+                return jsonify({'error': 'Authentication required'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -78,15 +78,23 @@ def load_user(user_id):
 @app.context_processor
 def inject_user():
     def get_current_user():
-        return current_user
+        user_id = session.get('user_id')
+        if user_id:
+            from models import User
+            return User.query.get(user_id)
+        return None
     return dict(get_current_user=get_current_user)
 
 @app.route('/debug')
 def debug():
+    user_id = session.get('user_id')
     print(f"Session: {session}")
-    print(f"Current user: {current_user}")
-    print(f"Is authenticated: {current_user.is_authenticated}")
-    print(f"User ID in session: {session.get('_user_id')}")
+    print(f"User ID in session: {user_id}")
+    if user_id:
+        from models import User
+        user = User.query.get(user_id)
+        print(f"Current user: {user}")
+        print(f"Is authenticated: {user is not None}")
     return "Check console"
 
 def init_database():
@@ -3684,13 +3692,7 @@ def register():
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
-# Import routes module which contains additional route definitions
-# Note: Main routes are defined above to ensure they're available
-try:
-    # Only import specific functions to avoid conflicts
-    pass  # Routes are now defined directly in app.py
-except ImportError:
-    logger.warning("Routes module not found, using basic route definitions")
+# All routes are now defined directly in app.py for better organization
 
 # Error handlers
 @app.errorhandler(404)
