@@ -63,32 +63,39 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 class Item(db.Model):
+    __tablename__ = 'item'
+    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False, index=True)
     description = db.Column(db.Text)
-    sku = db.Column(db.String(50), unique=True)
-    quantity = db.Column(db.Integer, default=0)
-    price = db.Column(db.Float, default=0.0)
-    buying_price = db.Column(db.Float, default=0.0)
-    selling_price_retail = db.Column(db.Float, default=0.0)
-    selling_price_wholesale = db.Column(db.Float, default=0.0)
-    sales_type = db.Column(db.String(20), default='both')
+    sku = db.Column(db.String(50), unique=True, index=True)
+    
+    # Unified quantity and pricing fields
+    stock_quantity = db.Column(db.Integer, default=0, nullable=False)
+    minimum_stock = db.Column(db.Integer, default=0, nullable=False)
+    buying_price = db.Column(db.Float, default=0.0, nullable=False)
+    retail_price = db.Column(db.Float, default=0.0, nullable=False)
+    wholesale_price = db.Column(db.Float, default=0.0, nullable=False)
+    
+    # Product classification
+    sales_type = db.Column(db.String(20), default='both', nullable=False)
     category = db.Column(db.String(100), default='Uncategorized')
     subcategory = db.Column(db.String(100))
     unit_type = db.Column(db.String(20), default='quantity')
     sell_by = db.Column(db.String(20), default='quantity')
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Foreign keys with proper constraints
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    
+    # Status and metadata
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
     category_rel = db.relationship('Category', backref=db.backref('items', lazy=True))
-    is_active = db.Column(db.Boolean, default=True)
-    stock_quantity = db.Column(db.Integer, default=0)
-    minimum_stock = db.Column(db.Integer, default=0)
-    retail_price = db.Column(db.Float, default=0.0)
-    wholesale_price = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('items', lazy=True))
 
     @staticmethod
     def generate_sku(name, category=""):
@@ -104,26 +111,35 @@ class Item(db.Model):
             'name': self.name,
             'description': self.description,
             'sku': self.sku,
-            'quantity': self.quantity,
-            'price': self.price,
+            'stock_quantity': self.stock_quantity,
+            'minimum_stock': self.minimum_stock,
             'buying_price': self.buying_price,
-            'selling_price_retail': self.selling_price_retail,
-            'selling_price_wholesale': self.selling_price_wholesale,
+            'retail_price': self.retail_price,
+            'wholesale_price': self.wholesale_price,
             'sales_type': self.sales_type,
             'category': self.category,
             'subcategory': self.subcategory,
+            'category_id': self.category_id,
+            'user_id': self.user_id,
+            'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
 class Setting(db.Model):
+    __tablename__ = 'setting'
+    
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
+    key = db.Column(db.String(100), unique=True, nullable=False, index=True)
     value = db.Column(db.Text)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50), default='general')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    category = db.Column(db.String(50), default='general', index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationships  
+    user = db.relationship('User', backref='settings', lazy=True)
 
     def to_dict(self):
         return {
@@ -132,6 +148,7 @@ class Setting(db.Model):
             'value': self.value,
             'description': self.description,
             'category': self.category,
+            'user_id': self.user_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -166,32 +183,42 @@ class SubuserPermission(db.Model):
     granted = db.Column(db.Boolean, default=True)
 
 class Sale(db.Model):
+    __tablename__ = 'sale'
+    
     id = db.Column(db.Integer, primary_key=True)
-    invoice_number = db.Column(db.String(50), unique=True, nullable=False)
+    invoice_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    sale_number = db.Column(db.String(50), unique=True, index=True)
+    
+    # Customer information
     customer_name = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
-    sale_type = db.Column(db.String(20), default='retail')
-    subtotal = db.Column(db.Float, default=0.0)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    
+    # Sale details
+    sale_type = db.Column(db.String(20), default='retail', nullable=False)
+    subtotal = db.Column(db.Float, default=0.0, nullable=False)
     discount_type = db.Column(db.String(20), default='none')
     discount_value = db.Column(db.Float, default=0.0)
     discount_amount = db.Column(db.Float, default=0.0)
-    total = db.Column(db.Float, default=0.0)
-    total_amount = db.Column(db.Float, default=0.0)
-    payment_method = db.Column(db.String(20), default='cash')
+    total_amount = db.Column(db.Float, default=0.0, nullable=False)
+    
+    # Payment information
+    payment_method = db.Column(db.String(20), default='cash', nullable=False)
+    payment_type = db.Column(db.String(20), default='cash', nullable=False)
+    payment_status = db.Column(db.String(20), default='completed', nullable=False)
     payment_details = db.Column(db.Text)
     payment_amount = db.Column(db.Float, default=0.0)
     change_amount = db.Column(db.Float, default=0.0)
+    
+    # Additional information
     notes = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    payment_type = db.Column(db.String(20), default='cash')
-    payment_status = db.Column(db.String(20), default='completed')
-    sale_number = db.Column(db.String(50))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     
     # Relationships
     sale_items = db.relationship('SaleItem', backref='sale', lazy=True, cascade='all, delete-orphan')
     customer = db.relationship('Customer', backref='sales', lazy=True)
+    user = db.relationship('User', backref='sales', lazy=True)
 
     def to_dict(self):
         return {
@@ -200,26 +227,38 @@ class Sale(db.Model):
             'sale_number': self.sale_number,
             'customer_name': self.customer_name,
             'customer_id': self.customer_id,
-            'total': self.total,
+            'sale_type': self.sale_type,
+            'subtotal': self.subtotal,
+            'discount_amount': self.discount_amount,
             'total_amount': self.total_amount,
             'payment_method': self.payment_method,
             'payment_type': self.payment_type,
             'payment_status': self.payment_status,
+            'payment_amount': self.payment_amount,
+            'change_amount': self.change_amount,
+            'user_id': self.user_id,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class SaleItem(db.Model):
+    __tablename__ = 'sale_item'
+    
     id = db.Column(db.Integer, primary_key=True)
-    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False, index=True)
     quantity = db.Column(db.Float, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     unit_cost = db.Column(db.Float, default=0.0)
     total_price = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationships
     item = db.relationship('Item', backref='sale_items', lazy=True)
+    
+    # Constraints
+    __table_args__ = (
+        db.UniqueConstraint('sale_id', 'item_id', name='unique_sale_item'),
+    )
     
     def to_dict(self):
         return {
@@ -230,24 +269,29 @@ class SaleItem(db.Model):
             'unit_price': self.unit_price,
             'unit_cost': self.unit_cost,
             'total_price': self.total_price,
+            'item_name': self.item.name if self.item else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-# Add relationship after Sale model definition
-Sale.customer = db.relationship('Customer', backref=db.backref('sales', lazy=True))
+# Redundant relationship definition removed - already defined in Sale model
 
 class FinancialTransaction(db.Model):
+    __tablename__ = 'financial_transaction'
+    
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
+    date = db.Column(db.Date, nullable=False, index=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    transaction_type = db.Column(db.String(20), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False, index=True)
     category = db.Column(db.String(100))
     reference_id = db.Column(db.String(100))
     payment_method = db.Column(db.String(50))
     notes = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='financial_transactions', lazy=True)
 
     def to_dict(self):
         return {
@@ -256,7 +300,12 @@ class FinancialTransaction(db.Model):
             'description': self.description,
             'amount': self.amount,
             'transaction_type': self.transaction_type,
-            'category': self.category
+            'category': self.category,
+            'reference_id': self.reference_id,
+            'payment_method': self.payment_method,
+            'notes': self.notes,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 # Placeholder classes for other models

@@ -25,3 +25,4 @@ requests
 numpy
 psycopg2-binary
 pandas
+flask-migrate

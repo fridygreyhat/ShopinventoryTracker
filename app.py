@@ -3,7 +3,6 @@ import logging
 import uuid
 import json
 from datetime import datetime, timedelta
-from auth_service import login_required
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -14,9 +13,10 @@ import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin,login_user,current_user
+from flask_login import LoginManager, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
+from functools import wraps
 
 
 
@@ -25,6 +25,9 @@ from flask_migrate import Migrate
 # Import db from extensions to avoid circular imports
 from extensions import db, configure_database
 
+# Import models to ensure they're available
+from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,11 +35,11 @@ logger = logging.getLogger(__name__)
 # Custom login_required decorator for session-based authentication
 def login_required(f):
     """Custom login required decorator that works with session-based authentication"""
-    from functools import wraps
-    
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            if request.is_json:
+                return jsonify({'error': 'Authentication required'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -75,15 +78,23 @@ def load_user(user_id):
 @app.context_processor
 def inject_user():
     def get_current_user():
-        return current_user
+        user_id = session.get('user_id')
+        if user_id:
+            from models import User
+            return User.query.get(user_id)
+        return None
     return dict(get_current_user=get_current_user)
 
 @app.route('/debug')
 def debug():
+    user_id = session.get('user_id')
     print(f"Session: {session}")
-    print(f"Current user: {current_user}")
-    print(f"Is authenticated: {current_user.is_authenticated}")
-    print(f"User ID in session: {session.get('_user_id')}")
+    print(f"User ID in session: {user_id}")
+    if user_id:
+        from models import User
+        user = User.query.get(user_id)
+        print(f"Current user: {user}")
+        print(f"Is authenticated: {user is not None}")
     return "Check console"
 
 def init_database():
@@ -329,7 +340,6 @@ def api_login():
 
                 # Commit changes to PostgreSQL
                 db.session.commit()
-                login_user(user)
                 logger.info(f"User {email} logged in successfully from PostgreSQL (ID: {user.id})")
 
                 return jsonify({
@@ -356,6 +366,7 @@ def api_login():
         db.session.rollback()
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
+@app.route('/api/auth/register', methods=['POST'])
 @app.route('/api/register', methods=['POST'])
 def api_register():
     """API endpoint for user registration - stores users in PostgreSQL"""
@@ -674,11 +685,16 @@ def add_item():
         item_data = request.json
 
         # Validate required fields
-        required_fields = ['name', 'quantity']
+        required_fields = ['name']
         for field in required_fields:
             if field not in item_data:
                 return jsonify({"error":
                                 f"Missing required field: {field}"}), 400
+        
+        # Handle quantity field mapping
+        quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+        if quantity is None:
+            quantity = 0
 
         # Generate SKU if not provided
         if 'sku' not in item_data or not item_data['sku']:
@@ -697,23 +713,20 @@ def add_item():
         # Get current user ID
         current_user_id = session.get('user_id')
 
-        # Create new item
-        new_item = Item(name=item_data["name"],
-                        description=item_data.get("description", ""),
-                        quantity=int(item_data["quantity"]),
-                        stock_quantity=int(item_data["quantity"]),
-                        buying_price=buying_price,
-                        selling_price_retail=selling_price_retail,
-                        selling_price_wholesale=selling_price_wholesale,
-                        retail_price=selling_price_retail,
-                        wholesale_price=selling_price_wholesale,
-                        price=price,
-                        sales_type=item_data.get("sales_type", "both"),
-                        category=item_data.get("category", "Uncategorized"),
-                        user_id=current_user_id,
-                        sku=item_data.get(
-                            "sku",
-                            f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}"))
+        # Create new item with aligned field names
+        new_item = Item(
+            name=item_data["name"],
+            description=item_data.get("description", ""),
+            stock_quantity=int(quantity),
+            minimum_stock=int(item_data.get("minimum_stock", 5)),
+            buying_price=buying_price,
+            retail_price=selling_price_retail,
+            wholesale_price=selling_price_wholesale,
+            sales_type=item_data.get("sales_type", "both"),
+            category=item_data.get("category", "Uncategorized"),
+            user_id=current_user_id,
+            sku=item_data.get("sku", Item.generate_sku(item_data["name"], item_data.get("category", "")))
+        )
 
         # Add to database
         db.session.add(new_item)
@@ -1698,7 +1711,8 @@ def add_transaction():
         category=data['category'],
         reference_id=data.get('reference_id'),
         payment_method=data.get('payment_method'),
-        notes=data.get('notes'))
+        notes=data.get('notes'),
+        user_id=session.get('user_id'))
 
     try:
         db.session.add(transaction)
@@ -1918,6 +1932,74 @@ from services.predictive_analytics import PredictiveAnalyticsService
 from services.smart_inventory import SmartInventoryService
 
 # ===== CATEGORIES API ROUTES =====
+
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
+@login_required
+def add_subcategory(category_id):
+    """API endpoint to add a subcategory to a given category."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description', '')
+
+    if not name:
+        return jsonify({'error': 'Subcategory name is required'}), 400
+
+    try:
+        # Check if parent category exists and belongs to the current user
+        parent_category = Category.query.filter_by(
+            id=category_id, 
+            user_id=user_id, 
+            is_active=True
+        ).first()
+        
+        if not parent_category:
+            return jsonify({'error': 'Parent category does not exist or access denied'}), 404
+
+        # Check if subcategory with same name already exists under this parent
+        existing_subcategory = Category.query.filter_by(
+            name=name,
+            parent_id=category_id,
+            user_id=user_id,
+            is_active=True
+        ).first()
+        
+        if existing_subcategory:
+            return jsonify({'error': 'Subcategory with this name already exists'}), 400
+
+        # Create the subcategory
+        new_subcategory = Category(
+            name=name,
+            description=description,
+            parent_id=parent_category.id,
+            user_id=user_id,  # Set the user_id
+            sort_order=0,  # Default sort order
+            is_active=True
+        )
+        
+        db.session.add(new_subcategory)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'subcategory': {
+                'id': new_subcategory.id,
+                'name': new_subcategory.name,
+                'description': new_subcategory.description,
+                'parent_id': new_subcategory.parent_id,
+                'user_id': new_subcategory.user_id,
+                'is_active': new_subcategory.is_active,
+                'created_at': new_subcategory.created_at.isoformat() if new_subcategory.created_at else None
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating subcategory: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/categories', methods=['GET'])
 @login_required
@@ -2253,6 +2335,48 @@ def create_customer_api():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating customer: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
+@login_required
+def update_customer_api(customer_id):
+    """Update an existing customer"""
+    try:
+        from models import Customer
+        
+        user_id = session.get('user_id')
+        customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+        
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+        
+        data = request.get_json()
+        
+        # Update fields
+        if 'name' in data:
+            customer.name = data['name']
+        if 'email' in data:
+            customer.email = data['email']
+        if 'phone' in data:
+            customer.phone = data['phone']
+        if 'address' in data:
+            customer.address = data['address']
+        if 'customer_type' in data:
+            customer.customer_type = data['customer_type']
+        if 'credit_limit' in data:
+            customer.credit_limit = float(data['credit_limit'])
+        if 'preferred_payment_method' in data:
+            customer.preferred_payment_method = data['preferred_payment_method']
+        
+        customer.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify(customer.to_dict())
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating customer: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ===== PREDICTIVE ANALYTICS API ROUTES =====
@@ -3256,6 +3380,9 @@ def api_inventory():
 def api_create_sale():
     """API endpoint to create a new sale"""
     try:
+        # Import models here to ensure they are available
+        from models import Item, Sale, SaleItem, StockMovement
+        
         # Validate user session
         user_id = session.get('user_id')
         if not user_id:
@@ -3270,7 +3397,7 @@ def api_create_sale():
             return jsonify({'error': 'No items provided'}), 400
 
         # Validate that all items belong to the user
-        item_ids = [item['id'] for item in data.get('items', [])]
+        item_ids = [item.get('item_id') for item in data.get('items', [])]
         if not item_ids:
             logger.error("Sale creation failed: No items provided")
             return jsonify({'error': 'No items provided'}), 400
@@ -3290,14 +3417,13 @@ def api_create_sale():
             customer_name=data.get('customer', {}).get('name', 'Walk-in Customer'),
             customer_phone=data.get('customer', {}).get('phone'),
             sale_type=data.get('sale_type', 'retail'),
-            subtotal=float(data.get('subtotal', 0)),
+            subtotal=float(data.get('subtotal', data.get('total', 0))),
             discount_type=data.get('discount', {}).get('type', 'none'),
             discount_value=float(data.get('discount', {}).get('value', 0)),
             discount_amount=float(data.get('discount', {}).get('amount', 0)),
-            total=float(data.get('total', 0)),
             total_amount=float(data.get('total', 0)),
-            payment_method=data.get('payment', {}).get('method', 'cash'),
-            payment_amount=float(data.get('payment', {}).get('amount', 0)),
+            payment_method=data.get('payment_method', 'cash'),
+            payment_amount=float(data.get('payment', {}).get('amount', data.get('total', 0))),
             change_amount=float(data.get('payment', {}).get('change', 0)),
             notes=data.get('notes', ''),
             user_id=user_id,
@@ -3324,15 +3450,13 @@ def api_create_sale():
         # Create sale items and update inventory
         for item_data in data.get('items', []):
             logger.info(f"Processing item: {item_data}")
-            item = Item.query.filter_by(id=item_data['id'], user_id=user_id).first()
+            item = Item.query.filter_by(id=item_data['item_id'], user_id=user_id).first()
             if not item:
-                logger.error(f"Item not found: {item_data['id']} for user {user_id}")
-                raise Exception(f"Item not found: {item_data['id']}")
+                logger.error(f"Item not found: {item_data['item_id']} for user {user_id}")
+                raise Exception(f"Item not found: {item_data['item_id']}")
 
-            # Check stock availability (use quantity field as main stock tracker)
-            current_stock = item.quantity if item.quantity is not None else item.stock_quantity
-            if current_stock is None:
-                current_stock = 0
+            # Check stock availability (use stock_quantity field as main stock tracker)
+            current_stock = item.stock_quantity if item.stock_quantity is not None else 0
                 
             logger.info(f"Current stock for {item.name}: {current_stock}, requested: {item_data['quantity']}")
             if current_stock < item_data['quantity']:
@@ -3346,25 +3470,24 @@ def api_create_sale():
                 quantity=item_data['quantity'],
                 unit_price=float(item_data['price']),
                 unit_cost=float(item.buying_price or 0),
-                total_price=float(item_data['total'])
+                total_price=float(item_data['quantity'] * item_data['price'])
             )
             db.session.add(sale_item)
 
-            # Update item stock (update both fields for consistency)
-            item.quantity = max(0, (item.quantity or 0) - item_data['quantity'])
-            if item.stock_quantity is not None:
-                item.stock_quantity = max(0, item.stock_quantity - item_data['quantity'])
+            # Update item stock 
+            item.stock_quantity = max(0, item.stock_quantity - item_data['quantity'])
 
-            # Create stock movement
+            # Create stock movement with user_id
             stock_movement = StockMovement(
                 movement_type='out',
                 quantity=item_data['quantity'],
                 reason=f'Sale {sale_number}',
                 item_id=item.id,
+                user_id=user_id,
                 created_at=datetime.utcnow()
             )
             db.session.add(stock_movement)
-            logger.info(f"Updated stock for {item.name}: new quantity = {item.quantity}")
+            logger.info(f"Updated stock for {item.name}: new quantity = {item.stock_quantity}")
 
         db.session.commit()
         
@@ -3609,13 +3732,7 @@ def register():
         return redirect(url_for('dashboard'))
     return render_template('register.html')
 
-# Import routes module which contains additional route definitions
-# Note: Main routes are defined above to ensure they're available
-try:
-    # Only import specific functions to avoid conflicts
-    pass  # Routes are now defined directly in app.py
-except ImportError:
-    logger.warning("Routes module not found, using basic route definitions")
+# All routes are now defined directly in app.py for better organization
 
 # Error handlers
 @app.errorhandler(404)

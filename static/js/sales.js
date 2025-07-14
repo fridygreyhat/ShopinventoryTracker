@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const startScanBtn = document.getElementById('startScanBtn');
@@ -71,11 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">Payment Method:</span>
-                                <span class="detail-value">${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
+                                <span class="detail-value">${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">Customer:</span>
-                                <span class="detail-value">${document.getElementById('customerName').value || 'Walk-in Customer'}</span>
+                                <span class="detail-value">${document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer'}</span>
                             </div>
                         </div>
                     </div>
@@ -160,51 +161,49 @@ document.addEventListener('DOMContentLoaded', function() {
     // Print receipt function
     function printReceipt(saleNumber) {
         // Create a simple receipt
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const totalAmount = cartTotal ? parseFloat(cartTotal.textContent.replace(/,/g, '')) : 0;
+
         const receiptWindow = window.open('', '_blank');
-        receiptWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Receipt - ${saleNumber}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }
-                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                    .detail { display: flex; justify-content: space-between; margin: 5px 0; }
-                    .total { font-weight: bold; border-top: 1px solid #333; padding-top: 10px; }
-                    @media print { body { margin: 0; } }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h2>RECEIPT</h2>
-                    <p>${saleNumber}</p>
-                    <p>${new Date().toLocaleDateString()}</p>
-                </div>
-                <div class="detail">
-                    <span>Customer:</span>
-                    <span>${customerName}</span>
-                </div>
-                <div class="detail">
-                    <span>Payment:</span>
-                    <span>${paymentMethod.value.replace('_', ' ').toUpperCase()}</span>
-                </div>
-                <div class="detail total">
-                    <span>Total:</span>
-                    <span>TZS ${totalAmount.toLocaleString()}</span>
-                </div>
-                <div style="text-align: center; margin-top: 20px;">
-                    <p>Thank you for your business!</p>
-                    <button onclick="window.print()">Print</button>
-                    <button onclick="window.close()">Close</button>
-                </div>
-            </body>
-            </html>
-        `);
+        receiptWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt - ${saleNumber}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .detail { display: flex; justify-content: space-between; margin: 5px 0; }
+        .total { font-weight: bold; border-top: 1px solid #333; padding-top: 10px; }
+        @media print { body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>RECEIPT</h2>
+        <p>${saleNumber}</p>
+        <p>${new Date().toLocaleDateString()}</p>
+    </div>
+    <div class="detail">
+        <span>Customer:</span>
+        <span>${customerName}</span>
+    </div>
+    <div class="detail">
+        <span>Payment:</span>
+        <span>${paymentMethod ? paymentMethod.value.replace('_', ' ').toUpperCase() : 'CASH'}</span>
+    </div>
+    <div class="detail total">
+        <span>Total:</span>
+        <span>TZS ${totalAmount.toLocaleString()}</span>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <p>Thank you for your business!</p>
+        <button onclick="window.print()">Print</button>
+        <button onclick="window.close()">Close</button>
+    </div>
+</body>
+</html>`);
         receiptWindow.document.close();
-        
+
         // Close success popup
         closeSuccessPopup();
     }
@@ -212,16 +211,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event Listeners
 
     // Barcode scanner
-    startScanBtn.addEventListener('click', startScanner);
-    cancelScanBtn.addEventListener('click', stopScanner);
+    if (startScanBtn) {
+        startScanBtn.addEventListener('click', startScanner);
+    }
+    if (cancelScanBtn) {
+        cancelScanBtn.addEventListener('click', stopScanner);
+    }
 
     // Product search
-    searchProductsBtn.addEventListener('click', searchProducts);
-    productSearchInput.addEventListener('keyup', function(e) {
-        if (e.key === 'Enter') {
-            searchProducts();
-        }
-    });
+    if (searchProductsBtn) {
+        searchProductsBtn.addEventListener('click', searchProducts);
+    }
+    if (productSearchInput) {
+        productSearchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                searchProducts();
+            }
+        });
+    }
 
     // Show all products button
     const showAllProductsBtn = document.getElementById('showAllProductsBtn');
@@ -230,85 +237,118 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Sale type selection
-    saleTypeSelector.addEventListener('change', function() {
-        saleType = this.value;
+    if (saleTypeSelector) {
+        saleTypeSelector.addEventListener('change', function() {
+            saleType = this.value;
 
-        // If there are items in the cart, update their prices based on the new sale type
-        if (cart.length > 0) {
-            cart.forEach(item => {
-                if (saleType === 'retail') {
-                    item.price = item.selling_price_retail;
-                } else {
-                    item.price = item.selling_price_wholesale;
-                }
-                item.total = item.price * item.quantity;
-            });
-            updateCartDisplay();
-        }
+            // If there are items in the cart, update their prices based on the new sale type
+            if (cart.length > 0) {
+                cart.forEach(item => {
+                    if (saleType === 'retail') {
+                        item.price = item.selling_price_retail;
+                    } else {
+                        item.price = item.selling_price_wholesale;
+                    }
+                    item.total = item.price * item.quantity;
+                });
+                updateCartDisplay();
+            }
 
-        // If there are search results displayed, update their displayed prices
-        if (searchResults.length > 0) {
-            displaySearchResults(searchResults);
-        }
-    });
+            // If there are search results displayed, update their displayed prices
+            if (searchResults.length > 0) {
+                displaySearchResults(searchResults);
+            }
+        });
+    }
 
     // Unit type selection
     const unitTypeSelector = document.getElementById('unitTypeSelector');
-    unitTypeSelector.addEventListener('change', function() {
-        unitType = this.value;
-        // Update quantity input step and min values based on unit type
-        document.querySelectorAll('.item-qty').forEach(input => {
-            if (unitType === 'weight') {
-                input.setAttribute('step', '0.1');
-                input.setAttribute('min', '0.1');
-            } else {
-                input.setAttribute('step', '1');
-                input.setAttribute('min', '1');
-            }
+    if (unitTypeSelector) {
+        unitTypeSelector.addEventListener('change', function() {
+            unitType = this.value;
+            // Update quantity input step and min values based on unit type
+            document.querySelectorAll('.item-qty').forEach(input => {
+                if (unitType === 'weight') {
+                    input.setAttribute('step', '0.1');
+                    input.setAttribute('min', '0.1');
+                } else {
+                    input.setAttribute('step', '1');
+                    input.setAttribute('min', '1');
+                }
+            });
         });
-    });
+    }
 
     // Cart management
-    clearCartBtn.addEventListener('click', clearCart);
+    if (clearCartBtn) {
+        clearCartBtn.addEventListener('click', clearCart);
+    }
 
     // Payment method toggle
-    paymentMethod.addEventListener('change', function() {
-        // Hide all payment-specific fields first
-        mobileMoneyFields.classList.add('d-none');
-        document.getElementById('installmentFields').classList.add('d-none');
-        
-        if (this.value === 'mobile_money') {
-            mobileMoneyFields.classList.remove('d-none');
-        } else if (this.value === 'installment') {
-            document.getElementById('installmentFields').classList.remove('d-none');
-            // Set payment amount to down payment when installment is selected
-            const downPaymentInput = document.getElementById('downPayment');
-            const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-            const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
-            downPaymentInput.value = suggestedDownPayment;
-            paymentAmount.value = suggestedDownPayment;
-        }
-    });
+    if (paymentMethod) {
+        paymentMethod.addEventListener('change', function() {
+            // Hide all payment-specific fields first
+            if (mobileMoneyFields) {
+                mobileMoneyFields.classList.add('d-none');
+            }
+            const installmentFields = document.getElementById('installmentFields');
+            if (installmentFields) {
+                installmentFields.classList.add('d-none');
+            }
+
+            if (this.value === 'mobile_money') {
+                if (mobileMoneyFields) {
+                    mobileMoneyFields.classList.remove('d-none');
+                }
+            } else if (this.value === 'installment') {
+                if (installmentFields) {
+                    installmentFields.classList.remove('d-none');
+                    // Set payment amount to down payment when installment is selected
+                    const downPaymentInput = document.getElementById('downPayment');
+                    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+                    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
+                    if (downPaymentInput) {
+                        downPaymentInput.value = suggestedDownPayment;
+                    }
+                    if (paymentAmount) {
+                        paymentAmount.value = suggestedDownPayment;
+                    }
+                }
+            }
+        });
+    }
 
     // Set payment amount to match cart total when cart changes
-    paymentAmount.addEventListener('focus', function() {
-        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, '')) || 0;
-        if (totalAmount > 0) {
-            this.value = totalAmount;
-        }
-    });
+    if (paymentAmount) {
+        paymentAmount.addEventListener('focus', function() {
+            const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, '')) || 0;
+            if (totalAmount > 0) {
+                this.value = totalAmount;
+            }
+        });
+    }
 
     // Checkout
-    completeTransactionBtn.addEventListener('click', completeTransaction);
-    createInvoiceBtn.addEventListener('click', createInvoice);
+    if (completeTransactionBtn) {
+        completeTransactionBtn.addEventListener('click', completeTransaction);
+    }
+    if (createInvoiceBtn) {
+        createInvoiceBtn.addEventListener('click', createInvoice);
+    }
 
     // Discount application
-    applyDiscountModalBtn.addEventListener('click', applyDiscount);
+    if (applyDiscountModalBtn) {
+        applyDiscountModalBtn.addEventListener('click', applyDiscount);
+    }
 
     // Barcode Scanner Functions
     function startScanner() {
-        scannerContainer.classList.remove('d-none');
-        scanFeedback.textContent = 'Initializing camera...';
+        if (scannerContainer) {
+            scannerContainer.classList.remove('d-none');
+        }
+        if (scanFeedback) {
+            scanFeedback.textContent = 'Initializing camera...';
+        }
 
         if (!codeReader) {
             codeReader = new ZXing.BrowserMultiFormatReader();
@@ -317,7 +357,9 @@ document.addEventListener('DOMContentLoaded', function() {
         codeReader.listVideoInputDevices()
             .then((videoInputDevices) => {
                 if (videoInputDevices.length === 0) {
-                    scanFeedback.textContent = 'No camera detected';
+                    if (scanFeedback) {
+                        scanFeedback.textContent = 'No camera detected';
+                    }
                     return;
                 }
 
@@ -336,7 +378,9 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error('Error accessing camera:', err);
-                scanFeedback.textContent = 'Camera access denied or error';
+                if (scanFeedback) {
+                    scanFeedback.textContent = 'Camera access denied or error';
+                }
             });
     }
 
@@ -344,42 +388,54 @@ document.addEventListener('DOMContentLoaded', function() {
         codeReader.decodeFromVideoDevice(deviceId, videoElement, (result, err) => {
             if (result) {
                 // Successfully scanned a barcode
-                scanFeedback.textContent = `Scanned: ${result.text}`;
+                if (scanFeedback) {
+                    scanFeedback.textContent = `Scanned: ${result.text}`;
+                }
 
                 // Stop scanning
                 stopScanner();
 
                 // Search for the product with this barcode/SKU
-                productSearchInput.value = result.text;
+                if (productSearchInput) {
+                    productSearchInput.value = result.text;
+                }
                 searchProducts();
             }
 
             if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error('Scanning error:', err);
-                scanFeedback.textContent = 'Error during scanning';
+                if (scanFeedback) {
+                    scanFeedback.textContent = 'Error during scanning';
+                }
             }
         });
 
-        scanFeedback.textContent = 'Position barcode in the center';
+        if (scanFeedback) {
+            scanFeedback.textContent = 'Position barcode in the center';
+        }
     }
 
     function stopScanner() {
         if (codeReader) {
             codeReader.reset();
-            scannerContainer.classList.add('d-none');
+            if (scannerContainer) {
+                scannerContainer.classList.add('d-none');
+            }
         }
     }
 
     // Product Search Functions
     function searchProducts() {
-        const query = productSearchInput.value.trim();
+        const query = productSearchInput ? productSearchInput.value.trim() : '';
 
         // Show loading state
-        productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
+        if (productResultsTable) {
+            productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Searching...</td></tr>';
+        }
 
         // Make API request to search inventory (empty query returns all items)
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
-        
+
         fetch(searchUrl, {
             credentials: 'same-origin'
         })
@@ -390,17 +446,23 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error searching products:', error);
-                productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                if (productResultsTable) {
+                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                }
             });
     }
 
     // Function to load all products
     function loadAllProducts() {
-        productSearchInput.value = ''; // Clear search input
+        if (productSearchInput) {
+            productSearchInput.value = ''; // Clear search input
+        }
         searchProducts(); // This will now load all products since query is empty
     }
 
     function displaySearchResults(items) {
+        if (!productResultsTable) return;
+
         if (items.length === 0) {
             productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found</td></tr>';
             return;
@@ -478,6 +540,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateCartDisplay() {
+        if (!cartTableBody || !cartCount || !cartSubtotal || !cartTotal) return;
+
         if (cart.length === 0) {
             cartTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No items in cart</td></tr>';
             cartCount.textContent = '0 items';
@@ -533,17 +597,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentDiscount.type !== 'none') {
             if (currentDiscount.type === 'percentage') {
                 const discountAmount = subtotal * (currentDiscount.value / 100);
-                cartDiscountType.textContent = currentDiscount.value + '%';
-                cartDiscount.textContent = discountAmount.toLocaleString();
+                if (cartDiscountType) cartDiscountType.textContent = currentDiscount.value + '%';
+                if (cartDiscount) cartDiscount.textContent = discountAmount.toLocaleString();
                 finalTotal = subtotal - discountAmount;
             } else if (currentDiscount.type === 'fixed') {
-                cartDiscountType.textContent = 'TZS';
-                cartDiscount.textContent = currentDiscount.value.toLocaleString();
+                if (cartDiscountType) cartDiscountType.textContent = 'TZS';
+                if (cartDiscount) cartDiscount.textContent = currentDiscount.value.toLocaleString();
                 finalTotal = subtotal - currentDiscount.value;
             }
         } else {
-            cartDiscountType.textContent = '-';
-            cartDiscount.textContent = '0';
+            if (cartDiscountType) cartDiscountType.textContent = '-';
+            if (cartDiscount) cartDiscount.textContent = '0';
         }
 
         cartTotal.textContent = finalTotal.toLocaleString();
@@ -614,6 +678,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Discount Functions
     function applyDiscount() {
+        if (!discountType || !discountValue) return;
+
         const type = discountType.value;
         let value = parseFloat(discountValue.value);
 
@@ -636,24 +702,26 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const customerPhone = document.getElementById('customerPhone').value || '';
-        const payment = document.getElementById('paymentMethod').value;
-        const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
-        const notes = document.getElementById('saleNotes').value || '';
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone') ? document.getElementById('customerPhone').value || '' : '';
+        const payment = paymentMethod ? paymentMethod.value : 'cash';
+        const amount = paymentAmount ? parseFloat(paymentAmount.value) || 0 : 0;
+        const notes = document.getElementById('saleNotes') ? document.getElementById('saleNotes').value || '' : '';
 
         let mobileInfo = {};
         let installmentInfo = {};
-        
+
         if (payment === 'mobile_money') {
+            const mobileProvider = document.getElementById('mobileProvider');
+            const transactionReference = document.getElementById('transactionReference');
             mobileInfo = {
-                provider: document.getElementById('mobileProvider').value,
-                reference: document.getElementById('transactionReference').value
+                provider: mobileProvider ? mobileProvider.value : '',
+                reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
             // Validate installment fields
-            const customerAddress = document.getElementById('customerAddress').value.trim();
-            if (!customerAddress) {
+            const customerAddress = document.getElementById('customerAddress');
+            if (!customerAddress || !customerAddress.value.trim()) {
                 alert('Customer address is required for installment sales');
                 return;
             }
@@ -661,11 +729,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Customer phone number is required for installment sales');
                 return;
             }
-            
+
+            const downPayment = document.getElementById('downPayment');
+            const numberOfInstallments = document.getElementById('numberOfInstallments');
             installmentInfo = {
-                down_payment: parseFloat(document.getElementById('downPayment').value) || 0,
-                number_of_installments: parseInt(document.getElementById('numberOfInstallments').value),
-                customer_address: customerAddress
+                down_payment: downPayment ? parseFloat(downPayment.value) || 0 : 0,
+                number_of_installments: numberOfInstallments ? parseInt(numberOfInstallments.value) : 12,
+                customer_address: customerAddress.value
             };
         }
 
@@ -709,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
             discount: {
                 type: currentDiscount.type,
                 value: currentDiscount.value,
-                amount: parseFloat(cartDiscount.textContent.replace(/,/g, ''))
+                amount: cartDiscount ? parseFloat(cartDiscount.textContent.replace(/,/g, '')) : 0
             },
             total: totalAmount,
             notes: notes,
@@ -717,8 +787,10 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         // Show loading state
-        completeTransactionBtn.disabled = true;
-        completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        if (completeTransactionBtn) {
+            completeTransactionBtn.disabled = true;
+            completeTransactionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        }
 
         // Send transaction data to the server
         fetch('/api/sales', {
@@ -731,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             console.log('Transaction response status:', response.status);
-            
+
             if (!response.ok) {
                 // If it's a redirect (like 302), log the issue
                 if (response.status === 302) {
@@ -744,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Transaction response data:', data);
-            
+
             if (data.success) {
                 // Show modern success popup
                 showSuccessPopup(data);
@@ -752,23 +824,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear the cart and reset form
                 cart = [];
                 updateCartDisplay();
-                document.getElementById('checkoutForm').reset();
-                
+                const checkoutForm = document.getElementById('checkoutForm');
+                if (checkoutForm) {
+                    checkoutForm.reset();
+                }
+
                 // Reset payment fields
-                paymentAmount.value = '';
-                mobileMoneyFields.classList.add('d-none');
-                document.getElementById('installmentFields').classList.add('d-none');
+                if (paymentAmount) {
+                    paymentAmount.value = '';
+                }
+                if (mobileMoneyFields) {
+                    mobileMoneyFields.classList.add('d-none');
+                }
+                const installmentFields = document.getElementById('installmentFields');
+                if (installmentFields) {
+                    installmentFields.classList.add('d-none');
+                }
             } else {
                 throw new Error(data.error || 'Transaction failed');
             }
 
             // Reset button
-            completeTransactionBtn.disabled = false;
-            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            if (completeTransactionBtn) {
+                completeTransactionBtn.disabled = false;
+                completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            }
         })
         .catch(error => {
             console.error('Error completing transaction:', error);
-            
+
             // Show more specific error message
             if (error.message.includes('Authentication required')) {
                 showErrorPopup('Your session has expired. Please log in again.');
@@ -782,8 +866,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Reset button
-            completeTransactionBtn.disabled = false;
-            completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            if (completeTransactionBtn) {
+                completeTransactionBtn.disabled = false;
+                completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+            }
         });
     }
 
@@ -794,8 +880,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Prepare invoice data
-        const customerName = document.getElementById('customerName').value || 'Walk-in Customer';
-        const customerPhone = document.getElementById('customerPhone').value || '';
+        const customerName = document.getElementById('customerName') ? document.getElementById('customerName').value || 'Walk-in Customer' : 'Walk-in Customer';
+        const customerPhone = document.getElementById('customerPhone') ? document.getElementById('customerPhone').value || '' : '';
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
 
         // Create a printable invoice in a new window
@@ -908,7 +994,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </tr>
                             <tr>
                                 <td colspan="3" class="text-right">Discount:</td>
-                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString()}</td>
+                                <td class="text-right">${currentDiscount.type === 'percentage' ? currentDiscount.value + '%' : 'TZS ' + (cartDiscount ? parseFloat(cartDiscount.textContent.replace(/,/g, '')).toLocaleString() : '0')}</td>
                             </tr>
                             <tr class="total-row">
                                 <td colspan="3" class="text-right">Total:</td>
@@ -932,4 +1018,451 @@ document.addEventListener('DOMContentLoaded', function() {
         `);
         invoiceWindow.document.close();
     }
+
+    // Make functions global for popup access
+    window.closeSuccessPopup = closeSuccessPopup;
+    window.closeErrorPopup = closeErrorPopup;
+    window.printReceipt = printReceipt;
+
+    // Enhanced features
+    function switchCamera() {
+        // Implementation for switching between front/back camera
+        if (codeReader && selectedDeviceId) {
+            stopScanner();
+            startScanner();
+        }
+    }
+
+    function holdTransaction() {
+        // Save current cart state for later
+        const heldTransaction = {
+            cart: [...cart],
+            customer: {
+                name: document.getElementById('customerName').value,
+                phone: document.getElementById('customerPhone').value
+            },
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem('heldTransaction', JSON.stringify(heldTransaction));
+        clearCart();
+        
+        // Show confirmation
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alert.innerHTML = `
+            <i class="fas fa-pause me-2"></i>
+            Transaction held successfully
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        setTimeout(() => {
+            if (alert.parentNode) alert.remove();
+        }, 3000);
+    }
+
+    function loadHeldTransaction() {
+        const held = localStorage.getItem('heldTransaction');
+        if (held) {
+            const transaction = JSON.parse(held);
+            cart = transaction.cart;
+            updateCartDisplay();
+            
+            if (transaction.customer.name) {
+                document.getElementById('customerName').value = transaction.customer.name;
+            }
+            if (transaction.customer.phone) {
+                document.getElementById('customerPhone').value = transaction.customer.phone;
+            }
+            
+            localStorage.removeItem('heldTransaction');
+        }
+    }
+
+    // Auto-save cart to prevent data loss
+    function autoSaveCart() {
+        if (cart.length > 0) {
+            localStorage.setItem('autoSaveCart', JSON.stringify({
+                cart: cart,
+                timestamp: new Date().toISOString()
+            }));
+        } else {
+            localStorage.removeItem('autoSaveCart');
+        }
+    }
+
+    function loadAutoSavedCart() {
+        const saved = localStorage.getItem('autoSaveCart');
+        if (saved) {
+            const data = JSON.parse(saved);
+            // Only load if saved within last hour
+            const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            if (new Date(data.timestamp) > hourAgo) {
+                cart = data.cart;
+                updateCartDisplay();
+            } else {
+                localStorage.removeItem('autoSaveCart');
+            }
+        }
+    }
+
+    // Auto-save cart on changes
+    const originalUpdateCartDisplay = updateCartDisplay;
+    updateCartDisplay = function() {
+        originalUpdateCartDisplay.call(this);
+        autoSaveCart();
+    };
+
+    // Make functions global
+    window.switchCamera = switchCamera;
+    window.holdTransaction = holdTransaction;
+    window.loadHeldTransaction = loadHeldTransaction;
+
+    // Load auto-saved cart and held transactions on page load
+    loadAutoSavedCart();
+    
+    // Check for held transactions
+    if (localStorage.getItem('heldTransaction')) {
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'btn btn-warning btn-sm position-fixed';
+        loadBtn.style.cssText = 'top: 20px; left: 20px; z-index: 9999;';
+        loadBtn.innerHTML = '<i class="fas fa-play me-1"></i> Load Held Transaction';
+        loadBtn.onclick = loadHeldTransaction;
+        document.body.appendChild(loadBtn);
+    }
+
+    // Initialize search on page load
+    if (productSearchInput) {
+        loadAllProducts();
+    }
+
+    // Initialize completed transactions tab
+    initializeCompletedTransactions();
 });
+
+// Completed Transactions Functionality
+function initializeCompletedTransactions() {
+    // Move existing POS content to the POS tab
+    const posContent = document.querySelector('.sales-dashboard .row');
+    const posSection = document.getElementById('pos-section');
+    if (posContent && posSection && posContent.parentNode.classList.contains('sales-dashboard')) {
+        posSection.appendChild(posContent);
+    }
+
+    // Event listeners for completed transactions
+    const completedTab = document.getElementById('completed-tab');
+    const filterBtn = document.getElementById('filterCompletedBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+    if (completedTab) {
+        completedTab.addEventListener('click', function() {
+            loadCompletedTransactions();
+        });
+    }
+
+    if (filterBtn) {
+        filterBtn.addEventListener('click', function() {
+            loadCompletedTransactions();
+        });
+    }
+
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            document.getElementById('paymentMethodFilter').value = '';
+            loadCompletedTransactions();
+        });
+    }
+}
+
+function loadCompletedTransactions(page = 1) {
+    const dateFrom = document.getElementById('dateFromFilter')?.value || '';
+    const dateTo = document.getElementById('dateToFilter')?.value || '';
+    const paymentMethod = document.getElementById('paymentMethodFilter')?.value || '';
+
+    // Build query parameters
+    const params = new URLSearchParams({
+        page: page,
+        per_page: 20
+    });
+
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (paymentMethod) params.append('payment_method', paymentMethod);
+
+    // Show loading state
+    const tbody = document.getElementById('completedTransactionsBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-muted mb-2"></i>
+                    <div>Loading completed transactions...</div>
+                </td>
+            </tr>
+        `;
+    }
+
+    fetch(`/api/sales/completed?${params.toString()}`, {
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            displayCompletedTransactions(data);
+        } else {
+            throw new Error(data.error || 'Failed to load transactions');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading completed transactions:', error);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <div>Error loading transactions: ${error.message}</div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+}
+
+function displayCompletedTransactions(data) {
+    const tbody = document.getElementById('completedTransactionsBody');
+    const pagination = document.getElementById('transactionsPagination');
+
+    // Update summary cards
+    updateTransactionsSummary(data.summary);
+
+    if (!data.sales || data.sales.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                    <div>No completed transactions found</div>
+                </td>
+            </tr>
+        `;
+        pagination.classList.add('d-none');
+        return;
+    }
+
+    // Display transactions
+    let html = '';
+    data.sales.forEach(sale => {
+        const date = new Date(sale.created_at);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        
+        html += `
+            <tr>
+                <td>
+                    <span class="fw-bold text-primary">${sale.sale_number}</span>
+                </td>
+                <td>
+                    <div class="small">${formattedDate}</div>
+                </td>
+                <td>
+                    <div class="fw-bold">${sale.customer_name}</div>
+                    ${sale.customer_phone ? `<div class="small text-muted">${sale.customer_phone}</div>` : ''}
+                </td>
+                <td>
+                    <div class="fw-bold">${sale.items_count} item${sale.items_count !== 1 ? 's' : ''}</div>
+                    <div class="small text-muted">
+                        ${sale.items.slice(0, 2).map(item => `${item.name} (${item.quantity})`).join(', ')}
+                        ${sale.items.length > 2 ? `... +${sale.items.length - 2} more` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary">${formatPaymentMethod(sale.payment_method)}</span>
+                </td>
+                <td>
+                    <span class="fw-bold text-success">TZS ${sale.total_amount.toLocaleString()}</span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="viewTransactionDetails('${sale.id}')" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="printTransactionReceipt('${sale.sale_number}')" title="Print Receipt">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    // Update pagination
+    if (data.pagination.pages > 1) {
+        displayPagination(data.pagination);
+        pagination.classList.remove('d-none');
+    } else {
+        pagination.classList.add('d-none');
+    }
+}
+
+function updateTransactionsSummary(summary) {
+    const totalCount = document.getElementById('totalCompletedCount');
+    const totalRevenue = document.getElementById('totalCompletedRevenue');
+    const averageTransaction = document.getElementById('averageTransactionValue');
+    const todaysCount = document.getElementById('todaysSalesCount');
+
+    if (totalCount) totalCount.textContent = summary.total_completed_sales.toLocaleString();
+    if (totalRevenue) totalRevenue.textContent = `TZS ${summary.total_revenue.toLocaleString()}`;
+    if (averageTransaction) averageTransaction.textContent = `TZS ${summary.average_transaction.toLocaleString()}`;
+    
+    // Calculate today's sales from current data (simplified)
+    if (todaysCount) {
+        const today = new Date().toISOString().split('T')[0];
+        // This would need additional API call for accurate today's count
+        todaysCount.textContent = '0'; // Placeholder
+    }
+}
+
+function formatPaymentMethod(method) {
+    const methods = {
+        'cash': 'Cash',
+        'mobile_money': 'Mobile Money',
+        'card': 'Card',
+        'bank_transfer': 'Bank Transfer',
+        'installment': 'Installment'
+    };
+    return methods[method] || method.charAt(0).toUpperCase() + method.slice(1);
+}
+
+function displayPagination(pagination) {
+    const paginationContainer = document.querySelector('#transactionsPagination .pagination');
+    if (!paginationContainer) return;
+
+    let html = '';
+
+    // Previous button
+    if (pagination.has_prev) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.page - 1}); return false;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        `;
+    }
+
+    // Page numbers
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.pages, pagination.page + 2);
+
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadCompletedTransactions(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+
+    if (endPage < pagination.pages) {
+        if (endPage < pagination.pages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.pages}); return false;">${pagination.pages}</a></li>`;
+    }
+
+    // Next button
+    if (pagination.has_next) {
+        html += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadCompletedTransactions(${pagination.page + 1}); return false;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        `;
+    }
+
+    paginationContainer.innerHTML = html;
+}
+
+function viewTransactionDetails(saleId) {
+    // Create and show a modal with transaction details
+    const modalHtml = `
+        <div class="modal fade" id="transactionDetailsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Transaction Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <div class="mt-2">Loading transaction details...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('transactionDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('transactionDetailsModal'));
+    modal.show();
+
+    // Load transaction details
+    fetch(`/api/sales/${saleId}`, {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayTransactionDetailsInModal(data.sale);
+        } else {
+            throw new Error(data.error || 'Failed to load transaction details');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading transaction details:', error);
+        const modalBody = document.querySelector('#transactionDetailsModal .modal-body');
+        modalBody.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                <div class="mt-2">Error loading transaction details</div>
+            </div>
+        `;
+    });
+}
+
+function printTransactionReceipt(saleNumber) {
+    // Simple receipt printing functionality
+    window.open(`/api/sales/receipt/${saleNumber}`, '_blank');
+}
+
+// Make functions global
+window.loadCompletedTransactions = loadCompletedTransactions;
+window.viewTransactionDetails = viewTransactionDetails;
+window.printTransactionReceipt = printTransactionReceipt;
