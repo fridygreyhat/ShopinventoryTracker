@@ -300,12 +300,6 @@ function updateRecentSales(recentSales) {
         if (inventoryValueElement) inventoryValueElement.textContent = '0';
     }
 
-        // Update financial summary
-        if (monthlyIncomeElement) monthlyIncomeElement.textContent = summary.monthly_income.toLocaleString();
-        if (monthlyExpensesElement) monthlyExpensesElement.textContent = summary.monthly_expenses.toLocaleString();
-        if (monthlyProfitElement) monthlyProfitElement.textContent = summary.monthly_profit.toLocaleString();
-    }
-
     function updateLowStockTable(lowStockItems) {
         if (!lowStockTableElement) return;
 
@@ -497,45 +491,9 @@ function updateRecentSales(recentSales) {
             financialChart.data.datasets[1].data = data.chart_data.expenses;
             financialChart.update();
         }
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
-            }
-        }
+    }
 
-        // Load slow moving items using API handler
-        try {
-            const slowItems = await window.apiHandler.getSlowMovingItems();
-            const tableBody = document.getElementById('slow-moving-table');
-            if (tableBody) {
-                if (slowItems && slowItems.length > 0) {
-                    let html = '';
-                    slowItems.forEach(item => {
-                        html += `
-                        <tr>
-                            <td>
-                                <a href="/item/${item.id}" class="text-decoration-none">
-                                    ${item.name}
-                                </a>
-                            </td>
-                            <td>${item.category || 'Uncategorized'}</td>
-                            <td>${item.stock_quantity || 0}</td>
-                            <td>${item.units_sold || 0}</td>
-                        </tr>`;
-                    });
-                    tableBody.innerHTML = html;
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No slow moving items found</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
-            const tableBody = document.getElementById('slow-moving-table');
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
-            }
-        }
-}
-
-async function loadDashboardData() {
+    async function loadDashboardData() {
         console.log('Loading dashboard data...');
 
         // Check if API handler is available

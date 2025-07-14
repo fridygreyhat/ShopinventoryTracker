@@ -1061,14 +1061,14 @@ def get_products():
     if min_stock:
         try:
             min_stock = int(min_stock)
-            query = query.filter(Item.quantity >= min_stock)
+            query = query.filter(Item.stock_quantity >= min_stock)
         except ValueError:
             pass
 
     if max_stock:
         try:
             max_stock = int(max_stock)
-            query = query.filter(Item.quantity <= max_stock)
+            query = query.filter(Item.stock_quantity <= max_stock)
         except ValueError:
             pass
 
@@ -1086,17 +1086,17 @@ def stock_status_report():
 
     # Get counts and sums
     item_count = db.session.query(func.count(Item.id)).scalar() or 0
-    total_stock = db.session.query(func.sum(Item.quantity)).scalar() or 0
+    total_stock = db.session.query(func.sum(Item.stock_quantity)).scalar() or 0
 
     # Get all items, low stock items, and out of stock items
     all_items = Item.query.all()
     low_stock_items = Item.query.filter(
-        Item.quantity <= low_stock_threshold).all()
-    out_of_stock_items = Item.query.filter(Item.quantity == 0).all()
+        Item.stock_quantity <= low_stock_threshold).all()
+    out_of_stock_items = Item.query.filter(Item.stock_quantity == 0).all()
 
     # Calculate inventory value using selling price retail with fallback to price
     total_value_query = db.session.query(
-        func.sum(Item.quantity * func.coalesce(Item.selling_price_retail, Item.price, 0))).scalar()
+        func.sum(Item.stock_quantity * func.coalesce(Item.retail_price, 0))).scalar()
     total_value = float(
         total_value_query) if total_value_query is not None else 0
 
@@ -1146,13 +1146,13 @@ def category_breakdown_report():
             Item.user_id == current_user_id).scalar() or 0
 
         # Get total quantity
-        total_quantity = db.session.query(func.sum(Item.quantity)).filter(
+        total_quantity = db.session.query(func.sum(Item.stock_quantity)).filter(
             func.coalesce(Item.category, 'Uncategorized') == category,
             Item.user_id == current_user_id).scalar() or 0
 
         # Get total value based on retail selling price
         total_value_query = db.session.query(
-            func.sum(Item.quantity * Item.selling_price_retail)).filter(
+            func.sum(Item.stock_quantity * Item.retail_price)).filter(
                 func.coalesce(Item.category, 'Uncategorized') == category,
                 Item.user_id == current_user_id).scalar()
         total_value = float(
@@ -1187,7 +1187,7 @@ def export_csv():
     for item in items:
         writer.writerow([
             item.id, item.sku or '', item.name, item.description or '',
-            item.category or 'Uncategorized', item.quantity, item.price,
+            item.category or 'Uncategorized', item.stock_quantity, item.price,
             item.created_at.isoformat() if item.created_at else '',
             item.updated_at.isoformat() if item.updated_at else ''
         ])
@@ -3785,7 +3785,7 @@ def get_receipt(sale_number):
         for item in sale.sale_items:
             receipt_data['items'].append({
                 'name': item.item.name if item.item else 'Unknown Item',
-                'quantity': item.quantity,
+                'quantity': item.stock_quantity,
                 'unit_price': float(item.unit_price),
                 'total_price': float(item.total_price)
             })
