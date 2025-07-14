@@ -4435,38 +4435,7 @@ def api_create_sale():
         logger.error(f"Sale creation failed: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/sales/performance/top')
-@login_required
-def api_top_selling_items():
-    """API endpoint for top selling items"""
-    try:
-        # Get top selling items for current user
-        top_items = db.session.query(
-            Item.id,
-            Item.name,
-            Category.name.label('category'),
-            func.sum(SaleItem.quantity).label('units_sold'),
-            func.sum(SaleItem.total_price).label('revenue')
-        ).join(SaleItem).join(Sale).outerjoin(Category, Item.category_id == Category.id)\
-        .filter(Sale.user_id == session.get('user_id'))\
-        .group_by(Item.id, Item.name, Category.name)\
-        .order_by(func.sum(SaleItem.quantity).desc())\
-        .limit(10).all()
 
-        result = []
-        for item in top_items:
-            result.append({
-                'id': item.id,
-                'name': item.name,
-                'category': item.category or 'Uncategorized',
-                'units_sold': int(item.units_sold),
-                'revenue': float(item.revenue)
-            })
-
-        return jsonify(result)
-
-    except Exception as e:
-        return jsonify([])
 
 @app.route('/api/sales/performance/slow')
 @login_required
