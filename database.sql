@@ -1,0 +1,21 @@
+ALTER TABLE category
+ADD COLUMN parent_id INTEGER REFERENCES category(id);
+
+ALTER TABLE category
+ADD COLUMN sort_order INTEGER DEFAULT 0;
+
+ALTER TABLE category
+ADD COLUMN user_id INTEGER NOT NULL,
+ADD CONSTRAINT fk_orders_user
+    FOREIGN KEY (user_id) REFERENCES "user"(id);
+
+    CREATE TABLE sub_category (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category_id INTEGER NOT NULL REFERENCES category(id),
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
