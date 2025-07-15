@@ -2984,48 +2984,9 @@ def get_sales():
         logger.error(f"Error getting sales: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/sales/completed', methods=['GET'])
-@login_required
-def get_completed_sales():
-    """Get completed sales for the sales dashboard"""
-    return get_sales()  # Reuse the same logic
 
-@app.route('/api/sales/<int:sale_id>', methods=['GET'])
-@login_required
-def get_sale_details(sale_id):
-    """Get detailed information about a specific sale"""
-    try:
-        user_id = session.get('user_id')
-        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
 
-        if not sale:
-            return jsonify({'error': 'Sale not found'}), 404
 
-        sale_data = sale.to_dict()
-        
-        # Add sale items with details
-        items = []
-        for sale_item in sale.sale_items:
-            item_data = sale_item.to_dict()
-            if sale_item.item:
-                item_data['item_details'] = {
-                    'name': sale_item.item.name,
-                    'sku': sale_item.item.sku,
-                    'category': sale_item.item.category
-                }
-            items.append(item_data)
-        
-        sale_data['items'] = items
-        sale_data['items_count'] = len(items)
-
-        return jsonify({
-            'success': True,
-            'sale': sale_data
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting sale details: {str(e)}")
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/sales/receipt/<sale_number>')
 @login_required
