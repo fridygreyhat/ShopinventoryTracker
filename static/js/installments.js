@@ -468,6 +468,8 @@ function saveInstallmentSale() {
 }
 
 function createInstallmentSale(installmentData) {
+    console.log('Sending installment data:', installmentData);
+    
     fetch('/api/installment-sales', {
         method: 'POST',
         headers: { 
@@ -478,19 +480,21 @@ function createInstallmentSale(installmentData) {
         body: JSON.stringify(installmentData)
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
+        console.log('Response status:', response.status);
+        return response.json().then(data => {
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            }
+            return data;
+        });
     })
     .then(data => {
-        if (data.error) {
-            alert('Error: ' + data.error);
-            return;
-        }
+        console.log('Response data:', data);
         
         if (data.success) {
-            alert('Installment sale created successfully!');
+            alert(`Installment sale created successfully! Sale Number: ${data.sale_number}`);
+            
+            // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal'));
             if (modal) {
                 modal.hide();
@@ -502,11 +506,14 @@ function createInstallmentSale(installmentData) {
                 form.reset();
             }
             
+            // Reset customer fields
             toggleNewCustomerFields(false);
+            
+            // Reload data
             loadDashboardData();
             loadInstallmentSales();
         } else {
-            alert('Unexpected response format');
+            throw new Error(data.error || 'Failed to create installment sale');
         }
     })
     .catch(error => {

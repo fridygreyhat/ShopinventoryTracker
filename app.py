@@ -26,7 +26,7 @@ from functools import wraps
 from extensions import db, configure_database
 
 # Import models to ensure they're available
-from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction
+from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction, InstallmentSale, InstallmentPayment
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -2606,21 +2606,17 @@ def get_installment_sales():
 def create_installment_sale():
     """Create new installment sale"""
     try:
-        from models import InstallmentSale, InstallmentPayment, Sale, SaleItem, Customer, Item
-        from datetime import date, timedelta
-        import uuid
-        
         user_id = session.get('user_id')
         data = request.get_json()
         
         if not data:
-            return jsonify({'error': 'No data provided'}), 400
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
         
         # Validate required fields with proper None checks
         required_fields = ['item_id', 'quantity', 'total_amount', 'number_of_installments']
         for field in required_fields:
             if field not in data or data[field] is None:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
         
         # Convert and validate numeric fields
         try:
@@ -2630,26 +2626,26 @@ def create_installment_sale():
             number_of_installments = int(data['number_of_installments'])
             down_payment = float(data.get('down_payment', 0))
         except (ValueError, TypeError) as e:
-            return jsonify({'error': f'Invalid numeric value: {str(e)}'}), 400
+            return jsonify({'success': False, 'error': f'Invalid numeric value: {str(e)}'}), 400
         
         # Validate values
         if quantity <= 0:
-            return jsonify({'error': 'Quantity must be greater than 0'}), 400
+            return jsonify({'success': False, 'error': 'Quantity must be greater than 0'}), 400
         if total_amount <= 0:
-            return jsonify({'error': 'Total amount must be greater than 0'}), 400
+            return jsonify({'success': False, 'error': 'Total amount must be greater than 0'}), 400
         if number_of_installments <= 0:
-            return jsonify({'error': 'Number of installments must be greater than 0'}), 400
+            return jsonify({'success': False, 'error': 'Number of installments must be greater than 0'}), 400
         if down_payment < 0:
-            return jsonify({'error': 'Down payment cannot be negative'}), 400
+            return jsonify({'success': False, 'error': 'Down payment cannot be negative'}), 400
         if down_payment >= total_amount:
-            return jsonify({'error': 'Down payment must be less than total amount'}), 400
+            return jsonify({'success': False, 'error': 'Down payment must be less than total amount'}), 400
         
         # Create customer if new customer data provided
         customer_id = None
         if data.get('customer_data') and not data.get('customer_id'):
             customer_data = data['customer_data']
             if not customer_data.get('name') or not customer_data.get('phone'):
-                return jsonify({'error': 'Customer name and phone are required'}), 400
+                return jsonify({'success': False, 'error': 'Customer name and phone are required'}), 400
                 
             customer = Customer(
                 name=customer_data['name'],
@@ -2664,7 +2660,7 @@ def create_installment_sale():
         else:
             customer_id = data.get('customer_id')
             if not customer_id:
-                return jsonify({'error': 'Customer ID is required'}), 400
+                return jsonify({'success': False, 'error': 'Customer ID is required'}), 400
             customer_id = int(customer_id)
         
         # Get customer and item
@@ -2672,13 +2668,13 @@ def create_installment_sale():
         item = Item.query.filter_by(id=item_id, user_id=user_id).first()
         
         if not customer:
-            return jsonify({'error': 'Customer not found'}), 404
+            return jsonify({'success': False, 'error': 'Customer not found'}), 404
         if not item:
-            return jsonify({'error': 'Item not found'}), 404
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
         
         # Check stock availability
         if item.stock_quantity < quantity:
-            return jsonify({'error': f'Insufficient stock. Available: {item.stock_quantity}'}), 400
+            return jsonify({'success': False, 'error': f'Insufficient stock. Available: {item.stock_quantity}'}), 400
         
         # Calculate installment details
         remaining_amount = total_amount - down_payment
@@ -2692,7 +2688,7 @@ def create_installment_sale():
             try:
                 start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             except ValueError:
-                return jsonify({'error': 'Invalid start date format. Use YYYY-MM-DD'}), 400
+                return jsonify({'success': False, 'error': 'Invalid start date format. Use YYYY-MM-DD'}), 400
         
         # Create sale record first
         sale_number = f"INST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
@@ -2782,13 +2778,14 @@ def create_installment_sale():
         return jsonify({
             'success': True,
             'installment_sale_id': installment_sale.id,
-            'sale_number': sale_number
+            'sale_number': sale_number,
+            'message': 'Installment sale created successfully'
         }), 201
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error creating installment sale: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/installment-sales/<int:sale_id>/payments', methods=['GET'])
 @login_required

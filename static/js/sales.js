@@ -1503,7 +1503,14 @@ document.addEventListener('DOMContentLoaded', function() {
             credentials: 'same-origin',
             body: JSON.stringify(installmentData)
         })
-        .then(response => response.json())
+        .then(response => {
+            return response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
+        })
         .then(data => {
             if (data.success) {
                 // Show success popup
