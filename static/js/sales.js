@@ -301,19 +301,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
-                if (installmentFields) {
-                    installmentFields.classList.remove('d-none');
-                    // Set payment amount to down payment when installment is selected
-                    const downPaymentInput = document.getElementById('downPayment');
-                    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-                    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
-                    if (downPaymentInput) {
-                        downPaymentInput.value = suggestedDownPayment;
-                    }
-                    if (paymentAmount) {
-                        paymentAmount.value = suggestedDownPayment;
-                    }
+                // Check if cart has items before showing installment modal
+                if (cart.length === 0) {
+                    alert('Please add items to cart before setting up installment payment');
+                    // Reset payment method to cash
+                    this.value = 'cash';
+                    return;
                 }
+                // Show New Installment Sale modal immediately
+                showNewInstallmentSaleModal();
             }
         });
     }
@@ -437,17 +433,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchUrl = query ? `/api/inventory?search=${encodeURIComponent(query)}` : '/api/inventory';
 
         fetch(searchUrl, {
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(items => {
+                console.log('Products loaded:', items);
                 searchResults = items;
                 displaySearchResults(items);
             })
             .catch(error => {
                 console.error('Error searching products:', error);
                 if (productResultsTable) {
-                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products</td></tr>';
+                    productResultsTable.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error searching products. Please try again.</td></tr>';
                 }
             });
     }
@@ -719,24 +724,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
-            // Validate installment fields
-            const customerAddress = document.getElementById('customerAddress');
-            if (!customerAddress || !customerAddress.value.trim()) {
-                alert('Customer address is required for installment sales');
-                return;
-            }
-            if (!customerPhone) {
-                alert('Customer phone number is required for installment sales');
+            // Validate installment customer data
+            if (!installmentCustomerData) {
+                alert('Please fill in customer information for installment sales');
+                showInstallmentCustomerModal();
                 return;
             }
 
-            const downPayment = document.getElementById('downPayment');
-            const numberOfInstallments = document.getElementById('numberOfInstallments');
-            installmentInfo = {
-                down_payment: downPayment ? parseFloat(downPayment.value) || 0 : 0,
-                number_of_installments: numberOfInstallments ? parseInt(numberOfInstallments.value) : 12,
-                customer_address: customerAddress.value
-            };
+            // For installment sales, show the installment modal
+            if (cart.length !== 1) {
+                alert('Installment sales currently support only one item at a time');
+                return;
+            }
+
+            // Show New Installment Sale modal
+            showNewInstallmentSaleModal();
+            
+            return; // Exit early for installment sales
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
@@ -757,7 +761,7 @@ document.addEventListener('DOMContentLoaded', function() {
             customer: {
                 name: customerName,
                 phone: customerPhone,
-                address: payment === 'installment' ? installmentInfo.customer_address : null
+                address: payment === 'installment' ? installmentCustomerData?.address : null
             },
             items: cart.map(item => ({
                 id: item.id,
@@ -823,6 +827,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Clear the cart and reset form
                 cart = [];
+                installmentCustomerData = null;
                 updateCartDisplay();
                 const checkoutForm = document.getElementById('checkoutForm');
                 if (checkoutForm) {
@@ -1024,6 +1029,465 @@ document.addEventListener('DOMContentLoaded', function() {
     window.closeErrorPopup = closeErrorPopup;
     window.printReceipt = printReceipt;
 
+    // New Installment Sale Modal Function
+    function showNewInstallmentSaleModal() {
+        if (cart.length === 0) {
+            alert('Please add items to cart before creating an installment sale');
+            return;
+        }
+
+        if (cart.length > 1) {
+            alert('Installment sales currently support only one item at a time. Please remove other items from cart.');
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        
+        // Create and show New Installment Sale modal
+        const modalHtml = `
+            <div class="modal fade" id="newInstallmentSaleModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-handshake me-2"></i> New Installment Sale
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="installmentSaleForm">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Creating installment sale for: <strong>${cart[0].name}</strong> (Qty: ${cart[0].quantity}) - Total: <strong>TZS ${totalAmount.toLocaleString()}</strong>
+                                </div>
+
+                                <!-- Customer Selection Tabs -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <h6 class="mb-3">Customer Information</h6>
+                                        <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="existing-customer-tab" data-bs-toggle="tab" data-bs-target="#existing-customer" type="button" role="tab">
+                                                    <i class="fas fa-users me-2"></i>Existing Customer
+                                                </button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="new-customer-tab" data-bs-toggle="tab" data-bs-target="#new-customer" type="button" role="tab">
+                                                    <i class="fas fa-user-plus me-2"></i>New Customer
+                                                </button>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content mt-3" id="customerTabContent">
+                                            <!-- Existing Customer Tab -->
+                                            <div class="tab-pane fade show active" id="existing-customer" role="tabpanel">
+                                                <div class="row">
+                                                    <div class="col-md-8">
+                                                        <label for="installmentCustomerSelect" class="form-label">Select Customer</label>
+                                                        <select class="form-select" id="installmentCustomerSelect">
+                                                            <option value="">Choose an existing customer...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">&nbsp;</label>
+                                                        <button type="button" class="btn btn-outline-primary d-block w-100" onclick="refreshCustomerList()">
+                                                            <i class="fas fa-refresh me-2"></i>Refresh List
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Selected Customer Info Display -->
+                                                <div id="selectedCustomerInfo" class="mt-3" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">Selected Customer</h6>
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <p class="mb-1"><strong>Name:</strong> <span id="selectedCustomerName"></span></p>
+                                                                    <p class="mb-1"><strong>Phone:</strong> <span id="selectedCustomerPhone"></span></p>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <p class="mb-1"><strong>Email:</strong> <span id="selectedCustomerEmail"></span></p>
+                                                                    <p class="mb-1"><strong>Address:</strong> <span id="selectedCustomerAddress"></span></p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- New Customer Tab -->
+                                            <div class="tab-pane fade" id="new-customer" role="tabpanel">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerName" class="form-label">Full Name *</label>
+                                                            <input type="text" class="form-control" id="newCustomerName" placeholder="Enter customer's full name">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerPhone" class="form-label">Phone Number *</label>
+                                                            <input type="tel" class="form-control" id="newCustomerPhone" placeholder="+255 XXX XXX XXX">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerEmail" class="form-label">Email Address</label>
+                                                            <input type="email" class="form-control" id="newCustomerEmail" placeholder="customer@email.com">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerNationalId" class="form-label">National ID *</label>
+                                                            <input type="text" class="form-control" id="newCustomerNationalId" placeholder="Enter National ID">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerAddress" class="form-label">Address *</label>
+                                                            <textarea class="form-control" id="newCustomerAddress" rows="3" placeholder="Enter complete address"></textarea>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Payment Plan -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Payment Plan</h6>
+                                        <div class="mb-3">
+                                            <label for="installmentDownPayment" class="form-label">Down Payment (TZS) *</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">TZS</span>
+                                                <input type="number" class="form-control" id="installmentDownPayment" min="0" step="1000" required>
+                                            </div>
+                                            <div class="form-text">Minimum 20% of total amount (TZS ${(totalAmount * 0.2).toLocaleString()})</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="installmentPeriod" class="form-label">Payment Period *</label>
+                                            <select class="form-select" id="installmentPeriod" required>
+                                                <option value="">Select Period</option>
+                                                <option value="3">3 Months</option>
+                                                <option value="6">6 Months</option>
+                                                <option value="12">12 Months</option>
+                                                <option value="18">18 Months</option>
+                                                <option value="24">24 Months</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="installmentStartDate" class="form-label">Start Date *</label>
+                                            <input type="date" class="form-control" id="installmentStartDate" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Payment Summary</h6>
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Total Amount:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>TZS ${totalAmount.toLocaleString()}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Down Payment:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong id="downPaymentDisplay">TZS 0</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Remaining:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong id="remainingAmountDisplay">TZS ${totalAmount.toLocaleString()}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Monthly Payment:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong class="text-primary" id="monthlyPaymentDisplay">TZS 0</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label for="installmentNotes" class="form-label">Notes</label>
+                                            <textarea class="form-control" id="installmentNotes" rows="3" placeholder="Additional notes for this installment sale"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="agreementSigned" required>
+                                        <label class="form-check-label" for="agreementSigned">
+                                            Customer has signed the installment agreement and agrees to the payment terms.
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="createInstallmentSale">
+                                <i class="fas fa-save me-1"></i> Create Installment Sale
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('newInstallmentSaleModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Set default start date to today
+        document.getElementById('installmentStartDate').value = new Date().toISOString().split('T')[0];
+
+        // Set minimum down payment
+        const minDownPayment = totalAmount * 0.2;
+        document.getElementById('installmentDownPayment').value = minDownPayment;
+        document.getElementById('installmentDownPayment').setAttribute('min', minDownPayment);
+
+        // Load existing customers
+        loadCustomersForInstallment();
+
+        // Add event listeners
+        setupInstallmentModalListeners();
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('newInstallmentSaleModal'));
+        modal.show();
+    }
+
+    function loadCustomersForInstallment() {
+        fetch('/api/customers')
+            .then(response => response.json())
+            .then(data => {
+                const customerSelect = document.getElementById('installmentCustomerSelect');
+                if (customerSelect && data.success && data.customers) {
+                    customerSelect.innerHTML = '<option value="">Choose an existing customer...</option>';
+                    data.customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
+                        option.dataset.customerData = JSON.stringify(customer);
+                        customerSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading customers:', error);
+                const customerSelect = document.getElementById('installmentCustomerSelect');
+                if (customerSelect) {
+                    customerSelect.innerHTML = '<option value="">Error loading customers</option>';
+                }
+            });
+    }
+
+    // Function to refresh customer list
+    function refreshCustomerList() {
+        const customerSelect = document.getElementById('installmentCustomerSelect');
+        if (customerSelect) {
+            customerSelect.innerHTML = '<option value="">Loading customers...</option>';
+            loadCustomersForInstallment();
+        }
+    }
+
+    // Function to display selected customer information
+    function displaySelectedCustomerInfo(customerData) {
+        const infoDiv = document.getElementById('selectedCustomerInfo');
+        const nameSpan = document.getElementById('selectedCustomerName');
+        const phoneSpan = document.getElementById('selectedCustomerPhone');
+        const emailSpan = document.getElementById('selectedCustomerEmail');
+        const addressSpan = document.getElementById('selectedCustomerAddress');
+
+        if (customerData) {
+            nameSpan.textContent = customerData.name || 'N/A';
+            phoneSpan.textContent = customerData.phone || 'N/A';
+            emailSpan.textContent = customerData.email || 'N/A';
+            addressSpan.textContent = customerData.address || 'N/A';
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    function setupInstallmentModalListeners() {
+        // Customer selection listener
+        const customerSelect = document.getElementById('installmentCustomerSelect');
+        if (customerSelect) {
+            customerSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.value && selectedOption.dataset.customerData) {
+                    const customerData = JSON.parse(selectedOption.dataset.customerData);
+                    displaySelectedCustomerInfo(customerData);
+                } else {
+                    displaySelectedCustomerInfo(null);
+                }
+            });
+        }
+
+        // Update payment summary when down payment or period changes
+        const downPaymentInput = document.getElementById('installmentDownPayment');
+        const periodSelect = document.getElementById('installmentPeriod');
+
+        if (downPaymentInput && periodSelect) {
+            [downPaymentInput, periodSelect].forEach(element => {
+                element.addEventListener('change', updateInstallmentPaymentSummary);
+                element.addEventListener('input', updateInstallmentPaymentSummary);
+            });
+        }
+
+        // Create installment sale button
+        const createBtn = document.getElementById('createInstallmentSale');
+        if (createBtn) {
+            createBtn.addEventListener('click', createInstallmentSaleFromModal);
+        }
+    }
+
+    function updateInstallmentPaymentSummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const period = parseInt(document.getElementById('installmentPeriod').value) || 1;
+
+        const remainingAmount = totalAmount - downPayment;
+        const monthlyPayment = remainingAmount / period;
+
+        document.getElementById('downPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('remainingAmountDisplay').textContent = `TZS ${remainingAmount.toLocaleString()}`;
+        document.getElementById('monthlyPaymentDisplay').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
+    }
+
+    function createInstallmentSaleFromModal() {
+        const form = document.getElementById('installmentSaleForm');
+        
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
+        const period = parseInt(document.getElementById('installmentPeriod').value);
+
+        // Validate down payment
+        if (downPayment < totalAmount * 0.2) {
+            alert('Down payment must be at least 20% of total amount');
+            return;
+        }
+
+        // Determine if using new or existing customer
+        const activeTab = document.querySelector('#customerTabs .nav-link.active').id;
+        const isNewCustomer = activeTab === 'new-customer-tab';
+        
+        let customerId = null;
+        let customerData = null;
+
+        if (isNewCustomer) {
+            // Validate new customer fields
+            const name = document.getElementById('newCustomerName').value.trim();
+            const phone = document.getElementById('newCustomerPhone').value.trim();
+            const nationalId = document.getElementById('newCustomerNationalId').value.trim();
+            const address = document.getElementById('newCustomerAddress').value.trim();
+
+            if (!name || !phone || !nationalId || !address) {
+                alert('Please fill in all required fields for new customer');
+                return;
+            }
+
+            customerData = {
+                name: name,
+                phone: phone,
+                email: document.getElementById('newCustomerEmail').value.trim(),
+                national_id: nationalId,
+                address: address,
+                customer_type: 'retail'
+            };
+        } else {
+            // Using existing customer
+            customerId = document.getElementById('installmentCustomerSelect').value;
+            if (!customerId) {
+                alert('Please select an existing customer');
+                return;
+            }
+        }
+
+        const installmentData = {
+            customer_id: customerId,
+            customer_data: customerData,
+            item_id: cart[0].id,
+            quantity: cart[0].quantity,
+            total_amount: totalAmount,
+            down_payment: downPayment,
+            number_of_installments: period,
+            start_date: document.getElementById('installmentStartDate').value,
+            agreement_signed: document.getElementById('agreementSigned').checked,
+            notes: document.getElementById('installmentNotes').value
+        };
+
+        // Show loading state
+        const createBtn = document.getElementById('createInstallmentSale');
+        createBtn.disabled = true;
+        createBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Creating...';
+
+        // Create installment sale
+        fetch('/api/installment-sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(installmentData)
+        })
+        .then(response => {
+            return response.json().then(data => {
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
+        })
+        .then(data => {
+            if (data.success) {
+                // Show success popup
+                showSuccessPopup({
+                    sale_number: data.sale_number,
+                    total_amount: totalAmount
+                });
+
+                // Clear cart and close modal
+                cart = [];
+                updateCartDisplay();
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentSaleModal'));
+                modal.hide();
+
+                // Reset payment method
+                const paymentMethodCards = document.querySelectorAll('.payment-method-card');
+                paymentMethodCards.forEach(card => card.classList.remove('active'));
+                document.querySelector('.payment-method-card[data-method="cash"]').classList.add('active');
+                document.getElementById('paymentMethod').value = 'cash';
+            } else {
+                throw new Error(data.error || 'Failed to create installment sale');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating installment sale:', error);
+            showErrorPopup(`Failed to create installment sale: ${error.message}`);
+        })
+        .finally(() => {
+            createBtn.disabled = false;
+            createBtn.innerHTML = '<i class="fas fa-save me-1"></i> Create Installment Sale';
+        });
+    }
+
+    // Make functions global
+    window.showNewInstallmentSaleModal = showNewInstallmentSaleModal;
+    window.refreshCustomerList = refreshCustomerList;
+
     // Enhanced features
     function switchCamera() {
         // Implementation for switching between front/back camera
@@ -1133,6 +1597,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(loadBtn);
     }
 
+    // Initialize installment customer modal
+    initializeInstallmentCustomerModal();
+
     // Initialize search on page load
     if (productSearchInput) {
         loadAllProducts();
@@ -1141,6 +1608,333 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize completed transactions tab
     initializeCompletedTransactions();
 });
+
+// Installment Customer Modal Functions
+let installmentCustomerData = null;
+
+function initializeInstallmentCustomerModal() {
+    // Event listeners for installment modal
+    const saveInstallmentCustomerBtn = document.getElementById('saveInstallmentCustomer');
+    const installmentDownPaymentInput = document.getElementById('installmentDownPayment');
+    const installmentPeriodSelect = document.getElementById('installmentPeriod');
+    const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
+    const newCustomerToggle = document.getElementById('installmentNewCustomerToggle');
+
+    if (saveInstallmentCustomerBtn) {
+        saveInstallmentCustomerBtn.addEventListener('click', saveInstallmentCustomerInfo);
+    }
+
+    if (installmentDownPaymentInput) {
+        installmentDownPaymentInput.addEventListener('input', updateInstallmentSummary);
+    }
+
+    if (installmentPeriodSelect) {
+        installmentPeriodSelect.addEventListener('change', updateInstallmentSummary);
+    }
+
+    // Handle existing customer selection
+    if (existingCustomerSelect) {
+        existingCustomerSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.dataset.customerData) {
+                const customerData = JSON.parse(selectedOption.dataset.customerData);
+                populateInstallmentCustomerForm(customerData);
+                
+                // Hide new customer fields when existing customer is selected
+                toggleInstallmentCustomerFields(false);
+            } else {
+                // Clear form when no customer is selected
+                clearInstallmentCustomerForm();
+            }
+        });
+    }
+
+    // Handle new customer toggle
+    if (newCustomerToggle) {
+        newCustomerToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Clear existing customer selection
+                if (existingCustomerSelect) {
+                    existingCustomerSelect.value = '';
+                }
+                clearInstallmentCustomerForm();
+                toggleInstallmentCustomerFields(true);
+            } else {
+                toggleInstallmentCustomerFields(false);
+            }
+        });
+    }
+}
+
+function populateInstallmentCustomerForm(customerData) {
+    // Populate form fields with existing customer data
+    const fields = {
+        'installmentCustomerName': customerData.name,
+        'installmentCustomerPhone': customerData.phone,
+        'installmentCustomerEmail': customerData.email,
+        'installmentCustomerAddress': customerData.address
+    };
+
+    Object.keys(fields).forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field && fields[fieldId]) {
+            field.value = fields[fieldId];
+            field.readOnly = true; // Make read-only for existing customers
+        }
+    });
+
+    // Store customer ID for later use
+    const modal = document.getElementById('installmentCustomerModal');
+    if (modal) {
+        modal.dataset.existingCustomerId = customerData.id;
+    }
+}
+
+function clearInstallmentCustomerForm() {
+    const fieldIds = [
+        'installmentCustomerName', 'installmentCustomerPhone', 'installmentCustomerEmail',
+        'installmentCustomerNationalId', 'installmentCustomerAddress', 'installmentCustomerRegion',
+        'installmentCustomerOccupation', 'installmentEmergencyName', 'installmentEmergencyPhone',
+        'installmentEmergencyRelation'
+    ];
+
+    fieldIds.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = '';
+            field.readOnly = false;
+        }
+    });
+
+    // Clear stored customer ID
+    const modal = document.getElementById('installmentCustomerModal');
+    if (modal) {
+        delete modal.dataset.existingCustomerId;
+    }
+}
+
+function toggleInstallmentCustomerFields(showNewCustomerFields) {
+    const newCustomerFieldsContainer = document.getElementById('installmentNewCustomerFields');
+    const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
+    
+    if (showNewCustomerFields) {
+        if (newCustomerFieldsContainer) {
+            newCustomerFieldsContainer.style.display = 'block';
+        }
+        if (existingCustomerSelect) {
+            existingCustomerSelect.disabled = true;
+        }
+    } else {
+        if (newCustomerFieldsContainer) {
+            newCustomerFieldsContainer.style.display = 'none';
+        }
+        if (existingCustomerSelect) {
+            existingCustomerSelect.disabled = false;
+        }
+    }
+}
+
+function showInstallmentCustomerModal() {
+    if (cart.length === 0) {
+        alert('Please add items to cart before setting up installment payment');
+        return;
+    }
+
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
+
+    // Pre-fill form data
+    document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+    document.getElementById('installmentDownPayment').value = suggestedDownPayment;
+    
+    // Set minimum down payment
+    document.getElementById('installmentDownPayment').setAttribute('min', totalAmount * 0.1); // 10% minimum
+    
+    // Load existing customers into dropdown
+    loadInstallmentCustomers();
+    
+    // Update summary
+    updateInstallmentSummary();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('installmentCustomerModal'));
+    modal.show();
+}
+
+function loadInstallmentCustomers() {
+    fetch('/api/customers')
+        .then(response => response.json())
+        .then(data => {
+            const customerSelect = document.getElementById('installmentExistingCustomer');
+            if (customerSelect) {
+                customerSelect.innerHTML = '<option value="">Select existing customer</option>';
+                
+                if (data.success && data.customers) {
+                    data.customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
+                        option.dataset.customerData = JSON.stringify(customer);
+                        customerSelect.appendChild(option);
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading customers:', error);
+        });
+}
+
+function updateInstallmentSummary() {
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+    const period = parseInt(document.getElementById('installmentPeriod').value) || 12;
+    
+    const remainingAmount = totalAmount - downPayment;
+    const monthlyPayment = remainingAmount / period;
+    
+    document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+    document.getElementById('installmentRemainingAmount').textContent = `TZS ${remainingAmount.toLocaleString()}`;
+    document.getElementById('installmentMonthlyPayment').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
+    
+    // Validate minimum down payment
+    const minDownPayment = totalAmount * 0.1;
+    if (downPayment < minDownPayment) {
+        document.getElementById('installmentDownPayment').setCustomValidity(`Minimum down payment is TZS ${minDownPayment.toLocaleString()}`);
+    } else {
+        document.getElementById('installmentDownPayment').setCustomValidity('');
+    }
+}
+
+function saveInstallmentCustomerInfo() {
+    const form = document.getElementById('installmentCustomerForm');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
+    const period = parseInt(document.getElementById('installmentPeriod').value);
+    
+    // Validate down payment
+    if (downPayment < totalAmount * 0.1) {
+        alert('Down payment must be at least 10% of total amount');
+        return;
+    }
+
+    const modal = document.getElementById('installmentCustomerModal');
+    const existingCustomerId = modal.dataset.existingCustomerId;
+    
+    // Collect customer data
+    installmentCustomerData = {
+        customer_id: existingCustomerId || null,
+        name: document.getElementById('installmentCustomerName').value,
+        phone: document.getElementById('installmentCustomerPhone').value,
+        email: document.getElementById('installmentCustomerEmail').value,
+        national_id: document.getElementById('installmentCustomerNationalId').value,
+        address: document.getElementById('installmentCustomerAddress').value,
+        region: document.getElementById('installmentCustomerRegion').value,
+        occupation: document.getElementById('installmentCustomerOccupation').value,
+        emergency_contact: {
+            name: document.getElementById('installmentEmergencyName').value,
+            phone: document.getElementById('installmentEmergencyPhone').value,
+            relation: document.getElementById('installmentEmergencyRelation').value
+        },
+        installment_plan: {
+            down_payment: downPayment,
+            period_months: period,
+            monthly_payment: (totalAmount - downPayment) / period
+        },
+        is_existing_customer: !!existingCustomerId
+    };
+
+    // If new customer, create customer first
+    if (!existingCustomerId) {
+        const customerData = {
+            name: installmentCustomerData.name,
+            phone: installmentCustomerData.phone,
+            email: installmentCustomerData.email,
+            address: installmentCustomerData.address,
+            customer_type: 'retail'
+        };
+
+        fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(customerData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                installmentCustomerData.customer_id = data.customer_id;
+                finalizeSaveInstallmentCustomer();
+            } else {
+                alert('Error creating customer: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating customer:', error);
+            alert('Error creating customer');
+        });
+    } else {
+        finalizeSaveInstallmentCustomer();
+    }
+}
+
+function finalizeSaveInstallmentCustomer() {
+    // Update checkout form with customer data
+    const customerNameField = document.getElementById('customerName');
+    const customerPhoneField = document.getElementById('customerPhone');
+    
+    if (customerNameField) customerNameField.value = installmentCustomerData.name;
+    if (customerPhoneField) customerPhoneField.value = installmentCustomerData.phone;
+    
+    // Update payment amount to down payment
+    if (paymentAmount) {
+        paymentAmount.value = installmentCustomerData.installment_plan.down_payment;
+    }
+
+    // Show installment fields in main form
+    const installmentFields = document.getElementById('installmentFields');
+    if (installmentFields) {
+        installmentFields.classList.remove('d-none');
+        
+        const downPaymentField = document.getElementById('downPayment');
+        const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
+        const customerAddressField = document.getElementById('customerAddress');
+        
+        if (downPaymentField) downPaymentField.value = installmentCustomerData.installment_plan.down_payment;
+        if (numberOfInstallmentsField) numberOfInstallmentsField.value = installmentCustomerData.installment_plan.period_months;
+        if (customerAddressField) customerAddressField.value = installmentCustomerData.address;
+    }
+
+    // Close modal
+    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('installmentCustomerModal'));
+    modalInstance.hide();
+
+    // Show success message
+    const customerType = installmentCustomerData.customer_id ? 'existing' : 'new';
+    showSuccessAlert(`${customerType.charAt(0).toUpperCase() + customerType.slice(1)} customer information saved! You can now complete the installment sale.`);
+}
+
+function showSuccessAlert(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    setTimeout(() => {
+        if (alert.parentNode) alert.remove();
+    }, 5000);
+}
 
 // Completed Transactions Functionality
 function initializeCompletedTransactions() {

@@ -73,1192 +73,441 @@ function getThemeColors() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize translations
-    const savedLanguage = localStorage.getItem('preferred_language') || 'en';
-    updatePageLanguage(savedLanguage);
+    // Initialize dashboard
+    initializeDashboard();
 
-    // DOM Elements
-    const totalItemsElement = document.getElementById('total-items');
-    const totalStockElement = document.getElementById('total-stock');
-    const lowStockCountElement = document.getElementById('low-stock-count');
-    const inventoryValueElement = document.getElementById('inventory-value');
-    const lowStockTableElement = document.getElementById('low-stock-table');
-    const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
-    const inventoryHealthContainer = document.getElementById('inventory-health-container');
+    // Refresh data every 5 minutes
+    setInterval(loadDashboardData, 300000);
+});
 
-    // Financial Elements
-    const monthlyIncomeElement = document.getElementById('monthly-income');
-    const monthlyExpensesElement = document.getElementById('monthly-expenses');
-    const monthlyProfitElement = document.getElementById('monthly-profit');
-    const financialSummaryChartElement = document.getElementById('financialSummaryChart');
-
-    // Charts
-    let stockChart = null;
-    let valueChart = null;
-    let healthDonutChart = null;
-    let financialChart = null;
-
-    // Load dashboard data
+function initializeDashboard() {
     loadDashboardData();
-    loadOnDemandProducts();
-    loadFinancialSummary();
-
-    function loadDashboardData() {
-        fetch('/api/dashboard/summary')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateDashboardSummary(data.summary);
-                    updateLowStockTable(data.low_stock_items);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading dashboard data:', error);
-                // Set default values on error
-                if (totalItemsElement) totalItemsElement.textContent = '0';
-                if (totalStockElement) totalStockElement.textContent = '0';
-                if (lowStockCountElement) lowStockCountElement.textContent = '0';
-                if (inventoryValueElement) inventoryValueElement.textContent = '0';
-            });
-    }
-
-    function updateDashboardSummary(summary) {
-        if (totalItemsElement) totalItemsElement.textContent = summary.total_items.toLocaleString();
-        if (totalStockElement) totalStockElement.textContent = summary.total_stock.toLocaleString();
-        if (lowStockCountElement) lowStockCountElement.textContent = summary.low_stock_count.toLocaleString();
-        if (inventoryValueElement) inventoryValueElement.textContent = summary.inventory_value.toLocaleString();
-    }
-
-    function updateLowStockTable(lowStockItems) {
-        const tableBody = document.getElementById('low-stock-table');
-        if (!tableBody) return;
-        
-        if (lowStockItems && lowStockItems.length > 0) {
-            let html = '';
-            lowStockItems.forEach(item => {
-                html += `
-                    <tr>
-                        <td>${item.name}</td>
-                        <td>${item.current_stock}</td>
-                        <td>${item.minimum_stock}</td>
-                        <td>
-                            <span class="badge bg-warning">Low Stock</span>
-                        </td>
-                    </tr>
-                `;
-            });
-            tableBody.innerHTML = html;
-        } else {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No low stock items</td></tr>';
-        }
-    }
-
-    function setDefaultDashboardValues() {
-        if (totalItemsElement) totalItemsElement.textContent = '0';
-        if (totalStockElement) totalStockElement.textContent = '0';
-        if (lowStockCountElement) lowStockCountElement.textContent = '0';
-        if (inventoryValueElement) inventoryValueElement.textContent = '0';
-    }
-
-        // Update financial summary
-        if (monthlyIncomeElement) monthlyIncomeElement.textContent = summary.monthly_income.toLocaleString();
-        if (monthlyExpensesElement) monthlyExpensesElement.textContent = summary.monthly_expenses.toLocaleString();
-        if (monthlyProfitElement) monthlyProfitElement.textContent = summary.monthly_profit.toLocaleString();
-    }
-
-    function updateLowStockTable(lowStockItems) {
-        if (!lowStockTableElement) return;
-
-        if (lowStockItems.length === 0) {
-            lowStockTableElement.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No low stock items</td></tr>';
-            return;
-        }
-
-        const tableRows = lowStockItems.map(item => `
-            <tr>
-                <td>${item.name}</td>
-                <td>${item.sku || 'N/A'}</td>
-                <td>${item.category}</td>
-                <td>
-                    <span class="badge bg-warning">${item.stock_quantity}</span>
-                    <small class="text-muted">/ ${item.minimum_stock} min</small>
-                </td>
-                <td><span class="currency-symbol">TZS</span> ${item.retail_price.toLocaleString()}</td>
-                <td>
-                    <a href="/inventory" class="btn btn-sm btn-primary">
-                        <i class="fas fa-edit"></i> Restock
-                    </a>
-                </td>
-            </tr>
-        `).join('');
-
-        lowStockTableElement.innerHTML = tableRows;
-    }
-
-    // Calculate inventory health based on quantity
-    function calculateInventoryHealth(quantity) {
-        if (quantity <= 0) {
-            return {
-                status: 'critical',
-                label: 'Out of Stock',
-                color: 'danger',
-                icon: 'exclamation-circle',
-                percentage: 0,
-                bgColor: '#dc3545'
-            };
-        } else if (quantity <= 5) {
-            return {
-                status: 'low',
-                label: 'Low Stock',
-                color: 'warning',
-                icon: 'exclamation-triangle',
-                percentage: 25,
-                bgColor: '#ffc107'
-            };
-        } else if (quantity <= 10) {
-            return {
-                status: 'medium',
-                label: 'Medium Stock',
-                color: 'info',
-                icon: 'info-circle',
-                percentage: 50,
-                bgColor: '#0dcaf0'
-            };
-        } else if (quantity <= 20) {
-            return {
-                status: 'good',
-                label: 'Good Stock',
-                color: 'primary',
-                icon: 'check-circle',
-                percentage: 75,
-                bgColor: '#0d6efd'
-            };
-        } else {
-            return {
-                status: 'optimal',
-                label: 'Optimal Stock',
-                color: 'success',
-                icon: 'check-double',
-                percentage: 100,
-                bgColor: '#198754'
-            };
-        }
-    }
-
-    // Generate health indicator HTML
-    function generateHealthIndicator(quantity) {
-        const health = calculateInventoryHealth(quantity);
-
-        return `
-            <div class="inventory-health">
-                <div class="health-indicator">
-                    <div class="progress" style="height: 8px;" title="${health.label}">
-                        <div class="progress-bar bg-${health.color}" role="progressbar" 
-                             style="width: ${health.percentage}%" 
-                             aria-valuenow="${health.percentage}" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <div class="mt-1 d-flex align-items-center">
-                        <i class="fas fa-${health.icon} text-${health.color} me-1"></i>
-                        <span class="small ${quantity <= 5 ? 'fw-bold' : ''}">${quantity} ${quantity <= 0 ? health.label : 'units'}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    async function loadSalesPerformance() {
-        // Load top selling items using API handler
-        try {
-            const topItems = await window.apiHandler.getTopSellingItems();
-            const tableBody = document.getElementById('top-selling-table');
-            if (tableBody) {
-                if (topItems && topItems.length > 0) {
-                    let html = '';
-                    topItems.forEach(item => {
-                        html += `
-                        <tr>
-                            <td>
-                                <a href="/item/${item.id}" class="text-decoration-none">
-                                    ${item.name}
-                                </a>
-                            </td>
-                            <td>${item.category || 'Uncategorized'}</td>
-                            <td>${item.units_sold}</td>
-                            <td><span class="currency-symbol">TZS</span> ${item.revenue.toLocaleString()}</td>
-                        </tr>`;
-                    });
-                    tableBody.innerHTML = html;
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No sales data available</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading top selling items:', error);
-            const tableBody = document.getElementById('top-selling-table');
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Error loading sales data</td></tr>';
-            }
-        }
-    }
-
-    function loadOnDemandProducts() {
-        fetch('/api/on-demand-products/summary')
-            .then(response => response.json())
-            .then(data => {
-                const tableBody = document.getElementById('on-demand-products-table');
-                if (tableBody && data.products) {
-                    let html = '';
-                    data.products.forEach(product => {
-                        html += `
-                            <tr>
-                                <td>${product.name}</td>
-                                <td>TZS ${product.selling_price.toLocaleString()}</td>
-                                <td>${product.estimated_delivery_days} days</td>
-                                <td>
-                                    <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">
-                                        ${product.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    tableBody.innerHTML = html;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading on-demand products:', error);
-            });
-    }
-
-    function loadFinancialSummary() {
-        fetch('/api/financial/summary')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (monthlyIncomeElement) monthlyIncomeElement.textContent = data.monthly_income.toLocaleString();
-                    if (monthlyExpensesElement) monthlyExpensesElement.textContent = data.monthly_expenses.toLocaleString();
-                    if (monthlyProfitElement) monthlyProfitElement.textContent = data.monthly_profit.toLocaleString();
-                    
-                    // Update financial chart if available
-                    if (financialChart) {
-                        updateFinancialChart(data);
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
-    }
-
-    function updateFinancialChart(data) {
-        if (financialChart && data.chart_data) {
-            financialChart.data.labels = data.chart_data.labels;
-            financialChart.data.datasets[0].data = data.chart_data.income;
-            financialChart.data.datasets[1].data = data.chart_data.expenses;
-            financialChart.update();
-        }
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
-            }
-        }
-
-        // Load slow moving items using API handler
-        try {
-            const slowItems = await window.apiHandler.getSlowMovingItems();
-            const tableBody = document.getElementById('slow-moving-table');
-            if (tableBody) {
-                if (slowItems && slowItems.length > 0) {
-                    let html = '';
-                    slowItems.forEach(item => {
-                        html += `
-                        <tr>
-                            <td>
-                                <a href="/item/${item.id}" class="text-decoration-none">
-                                    ${item.name}
-                                </a>
-                            </td>
-                            <td>${item.category || 'Uncategorized'}</td>
-                            <td>${item.stock_quantity || 0}</td>
-                            <td>${item.units_sold || 0}</td>
-                        </tr>`;
-                    });
-                    tableBody.innerHTML = html;
-                } else {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No slow moving items found</td></tr>';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
-            const tableBody = document.getElementById('slow-moving-table');
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Unable to load data</td></tr>';
-            }
-        }
+    setupEventListeners();
 }
 
-async function loadDashboardData() {
-        console.log('Loading dashboard data...');
-        
-        // Check if API handler is available
-        if (typeof window.apiHandler === 'undefined') {
-            console.warn('API handler not available, using fallback');
-            loadSalesPerformance();
-            return;
-        }
-
-        loadSalesPerformance();
-
-        // Load stock status report using API handler
-        try {
-            const stockData = await window.apiHandler.getDashboardSummary();
-            if (stockData) {
-                console.log('Stock status data loaded:', stockData);
-                updateDashboardSummary(stockData);
-                updateLowStockTable(stockData.low_stock_items || []);
-            } else {
-                console.log('No stock data available or user not authenticated');
-                setDefaultDashboardValues();
-            }
-        } catch (error) {
-            console.error('Error loading stock status report:', error);
-            setDefaultDashboardValues();
-        }
-
-        // Load category breakdown for charts using API handler
-        try {
-            const categoryData = await window.apiHandler.getCategoryBreakdown();
-            if (categoryData && Object.keys(categoryData).length > 0) {
-                console.log('Category breakdown data loaded:', categoryData);
-                createStockChart(categoryData);
-                createValueChart(categoryData);
-            } else {
-                console.log('No category data available');
-            }
-        } catch (error) {
-            console.error('Error loading category breakdown:', error);
-        }
+function setupEventListeners() {
+    // Add refresh button listener
+    const refreshBtn = document.getElementById('refreshDashboard');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadDashboardData);
     }
+}
 
-    function setDefaultDashboardValues() {
-        const totalItemsElement = document.getElementById('total-items');
-        const totalStockElement = document.getElementById('total-stock');
-        const lowStockCountElement = document.getElementById('low-stock-count');
-        const inventoryValueElement = document.getElementById('inventory-value');
-        
-        if (totalItemsElement) totalItemsElement.textContent = '0';
-        if (totalStockElement) totalStockElement.textContent = '0';
-        if (lowStockCountElement) lowStockCountElement.textContent = '0';
-        if (inventoryValueElement) inventoryValueElement.textContent = '0';
-    }
+function loadDashboardData() {
+    console.log('Loading dashboard data...');
+    showLoading(true);
 
-    function updateDashboardSummary(data) {
-        console.log('Updating dashboard summary with data:', data);
+    // Load all dashboard components
+    Promise.allSettled([
+        loadDashboardSummary(),
+        loadInventoryStatus(), 
+        loadRecentSales(),
+        loadFinancialSummary(),
+        loadLowStockItems(),
+        loadTopSellingItems()
+    ]).then(() => {
+        showLoading(false);
+        console.log('Dashboard data loaded successfully');
+    }).catch(error => {
+        console.error('Error loading dashboard:', error);
+        showLoading(false);
+        showError('Failed to load dashboard data');
+    });
+}
 
-        // Update summary cards with safe fallbacks
-        if (totalItemsElement) {
-            totalItemsElement.textContent = data.total_items || 0;
+function loadDashboardSummary() {
+    return fetch('/api/dashboard/summary', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
         }
-        if (totalStockElement) {
-            totalStockElement.textContent = data.total_stock || 0;
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-        if (lowStockCountElement) {
-            lowStockCountElement.textContent = data.low_stock_items_count || 0;
-        }
-        if (inventoryValueElement) {
-            const value = data.total_inventory_value || 0;
-            inventoryValueElement.innerHTML = '<span class="currency-symbol">TZS</span> ' + value.toLocaleString();
-        }
-
-        // Create inventory health overview if container exists
-        if (inventoryHealthContainer) {
-            // Calculate health stats
-            const healthStats = calculateInventoryHealthStats(data);
-            createInventoryHealthOverview(healthStats);
-        }
-    }
-
-    function calculateInventoryHealthStats(data) {
-        // Calculate inventory health statistics from stock status data
-        let healthStats = {
-            critical: 0,
-            low: 0,
-            medium: 0,
-            good: 0,
-            optimal: 0
-        };
-
-        // Process all items to determine their health
-        if (data.all_items && Array.isArray(data.all_items)) {
-            data.all_items.forEach(item => {
-                const health = calculateInventoryHealth(item.quantity);
-                healthStats[health.status]++;
-            });
-        } else if (data.low_stock_items && Array.isArray(data.low_stock_items)) {
-            // If we only have low stock items, estimate based on what we know
-            data.low_stock_items.forEach(item => {
-                const health = calculateInventoryHealth(item.quantity);
-                healthStats[health.status]++;
-            });
-
-            // Estimate remaining items as good/optimal
-            const remainingItems = data.total_items - data.low_stock_items.length;
-            if (remainingItems > 0) {
-                healthStats.good = Math.floor(remainingItems * 0.4);
-                healthStats.optimal = remainingItems - healthStats.good;
-            }
-        }
-
-        return healthStats;
-    }
-
-    function createInventoryHealthOverview(healthStats) {
-        // Create health overview cards and chart
-        const healthCategories = [
-            { status: 'critical', label: 'Out of Stock', color: 'danger', icon: 'exclamation-circle', bgColor: '#dc3545' },
-            { status: 'low', label: 'Low Stock', color: 'warning', icon: 'exclamation-triangle', bgColor: '#ffc107' },
-            { status: 'medium', label: 'Medium Stock', color: 'info', icon: 'info-circle', bgColor: '#0dcaf0' },
-            { status: 'good', label: 'Good Stock', color: 'primary', icon: 'check-circle', bgColor: '#0d6efd' },
-            { status: 'optimal', label: 'Optimal Stock', color: 'success', icon: 'check-double', bgColor: '#198754' }
-        ];
-
-        // Create HTML for health overview
-        let healthOverviewHTML = '<div class="row">';
-
-        // Create a card for each health category
-        healthCategories.forEach(category => {
-            const count = healthStats[category.status] || 0;
-            healthOverviewHTML += `
-                <div class="col">
-                    <div class="card summary-card text-center mb-3">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <i class="fas fa-${category.icon} text-${category.color} fa-2x me-2"></i>
-                                <h3 class="m-0">${count}</h3>
-                            </div>
-                            <p class="card-text text-${category.color}">${category.label}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        healthOverviewHTML += '</div>';
-
-        // Create donut chart canvas
-        healthOverviewHTML += `
-            <div class="row mt-3">
-                <div class="col-md-12">
-                    <div class="card chart-card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Inventory Health Distribution</h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="healthDonut" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Update DOM with health overview
-        inventoryHealthContainer.innerHTML = healthOverviewHTML;
-
-        // Create donut chart
-        const ctx = document.getElementById('healthDonut').getContext('2d');
-
-        if (healthDonutChart) {
-            healthDonutChart.destroy();
-        }
-    }
-
-    function loadOnDemandProducts() {
-        // Mock function for now
-        if (onDemandProductsTableElement) {
-            onDemandProductsTableElement.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No on-demand products configured</td></tr>';
-        }
-    }
-
-    function loadFinancialSummary() {
-        fetch('/api/finance/summaries/monthly')
-            .then(response => response.json())
-            .then(data => {
-                if (data.monthly_data && financialSummaryChartElement) {
-                    createFinancialChart(data.monthly_data);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
-    }
-
-    function createFinancialChart(monthlyData) {
-        if (!financialSummaryChartElement) return;
-
-        const ctx = financialSummaryChartElement.getContext('2d');
-
-        if (financialChart) {
-            financialChart.destroy();
-        }
-
-        const labels = monthlyData.map(item => item.month_name);
-        const incomeData = monthlyData.map(item => item.income);
-        const expenseData = monthlyData.map(item => item.expenses);
-        const profitData = monthlyData.map(item => item.profit);
-
-        financialChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Income',
-                        data: incomeData,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Expenses',
-                        data: expenseData,
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Profit',
-                        data: profitData,
-                        borderColor: 'rgb(54, 162, 235)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function createInventoryHealthChart(healthStats) {
-        const healthCategories = [
-            { status: 'critical', label: 'Out of Stock', color: 'danger', icon: 'exclamation-circle', bgColor: '#dc3545' },
-            { status: 'low', label: 'Low Stock', color: 'warning', icon: 'exclamation-triangle', bgColor: '#ffc107' },
-            { status: 'medium', label: 'Medium Stock', color: 'info', icon: 'info-circle', bgColor: '#0dcaf0' },
-            { status: 'good', label: 'Good Stock', color: 'primary', icon: 'check-circle', bgColor: '#0d6efd' },
-            { status: 'optimal', label: 'Optimal Stock', color: 'success', icon: 'check-double', bgColor: '#198754' }
-        ];
-
-        const ctx = document.getElementById('inventoryHealthChart');
-        if (!ctx) return;
-
-        if (healthDonutChart) {
-            healthDonutChart.destroy();
-        }
-
-        healthDonutChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: healthCategories.map(c => c.label),
-                datasets: [{
-                    data: healthCategories.map(c => healthStats[c.status] || 0),
-                    backgroundColor: healthCategories.map(c => c.bgColor),
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%',
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333'
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = Math.round((value / total) * 100);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function updateLowStockTable(lowStockItems) {
-        if (lowStockItems && lowStockItems.length > 0) {
-            let tableHtml = '';
-
-            // Sort by quantity (lowest first)
-            lowStockItems.sort((a, b) => a.quantity - b.quantity);
-
-            // Take only top 10 items
-            const itemsToShow = lowStockItems.slice(0, 10);
-
-            itemsToShow.forEach(item => {
-                const quantityClass = item.quantity === 0 ? 'bg-danger' : 'bg-warning';
-
-                tableHtml += `
-                <tr>
-                    <td>
-                        <a href="/item/${item.id}" class="text-decoration-none">
-                            ${item.name}
-                        </a>
-                    </td>
-                    <td>${item.sku || ''}</td>
-                    <td>${item.category || 'Uncategorized'}</td>
-                    <td>${generateHealthIndicator(item.quantity)}</td>
-                    <td>
-                        <small class="text-muted">Retail: </small><span class="currency-symbol">TZS</span> ${item.selling_price_retail ? item.selling_price_retail.toLocaleString() : '0'}<br>
-                        <small class="text-muted">Wholesale: </small><span class="currency-symbol">TZS</span> ${item.selling_price_wholesale ? item.selling_price_wholesale.toLocaleString() : '0'}
-                    </td>
-                    <td>
-                        <a href="/item/${item.id}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-edit"></i> Update
-                        </a>
-                    </td>
-                </tr>
-                `;
-            });
-
-            lowStockTableElement.innerHTML = tableHtml;
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            updateDashboardSummary(data.summary);
+            updateLowStockItems(data.low_stock_items || []);
+            updateRecentSales(data.recent_sales || []);
         } else {
-            lowStockTableElement.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center">No low stock items found</td>
-                </tr>
-            `;
+            throw new Error(data.error || 'Failed to load dashboard summary');
         }
-    }
-
-    function createStockChart(categoryData) {
-        // Prepare data for chart
-        const categories = Object.keys(categoryData);
-        const quantities = categories.map(category => categoryData[category].total_quantity);
-
-        // Get canvas context
-        const ctx = document.getElementById('stockChart').getContext('2d');
-
-        // Destroy existing chart if it exists
-        if (stockChart) {
-            stockChart.destroy();
-        }
-
-        // Create new chart
-        stockChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: categories,
-                datasets: [{
-                    label: 'Stock Quantity',
-                    data: quantities,
-                    backgroundColor: getThemeColors().primary,
-                    borderColor: getThemeColors().info,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false,
-                        labels: {
-                            boxWidth: 10,
-                            font: {
-                                size: 10
-                            }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `Stock: ${context.raw}`;
-                            }
-                        },
-                        backgroundColor: getThemeColors().tooltipBackground,
-                        titleColor: getThemeColors().tooltipText,
-                        bodyColor: getThemeColors().tooltipText,
-                        titleFont: {
-                            size: 12,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 11
-                        },
-                        padding: 8
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(76, 80, 197, 0.06)'
-                        },
-                        ticks: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#555'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Quantity',
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#333',
-                            font: {
-                                weight: '600'
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText
-                        },
-                        title: {
-                            display: true,
-                            text: 'Category',
-                            color: getThemeColors().chartText,
-                            font: {
-                                weight: '600'
-                            }
-                        }
-                    }
-                }
-            }
+    })
+    .catch(error => {
+        console.error('Error loading dashboard summary:', error);
+        // Set default values to prevent UI breakage
+        updateDashboardSummary({
+            total_items: 0,
+            total_stock: 0,
+            low_stock_count: 0,
+            inventory_value: 0,
+            total_customers: 0,
+            monthly_income: 0,
+            monthly_expenses: 0,
+            monthly_profit: 0
         });
-    }
+    });
+}
 
-    function createValueChart(categoryData) {
-        // Prepare data for chart
-        const categories = Object.keys(categoryData);
-        const values = categories.map(category => categoryData[category].total_value);
-
-        // Get canvas context
-        const ctx = document.getElementById('valueChart').getContext('2d');
-
-        // Destroy existing chart if it exists
-        if (valueChart) {
-            valueChart.destroy();
+function loadInventoryStatus() {
+    return fetch('/api/inventory?limit=5', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
         }
-
-        // Create new chart
-        valueChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: categories,
-                datasets: [{
-                    data: values,
-                    backgroundColor: [
-                        getThemeColors().primary,
-                        getThemeColors().info,
-                        getThemeColors().warning,
-                        getThemeColors().success,
-                        getThemeColors().purple,
-                        getThemeColors().orange,
-                        getThemeColors().teal,
-                        getThemeColors().indigo,
-                        getThemeColors().secondary,
-                        getThemeColors().danger
-                    ],
-                    borderColor: [
-                        getThemeColors().primary.replace('0.8', '1'),
-                        getThemeColors().info.replace('0.8', '1'),
-                        getThemeColors().warning.replace('0.8', '1'),
-                        getThemeColors().success.replace('0.8', '1'),
-                        getThemeColors().purple.replace('0.8', '1'),
-                        getThemeColors().orange.replace('0.8', '1'),
-                        getThemeColors().teal.replace('0.8', '1'),
-                        getThemeColors().indigo.replace('0.8', '1'),
-                        getThemeColors().secondary.replace('0.8', '1'),
-                        getThemeColors().danger.replace('0.8', '1')
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: getThemeColors().chartText,
-                            usePointStyle: true,
-                            padding: 5,
-                            boxWidth: 8,
-                            font: {
-                                size: 10,
-                                family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
-                            }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw;
-                                const label = context.label || '';
-                                const percentage = ((value / values.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
-                                return `${label}: TZS ${value.toLocaleString()} (${percentage}%)`;
-                            }
-                        },
-                        backgroundColor: getThemeColors().tooltipBackground,
-                        titleColor: getThemeColors().tooltipText,
-                        bodyColor: getThemeColors().tooltipText,
-                        titleFont: {
-                            size: 12,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 11
-                        },
-                        padding: 8
-                    }
-                }
-            }
-        });
-    }
-
-    function loadOnDemandProducts() {
-        // Fetch active on-demand products
-        fetch('/api/on-demand?active_only=true')
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 302) {
-                        return [];
-                    }
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(products => {
-                displayOnDemandProducts(products);
-            })
-            .catch(error => {
-                console.error('Error loading on-demand products:', error);
-                const onDemandProductsTableElement = document.querySelector('#on-demand-products-table tbody');
-                if (onDemandProductsTableElement) {
-                    onDemandProductsTableElement.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">
-                                <i class="fas fa-info-circle me-2"></i> Unable to load on-demand products
-                            </td>
-                        </tr>
-                    `;
-                }
-            });
-    }
-
-    function displayOnDemandProducts(products) {
-        if (products.length === 0) {
-            onDemandProductsTableElement.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center">No on-demand products found</td>
-                </tr>
-            `;
-            return;
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        return response.json();
+    })
+    .then(items => {
+        updateInventoryStatus(Array.isArray(items) ? items : []);
+    })
+    .catch(error => {
+        console.error('Error loading inventory status:', error);
+        updateInventoryStatus([]);
+    });
+}
 
-        // Sort products by name for consistent display
-        products.sort((a, b) => a.name.localeCompare(b.name));
-
-        // Show only the first 10 products for dashboard
-        const displayProducts = products.slice(0, 10);
-
-        let html = '';
-
-        displayProducts.forEach(product => {
-            const statusBadge = product.is_active 
-                ? '<span class="status-badge status-active">Active</span>' 
-                : '<span class="status-badge status-inactive">Inactive</span>';
-
-            html += `
-                <tr>
-                    <td>
-                        <a href="/on-demand#product-${product.id}" class="text-decoration-none">
-                            ${product.name}
-                        </a>
-                    </td>
-                    <td>${product.category || 'Uncategorized'}</td>
-                    <td><span class="currency-symbol">TZS</span> ${product.base_price.toLocaleString()}</td>
-                    <td>${product.production_time || 0} hours</td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        <a href="/on-demand" class="btn btn-sm btn-primary btn-action">
-                            <i class="fas fa-edit"></i> View
-                        </a>
-                    </td>
-                </tr>
-            `;
-        });
-
-        if (products.length > 10) {
-            html += `
-                <tr>
-                    <td colspan="6" class="text-center">
-                        <a href="/on-demand" class="btn btn-sm btn-outline-secondary">
-                            View all ${products.length} on-demand products
-                        </a>
-                    </td>
-                </tr>
-            `;
+function loadRecentSales() {
+    return fetch('/api/sales?per_page=5', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
         }
-
-        onDemandProductsTableElement.innerHTML = html;
-    }
-
-    // Load financial summary data for dashboard
-    function loadFinancialSummary() {
-        // Get current date
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = today.getMonth() + 1;
-
-        // Get first and last day of current month
-        const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0);
-
-        // Format dates as YYYY-MM-DD
-        const startDate = firstDay.toISOString().slice(0, 10);
-        const endDate = lastDay.toISOString().slice(0, 10);
-
-        // Load monthly transactions data
-        fetch(`/api/finance/transactions?start_date=${startDate}&end_date=${endDate}`)
-            .then(response => response.json())
-            .then(data => {
-                updateFinancialSummary(data.summary);
-            })
-            .catch(error => {
-                console.error('Error loading financial summary:', error);
-            });
-
-        // Load yearly data for chart
-        fetch(`/api/finance/summaries/monthly?year=${year}`)
-            .then(response => response.json())
-            .then(data => {
-                createFinancialChart(data);
-            })
-            .catch(error => {
-                console.error('Error loading monthly financial data:', error);
-            });
-    }
-
-    // Update financial summary on dashboard
-    function updateFinancialSummary(summary) {
-        if (!monthlyIncomeElement || !monthlyExpensesElement || !monthlyProfitElement) {
-            return;
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        monthlyIncomeElement.textContent = summary.total_income.toLocaleString();
-        monthlyExpensesElement.textContent = summary.total_expenses.toLocaleString();
-        monthlyProfitElement.textContent = summary.net_profit.toLocaleString();
-
-        // Add color to profit value
-        if (summary.net_profit > 0) {
-            monthlyProfitElement.classList.add('text-success');
-            monthlyProfitElement.classList.remove('text-danger');
-        } else if (summary.net_profit < 0) {
-            monthlyProfitElement.classList.add('text-danger');
-            monthlyProfitElement.classList.remove('text-success');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.sales) {
+            updateRecentSales(data.sales);
         } else {
-            monthlyProfitElement.classList.remove('text-success');
-            monthlyProfitElement.classList.remove('text-danger');
+            updateRecentSales([]);
         }
-    }
+    })
+    .catch(error => {
+        console.error('Error loading recent sales:', error);
+        updateRecentSales([]);
+    });
+}
 
-    // Create financial summary chart
-    function createFinancialChart(data) {
-        if (!financialSummaryChartElement) {
-            return;
+function loadFinancialSummary() {
+    return fetch('/api/finance/summaries/monthly', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
         }
-
-        const ctx = financialSummaryChartElement.getContext('2d');
-
-        // Destroy existing chart if it exists
-        if (financialChart) {
-            financialChart.destroy();
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        return response.json();
+    })
+    .then(data => {
+        updateFinancialSummary(data);
+    })
+    .catch(error => {
+        console.error('Error loading financial summary:', error);
+        updateFinancialSummary({ monthly_data: [] });
+    });
+}
 
-        // Extract data for chart
-        const months = data.monthly_data.map(item => item.month_name);
-        const incomeData = data.monthly_data.map(item => item.income);
-        const expenseData = data.monthly_data.map(item => item.expenses);
-        const profitData = data.monthly_data.map(item => item.profit);
+function loadLowStockItems() {
+    return fetch('/api/reports/stock-status', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        updateLowStockItems(data.low_stock_items || []);
+    })
+    .catch(error => {
+        console.error('Error loading low stock items:', error);
+        updateLowStockItems([]);
+    });
+}
 
-        // Create new chart
-        financialChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: months,
-                datasets: [
-                    {
-                        label: 'Income',
-                        data: incomeData,
-                        backgroundColor: getThemeColors().success,
-                        borderColor: getThemeColors().success.replace('0.8', '1'),
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Expenses',
-                        data: expenseData,
-                        backgroundColor: getThemeColors().danger,
-                        borderColor: getThemeColors().danger.replace('0.8', '1'),
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Net Profit',
-                        data: profitData,
-                        type: 'line',
-                        backgroundColor: getThemeColors().info.replace('0.8', '0.2'),
-                        borderColor: getThemeColors().info.replace('0.8', '1'),
-                        borderWidth: 2,
-                        pointBackgroundColor: getThemeColors().info.replace('0.8', '1'),
-                        pointRadius: 4,
-                        fill: false,
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText,
-                            callback: function(value) {
-                                return 'TZS ' + value.toLocaleString();
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: getThemeColors().chartGrid
-                        },
-                        ticks: {
-                            color: getThemeColors().chartSecondaryText
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: getThemeColors().chartText,
-                            usePointStyle: true,
-                            padding: 5,
-                            boxWidth: 8,
-                            font: {
-                                size: 10,
-                                family: getComputedStyle(document.documentElement).getPropertyValue('--body-font').trim() || "'Nunito', sans-serif"
-                            }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += 'TZS ' + context.raw.toLocaleString();
-                                return label;
-                            }
-                        },
-                        backgroundColor: getThemeColors().tooltipBackground,
-                        titleColor: getThemeColors().tooltipText,
-                        bodyColor: getThemeColors().tooltipText,
-                        titleFont: {
-                            size: 12,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 11
-                        },
-                        padding: 8
-                    }
-                }
-            }
-        });
-    }
+function loadTopSellingItems() {
+    return fetch('/api/sales/performance/top', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.top_items) {
+            updateTopSellingItems(data.top_items);
+        } else {
+            updateTopSellingItems([]);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading top selling items:', error);
+        updateTopSellingItems([]);
+    });
+}
 
-    // Initialize
-    loadShopDetails();
-    loadDashboardData();
+// Update functions
+function updateDashboardSummary(summary) {
+    const elements = {
+        'total-items': summary.total_items || 0,
+        'total-stock': summary.total_stock || 0,
+        'low-stock-count': summary.low_stock_count || 0,
+        'inventory-value': formatCurrency(summary.inventory_value || 0),
+        'total-customers': summary.total_customers || 0,
+        'monthly-income': formatCurrency(summary.monthly_income || 0),
+        'monthly-expenses': formatCurrency(summary.monthly_expenses || 0),
+        'monthly-profit': formatCurrency(summary.monthly_profit || 0)
+    };
 
-    function loadShopDetails() {
-        // Fetch shop details from the API
-        fetch('/api/shop/details')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const user = data.user;
-
-                    // Update DOM elements
-                    const shopNameElement = document.getElementById('shop-name');
-                    if (shopNameElement) {
-                        shopNameElement.textContent = user.shop_name || 'Your Shop';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading shop details:', error);
-                // Fallback to a default name
-                const shopNameElement = document.getElementById('shop-name');
-                if (shopNameElement) {
-                    shopNameElement.textContent = "Your Shop";
-                }
-            });
-    }
-
-    // Refresh dashboard data periodically and on focus
-    function refreshDashboardData() {
-        console.log('Refreshing dashboard data...');
-        loadDashboardData();
-        loadOnDemandProducts();
-        loadFinancialSummary();
-    }
-
-    // Set up auto-refresh
-    setInterval(refreshDashboardData, 30000); // Refresh every 30 seconds
-
-    // Refresh when page becomes visible
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            refreshDashboardData();
+    Object.entries(elements).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
         }
     });
 
-    // Additional function for manual refresh
-    window.refreshDashboard = refreshDashboardData;
-});
-
-// Helper function to show errors
-function showError(message) {
-    console.error(message);
-    // You can add more error handling UI here if needed
+    // Update profit color
+    const profitElement = document.getElementById('monthly-profit');
+    if (profitElement && summary.monthly_profit !== undefined) {
+        profitElement.className = summary.monthly_profit >= 0 ? 'text-success' : 'text-danger';
+    }
 }
+
+function updateInventoryStatus(items) {
+    const container = document.getElementById('inventory-status');
+    if (!container) return;
+
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-muted">No inventory items found.</p>';
+        return;
+    }
+
+    let html = '<div class="row">';
+    items.slice(0, 5).forEach(item => {
+        const stockLevel = (item.stock_quantity || 0) <= (item.minimum_stock || 0) ? 'danger' : 'success';
+        html += `
+            <div class="col-md-12 mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>${item.name}</span>
+                    <span class="badge bg-${stockLevel}">${item.stock_quantity || 0}</span>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function updateRecentSales(sales) {
+    const container = document.getElementById('recent-sales');
+    if (!container) return;
+
+    if (sales.length === 0) {
+        container.innerHTML = '<p class="text-muted">No recent sales found.</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    sales.slice(0, 5).forEach(sale => {
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span>#${sale.sale_number || sale.id}</span>
+                    <span class="fw-bold">${formatCurrency(sale.total_amount || 0)}</span>
+                </div>
+                <small class="text-muted">${sale.customer_name || 'Walk-in Customer'}</small>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function updateFinancialSummary(data) {
+    const container = document.getElementById('financial-summary');
+    if (!container) return;
+
+    if (!data.monthly_data || data.monthly_data.length === 0) {
+        container.innerHTML = '<p class="text-muted">No financial data available.</p>';
+        return;
+    }
+
+    // Simple summary for current month
+    const currentMonth = data.monthly_data[new Date().getMonth()] || {};
+    const html = `
+        <div class="row">
+            <div class="col-6">
+                <h6>Income</h6>
+                <p class="text-success">${formatCurrency(currentMonth.income || 0)}</p>
+            </div>
+            <div class="col-6">
+                <h6>Expenses</h6>
+                <p class="text-danger">${formatCurrency(currentMonth.expenses || 0)}</p>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+function updateLowStockItems(items) {
+    const container = document.getElementById('low-stock-items');
+    if (!container) return;
+
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-muted">No low stock items.</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    items.slice(0, 5).forEach(item => {
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${item.name}</span>
+                <span class="badge bg-warning">${item.stock_quantity || 0} / ${item.minimum_stock || 0}</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function updateTopSellingItems(items) {
+    const container = document.getElementById('top-selling-items');
+    if (!container) return;
+
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-muted">No sales data available.</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    items.slice(0, 5).forEach(item => {
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${item.name}</span>
+                <span class="badge bg-primary">${item.units_sold || 0} sold</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Utility functions
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-TZ', {
+        style: 'currency',
+        currency: 'TZS',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount || 0);
+}
+
+function showLoading(show) {
+    const loader = document.getElementById('dashboard-loader');
+    if (loader) {
+        loader.style.display = show ? 'block' : 'none';
+    }
+}
+
+function showError(message) {
+    const alertContainer = document.getElementById('alert-container');
+    if (alertContainer) {
+        alertContainer.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+    } else {
+        console.error('Error:', message);
+    }
+}
+
+// Initialize translations
+const savedLanguage = localStorage.getItem('preferred_language') || 'en';
+updatePageLanguage(savedLanguage);
+
+// DOM Elements
+const totalItemsElement = document.getElementById('total-items');
+const totalStockElement = document.getElementById('total-stock');
+const lowStockCountElement = document.getElementById('low-stock-count');
+const inventoryValueElement = document.getElementById('inventory-value');
+const lowStockTableElement = document.getElementById('low-stock-table');
+const onDemandProductsTableElement = document.getElementById('on-demand-products-table');
+const inventoryHealthContainer = document.getElementById('inventory-health-container');
+
+// Financial Elements
+const monthlyIncomeElement = document.getElementById('monthly-income');
+const monthlyExpensesElement = document.getElementById('monthly-expenses');
+const monthlyProfitElement = document.getElementById('monthly-profit');
+const financialSummaryChartElement = document.getElementById('financialSummaryChart');
+
+// Charts
+let stockChart = null;
+let valueChart = null;
+let healthDonutChart = null;
+let financialChart = null;
+
+function updatePageLanguage(lang) {
+    // Implement your translation logic here
+}
+
+function loadShopDetails() {
+    // Fetch shop details from the API
+    fetch('/api/shop/details')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.user;
+
+                // Update DOM elements
+                const shopNameElement = document.getElementById('shop-name');
+                if (shopNameElement) {
+                    shopNameElement.textContent = user.shop_name || 'Your Shop';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading shop details:', error);
+            // Fallback to a default name
+            const shopNameElement = document.getElementById('shop-name');
+            if (shopNameElement) {
+                shopNameElement.textContent = "Your Shop";
+            }
+        });
+}
+
+// Initialize
+loadShopDetails();

@@ -1,38 +1,103 @@
+from datetime import datetime
+from models import db, ChartOfAccounts, Journal, FinancialTransaction
 import logging
-import uuid
-from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
 class AccountingService:
     @staticmethod
-    def initialize_chart_of_accounts():
-        """Initialize basic chart of accounts"""
+    def initialize_chart_of_accounts(user_id):
+        """Initialize chart of accounts for a user"""
         try:
-            from models import Account, db
+            # Check if already initialized
+            existing = ChartOfAccounts.query.filter_by(user_id=user_id).first()
+            if existing:
+                return True
 
-            # Basic accounts
+            # Default chart of accounts
             accounts = [
-                {'code': '1000', 'name': 'Cash', 'account_type': 'Asset', 'normal_balance': 'Debit'},
-                {'code': '1100', 'name': 'Inventory', 'account_type': 'Asset', 'normal_balance': 'Debit'},
-                {'code': '2000', 'name': 'Accounts Payable', 'account_type': 'Liability', 'normal_balance': 'Credit'},
-                {'code': '3000', 'name': 'Owner Equity', 'account_type': 'Equity', 'normal_balance': 'Credit'},
-                {'code': '4000', 'name': 'Sales Revenue', 'account_type': 'Revenue', 'normal_balance': 'Credit'},
-                {'code': '5000', 'name': 'Cost of Goods Sold', 'account_type': 'Expense', 'normal_balance': 'Debit'},
+                # Assets
+                {'code': '1000', 'name': 'Cash', 'type': 'Asset'},
+                {'code': '1100', 'name': 'Accounts Receivable', 'type': 'Asset'},
+                {'code': '1200', 'name': 'Inventory', 'type': 'Asset'},
+                {'code': '1500', 'name': 'Equipment', 'type': 'Asset'},
+
+                # Liabilities
+                {'code': '2000', 'name': 'Accounts Payable', 'type': 'Liability'},
+                {'code': '2100', 'name': 'Short-term Debt', 'type': 'Liability'},
+
+                # Equity
+                {'code': '3000', 'name': 'Owner Equity', 'type': 'Equity'},
+                {'code': '3100', 'name': 'Retained Earnings', 'type': 'Equity'},
+
+                # Revenue
+                {'code': '4000', 'name': 'Sales Revenue', 'type': 'Revenue'},
+                {'code': '4100', 'name': 'Service Revenue', 'type': 'Revenue'},
+
+                # Expenses
+                {'code': '5000', 'name': 'Cost of Goods Sold', 'type': 'Expense'},
+                {'code': '5100', 'name': 'Operating Expenses', 'type': 'Expense'},
+                {'code': '5200', 'name': 'Rent Expense', 'type': 'Expense'},
             ]
 
             for account_data in accounts:
-                existing = Account.query.filter_by(code=account_data['code']).first()
-                if not existing:
-                    account = Account(**account_data)
-                    db.session.add(account)
+                account = ChartOfAccounts(
+                    account_code=account_data['code'],
+                    account_name=account_data['name'],
+                    account_type=account_data['type'],
+                    user_id=user_id,
+                    balance=0.0,
+                    is_active=True
+                )
+                db.session.add(account)
 
             db.session.commit()
+            logger.info(f"Chart of accounts initialized for user {user_id}")
             return True
 
         except Exception as e:
+            db.session.rollback()
             logger.error(f"Error initializing chart of accounts: {str(e)}")
             return False
+
+    @staticmethod
+    def create_journal_entry(user_id, description, entries):
+        """Create a journal entry with multiple line items"""
+        try:
+            # Generate journal number
+            journal_number = f"JE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+            # Calculate totals
+            total_debit = sum(entry.get('debit', 0) for entry in entries)
+            total_credit = sum(entry.get('credit', 0) for entry in entries)
+
+            # Validate balanced entry
+            if abs(total_debit - total_credit) > 0.01:
+                return {'success': False, 'error': 'Journal entry must be balanced'}
+
+            # Create journal header
+            journal = Journal(
+                journal_number=journal_number,
+                description=description,
+                entry_date=datetime.utcnow().date(),
+                total_debit=total_debit,
+                total_credit=total_credit,
+                user_id=user_id
+            )
+
+            db.session.add(journal)
+            db.session.commit()
+
+            return {
+                'success': True,
+                'journal_id': journal.id,
+                'journal_number': journal_number
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating journal entry: {str(e)}")
+            return {'success': False, 'error': str(e)}
 
     @staticmethod
     def record_sale_transaction(sale):
@@ -44,39 +109,6 @@ class AccountingService:
         except Exception as e:
             logger.error(f"Error recording sale transaction: {str(e)}")
             return False
-
-    @staticmethod
-    def create_journal_entry(account_id, debit_amount=0, credit_amount=0, description="", 
-                           reference_type="", transaction_group="", entry_date=None, created_by=None):
-        """Create a journal entry"""
-        try:
-            from models import JournalEntry, db
-
-            if entry_date is None:
-                entry_date = datetime.now().date()
-
-            # Generate entry number
-            entry_number = f"JE-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
-
-            entry = JournalEntry(
-                entry_number=entry_number,
-                account_id=account_id,
-                debit_amount=debit_amount,
-                credit_amount=credit_amount,
-                description=description,
-                reference_type=reference_type,
-                transaction_group=transaction_group,
-                date=entry_date,
-                created_by=created_by
-            )
-
-            db.session.add(entry)
-            db.session.commit()
-            return entry
-
-        except Exception as e:
-            logger.error(f"Error creating journal entry: {str(e)}")
-            return None
 
     @staticmethod
     def get_trial_balance(as_of_date=None):

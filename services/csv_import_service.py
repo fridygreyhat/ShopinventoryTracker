@@ -2,6 +2,7 @@
 import io
 import csv
 import logging
+import re
 from typing import Dict, List, Tuple, Any, Optional
 from datetime import datetime
 
@@ -96,16 +97,17 @@ class CSVImportService:
             return {"error": header_error}
         
         # Process rows
-        processor = CSVRowProcessor(self.db, self.Item)
+        processor = CSVRowProcessor(self.db, self.Item, self.user_id)
         return processor.process_rows(csv_reader)
 
 
 class CSVRowProcessor:
     """Handles processing of individual CSV rows"""
     
-    def __init__(self, db_session, item_model):
+    def __init__(self, db_session, item_model, user_id=None):
         self.db = db_session
         self.Item = item_model
+        self.user_id = user_id
         
     def process_rows(self, csv_reader: csv.DictReader) -> Dict[str, Any]:
         """Process all rows in the CSV"""
@@ -193,7 +195,13 @@ class CSVRowProcessor:
         
         # Generate SKU if not provided
         if not sku:
-            sku = self.Item.generate_sku(name, category)
+            # Use Item model's generate_sku method if available, otherwise create simple one
+            try:
+                sku = self.Item.generate_sku(name, category)
+            except AttributeError:
+                # Fallback SKU generation
+                clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
+                sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
         
         # Ensure SKU uniqueness
         sku = self._ensure_unique_sku(sku, row_number, errors)
@@ -205,13 +213,16 @@ class CSVRowProcessor:
                 sku=sku,
                 description=description,
                 category=category,
-                quantity=quantity,
+                stock_quantity=quantity,
+                minimum_stock=max(1, quantity // 10),  # Set minimum stock to 10% of initial quantity
                 buying_price=buying_price,
-                selling_price_retail=selling_price_retail,
-                selling_price_wholesale=selling_price_wholesale,
-                price=selling_price_retail,  # For backward compatibility
+                retail_price=selling_price_retail,
+                wholesale_price=selling_price_wholesale,
                 sales_type=sales_type,
-                user_id=self.user_id
+                user_id=self.user_id,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
             return new_item
         except Exception as e:
@@ -223,7 +234,7 @@ class CSVRowProcessor:
         original_sku = sku
         counter = 1
         
-        while self.Item.query.filter_by(sku=sku).first():
+        while self.Item.query.filter_by(sku=sku, user_id=self.user_id).first():
             sku = f"{original_sku}-{counter}"
             counter += 1
         

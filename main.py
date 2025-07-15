@@ -3,23 +3,27 @@
 Main entry point for the Flask application
 """
 
-from app import app
-from extensions import configure_database
 import os
+import logging
+from app import app, init_database
 
-# Configure PostgreSQL database
-configure_database(app)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
-    # Ensure database tables are created
-    with app.app_context():
-        from extensions import db
-        try:
-            db.create_all()
-            print("✅ Database tables created/verified")
-        except Exception as e:
-            print(f"❌ Error creating database tables: {str(e)}")
+    # Initialize database with proper error handling
+    try:
+        success = init_database()
+        if not success:
+            logger.error("Database initialization failed - exiting")
+            exit(1)
+        logger.info("✅ Database initialization completed successfully")
+    except Exception as e:
+        logger.error(f"❌ Critical error during startup: {str(e)}")
+        exit(1)
 
     # Start the application
     port = int(os.environ.get('PORT', 5000))
+    logger.info(f"🚀 Starting Flask application on 0.0.0.0:{port}")
     app.run(host='0.0.0.0', port=port, debug=True)

@@ -161,6 +161,30 @@ function updateThemeSelectors(activeTheme) {
     });
 }
 
+// Apply the theme to all theme selectors
+        const themeSelectorss = document.querySelectorAll('.theme-selector select');
+        console.log('Theme selectors found:', themeSelectorss.length);
+        themeSelectorss.forEach(selector => {
+            if (selector) {
+                selector.value = activeTheme;
+            }
+        });
+
+        // Update theme icons in the UI
+        const themeIcon = document.getElementById('current-theme-icon');
+        const themes = {
+            'tanzanite': { icon: 'fas fa-gem' },
+            'forest': { icon: 'fas fa-tree' },
+            'ocean': { icon: 'fas fa-water' },
+            'sunset': { icon: 'fas fa-sun' },
+            'dark': { icon: 'fas fa-moon' }
+        };
+
+        if (themeIcon && themes[activeTheme]) {
+            const iconClass = themes[activeTheme]?.icon || 'fas fa-palette';
+            themeIcon.className = iconClass;
+        }
+
 // Initialize theme when DOM is loaded
 document.addEventListener('DOMContentLoaded', initTheme);
 
