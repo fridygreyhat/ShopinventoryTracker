@@ -185,6 +185,10 @@ def init_database():
                     add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", 'cash')
                     add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", 'completed')
                     add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
+                    add_column_safely('sale', 'is_installment', 'BOOLEAN DEFAULT FALSE', False)
+                    add_column_safely('sale', 'down_payment', 'FLOAT DEFAULT 0', 0)
+                    add_column_safely('sale', 'installment_months', 'INTEGER DEFAULT 0', 0)
+                    add_column_safely('sale', 'monthly_payment', 'FLOAT DEFAULT 0', 0)
 
                     # Add columns to supplier table
                     add_column_safely('supplier', 'is_active', 'BOOLEAN DEFAULT TRUE', True)

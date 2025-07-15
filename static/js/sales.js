@@ -301,6 +301,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
+                // Check if cart has items before showing installment modal
+                if (cart.length === 0) {
+                    alert('Please add items to cart before setting up installment payment');
+                    // Reset payment method to cash
+                    this.value = 'cash';
+                    return;
+                }
                 // Show New Installment Sale modal immediately
                 showNewInstallmentSaleModal();
             }
@@ -1100,13 +1107,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create and show New Installment Sale modal
         const modalHtml = `
             <div class="modal fade" id="newInstallmentSaleModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-xl">
                     <div class="modal-content">
-                        <div class="modal-header">
+                        <div class="modal-header bg-primary text-white">
                             <h5 class="modal-title">
                                 <i class="fas fa-handshake me-2"></i> New Installment Sale
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <form id="installmentSaleForm">
@@ -1115,48 +1122,87 @@ document.addEventListener('DOMContentLoaded', function() {
                                     Creating installment sale for: <strong>${cart[0].name}</strong> (Qty: ${cart[0].quantity}) - Total: <strong>TZS ${totalAmount.toLocaleString()}</strong>
                                 </div>
 
-                                <!-- Customer Selection -->
-                                <div class="row mb-3">
-                                    <div class="col-md-12">
+                                <!-- Customer Selection Tabs -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
                                         <h6 class="mb-3">Customer Information</h6>
-                                        <label for="installmentCustomerSelect" class="form-label">Select Customer</label>
-                                        <select class="form-select" id="installmentCustomerSelect">
-                                            <option value="">Select existing customer</option>
-                                        </select>
-                                        <div class="form-check mt-2">
-                                            <input class="form-check-input" type="checkbox" id="newCustomerToggle">
-                                            <label class="form-check-label" for="newCustomerToggle">
-                                                Add new customer
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- New Customer Fields -->
-                                <div id="newCustomerFields" style="display: none;">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="newCustomerName" class="form-label">Full Name *</label>
-                                                <input type="text" class="form-control" id="newCustomerName" required>
+                                        <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="existing-customer-tab" data-bs-toggle="tab" data-bs-target="#existing-customer" type="button" role="tab">
+                                                    <i class="fas fa-users me-2"></i>Existing Customer
+                                                </button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="new-customer-tab" data-bs-toggle="tab" data-bs-target="#new-customer" type="button" role="tab">
+                                                    <i class="fas fa-user-plus me-2"></i>New Customer
+                                                </button>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content mt-3" id="customerTabContent">
+                                            <!-- Existing Customer Tab -->
+                                            <div class="tab-pane fade show active" id="existing-customer" role="tabpanel">
+                                                <div class="row">
+                                                    <div class="col-md-8">
+                                                        <label for="installmentCustomerSelect" class="form-label">Select Customer</label>
+                                                        <select class="form-select" id="installmentCustomerSelect">
+                                                            <option value="">Choose an existing customer...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label">&nbsp;</label>
+                                                        <button type="button" class="btn btn-outline-primary d-block w-100" onclick="refreshCustomerList()">
+                                                            <i class="fas fa-refresh me-2"></i>Refresh List
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Selected Customer Info Display -->
+                                                <div id="selectedCustomerInfo" class="mt-3" style="display: none;">
+                                                    <div class="card">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">Selected Customer</h6>
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <p class="mb-1"><strong>Name:</strong> <span id="selectedCustomerName"></span></p>
+                                                                    <p class="mb-1"><strong>Phone:</strong> <span id="selectedCustomerPhone"></span></p>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <p class="mb-1"><strong>Email:</strong> <span id="selectedCustomerEmail"></span></p>
+                                                                    <p class="mb-1"><strong>Address:</strong> <span id="selectedCustomerAddress"></span></p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="newCustomerPhone" class="form-label">Phone Number *</label>
-                                                <input type="tel" class="form-control" id="newCustomerPhone" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="newCustomerEmail" class="form-label">Email Address</label>
-                                                <input type="email" class="form-control" id="newCustomerEmail">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="newCustomerNationalId" class="form-label">National ID *</label>
-                                                <input type="text" class="form-control" id="newCustomerNationalId" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="newCustomerAddress" class="form-label">Address *</label>
-                                                <textarea class="form-control" id="newCustomerAddress" rows="2" required></textarea>
+                                            
+                                            <!-- New Customer Tab -->
+                                            <div class="tab-pane fade" id="new-customer" role="tabpanel">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerName" class="form-label">Full Name *</label>
+                                                            <input type="text" class="form-control" id="newCustomerName" placeholder="Enter customer's full name">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerPhone" class="form-label">Phone Number *</label>
+                                                            <input type="tel" class="form-control" id="newCustomerPhone" placeholder="+255 XXX XXX XXX">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerEmail" class="form-label">Email Address</label>
+                                                            <input type="email" class="form-control" id="newCustomerEmail" placeholder="customer@email.com">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerNationalId" class="form-label">National ID *</label>
+                                                            <input type="text" class="form-control" id="newCustomerNationalId" placeholder="Enter National ID">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="newCustomerAddress" class="form-label">Address *</label>
+                                                            <textarea class="form-control" id="newCustomerAddress" rows="3" placeholder="Enter complete address"></textarea>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1290,7 +1336,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 const customerSelect = document.getElementById('installmentCustomerSelect');
                 if (customerSelect && data.success && data.customers) {
-                    customerSelect.innerHTML = '<option value="">Select existing customer</option>';
+                    customerSelect.innerHTML = '<option value="">Choose an existing customer...</option>';
                     data.customers.forEach(customer => {
                         const option = document.createElement('option');
                         option.value = customer.id;
@@ -1302,24 +1348,52 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading customers:', error);
+                const customerSelect = document.getElementById('installmentCustomerSelect');
+                if (customerSelect) {
+                    customerSelect.innerHTML = '<option value="">Error loading customers</option>';
+                }
             });
     }
 
-    function setupInstallmentModalListeners() {
-        // New customer toggle
-        const newCustomerToggle = document.getElementById('newCustomerToggle');
-        const newCustomerFields = document.getElementById('newCustomerFields');
+    // Function to refresh customer list
+    function refreshCustomerList() {
         const customerSelect = document.getElementById('installmentCustomerSelect');
+        if (customerSelect) {
+            customerSelect.innerHTML = '<option value="">Loading customers...</option>';
+            loadCustomersForInstallment();
+        }
+    }
 
-        if (newCustomerToggle) {
-            newCustomerToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    newCustomerFields.style.display = 'block';
-                    customerSelect.disabled = true;
-                    customerSelect.value = '';
+    // Function to display selected customer information
+    function displaySelectedCustomerInfo(customerData) {
+        const infoDiv = document.getElementById('selectedCustomerInfo');
+        const nameSpan = document.getElementById('selectedCustomerName');
+        const phoneSpan = document.getElementById('selectedCustomerPhone');
+        const emailSpan = document.getElementById('selectedCustomerEmail');
+        const addressSpan = document.getElementById('selectedCustomerAddress');
+
+        if (customerData) {
+            nameSpan.textContent = customerData.name || 'N/A';
+            phoneSpan.textContent = customerData.phone || 'N/A';
+            emailSpan.textContent = customerData.email || 'N/A';
+            addressSpan.textContent = customerData.address || 'N/A';
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+
+    function setupInstallmentModalListeners() {
+        // Customer selection listener
+        const customerSelect = document.getElementById('installmentCustomerSelect');
+        if (customerSelect) {
+            customerSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.value && selectedOption.dataset.customerData) {
+                    const customerData = JSON.parse(selectedOption.dataset.customerData);
+                    displaySelectedCustomerInfo(customerData);
                 } else {
-                    newCustomerFields.style.display = 'none';
-                    customerSelect.disabled = false;
+                    displaySelectedCustomerInfo(null);
                 }
             });
         }
@@ -1357,11 +1431,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createInstallmentSaleFromModal() {
         const form = document.getElementById('installmentSaleForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
+        
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
         const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
         const period = parseInt(document.getElementById('installmentPeriod').value);
@@ -1372,23 +1442,38 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const isNewCustomer = document.getElementById('newCustomerToggle').checked;
+        // Determine if using new or existing customer
+        const activeTab = document.querySelector('#customerTabs .nav-link.active').id;
+        const isNewCustomer = activeTab === 'new-customer-tab';
+        
         let customerId = null;
         let customerData = null;
 
         if (isNewCustomer) {
+            // Validate new customer fields
+            const name = document.getElementById('newCustomerName').value.trim();
+            const phone = document.getElementById('newCustomerPhone').value.trim();
+            const nationalId = document.getElementById('newCustomerNationalId').value.trim();
+            const address = document.getElementById('newCustomerAddress').value.trim();
+
+            if (!name || !phone || !nationalId || !address) {
+                alert('Please fill in all required fields for new customer');
+                return;
+            }
+
             customerData = {
-                name: document.getElementById('newCustomerName').value,
-                phone: document.getElementById('newCustomerPhone').value,
-                email: document.getElementById('newCustomerEmail').value,
-                national_id: document.getElementById('newCustomerNationalId').value,
-                address: document.getElementById('newCustomerAddress').value,
+                name: name,
+                phone: phone,
+                email: document.getElementById('newCustomerEmail').value.trim(),
+                national_id: nationalId,
+                address: address,
                 customer_type: 'retail'
             };
         } else {
+            // Using existing customer
             customerId = document.getElementById('installmentCustomerSelect').value;
             if (!customerId) {
-                alert('Please select a customer or add new customer information');
+                alert('Please select an existing customer');
                 return;
             }
         }
@@ -1453,8 +1538,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Make function global
+    // Make functions global
     window.showNewInstallmentSaleModal = showNewInstallmentSaleModal;
+    window.refreshCustomerList = refreshCustomerList;
 
     // Enhanced features
     function switchCamera() {
