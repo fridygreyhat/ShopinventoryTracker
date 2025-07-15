@@ -336,7 +336,7 @@ function calculateMonthlyPayment() {
 function saveInstallmentSale() {
     const form = document.getElementById('installment-form');
     if (!form) {
-        alert('Form not found');
+        showErrorMessage('Form not found');
         return;
     }
     
@@ -364,27 +364,27 @@ function saveInstallmentSale() {
     
     // Validate required fields
     if (!productSelect || !productSelect.value) {
-        alert('Please select a product');
+        showErrorMessage('Please select a product');
         return;
     }
     
     if (!quantityInput || !quantityInput.value || parseInt(quantityInput.value) <= 0) {
-        alert('Please enter a valid quantity');
+        showErrorMessage('Please enter a valid quantity');
         return;
     }
     
     if (!totalAmountInput || !totalAmountInput.value || parseFloat(totalAmountInput.value) <= 0) {
-        alert('Please enter a valid total amount');
+        showErrorMessage('Please enter a valid total amount');
         return;
     }
     
     if (!installmentsCountInput || !installmentsCountInput.value || parseInt(installmentsCountInput.value) <= 0) {
-        alert('Please enter a valid number of installments');
+        showErrorMessage('Please enter a valid number of installments');
         return;
     }
     
     if (!startDateInput || !startDateInput.value) {
-        alert('Please select a start date');
+        showErrorMessage('Please select a start date');
         return;
     }
     
@@ -401,12 +401,12 @@ function saveInstallmentSale() {
         const addressInput = document.getElementById('new-customer-address');
         
         if (!nameInput || !nameInput.value.trim()) {
-            alert('Please enter customer name');
+            showErrorMessage('Please enter customer name');
             return;
         }
         
         if (!phoneInput || !phoneInput.value.trim()) {
-            alert('Please enter customer phone');
+            showErrorMessage('Please enter customer phone');
             return;
         }
         
@@ -420,7 +420,7 @@ function saveInstallmentSale() {
     }
     
     if (!customerId && !customerData) {
-        alert('Please select a customer or create a new one');
+        showErrorMessage('Please select a customer or create a new one');
         return;
     }
     
@@ -439,7 +439,7 @@ function saveInstallmentSale() {
     
     // Validate installment data
     if (installmentData.down_payment >= installmentData.total_amount) {
-        alert('Down payment must be less than total amount');
+        showErrorMessage('Down payment must be less than total amount');
         return;
     }
     
@@ -462,7 +462,7 @@ function saveInstallmentSale() {
         })
         .catch(error => {
             console.error('Error creating customer:', error);
-            alert('Error creating customer: ' + error.message);
+            showErrorMessage('Error creating customer: ' + error.message);
         });
     } else {
         createInstallmentSale(installmentData);
