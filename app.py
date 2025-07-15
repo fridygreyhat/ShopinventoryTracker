@@ -2074,6 +2074,98 @@ def add_subcategory(category_id):
         logger.error(f"Error creating subcategory: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/categories/<int:category_id>', methods=['PUT'])
+@login_required
+def update_category_api(category_id):
+    """Update a category"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        from models import Category
+
+        # Get category and verify ownership
+        category = Category.query.filter_by(
+            id=category_id, 
+            user_id=user_id, 
+            is_active=True
+        ).first()
+        
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
+        # Update fields
+        if 'name' in data:
+            category.name = data['name'].strip()
+        if 'description' in data:
+            category.description = data['description'].strip()
+        if 'sort_order' in data:
+            category.sort_order = int(data['sort_order'])
+        
+        category.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'category': category.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
+@login_required
+def delete_category_api(category_id):
+    """Delete a category"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        from models import Category
+
+        # Get category and verify ownership
+        category = Category.query.filter_by(
+            id=category_id, 
+            user_id=user_id, 
+            is_active=True
+        ).first()
+        
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
+        # Check if category has subcategories
+        subcategories = Category.query.filter_by(
+            parent_id=category_id,
+            user_id=user_id,
+            is_active=True
+        ).count()
+        
+        if subcategories > 0:
+            return jsonify({'error': 'Cannot delete category with subcategories'}), 400
+
+        # Soft delete - mark as inactive
+        category.is_active = False
+        category.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Category "{category.name}" deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting category: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/categories', methods=['GET'])
 @login_required
 def get_categories_api():

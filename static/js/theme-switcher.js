@@ -162,9 +162,9 @@ function updateThemeSelectors(activeTheme) {
 }
 
 // Apply the theme to all theme selectors
-        const themeSelectors = document.querySelectorAll('.theme-selector select');
-        console.log('Theme selectors found:', themeSelectors.length);
-        themeSelectors.forEach(selector => {
+        const themeSelectorss = document.querySelectorAll('.theme-selector select');
+        console.log('Theme selectors found:', themeSelectorss.length);
+        themeSelectorss.forEach(selector => {
             if (selector) {
                 selector.value = activeTheme;
             }
