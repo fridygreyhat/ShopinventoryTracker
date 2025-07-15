@@ -5005,11 +5005,7 @@ def accounting():
     """Accounting dashboard page"""
     return render_template('accounting.html')
 
-@app.route('/installments')
-@login_required
-def installments():
-    """Installments management page"""
-    return render_template('installments.html')
+
 
 @app.route('/reports')
 @login_required
