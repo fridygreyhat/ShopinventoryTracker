@@ -3787,6 +3787,7 @@ def get_completed_sales():
         # Date filters
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
+        payment_method = request.args.get('payment_method')
         
         # Build query
         query = Sale.query.filter_by(user_id=user_id)
@@ -3805,20 +3806,42 @@ def get_completed_sales():
             except ValueError:
                 pass
         
+        if payment_method:
+            query = query.filter(Sale.payment_method == payment_method)
+        
         # Execute query with pagination
         sales = query.order_by(Sale.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
         
+        # Calculate summary data
+        all_sales = Sale.query.filter_by(user_id=user_id).all()
+        total_completed_sales = len(all_sales)
+        total_revenue = sum(float(sale.total_amount or 0) for sale in all_sales)
+        average_transaction = total_revenue / total_completed_sales if total_completed_sales > 0 else 0
+        
         # Format response
         sales_data = []
         for sale in sales.items:
-            sale_dict = sale.to_dict()
-            # Add customer name if available
-            if sale.customer:
-                sale_dict['customer'] = sale.customer.to_dict()
-            # Add sale items
-            sale_dict['items'] = [item.to_dict() for item in sale.sale_items]
+            sale_dict = {
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'customer_name': sale.customer_name or 'Walk-in Customer',
+                'customer_phone': sale.customer_phone,
+                'total_amount': float(sale.total_amount or 0),
+                'payment_method': sale.payment_method or 'cash',
+                'payment_status': sale.payment_status or 'completed',
+                'created_at': sale.created_at.isoformat() if sale.created_at else None,
+                'items_count': len(sale.sale_items),
+                'items': [
+                    {
+                        'name': item.item.name if item.item else 'Unknown Item',
+                        'quantity': item.quantity,
+                        'unit_price': float(item.unit_price or 0),
+                        'total_price': float(item.total_price or 0)
+                    } for item in sale.sale_items
+                ]
+            }
             sales_data.append(sale_dict)
         
         return jsonify({
@@ -3831,6 +3854,11 @@ def get_completed_sales():
                 'total': sales.total,
                 'has_next': sales.has_next,
                 'has_prev': sales.has_prev
+            },
+            'summary': {
+                'total_completed_sales': total_completed_sales,
+                'total_revenue': total_revenue,
+                'average_transaction': average_transaction
             }
         })
         
