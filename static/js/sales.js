@@ -301,21 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
-                if (installmentFields) {
-                    installmentFields.classList.remove('d-none');
-                    // Set payment amount to down payment when installment is selected
-                    const downPaymentInput = document.getElementById('downPayment');
-                    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-                    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
-                    if (downPaymentInput) {
-                        downPaymentInput.value = suggestedDownPayment;
-                    }
-                    if (paymentAmount) {
-                        paymentAmount.value = suggestedDownPayment;
-                    }
-                }
-                
-                // Show installment customer modal
+                // Show installment customer modal immediately
                 showInstallmentCustomerModal();
             }
         });
@@ -1161,6 +1147,8 @@ function initializeInstallmentCustomerModal() {
     const saveInstallmentCustomerBtn = document.getElementById('saveInstallmentCustomer');
     const installmentDownPaymentInput = document.getElementById('installmentDownPayment');
     const installmentPeriodSelect = document.getElementById('installmentPeriod');
+    const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
+    const newCustomerToggle = document.getElementById('installmentNewCustomerToggle');
 
     if (saveInstallmentCustomerBtn) {
         saveInstallmentCustomerBtn.addEventListener('click', saveInstallmentCustomerInfo);
@@ -1172,6 +1160,107 @@ function initializeInstallmentCustomerModal() {
 
     if (installmentPeriodSelect) {
         installmentPeriodSelect.addEventListener('change', updateInstallmentSummary);
+    }
+
+    // Handle existing customer selection
+    if (existingCustomerSelect) {
+        existingCustomerSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.dataset.customerData) {
+                const customerData = JSON.parse(selectedOption.dataset.customerData);
+                populateInstallmentCustomerForm(customerData);
+                
+                // Hide new customer fields when existing customer is selected
+                toggleInstallmentCustomerFields(false);
+            } else {
+                // Clear form when no customer is selected
+                clearInstallmentCustomerForm();
+            }
+        });
+    }
+
+    // Handle new customer toggle
+    if (newCustomerToggle) {
+        newCustomerToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Clear existing customer selection
+                if (existingCustomerSelect) {
+                    existingCustomerSelect.value = '';
+                }
+                clearInstallmentCustomerForm();
+                toggleInstallmentCustomerFields(true);
+            } else {
+                toggleInstallmentCustomerFields(false);
+            }
+        });
+    }
+}
+
+function populateInstallmentCustomerForm(customerData) {
+    // Populate form fields with existing customer data
+    const fields = {
+        'installmentCustomerName': customerData.name,
+        'installmentCustomerPhone': customerData.phone,
+        'installmentCustomerEmail': customerData.email,
+        'installmentCustomerAddress': customerData.address
+    };
+
+    Object.keys(fields).forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field && fields[fieldId]) {
+            field.value = fields[fieldId];
+            field.readOnly = true; // Make read-only for existing customers
+        }
+    });
+
+    // Store customer ID for later use
+    const modal = document.getElementById('installmentCustomerModal');
+    if (modal) {
+        modal.dataset.existingCustomerId = customerData.id;
+    }
+}
+
+function clearInstallmentCustomerForm() {
+    const fieldIds = [
+        'installmentCustomerName', 'installmentCustomerPhone', 'installmentCustomerEmail',
+        'installmentCustomerNationalId', 'installmentCustomerAddress', 'installmentCustomerRegion',
+        'installmentCustomerOccupation', 'installmentEmergencyName', 'installmentEmergencyPhone',
+        'installmentEmergencyRelation'
+    ];
+
+    fieldIds.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = '';
+            field.readOnly = false;
+        }
+    });
+
+    // Clear stored customer ID
+    const modal = document.getElementById('installmentCustomerModal');
+    if (modal) {
+        delete modal.dataset.existingCustomerId;
+    }
+}
+
+function toggleInstallmentCustomerFields(showNewCustomerFields) {
+    const newCustomerFieldsContainer = document.getElementById('installmentNewCustomerFields');
+    const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
+    
+    if (showNewCustomerFields) {
+        if (newCustomerFieldsContainer) {
+            newCustomerFieldsContainer.style.display = 'block';
+        }
+        if (existingCustomerSelect) {
+            existingCustomerSelect.disabled = true;
+        }
+    } else {
+        if (newCustomerFieldsContainer) {
+            newCustomerFieldsContainer.style.display = 'none';
+        }
+        if (existingCustomerSelect) {
+            existingCustomerSelect.disabled = false;
+        }
     }
 }
 
@@ -1191,12 +1280,39 @@ function showInstallmentCustomerModal() {
     // Set minimum down payment
     document.getElementById('installmentDownPayment').setAttribute('min', totalAmount * 0.1); // 10% minimum
     
+    // Load existing customers into dropdown
+    loadInstallmentCustomers();
+    
     // Update summary
     updateInstallmentSummary();
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('installmentCustomerModal'));
     modal.show();
+}
+
+function loadInstallmentCustomers() {
+    fetch('/api/customers')
+        .then(response => response.json())
+        .then(data => {
+            const customerSelect = document.getElementById('installmentExistingCustomer');
+            if (customerSelect) {
+                customerSelect.innerHTML = '<option value="">Select existing customer</option>';
+                
+                if (data.success && data.customers) {
+                    data.customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
+                        option.dataset.customerData = JSON.stringify(customer);
+                        customerSelect.appendChild(option);
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading customers:', error);
+        });
 }
 
 function updateInstallmentSummary() {
@@ -1238,8 +1354,12 @@ function saveInstallmentCustomerInfo() {
         return;
     }
 
+    const modal = document.getElementById('installmentCustomerModal');
+    const existingCustomerId = modal.dataset.existingCustomerId;
+    
     // Collect customer data
     installmentCustomerData = {
+        customer_id: existingCustomerId || null,
         name: document.getElementById('installmentCustomerName').value,
         phone: document.getElementById('installmentCustomerPhone').value,
         email: document.getElementById('installmentCustomerEmail').value,
@@ -1256,21 +1376,27 @@ function saveInstallmentCustomerInfo() {
             down_payment: downPayment,
             period_months: period,
             monthly_payment: (totalAmount - downPayment) / period
-        }
+        },
+        is_existing_customer: !!existingCustomerId
     };
 
     // Update checkout form with customer data
-    document.getElementById('customerName').value = installmentCustomerData.name;
-    document.getElementById('customerPhone').value = installmentCustomerData.phone;
+    const customerNameField = document.getElementById('customerName');
+    const customerPhoneField = document.getElementById('customerPhone');
+    
+    if (customerNameField) customerNameField.value = installmentCustomerData.name;
+    if (customerPhoneField) customerPhoneField.value = installmentCustomerData.phone;
     
     // Update payment amount to down payment
     if (paymentAmount) {
         paymentAmount.value = downPayment;
     }
 
-    // Update installment fields in main form
+    // Show installment fields in main form
     const installmentFields = document.getElementById('installmentFields');
     if (installmentFields) {
+        installmentFields.classList.remove('d-none');
+        
         const downPaymentField = document.getElementById('downPayment');
         const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
         const customerAddressField = document.getElementById('customerAddress');
@@ -1281,11 +1407,12 @@ function saveInstallmentCustomerInfo() {
     }
 
     // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('installmentCustomerModal'));
-    modal.hide();
+    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('installmentCustomerModal'));
+    modalInstance.hide();
 
     // Show success message
-    showSuccessAlert('Customer information saved! You can now complete the installment sale.');
+    const customerType = existingCustomerId ? 'existing' : 'new';
+    showSuccessAlert(`${customerType.charAt(0).toUpperCase() + customerType.slice(1)} customer information saved! You can now complete the installment sale.`);
 }
 
 function showSuccessAlert(message) {
