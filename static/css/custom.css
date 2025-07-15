@@ -1063,12 +1063,22 @@ footer {
     transform: translateY(-50%) rotate(180deg);
 }
 
+.nav-link.submenu-toggle.active .submenu-arrow {
+    transform: translateY(-50%) rotate(180deg);
+}
+
 .submenu {
     background: rgba(0, 0, 0, 0.02);
     border-left: 2px solid var(--primary-color);
     margin-left: 1rem;
     margin-top: 0.25rem;
-    transition: all 0.3s ease;
+    overflow: hidden;
+    transition: height 0.3s ease;
+    height: 0;
+}
+
+.submenu.show {
+    height: auto;
 }
 
 .submenu-list {
