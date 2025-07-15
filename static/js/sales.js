@@ -1267,6 +1267,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('newInstallmentSaleModal'));
         modal.show();
+
+        // Update payment summary initially
+        updateInstallmentPaymentSummary();
     }
 
     function loadCustomersForInstallment() {
@@ -1274,9 +1277,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 const customerSelect = document.getElementById('installmentCustomerSelect');
-                if (customerSelect && data.success && data.customers) {
+                if (customerSelect) {
                     customerSelect.innerHTML = '<option value="">Choose an existing customer...</option>';
-                    data.customers.forEach(customer => {
+                    
+                    // Handle both array response and object with customers property
+                    const customers = Array.isArray(data) ? data : (data.customers || []);
+                    
+                    customers.forEach(customer => {
                         const option = document.createElement('option');
                         option.value = customer.id;
                         option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
@@ -1375,9 +1382,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
         const period = parseInt(document.getElementById('installmentPeriod').value);
 
-        // Validate down payment
-        if (downPayment < totalAmount * 0.2) {
-            alert('Down payment must be at least 20% of total amount');
+        // Validate required fields
+        if (!downPayment || downPayment <= 0) {
+            alert('Please enter a valid down payment amount');
+            return;
+        }
+
+        if (!period || period <= 0) {
+            alert('Please select a valid payment period');
+            return;
+        }
+
+        // Validate down payment (minimum 10%)
+        if (downPayment < totalAmount * 0.1) {
+            alert('Down payment must be at least 10% of total amount');
             return;
         }
 

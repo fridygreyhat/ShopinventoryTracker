@@ -2,7 +2,7 @@ import os
 import logging
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -2742,6 +2742,7 @@ def create_installment_sale():
             notes=data.get('notes', ''),
             total_paid=down_payment,
             payments_made=1 if down_payment > 0 else 0,
+            status='Active',
             user_id=user_id
         )
         db.session.add(installment_sale)
@@ -2884,6 +2885,108 @@ def record_installment_payment(sale_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error recording payment: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===== SALES API ROUTES =====
+
+@app.route('/api/sales', methods=['POST'])
+@login_required
+def create_sale():
+    """Create a new sale transaction"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Generate unique sale number
+        sale_number = f"SALE-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        invoice_number = f"INV-{sale_number}"
+
+        # Extract customer information
+        customer_data = data.get('customer', {})
+        customer_name = customer_data.get('name', 'Walk-in Customer')
+        customer_phone = customer_data.get('phone', '')
+
+        # Extract payment information
+        payment_data = data.get('payment', {})
+        payment_method = payment_data.get('method', 'cash')
+        payment_amount = float(payment_data.get('amount', 0))
+
+        # Calculate totals
+        subtotal = float(data.get('subtotal', 0))
+        discount_amount = float(data.get('discount', {}).get('amount', 0))
+        total_amount = float(data.get('total', 0))
+        change_amount = max(0, payment_amount - total_amount) if payment_method == 'cash' else 0
+
+        # Create sale record
+        sale = Sale(
+            invoice_number=invoice_number,
+            sale_number=sale_number,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            sale_type=data.get('sale_type', 'retail'),
+            subtotal=subtotal,
+            discount_amount=discount_amount,
+            total_amount=total_amount,
+            payment_method=payment_method,
+            payment_amount=payment_amount,
+            change_amount=change_amount,
+            payment_status='completed',
+            notes=data.get('notes', ''),
+            user_id=user_id
+        )
+
+        db.session.add(sale)
+        db.session.flush()  # Get sale ID
+
+        # Add sale items and update inventory
+        for item_data in data.get('items', []):
+            item_id = item_data.get('id')
+            quantity = float(item_data.get('quantity', 0))
+            unit_price = float(item_data.get('price', 0))
+            total_price = float(item_data.get('total', 0))
+
+            # Create sale item
+            sale_item = SaleItem(
+                sale_id=sale.id,
+                item_id=item_id,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=total_price
+            )
+            db.session.add(sale_item)
+
+            # Update item stock
+            item = Item.query.get(item_id)
+            if item:
+                item.stock_quantity = max(0, item.stock_quantity - quantity)
+
+                # Create stock movement record
+                stock_movement = StockMovement(
+                    movement_type='out',
+                    quantity=quantity,
+                    reason=f'Sale {sale_number}',
+                    item_id=item_id,
+                    user_id=user_id
+                )
+                db.session.add(stock_movement)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'sale_number': sale_number,
+            'total_amount': total_amount,
+            'message': 'Sale completed successfully'
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating sale: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ===== CUSTOMERS API ROUTES =====

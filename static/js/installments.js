@@ -334,7 +334,7 @@ function calculateMonthlyPayment() {
 }
 
 function saveInstallmentSale() {
-    const form = document.getElementById('installment-form');
+    const form = document.getElementById('installmentSaleForm');
     if (!form) {
         showErrorMessage('Form not found');
         return;
@@ -346,15 +346,15 @@ function saveInstallmentSale() {
     }
     
     // Get form values with validation
-    const customerSelect = document.getElementById('customer-select');
+    const customerSelect = document.getElementById('installmentCustomerSelect');
     const productSelect = document.getElementById('product-select');
     const quantityInput = document.getElementById('quantity');
     const totalAmountInput = document.getElementById('total-amount');
-    const downPaymentInput = document.getElementById('down-payment');
-    const installmentsCountInput = document.getElementById('installments-count');
-    const startDateInput = document.getElementById('start-date');
-    const agreementSignedInput = document.getElementById('agreement-signed');
-    const notesInput = document.getElementById('notes');
+    const downPaymentInput = document.getElementById('installmentDownPayment');
+    const installmentsCountInput = document.getElementById('installmentPeriod');
+    const startDateInput = document.getElementById('installmentStartDate');
+    const agreementSignedInput = document.getElementById('agreementSigned');
+    const notesInput = document.getElementById('installmentNotes');
     
     // Check if all required elements exist
     if (!productSelect || !quantityInput || !totalAmountInput || !installmentsCountInput || !startDateInput) {
