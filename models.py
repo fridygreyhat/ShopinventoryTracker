@@ -65,6 +65,27 @@ class User(UserMixin, db.Model):
 class Item(db.Model):
     __tablename__ = 'item'
     
+    @staticmethod
+    def generate_sku(name, category=""):
+        """Generate a SKU for an item"""
+        import re
+        from datetime import datetime
+        
+        # Clean the name to create SKU base
+        clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
+        clean_category = re.sub(r'[^a-zA-Z0-9]', '', category[:5]).upper() if category else ""
+        
+        # Create timestamp suffix
+        timestamp = datetime.utcnow().strftime('%y%m%d')
+        
+        # Combine parts
+        if clean_category:
+            sku = f"{clean_category}-{clean_name}-{timestamp}"
+        else:
+            sku = f"{clean_name}-{timestamp}"
+        
+        return sku
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
     description = db.Column(db.Text)

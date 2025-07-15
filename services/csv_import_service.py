@@ -194,7 +194,10 @@ class CSVRowProcessor:
         
         # Generate SKU if not provided
         if not sku:
-            sku = self.Item.generate_sku(name, category)
+            # Simple SKU generation since Item.generate_sku might not exist
+            import re
+            clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
+            sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
         
         # Ensure SKU uniqueness
         sku = self._ensure_unique_sku(sku, row_number, errors)

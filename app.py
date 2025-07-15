@@ -977,22 +977,22 @@ def bulk_import_inventory():
     file = request.files['file']
 
     try:
-    # Get current user ID
-     current_user_id = session.get('user_id')
-     if not current_user_id:
-      return jsonify({"error": "User not authenticated"}), 401
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
 
         # Initialize import service with user_id
-     import_service = CSVImportService(db.session, Item, current_user_id)
+        import_service = CSVImportService(db.session, Item, current_user_id)
 
         # Process the import
-     result = import_service.process_csv_import(file)
+        result = import_service.process_csv_import(file)
 
-    # Return appropriate status code
-     if result.get("success"):
-        return jsonify(result), 200
-     else:
-        return jsonify(result), 400
+        # Return appropriate status code
+        if result.get("success"):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
 
     except Exception as e:
         db.session.rollback()
