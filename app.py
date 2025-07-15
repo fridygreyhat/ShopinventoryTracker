@@ -2823,7 +2823,7 @@ def get_installment_payments(sale_id):
 
 @app.route('/api/installment-sales/<int:sale_id>/payments', methods=['POST'])
 @login_required
-def record_installment_payment():
+def record_installment_payment(sale_id):
     """Record a payment for an installment sale"""
     try:
         from models import InstallmentSale, InstallmentPayment
@@ -4986,26 +4986,27 @@ def sales():
 
         # Get installment plans summary with error handling
         try:
-            from models import InstallmentPlan
+            from models import InstallmentSale
             from datetime import datetime
             
-            # Check if InstallmentPlan table exists
+            # Check if InstallmentSale table exists
             active_plans = []
             total_outstanding = 0
             overdue_count = 0
             
             try:
-                active_plans = InstallmentPlan.query.join(Sale).filter(
-                    Sale.user_id == user_id,
-                    InstallmentPlan.status == 'active'
+                # Use InstallmentSale instead of InstallmentPlan
+                active_plans = InstallmentSale.query.filter(
+                    InstallmentSale.user_id == user_id,
+                    InstallmentSale.status == 'Active'
                 ).all()
                 
                 # Calculate outstanding amounts
-                total_outstanding = sum(plan.outstanding_amount for plan in active_plans)
+                total_outstanding = sum(plan.remaining_balance for plan in active_plans)
                 overdue_count = sum(1 for plan in active_plans if plan.next_due_date and plan.next_due_date < datetime.now().date())
             except Exception as plan_error:
-                logger.warning(f"InstallmentPlan query failed: {str(plan_error)}")
-                # Continue with empty values if InstallmentPlan table doesn't exist
+                logger.warning(f"InstallmentSale query failed: {str(plan_error)}")
+                # Continue with empty values if InstallmentSale table doesn't exist
                 
         except Exception as e:
             logger.error(f"Error getting installment plans: {str(e)}")

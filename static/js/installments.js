@@ -58,16 +58,25 @@ function loadDashboardData() {
 function loadCustomers() {
     fetch('/api/customers')
         .then(response => response.json())
-        .then(customers => {
+        .then(data => {
             const customerSelect = document.getElementById('customer-select');
             const customerFilter = document.getElementById('customer-filter');
+            
+            if (!customerSelect || !customerFilter) {
+                console.error('Customer select elements not found');
+                return;
+            }
             
             // Clear existing options
             customerSelect.innerHTML = '<option value="">Select Customer</option>';
             customerFilter.innerHTML = '<option value="">All Customers</option>';
             
+            // Handle both array response and object with customers property
+            const customers = Array.isArray(data) ? data : (data.customers || []);
+            
             customers.forEach(customer => {
-                const option = `<option value="${customer.id}">${customer.name} - ${customer.phone}</option>`;
+                const phone = customer.phone ? ` - ${customer.phone}` : '';
+                const option = `<option value="${customer.id}">${customer.name}${phone}</option>`;
                 customerSelect.innerHTML += option;
                 customerFilter.innerHTML += option;
             });
@@ -82,17 +91,34 @@ function loadProducts() {
         .then(response => response.json())
         .then(products => {
             const productSelect = document.getElementById('product-select');
+            
+            if (!productSelect) {
+                console.error('Product select element not found');
+                return;
+            }
+            
             productSelect.innerHTML = '<option value="">Select Product</option>';
             
+            if (!Array.isArray(products)) {
+                console.error('Products data is not an array:', products);
+                return;
+            }
+            
             products.forEach(product => {
-                if (product.quantity > 0) {
-                    const option = `<option value="${product.id}" data-price="${product.selling_price_retail || product.price}">${product.name} (Stock: ${product.quantity})</option>`;
+                const quantity = product.quantity || product.stock_quantity || 0;
+                if (quantity > 0) {
+                    const price = product.selling_price_retail || product.retail_price || product.price || 0;
+                    const option = `<option value="${product.id}" data-price="${price}">${product.name} (Stock: ${quantity})</option>`;
                     productSelect.innerHTML += option;
                 }
             });
         })
         .catch(error => {
             console.error('Error loading products:', error);
+            const productSelect = document.getElementById('product-select');
+            if (productSelect) {
+                productSelect.innerHTML = '<option value="">Error loading products</option>';
+            }
         });
 }
 
@@ -255,32 +281,63 @@ function toggleNewCustomerFields(show) {
 
 function updatePriceAndTotal() {
     const productSelect = document.getElementById('product-select');
-    const quantity = parseFloat(document.getElementById('quantity').value) || 1;
+    const quantityInput = document.getElementById('quantity');
     const unitPriceInput = document.getElementById('unit-price');
     const totalAmountInput = document.getElementById('total-amount');
     
+    if (!productSelect || !quantityInput || !unitPriceInput || !totalAmountInput) {
+        console.error('Required price calculation elements not found');
+        return;
+    }
+    
+    const quantity = parseFloat(quantityInput.value) || 1;
     const selectedOption = productSelect.options[productSelect.selectedIndex];
+    
     if (selectedOption && selectedOption.dataset.price) {
-        const unitPrice = parseFloat(selectedOption.dataset.price);
+        const unitPrice = parseFloat(selectedOption.dataset.price) || 0;
         unitPriceInput.value = unitPrice.toFixed(2);
         totalAmountInput.value = (unitPrice * quantity).toFixed(2);
+        calculateMonthlyPayment();
+    } else {
+        unitPriceInput.value = '0.00';
+        totalAmountInput.value = '0.00';
         calculateMonthlyPayment();
     }
 }
 
 function calculateMonthlyPayment() {
-    const totalAmount = parseFloat(document.getElementById('total-amount').value) || 0;
-    const downPayment = parseFloat(document.getElementById('down-payment').value) || 0;
-    const installmentsCount = parseInt(document.getElementById('installments-count').value) || 1;
+    const totalAmountInput = document.getElementById('total-amount');
+    const downPaymentInput = document.getElementById('down-payment');
+    const installmentsCountInput = document.getElementById('installments-count');
+    const monthlyPaymentInput = document.getElementById('monthly-payment');
     
-    const remainingAmount = totalAmount - downPayment;
+    if (!totalAmountInput || !downPaymentInput || !installmentsCountInput || !monthlyPaymentInput) {
+        console.error('Required payment calculation elements not found');
+        return;
+    }
+    
+    const totalAmount = parseFloat(totalAmountInput.value) || 0;
+    const downPayment = parseFloat(downPaymentInput.value) || 0;
+    const installmentsCount = parseInt(installmentsCountInput.value) || 1;
+    
+    if (totalAmount <= 0 || installmentsCount <= 0) {
+        monthlyPaymentInput.value = '0.00';
+        return;
+    }
+    
+    const remainingAmount = Math.max(0, totalAmount - downPayment);
     const monthlyPayment = remainingAmount / installmentsCount;
     
-    document.getElementById('monthly-payment').value = monthlyPayment.toFixed(2);
+    monthlyPaymentInput.value = monthlyPayment.toFixed(2);
 }
 
 function saveInstallmentSale() {
     const form = document.getElementById('installment-form');
+    if (!form) {
+        alert('Form not found');
+        return;
+    }
+    
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -296,6 +353,12 @@ function saveInstallmentSale() {
     const startDateInput = document.getElementById('start-date');
     const agreementSignedInput = document.getElementById('agreement-signed');
     const notesInput = document.getElementById('notes');
+    
+    // Check if all required elements exist
+    if (!productSelect || !quantityInput || !totalAmountInput || !installmentsCountInput || !startDateInput) {
+        alert('Required form elements are missing');
+        return;
+    }
     
     // Validate required fields
     if (!productSelect || !productSelect.value) {
@@ -407,26 +470,48 @@ function saveInstallmentSale() {
 function createInstallmentSale(installmentData) {
     fetch('/api/installment-sales', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
         body: JSON.stringify(installmentData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
             alert('Error: ' + data.error);
             return;
         }
         
-        alert('Installment sale created successfully!');
-        bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal')).hide();
-        document.getElementById('installment-form').reset();
-        toggleNewCustomerFields(false);
-        loadDashboardData();
-        loadInstallmentSales();
+        if (data.success) {
+            alert('Installment sale created successfully!');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Reset form
+            const form = document.getElementById('installment-form');
+            if (form) {
+                form.reset();
+            }
+            
+            toggleNewCustomerFields(false);
+            loadDashboardData();
+            loadInstallmentSales();
+        } else {
+            alert('Unexpected response format');
+        }
     })
     .catch(error => {
         console.error('Error creating installment sale:', error);
-        alert('Error creating installment sale');
+        alert('Error creating installment sale: ' + error.message);
     });
 }
 
