@@ -345,14 +345,14 @@ function saveInstallmentSale() {
         return;
     }
     
-    // Get form values with validation - use correct element IDs
-    const customerSelect = document.getElementById('installmentCustomerSelect') || document.getElementById('customer-select');
+    // Get form values with validation - use correct element IDs from modal
+    const customerSelect = document.getElementById('installmentCustomerSelect');
     const productSelect = document.getElementById('product-select');
     const quantityInput = document.getElementById('quantity');
     const totalAmountInput = document.getElementById('total-amount');
-    const downPaymentInput = document.getElementById('installmentDownPayment') || document.getElementById('down-payment');
-    const installmentsCountInput = document.getElementById('installmentPeriod') || document.getElementById('installments-count');
-    const startDateInput = document.getElementById('installmentStartDate') || document.getElementById('start-date');
+    const downPaymentInput = document.getElementById('installmentDownPayment');
+    const installmentsCountInput = document.getElementById('installmentPeriod');
+    const startDateInput = document.getElementById('installmentStartDate');
     const agreementSignedInput = document.getElementById('agreementSigned');
     const notesInput = document.getElementById('installmentNotes');
     
@@ -380,6 +380,14 @@ function saveInstallmentSale() {
     
     if (!installmentsCountInput || !installmentsCountInput.value || parseInt(installmentsCountInput.value) <= 0) {
         showErrorMessage('Please select a valid payment period');
+        if (installmentsCountInput) installmentsCountInput.focus();
+        return;
+    }
+    
+    const validPeriods = [3, 6, 12, 18, 24];
+    if (!validPeriods.includes(parseInt(installmentsCountInput.value))) {
+        showErrorMessage('Please select a valid payment period from the dropdown');
+        if (installmentsCountInput) installmentsCountInput.focus();
         return;
     }
     

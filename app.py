@@ -2889,6 +2889,235 @@ def record_installment_payment(sale_id):
 
 # ===== SALES API ROUTES =====
 
+@app.route('/api/sales/completed', methods=['GET'])
+@login_required
+def get_completed_sales():
+    """Get completed sales transactions with filtering"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Get filter parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        payment_method = request.args.get('payment_method')
+
+        # Build query
+        query = Sale.query.filter_by(user_id=user_id, payment_status='completed')
+
+        # Apply filters
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+                query = query.filter(Sale.created_at >= date_from_obj)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+                query = query.filter(Sale.created_at <= date_to_obj)
+            except ValueError:
+                pass
+
+        if payment_method:
+            query = query.filter(Sale.payment_method == payment_method)
+
+        # Paginate
+        sales_pagination = query.order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
+        # Format sales data
+        sales_data = []
+        for sale in sales_pagination.items:
+            sale_items = SaleItem.query.filter_by(sale_id=sale.id).all()
+            items_data = []
+            for item in sale_items:
+                items_data.append({
+                    'name': item.item.name if item.item else 'Unknown Item',
+                    'quantity': item.quantity,
+                    'unit_price': item.unit_price,
+                    'total_price': item.total_price
+                })
+
+            sales_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'customer_name': sale.customer_name,
+                'customer_phone': sale.customer_phone,
+                'total_amount': sale.total_amount,
+                'payment_method': sale.payment_method,
+                'payment_status': sale.payment_status,
+                'items_count': len(items_data),
+                'items': items_data,
+                'created_at': sale.created_at.isoformat() if sale.created_at else None
+            })
+
+        # Calculate summary
+        all_sales = Sale.query.filter_by(user_id=user_id, payment_status='completed').all()
+        summary = {
+            'total_completed_sales': len(all_sales),
+            'total_revenue': sum(sale.total_amount for sale in all_sales),
+            'average_transaction': sum(sale.total_amount for sale in all_sales) / len(all_sales) if all_sales else 0
+        }
+
+        return jsonify({
+            'success': True,
+            'sales': sales_data,
+            'summary': summary,
+            'pagination': {
+                'page': page,
+                'pages': sales_pagination.pages,
+                'per_page': per_page,
+                'total': sales_pagination.total,
+                'has_prev': sales_pagination.has_prev,
+                'has_next': sales_pagination.has_next
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting completed sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/<int:sale_id>', methods=['GET'])
+@login_required
+def get_sale_details(sale_id):
+    """Get detailed information about a specific sale"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+
+        # Get sale items
+        sale_items = SaleItem.query.filter_by(sale_id=sale.id).all()
+        items_data = []
+        for item in sale_items:
+            items_data.append({
+                'name': item.item.name if item.item else 'Unknown Item',
+                'sku': item.item.sku if item.item else 'N/A',
+                'quantity': item.quantity,
+                'unit_price': item.unit_price,
+                'total_price': item.total_price
+            })
+
+        sale_data = {
+            'id': sale.id,
+            'sale_number': sale.sale_number,
+            'invoice_number': sale.invoice_number,
+            'customer_name': sale.customer_name,
+            'customer_phone': sale.customer_phone,
+            'sale_type': sale.sale_type,
+            'subtotal': sale.subtotal,
+            'discount_amount': sale.discount_amount,
+            'total_amount': sale.total_amount,
+            'payment_method': sale.payment_method,
+            'payment_status': sale.payment_status,
+            'payment_amount': sale.payment_amount,
+            'change_amount': sale.change_amount,
+            'notes': sale.notes,
+            'items': items_data,
+            'created_at': sale.created_at.isoformat() if sale.created_at else None
+        }
+
+        return jsonify({
+            'success': True,
+            'sale': sale_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sale details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/receipt/<sale_number>')
+@login_required
+def generate_receipt(sale_number):
+    """Generate a printable receipt for a sale"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(sale_number=sale_number, user_id=user_id).first()
+
+        if not sale:
+            return "Receipt not found", 404
+
+        # Get sale items
+        sale_items = SaleItem.query.filter_by(sale_id=sale.id).all()
+
+        receipt_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Receipt - {sale_number}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px; }}
+                .header {{ text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+                .detail {{ display: flex; justify-content: space-between; margin: 5px 0; }}
+                .total {{ font-weight: bold; border-top: 1px solid #333; padding-top: 10px; margin-top: 10px; }}
+                .items {{ margin: 10px 0; }}
+                .item {{ margin: 3px 0; font-size: 0.9em; }}
+                @media print {{ body {{ margin: 0; }} }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>RECEIPT</h2>
+                <p>{sale_number}</p>
+                <p>{sale.created_at.strftime('%Y-%m-%d %H:%M:%S') if sale.created_at else ''}</p>
+            </div>
+            <div class="detail">
+                <span>Customer:</span>
+                <span>{sale.customer_name}</span>
+            </div>
+            <div class="items">
+                <strong>Items:</strong>
+        """
+
+        for item in sale_items:
+            item_name = item.item.name if item.item else 'Unknown Item'
+            receipt_html += f"""
+                <div class="item">
+                    {item_name} x {item.quantity} @ TZS {item.unit_price:,.2f} = TZS {item.total_price:,.2f}
+                </div>
+            """
+
+        receipt_html += f"""
+            </div>
+            <div class="detail">
+                <span>Subtotal:</span>
+                <span>TZS {sale.subtotal:,.2f}</span>
+            </div>
+            <div class="detail">
+                <span>Discount:</span>
+                <span>TZS {sale.discount_amount or 0:,.2f}</span>
+            </div>
+            <div class="detail total">
+                <span>Total:</span>
+                <span>TZS {sale.total_amount:,.2f}</span>
+            </div>
+            <div class="detail">
+                <span>Payment:</span>
+                <span>{sale.payment_method.upper()}</span>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <p>Thank you for your business!</p>
+                <button onclick="window.print()">Print</button>
+                <button onclick="window.close()">Close</button>
+            </div>
+        </body>
+        </html>
+        """
+
+        return receipt_html
+
+    except Exception as e:
+        logger.error(f"Error generating receipt: {str(e)}")
+        return "Error generating receipt", 500
+
 @app.route('/api/sales', methods=['POST'])
 @login_required
 def create_sale():

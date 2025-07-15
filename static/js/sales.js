@@ -300,16 +300,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
-                // Check if cart has items before showing installment modal
-                if (cart.length === 0) {
-                    alert('Please add items to cart before setting up installment payment');
-                    // Reset payment method to cash
-                    this.value = 'cash';
-                    return;
-                }
-                // Show New Installment Sale modal immediately
-                showNewInstallmentSaleModal();
+            // Check if cart has items before showing installment modal
+            if (cart.length === 0) {
+                alert('Please add items to cart before setting up installment payment');
+                // Reset payment method to cash
+                this.value = 'cash';
+                return;
             }
+
+            // Check if only one item in cart (installment limitation)
+            if (cart.length > 1) {
+                alert('Installment sales currently support only one item at a time. Please remove other items from cart.');
+                this.value = 'cash';
+                return;
+            }
+
+            // Show New Installment Sale modal immediately
+            showNewInstallmentSaleModal();
+        }
         });
     }
 
@@ -941,7 +949,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         margin-top: 30px;
                         border-top: 1px solid #ddd;
                         padding-top: 20px;
-                        font-size: 0.9em;
+                        font-size```text
+: 0.9em;
                     }
                     @media print {
                         body {
@@ -1823,8 +1832,6 @@ function updateInstallmentSummary() {
     document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
     document.getElementById('installmentRemainingAmount').textContent = `TZS ${remainingAmount.toLocaleString()}`;
     document.getElementById('installmentMonthlyPayment').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
-
-    ```python
 
     // Validate minimum down payment
     const minDownPayment = totalAmount * 0.1;
