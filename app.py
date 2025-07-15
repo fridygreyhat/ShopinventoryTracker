@@ -835,8 +835,1173 @@ def update_item(item_id):
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        #This code restructures the reports menu into Sales, Stock, and Accounting categories, and adds new API endpoints for generating reports within each category.
-<replit_final_file>
+        # Get item and verify ownership
+        item = Item.query.filter_by(id=item_id, user_id=current_user_id).first()
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+
+        # Handle quantity field mapping
+        if 'quantity' in item_data and 'stock_quantity' not in item_data:
+            item_data['stock_quantity'] = item_data['quantity']
+        elif 'stock_quantity' in item_data and 'quantity' not in item_data:
+            item_data['quantity'] = item_data['stock_quantity']
+
+        # Handle price field mappings
+        price_mappings = {
+            'selling_price_retail': 'retail_price',
+            'selling_price_wholesale': 'wholesale_price',
+            'price': 'retail_price'  # Legacy support
+        }
+
+        for old_field, new_field in price_mappings.items():
+            if old_field in item_data:
+                try:
+                    item_data[new_field] = float(item_data[old_field])
+                except (ValueError, TypeError):
+                    return jsonify({"error": f"Invalid {old_field} format"}), 400
+
+        # Update allowed fields only
+        allowed_fields = [
+            'name', 'description', 'sku', 'stock_quantity', 'minimum_stock',
+            'buying_price', 'retail_price', 'wholesale_price', 'sales_type',
+            'category', 'subcategory', 'unit_type', 'sell_by', 'is_active'
+        ]
+
+        # Validate and update fields
+        for key, value in item_data.items():
+            if key in allowed_fields:
+                # Special handling for numeric fields
+                if key in ['stock_quantity', 'minimum_stock']:
+                    try:
+                        value = int(value) if value is not None else 0
+                    except (ValueError, TypeError):
+                        return jsonify({"error": f"Invalid {key} format"}), 400
+                elif key in ['buying_price', 'retail_price', 'wholesale_price']:
+                    try:
+                        value = float(value) if value is not None else 0.0
+                    except (ValueError, TypeError):
+                        return jsonify({"error": f"Invalid {key} format"}), 400
+                elif key == 'name' and not value:
+                    return jsonify({"error": "Item name cannot be empty"}), 400
+
+                setattr(item, key, value)
+
+        # Update timestamp
+        item.updated_at = datetime.utcnow()
+
+        # Check SKU uniqueness if changed
+        if 'sku' in item_data and item_data['sku'] != item.sku:
+            existing_item = Item.query.filter_by(
+                sku=item_data['sku'], 
+                user_id=current_user_id
+            ).filter(Item.id != item_id).first()
+
+            if existing_item:
+                return jsonify({"error": f"SKU '{item_data['sku']}' already exists"}), 400
+
+        # Save to database
+        db.session.commit()
+
+        logger.info(f"Item updated: {item.name} (ID: {item.id}) by user {current_user_id}")
+
+        # Check for low stock notification
+        if item.stock_quantity <= item.minimum_stock:
+            try:
+                from notifications.notification_manager import check_low_stock_and_notify
+                import threading
+
+                notification_thread = threading.Thread(
+                    target=check_low_stock_and_notify,
+                    args=(db, Item, Setting))
+                notification_thread.daemon = True
+                notification_thread.start()
+            except Exception as e:
+                logger.warning(f"Could not trigger low stock notification: {str(e)}")
+
+        return jsonify(item.to_dict())
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating item: {str(e)}")
+        return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
+
+def verify_postgresql_auth():
+    """Verify that PostgreSQL authentication is working properly"""
+    try:
+        # Test database connection
+        from models import User
+        user_count = User.query.count()
+        logger.info(f"✅ PostgreSQL authentication ready - {user_count} users in database")
+        return True
+    except Exception as e:
+        logger.error(f"❌ PostgreSQL authentication error: {str(e)}")
+        return False
+
+# Verify PostgreSQL authentication on startup
+with app.app_context():
+    if verify_postgresql_auth():
+        logger.info("🔐 PostgreSQL authentication system initialized successfully")
+    else:
+        logger.warning("⚠️ PostgreSQL authentication system may have issues")
+
+@app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
+def delete_item(item_id):
+    """API endpoint to delete an inventory item"""
+    from models import Item
+
+    try:
+        item = Item.query.get(item_id)
+
+        if item is None:
+            return jsonify({"error": "Item not found"}), 404
+
+        # Store item details before deletion
+        item_dict = item.to_dict()
+        item_name = item.name
+
+        # Remove item from database
+        db.session.delete(item)
+        db.session.commit()
+
+        return jsonify({"message": f"Deleted {item_name}", "item": item_dict})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting item: {str(e)}")
+        return jsonify({"error": "Failed to delete item"}), 500
+
+@app.route('/api/inventory/bulk-import', methods=['POST'])
+@login_required
+def bulk_import_inventory():
+    """API endpoint to handle bulk import of inventory items from CSV"""
+    from services.csv_import_service import CSVImportService
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+
+    if not file or file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    try:
+        # Get current user ID
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Initialize import service with user_id
+        import_service = CSVImportService(db.session, Item, current_user_id)
+
+        # Process the import
+        result = import_service.process_csv_import(file)
+
+        # Log the import result
+        logger.info(f"CSV import result for user {current_user_id}: {result}")
+
+        # Return appropriate status code
+        if result.get("success"):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Bulk import failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"Import failed: {str(e)}",
+            "imported_count": 0,
+            "total_rows": 0,
+            "errors": [f"System error: {str(e)}"]
+        }), 500
+
+@app.route('/api/inventory/csv-template', methods=['GET'])
+def get_csv_template():
+    """API endpoint to get CSV template and format information"""
+    from services.csv_import_service import CSVTemplateGenerator
+
+    template_type = request.args.get('type', 'info')
+
+    if template_type == 'download':
+        # Return sample CSV data for download
+        sample_data = CSVTemplateGenerator.get_sample_csv_data()
+
+        return send_file(
+            io.BytesIO(sample_data.encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'inventory_import_template_{datetime.now().strftime("%Y%m%d")}.csv'
+        )
+    else:
+        # Return format information
+        format_info = CSVTemplateGenerator.get_format_instructions()
+        return jsonify(format_info)
+
+@app.route('/api/inventory/categories', methods=['GET'])
+def get_inventory_categories():
+    """API endpoint to get all unique inventory categories"""
+    from models import Item
+    from sqlalchemy import func
+
+    # Query distinct categories
+    categories = db.session.query(
+        func.coalesce(Item.category,
+                      'Uncategorized').label('category')).distinct().all()
+
+    return jsonify([c.category for c in categories])
+
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    """API endpoint to get all products (alias for inventory)"""
+    from models import Item
+
+    # Start query
+    query = Item.query
+
+    # Optional filtering
+    category = request.args.get('category')
+    search_term = request.args.get('search', '').lower()
+    min_stock = request.args.get('min_stock')
+    max_stock = request.args.get('max_stock')
+
+    # Apply filters if provided
+    if category:
+        query = query.filter(Item.category == category)
+
+    if search_term:
+        search_filter = (Item.name.ilike(f'%{search_term}%')
+                         | Item.sku.ilike(f'%{search_term}%')
+                         | Item.description.ilike(f'%{search_term}%'))
+        query = query.filter(search_filter)
+
+    if min_stock:
+        try:
+            min_stock = int(min_stock)
+            query = query.filter(Item.stock_quantity >= min_stock)
+        except ValueError:
+            pass
+
+    if max_stock:
+        try:
+            max_stock = int(max_stock)
+            query = query.filter(Item.stock_quantity <= max_stock)
+        except ValueError:
+            pass
+
+    # Execute query and convert to dictionary
+    items = [item.to_dict() for item in query.all()]
+    return jsonify(items)
+
+@app.route('/api/reports/sales')
+@login_required
+def api_sales_reports():
+    try:
+        report_type = request.args.get('type', 'completed-sales')
+        date_range = request.args.get('range', 'month')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Calculate date range
+        if date_range == 'today':
+            start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        elif date_range == 'week':
+            start = datetime.now() - timedelta(days=7)
+            end = datetime.now()
+        elif date_range == 'month':
+            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+        elif date_range == 'custom' and start_date and end_date:
+            start = datetime.strptime(start_date, '%Y-%m-%d')
+            end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        else:
+            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+
+        query = Sale.query.filter_by(user_id=session['user_id']).filter(
+            Sale.created_at >= start,
+            Sale.created_at <= end
+        )
+
+        if report_type == 'completed-sales':
+            sales = query.filter_by(payment_status='completed').all()
+        elif report_type == 'pending-sales':
+            sales = query.filter_by(payment_status='pending').all()
+        else:
+            sales = query.all()
+
+        reports_data = []
+        for sale in sales:
+            reports_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'created_at': sale.created_at.isoformat(),
+                'customer_name': sale.customer.name if sale.customer else None,
+                'total_amount': float(sale.total_amount),
+                'payment_method': sale.payment_type,
+                'items_count': len(sale.sale_items)
+            })
+
+        return jsonify({
+            'success': True,
+            'reports': reports_data,
+            'total_count': len(reports_data)
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating sales report: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/reports/stock')
+@login_required
+def api_stock_reports():
+    try:
+        report_type = request.args.get('type', 'stock-available')
+        threshold = request.args.get('threshold', 10, type=int)
+
+        if report_type == 'stock-available':
+            items = Item.query.filter_by(user_id=session['user_id']).all()
+
+            total_items = len(items)
+            total_stock = sum(item.stock_quantity for item in items)
+            low_stock_items = [item for item in items if item.stock_quantity <= threshold]
+            out_of_stock_items = [item for item in items if item.stock_quantity == 0]
+
+            items_data = []
+            for item in items:
+                items_data.append({
+                    'id': item.id,
+                    'name': item.name,
+                    'sku': item.sku,
+                    'category': item.category.name if item.category else None,
+                    'stock_quantity': item.stock_quantity,
+                    'minimum_stock': item.minimum_stock or 0,
+                    'price': float(item.retail_price or 0)
+                })
+
+            return jsonify({
+                'success': True,
+                'total_items': total_items,
+                'total_stock': total_stock,
+                'low_stock_count': len(low_stock_items),
+                'out_of_stock_count': len(out_of_stock_items),
+                'items': items_data
+            })
+
+        elif report_type == 'stock-transactions':
+            # Get stock movements
+            movements = StockMovement.query.filter_by(user_id=session['user_id']).order_by(
+                StockMovement.created_at.desc()
+            ).limit(100).all()
+
+            transactions_data = []
+            for movement in movements:
+                transactions_data.append({
+                    'date': movement.created_at.isoformat(),
+                    'item_name': movement.item.name,
+                    'type': movement.movement_type,
+                    'quantity': movement.quantity,
+                    'reason': movement.reason,
+                    'reference': movement.reference_number
+                })
+
+            return jsonify({
+                'success': True,
+                'transactions': transactions_data
+            })
+
+        elif report_type == 'stock-issues':
+            # Get stock issues (expired, broken, stolen)
+            issues = StockMovement.query.filter_by(
+                user_id=session['user_id'],
+                movement_type='out'
+            ).filter(
+                StockMovement.reason.in_(['expired', 'broken', 'stolen'])
+            ).order_by(StockMovement.created_at.desc()).all()
+
+            issues_data = []
+            for issue in issues:
+                value_lost = issue.quantity * (issue.item.buying_price or 0)
+                issues_data.append({
+                    'date': issue.created_at.isoformat(),
+                    'item_name': issue.item.name,
+                    'type': issue.reason,
+                    'quantity': issue.quantity,
+                    'value_lost': float(value_lost),
+                    'notes': issue.notes
+                })
+
+            return jsonify({
+                'success': True,
+                'issues': issues_data
+            })
+
+    except Exception as e:
+        logger.error(f"Error generating stock report: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/reports/accounting')
+@login_required
+def api_accounting_reports():
+    try:
+        report_type = request.args.get('type', 'profit-loss')
+        period = request.args.get('period', 'month')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Calculate date range
+        if period == 'month':
+            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+        elif period == 'quarter':
+            current_month = datetime.now().month
+            quarter_start_month = 1 + 3 * ((current_month - 1) // 3)
+            start = datetime.now().replace(month=quarter_start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+        elif period == 'year':
+            start = datetime.now().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+        elif period == 'custom' and start_date and end_date:
+            start = datetime.strptime(start_date, '%Y-%m-%d')
+            end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        else:
+            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.now()
+
+        if report_type == 'profit-loss' or report_type == 'income-statement':
+            # Calculate revenue from sales
+            total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.user_id == session['user_id'],
+                Sale.created_at >= start,
+                Sale.created_at <= end,
+                Sale.payment_status == 'completed'
+            ).scalar() or 0
+
+            # Calculate expenses
+            total_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                FinancialTransaction.user_id == session['user_id'],
+                FinancialTransaction.transaction_type == 'expense',
+                FinancialTransaction.created_at >= start,
+                FinancialTransaction.created_at <= end
+            ).scalar() or 0
+
+            net_profit = total_revenue - total_expenses
+            profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+
+            breakdown = [
+                {'account': 'Sales Revenue', 'amount': float(total_revenue), 'percentage': 100.0},
+                {'account': 'Operating Expenses', 'amount': float(total_expenses), 'percentage': (total_expenses / total_revenue * 100) if total_revenue > 0 else 0},
+                {'account': 'Net Profit', 'amount': float(net_profit), 'percentage': profit_margin}
+            ]
+
+            return jsonify({
+                'success': True,
+                'revenue': float(total_revenue),
+                'expenses': float(total_expenses),
+                'net_profit': float(net_profit),
+                'profit_margin': profit_margin,
+                'breakdown': breakdown
+            })
+
+        elif report_type == 'balance-sheet':
+            # Simplified balance sheet
+            inventory_value = db.session.query(func.sum(Item.stock_quantity * Item.buying_price)).filter(
+                Item.user_id == session['user_id']
+            ).scalar() or 0
+
+            cash_balance = 50000  # Placeholder - you'd get this from a cash account
+
+            items = [
+                {'type': 'Assets', 'account': 'Inventory', 'amount': float(inventory_value)},
+                {'type': 'Assets', 'account': 'Cash', 'amount': float(cash_balance)},
+                {'type': 'Equity', 'account': 'Owner Equity', 'amount': float(inventory_value + cash_balance)}
+            ]
+
+            return jsonify({
+                'success': True,
+                'items': items
+            })
+
+        elif report_type == 'expenses':
+            expenses = FinancialTransaction.query.filter(
+                FinancialTransaction.user_id == session['user_id'],
+                FinancialTransaction.transaction_type == 'expense',
+                FinancialTransaction.created_at >= start,
+                FinancialTransaction.created_at <= end
+            ).order_by(FinancialTransaction.created_at.desc()).all()
+
+            items = []
+            for expense in expenses:
+                items.append({
+                    'date': expense.created_at.isoformat(),
+                    'category': expense.category,
+                    'description': expense.description,
+                    'amount': float(expense.amount)
+                })
+
+            return jsonify({
+                'success': True,
+                'items': items
+            })
+
+    except Exception as e:
+        logger.error(f"Error generating accounting report: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/reports/stock-status')
+@login_required
+def api_stock_status_report():
+    try:
+        low_stock_threshold = request.args.get('low_stock_threshold', 10, type=int)
+
+        # Get all items for current user
+        items = Item.query.filter_by(user_id=session['user_id']).all()
+
+        total_items = len(items)
+        total_stock = sum(item.stock_quantity for item in items)
+
+        # Low stock items
+        low_stock_items = [item for item in items if item.stock_quantity <= low_stock_threshold]
+        out_of_stock_items = [item for item in items if item.stock_quantity == 0]
+
+        # Format low stock items data
+        low_stock_data = []
+        for item in low_stock_items:
+            low_stock_data.append({
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku,
+                'category': item.category,
+                'quantity': item.stock_quantity,
+                'price': float(item.price)
+            })
+
+        return jsonify({
+            'success': True,
+            'total_items': total_items,
+            'total_stock': total_stock,
+            'low_stock_items_count': len(low_stock_items),
+            'out_of_stock_items_count': len(out_of_stock_items),
+            'low_stock_items': low_stock_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating stock status report: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Sales API Routes
+@app.route('/api/sales', methods=['GET'])
+@login_required
+def get_sales():
+    """API endpoint to get all sales"""
+    try:
+        user_id = session.get('user_id')
+        sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).all()
+
+        sales_data = []
+        for sale in sales:
+            sale_dict = {
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'created_at': sale.created_at.isoformat(),
+                'customer_name': sale.customer.name if sale.customer else None,
+                'customer_id': sale.customer_id,
+                'total_amount': float(sale.total_amount),
+                'payment_type': sale.payment_type,
+                'payment_status': sale.payment_status,
+                'is_installment': sale.is_installment,
+                'items_count': len(sale.sale_items)
+            }
+
+            # Add installment details if applicable
+            if sale.is_installment:
+                sale_dict.update({
+                    'down_payment': float(sale.down_payment or 0),
+                    'installment_months': sale.installment_months,
+                    'monthly_payment': float(sale.monthly_payment or 0)
+                })
+
+            sales_data.append(sale_dict)
+
+        return jsonify(sales_data)
+
+    except Exception as e:
+        logger.error(f"Error getting sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales', methods=['POST'])
+@login_required
+def create_sale():
+    """API endpoint to create a new sale"""
+    try:
+        from models import Sale, SaleItem, Customer, Item
+
+        sale_data = request.get_json()
+        if not sale_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Validate required fields
+        items = sale_data.get('items', [])
+        if not items:
+            return jsonify({"error": "No items provided"}), 400
+
+        payment_type = sale_data.get('payment_type', 'cash')
+        customer_id = sale_data.get('customer_id')
+        is_installment = sale_data.get('is_installment', False)
+
+        # Handle customer data
+        customer = None
+        if customer_id:
+            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+        elif sale_data.get('customer_name'):
+            # Create new customer if provided
+            customer = Customer(
+                name=sale_data['customer_name'],
+                email=sale_data.get('customer_email'),
+                phone=sale_data.get('customer_phone'),
+                address=sale_data.get('customer_address'),
+                user_id=user_id
+            )
+            db.session.add(customer)
+            db.session.flush()
+
+        # Calculate total amount
+        total_amount = 0
+        sale_items_data = []
+
+        for item_data in items:
+            item_id = item_data.get('item_id') or item_data.get('id')
+            quantity = int(item_data.get('quantity', 1))
+            unit_price = float(item_data.get('unit_price') or item_data.get('price', 0))
+
+            if not item_id:
+                return jsonify({"error": "Item ID is required"}), 400
+
+            # Get item and verify stock
+            item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+            if not item:
+                return jsonify({"error": f"Item with ID {item_id} not found"}), 404
+
+            if item.stock_quantity < quantity:
+                return jsonify({"error": f"Insufficient stock for {item.name}"}), 400
+
+            subtotal = quantity * unit_price
+            total_amount += subtotal
+
+            sale_items_data.append({
+                'item': item,
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'subtotal': subtotal
+            })
+
+        # Create sale record
+        sale = Sale(
+            user_id=user_id,
+            customer_id=customer.id if customer else None,
+            total_amount=total_amount,
+            payment_type=payment_type,
+            payment_status='completed' if not is_installment else 'pending',
+            is_installment=is_installment,
+            sale_number=Sale.generate_sale_number()
+        )
+
+        # Handle installment data
+        if is_installment:
+            sale.down_payment = float(sale_data.get('down_payment', 0))
+            sale.installment_months = int(sale_data.get('installment_months', 1))
+            remaining_amount = total_amount - sale.down_payment
+            sale.monthly_payment = remaining_amount / sale.installment_months if sale.installment_months > 0 else 0
+
+        db.session.add(sale)
+        db.session.flush()
+
+        # Create sale items and update stock
+        for item_data in sale_items_data:
+            sale_item = SaleItem(
+                sale_id=sale.id,
+                item_id=item_data['item'].id,
+                quantity=item_data['quantity'],
+                unit_price=item_data['unit_price'],
+                subtotal=item_data['subtotal']
+            )
+            db.session.add(sale_item)
+
+            # Update stock
+            item_data['item'].stock_quantity -= item_data['quantity']
+
+        # Create installment plan if needed
+        if is_installment:
+            from models import InstallmentSale, InstallmentPayment
+
+            installment_sale = InstallmentSale(
+                sale_id=sale.id,
+                customer_id=customer.id if customer else None,
+                total_amount=total_amount,
+                down_payment=sale.down_payment,
+                remaining_amount=total_amount - sale.down_payment,
+                payment_frequency='monthly',
+                duration_months=sale.installment_months,
+                monthly_payment=sale.monthly_payment,
+                user_id=user_id
+            )
+            db.session.add(installment_sale)
+            db.session.flush()
+
+            # Create initial payment record for down payment if any
+            if sale.down_payment > 0:
+                payment = InstallmentPayment(
+                    installment_sale_id=installment_sale.id,
+                    amount=sale.down_payment,
+                    payment_date=datetime.utcnow(),
+                    payment_method=payment_type,
+                    status='completed',
+                    user_id=user_id
+                )
+                db.session.add(payment)
+
+        db.session.commit()
+
+        logger.info(f"Sale created: {sale.sale_number} for user {user_id}")
+
+        return jsonify({
+            'success': True,
+            'sale': {
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'total_amount': float(sale.total_amount),
+                'payment_type': sale.payment_type,
+                'is_installment': sale.is_installment
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating sale: {str(e)}")
+        return jsonify({"error": f"Failed to create sale: {str(e)}"}), 500
+
+# Customer API Routes
+@app.route('/api/customers', methods=['GET'])
+@login_required
+def get_customers():
+    """API endpoint to get all customers"""
+    try:
+        from models import Customer
+
+        user_id = session.get('user_id')
+        customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
+
+        customers_data = []
+        for customer in customers:
+            customers_data.append({
+                'id': customer.id,
+                'name': customer.name,
+                'email': customer.email,
+                'phone': customer.phone,
+                'address': customer.address,
+                'customer_type': customer.customer_type,
+                'credit_limit': float(customer.credit_limit or 0),
+                'loyalty_points': customer.loyalty_points or 0,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            })
+
+        return jsonify(customers_data)
+
+    except Exception as e:
+        logger.error(f"Error getting customers: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/customers', methods=['POST'])
+@login_required
+def create_customer():
+    """API endpoint to create a new customer"""
+    try:
+        from models import Customer
+
+        customer_data = request.get_json()
+        if not customer_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Validate required fields
+        if not customer_data.get('name'):
+            return jsonify({"error": "Customer name is required"}), 400
+
+        # Create new customer
+        customer = Customer(
+            name=customer_data['name'].strip(),
+            email=customer_data.get('email', '').strip() or None,
+            phone=customer_data.get('phone', '').strip() or None,
+            address=customer_data.get('address', '').strip() or None,
+            customer_type=customer_data.get('customer_type', 'retail'),
+            credit_limit=float(customer_data.get('credit_limit', 0)),
+            preferred_payment_method=customer_data.get('preferred_payment_method'),
+            user_id=user_id
+        )
+
+        db.session.add(customer)
+        db.session.commit()
+
+        logger.info(f"Customer created: {customer.name} (ID: {customer.id}) by user {user_id}")
+
+        return jsonify({
+            'id': customer.id,
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'customer_type': customer.customer_type,
+            'credit_limit': float(customer.credit_limit),
+            'created_at': customer.created_at.isoformat()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating customer: {str(e)}")
+        return jsonify({"error": f"Failed to create customer: {str(e)}"}), 500
+
+# Installment API Routes
+@app.route('/api/installments', methods=['GET'])
+@login_required
+def get_installments():
+    """API endpoint to get all installment sales"""
+    try:
+        from models import InstallmentSale
+
+        user_id = session.get('user_id')
+        installments = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
+
+        installments_data = []
+        for installment in installments:
+            installments_data.append({
+                'id': installment.id,
+                'sale_id': installment.sale_id,
+                'customer_name': installment.customer.name if installment.customer else None,
+                'total_amount': float(installment.total_amount),
+                'down_payment': float(installment.down_payment or 0),
+                'remaining_amount': float(installment.remaining_amount),
+                'monthly_payment': float(installment.monthly_payment),
+                'duration_months': installment.duration_months,
+                'payments_made': len(installment.payments),
+                'status': installment.status,
+                'created_at': installment.created_at.isoformat()
+            })
+
+        return jsonify(installments_data)
+
+    except Exception as e:
+        logger.error(f"Error getting installments: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installments', methods=['POST'])
+@login_required
+def create_installment():
+    """API endpoint to create a new installment sale"""
+    try:
+        from models import InstallmentSale, Sale, Customer
+
+        installment_data = request.get_json()
+        if not installment_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Validate required fields
+        sale_id = installment_data.get('sale_id')
+        if not sale_id:
+            return jsonify({"error": "Sale ID is required"}), 400
+
+        # Get the sale
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+        if not sale:
+            return jsonify({"error": "Sale not found"}), 404
+
+        # Check if installment already exists
+        existing_installment = InstallmentSale.query.filter_by(sale_id=sale_id).first()
+        if existing_installment:
+            return jsonify({"error": "Installment plan already exists for this sale"}), 400
+
+        # Create installment plan
+        down_payment = float(installment_data.get('down_payment', 0))
+        duration_months = int(installment_data.get('duration_months', 1))
+        remaining_amount = sale.total_amount - down_payment
+        monthly_payment = remaining_amount / duration_months if duration_months > 0 else 0
+
+        installment = InstallmentSale(
+            sale_id=sale.id,
+            customer_id=sale.customer_id,
+            total_amount=sale.total_amount,
+            down_payment=down_payment,
+            remaining_amount=remaining_amount,
+            payment_frequency='monthly',
+            duration_months=duration_months,
+            monthly_payment=monthly_payment,
+            status='active',
+            user_id=user_id
+        )
+
+        db.session.add(installment)
+        db.session.commit()
+
+        logger.info(f"Installment created for sale {sale_id} by user {user_id}")
+
+        return jsonify({
+            'success': True,
+            'installment': {
+                'id': installment.id,
+                'sale_id': installment.sale_id,
+                'total_amount': float(installment.total_amount),
+                'down_payment': float(installment.down_payment),
+                'monthly_payment': float(installment.monthly_payment),
+                'duration_months': installment.duration_months
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating installment: {str(e)}")
+        return jsonify({"error": f"Failed to create installment: {str(e)}"}), 500
+
+# Categories API Routes
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def get_categories():
+    """API endpoint to get all categories"""
+    try:
+        from models import Category
+
+        user_id = session.get('user_id')
+        categories = Category.query.filter_by(user_id=user_id).order_by(Category.name).all()
+
+        categories_data = []
+        for category in categories:
+            categories_data.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'parent_id': category.parent_id,
+                'created_at': category.created_at.isoformat() if category.created_at else None
+            })
+
+        return jsonify(categories_data)
+
+    except Exception as e:
+        logger.error(f"Error getting categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+@login_required
+def create_category():
+    """API endpoint to create a new category"""
+    try:
+        from models import Category
+
+        category_data = request.get_json()
+        if not category_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Validate required fields
+        if not category_data.get('name'):
+            return jsonify({"error": "Category name is required"}), 400
+
+        # Check if category already exists
+        existing_category = Category.query.filter_by(
+            name=category_data['name'], 
+            user_id=user_id
+        ).first()
+        if existing_category:
+            return jsonify({"error": "Category already exists"}), 400
+
+        # Create new category
+        category = Category(
+            name=category_data['name'].strip(),
+            description=category_data.get('description', '').strip(),
+            parent_id=category_data.get('parent_id'),
+            user_id=user_id
+        )
+
+        db.session.add(category)
+        db.session.commit()
+
+        logger.info(f"Category created: {category.name} (ID: {category.id}) by user {user_id}")
+
+        return jsonify({
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'parent_id': category.parent_id,
+            'created_at': category.created_at.isoformat()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating category: {str(e)}")
+        return jsonify({"error": f"Failed to create category: {str(e)}"}), 500
+
+# Dashboard API Routes
+@app.route('/api/dashboard/summary')
+@login_required
+def get_dashboard_summary():
+    """API endpoint to get dashboard summary data"""
+    try:
+        from models import Item, Sale, Customer
+        from sqlalchemy import func
+
+        user_id = session.get('user_id')
+
+        # Get counts
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        total_sales = Sale.query.filter_by(user_id=user_id).count()
+        total_customers = Customer.query.filter_by(user_id=user_id).count()
+
+        # Get revenue (completed sales only)
+        total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.user_id == user_id,
+            Sale.payment_status == 'completed'
+        ).scalar() or 0
+
+        # Get low stock items
+        low_stock_items = Item.query.filter(
+            Item.user_id == user_id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).count()
+
+        # Get recent sales
+        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(
+            Sale.created_at.desc()
+        ).limit(5).all()
+
+        recent_sales_data = []
+        for sale in recent_sales:
+            recent_sales_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'customer_name': sale.customer.name if sale.customer else 'Walk-in Customer',
+                'total_amount': float(sale.total_amount),
+                'created_at': sale.created_at.isoformat()
+            })
+
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_items': total_items,
+                'total_sales': total_sales,
+                'total_customers': total_customers,
+                'total_revenue': float(total_revenue),
+                'low_stock_items': low_stock_items
+            },
+            'recent_sales': recent_sales_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Web Routes (Template rendering)
+@app.route('/')
+def index():
+    """Home page route"""
+    # Check if user is logged in
+    user_id = session.get('user_id')
+    if user_id:
+        return redirect(url_for('dashboard'))
+    return render_template('cover.html')
+
+@app.route('/login')
+def login():
+    """Login page route"""
+    return render_template('login.html')
+
+@app.route('/register')
+def register():
+    """Registration page route"""
+    return render_template('register.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard page route"""
+    return render_template('dashboard.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory page route"""
+    return render_template('inventory.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales page route"""
+    return render_template('sales.html')
+
+@app.route('/customers')
+@login_required
+def customers():
+    """Customers page route"""
+    return render_template('customers.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments page route"""
+    return render_template('installments.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories page route"""
+    return render_template('categories.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page route"""
+    return render_template('reports.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page route"""
+    return render_template('settings.html')
+
+@app.route('/logout')
+def logout():
+    """Logout route"""
+    session.clear()
+    return redirect(url_for('index'))
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+if __name__ == '__main__':
+    # Initialize database
+    init_database()
+    
+    # Run the application
+    app.run(host='0.0.0.0', port=5000, debug=True)
 import os
 import logging
 import uuid
