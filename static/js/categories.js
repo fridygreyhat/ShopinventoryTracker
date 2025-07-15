@@ -53,6 +53,7 @@ function loadCategories() {
             // Store globally for other functions
             categories = categoriesData || [];
             displayCategories(categoriesData);
+            updateCategoryStats(categoriesData);
         })
         .catch(error => {
             console.error('Error loading categories:', error);
@@ -102,17 +103,28 @@ function displayCategories(categories) {
     let html = '';
     categories.forEach(category => {
         const subcategoriesCount = (category.subcategories && Array.isArray(category.subcategories)) ? category.subcategories.length : 0;
+        const directItemCount = category.item_count || 0;
+        const totalItemCount = category.total_item_count || 0;
         
-        // Build subcategories HTML
+        // Build subcategories HTML with item counts
         let subcategoriesHtml = '';
         if (category.subcategories && category.subcategories.length > 0) {
-            subcategoriesHtml = '<div class="mt-2"><strong>Subcategories:</strong><ul class="list-unstyled ms-3">';
+            subcategoriesHtml = '<div class="mt-2"><strong class="text-primary">Subcategories:</strong><ul class="list-unstyled ms-3">';
             category.subcategories.forEach(sub => {
+                const subItemCount = sub.item_count || 0;
+                const subTotalCount = sub.total_item_count || 0;
                 subcategoriesHtml += `
-                    <li class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted small">
-                            <i class="fas fa-chevron-right me-1"></i>${escapeHtml(sub.name)}
-                        </span>
+                    <li class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-folder text-secondary me-2"></i>
+                                <span class="fw-medium">${escapeHtml(sub.name)}</span>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                <span class="badge bg-secondary me-1">${subItemCount} items</span>
+                                ${subTotalCount > subItemCount ? `<span class="badge bg-info">${subTotalCount} total</span>` : ''}
+                            </div>
+                        </div>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary btn-sm" onclick="editSubcategory(${sub.id})" title="Edit Subcategory">
                                 <i class="fas fa-edit"></i>
@@ -125,6 +137,8 @@ function displayCategories(categories) {
                 `;
             });
             subcategoriesHtml += '</ul></div>';
+        } else {
+            subcategoriesHtml = '<div class="mt-2"><p class="text-muted small mb-0"><i class="fas fa-info-circle me-1"></i>No subcategories yet</p></div>';
         }
 
         html += `
@@ -152,9 +166,22 @@ function displayCategories(categories) {
                             </div>
                         </div>
                         <p class="card-text text-muted small">${escapeHtml(category.description || 'No description')}</p>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-primary">${subcategoriesCount} subcategories</span>
-                            <small class="text-muted">Items: 0</small>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="text-center p-2 bg-primary bg-opacity-10 rounded">
+                                    <div class="fw-bold text-primary">${directItemCount}</div>
+                                    <small class="text-muted">Direct Items</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center p-2 bg-success bg-opacity-10 rounded">
+                                    <div class="fw-bold text-success">${totalItemCount}</div>
+                                    <small class="text-muted">Total Items</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-info">${subcategoriesCount} subcategories</span>
                         </div>
                         ${subcategoriesHtml}
                         <div class="mt-3">
@@ -180,6 +207,35 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text ? text.replace(/[&<>"']/g, function(m) { return map[m]; }) : '';
+}
+
+function updateCategoryStats(categories) {
+    if (!categories || categories.length === 0) {
+        document.getElementById('categoryStats').style.display = 'none';
+        return;
+    }
+
+    let totalCategories = categories.length;
+    let totalSubcategories = 0;
+    let totalItems = 0;
+
+    categories.forEach(category => {
+        if (category.subcategories) {
+            totalSubcategories += category.subcategories.length;
+        }
+        totalItems += category.total_item_count || 0;
+    });
+
+    const avgItemsPerCategory = totalCategories > 0 ? Math.round(totalItems / totalCategories) : 0;
+
+    // Update stats display
+    document.getElementById('totalCategories').textContent = totalCategories;
+    document.getElementById('totalSubcategories').textContent = totalSubcategories;
+    document.getElementById('totalItems').textContent = totalItems;
+    document.getElementById('avgItemsPerCategory').textContent = avgItemsPerCategory;
+
+    // Show stats section
+    document.getElementById('categoryStats').style.display = 'block';
 }
 
 /**

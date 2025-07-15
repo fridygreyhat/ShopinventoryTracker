@@ -2191,7 +2191,7 @@ def get_categories_api():
         parent_categories = [cat for cat in categories if not cat.parent_id]
         child_categories = [cat for cat in categories if cat.parent_id]
         
-        # Build categories with subcategories
+        # Build categories with subcategories and item counts
         categories_data = []
         for parent in parent_categories:
             subcategories = [child for child in child_categories if child.parent_id == parent.id]
@@ -2204,6 +2204,9 @@ def get_categories_api():
                 'sort_order': parent.sort_order,
                 'is_active': parent.is_active,
                 'user_id': parent.user_id,
+                'item_count': parent.get_item_count(),
+                'total_item_count': parent.get_total_item_count(),
+                'category_path': parent.get_category_path(),
                 'created_at': parent.created_at.isoformat() if parent.created_at else None,
                 'subcategories': [
                     {
@@ -2214,6 +2217,9 @@ def get_categories_api():
                         'sort_order': sub.sort_order,
                         'is_active': sub.is_active,
                         'user_id': sub.user_id,
+                        'item_count': sub.get_item_count(),
+                        'total_item_count': sub.get_total_item_count(),
+                        'category_path': sub.get_category_path(),
                         'created_at': sub.created_at.isoformat() if sub.created_at else None
                     }
                     for sub in sorted(subcategories, key=lambda x: (x.sort_order, x.name))

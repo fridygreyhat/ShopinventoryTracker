@@ -235,24 +235,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update category filter dropdown
                 categoryFilter.innerHTML = '<option value="">All Categories</option>';
 
-                // Add parent categories and their subcategories
+                // Add parent categories and their subcategories with proper hierarchy
                 data.forEach(category => {
-                    if (!category.parent_id) {
-                        // Add main category
-                        const option = document.createElement('option');
-                        option.value = category.name;
-                        option.textContent = category.name;
-                        categoryFilter.appendChild(option);
+                    // Add main category
+                    const option = document.createElement('option');
+                    option.value = category.name;
+                    option.textContent = `📁 ${category.name} (${category.total_item_count || 0} items)`;
+                    categoryFilter.appendChild(option);
 
-                        // Add subcategories if they exist
-                        if (category.subcategories && category.subcategories.length > 0) {
-                            category.subcategories.forEach(subcategory => {
-                                const subOption = document.createElement('option');
-                                subOption.value = subcategory.name;
-                                subOption.textContent = `${category.name} > ${subcategory.name}`;
-                                categoryFilter.appendChild(subOption);
-                            });
-                        }
+                    // Add subcategories if they exist
+                    if (category.subcategories && category.subcategories.length > 0) {
+                        category.subcategories.forEach(subcategory => {
+                            const subOption = document.createElement('option');
+                            subOption.value = subcategory.name;
+                            subOption.textContent = `  📄 ${subcategory.name} (${subcategory.item_count || 0} items)`;
+                            categoryFilter.appendChild(subOption);
+                        });
                     }
                 });
 

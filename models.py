@@ -369,6 +369,24 @@ class Category(db.Model):
             items.extend(child.get_all_items())
         return items
 
+    def get_item_count(self):
+        """Get count of items directly in this category"""
+        from models import Item
+        return Item.query.filter_by(category_id=self.id, is_active=True).count()
+    
+    def get_total_item_count(self):
+        """Get total count of items in this category and all subcategories"""
+        total = self.get_item_count()
+        for child in self.children:
+            total += child.get_total_item_count()
+        return total
+    
+    def get_category_path(self):
+        """Get full category path (e.g., 'Electronics > Mobile Phones')"""
+        if self.parent:
+            return f"{self.parent.get_category_path()} > {self.name}"
+        return self.name
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -378,6 +396,9 @@ class Category(db.Model):
             'sort_order': self.sort_order,
             'user_id': self.user_id,
             'is_active': self.is_active,
+            'item_count': self.get_item_count(),
+            'total_item_count': self.get_total_item_count(),
+            'category_path': self.get_category_path(),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
