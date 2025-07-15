@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const showFormatDetailsBtn = document.getElementById('showFormatDetails');
     const formatDetailsPanel = document.getElementById('formatDetailsPanel');
     const formatDetailsContent = document.getElementById('formatDetailsContent');
-    
+
     if (showFormatDetailsBtn) {
         showFormatDetailsBtn.addEventListener('click', function() {
             if (formatDetailsPanel.classList.contains('d-none')) {
@@ -21,33 +21,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     function loadFormatDetails() {
         fetch('/api/inventory/csv-template')
             .then(response => response.json())
             .then(data => {
                 let detailsHTML = '<div class="row">';
-                
+
                 // Required fields
                 detailsHTML += '<div class="col-md-6"><h6 class="text-success">Required Fields:</h6><ul>';
                 data.required_fields.forEach(field => {
                     detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
                 });
                 detailsHTML += '</ul></div>';
-                
+
                 // Optional fields
                 detailsHTML += '<div class="col-md-6"><h6 class="text-info">Optional Fields:</h6><ul class="small">';
                 data.optional_fields.forEach(field => {
                     detailsHTML += `<li><code>${field}</code>: ${data.field_descriptions[field]}</li>`;
                 });
                 detailsHTML += '</ul></div>';
-                
+
                 detailsHTML += '</div>';
-                
+
                 // Example
                 detailsHTML += '<div class="mt-3"><h6>Example Row:</h6>';
                 detailsHTML += `<code class="small">${data.example_row}</code></div>`;
-                
+
                 formatDetailsContent.innerHTML = detailsHTML;
             })
             .catch(error => {
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         importButton.disabled = true;
         const originalButtonText = importButton.innerHTML;
         importButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
-        
+
         importResult.className = 'alert alert-info';
         importResult.innerHTML = '<i class="fas fa-info-circle"></i> Processing your CSV file...';
         importResult.classList.remove('d-none');
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 `;
-                
+
                 if (data.errors && data.errors.length > 0) {
                     importResult.innerHTML += `
                         <hr class="my-2">
@@ -122,11 +122,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             <strong><i class="fas fa-exclamation-triangle text-warning"></i> Warnings (${data.errors.length}):</strong>
                             <div class="mt-1" style="max-height: 200px; overflow-y: auto;">
                     `;
-                    
+
                     data.errors.forEach(error => {
                         importResult.innerHTML += `<div class="small text-muted">• ${error}</div>`;
                     });
-                    
+
                     importResult.innerHTML += '</div></div>';
                 }
 
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileInput.value = '';
                 loadInventory();
                 loadCategories();
-                
+
                 // Hide success message after 8 seconds
                 setTimeout(() => {
                     importResult.classList.add('d-none');
@@ -228,140 +228,36 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function loadCategories() {
-        // Predefined categories list as fallback
-        const predefinedCategories = [
-            'Electronics', 
-            'Accessories', 
-            'Phones', 
-            'Vehicle Spare Parts', 
-            'Grocery', 
-            'Others'
-        ];
-
-        // First try to load from the new Categories API
+function loadCategories() {
         fetch('/api/categories')
             .then(response => response.json())
-            .then(categoriesData => {
-                let allCategories = [];
+            .then(data => {
+                // Update category filter dropdown
+                categoryFilter.innerHTML = '<option value="">All Categories</option>';
 
-                // Extract category names from the Categories API
-                if (categoriesData && categoriesData.length > 0) {
-                    allCategories = categoriesData.map(cat => cat.name);
-                }
+                // Add parent categories and their subcategories
+                data.forEach(category => {
+                    if (!category.parent_id) {
+                        // Add main category
+                        const option = document.createElement('option');
+                        option.value = category.name;
+                        option.textContent = category.name;
+                        categoryFilter.appendChild(option);
 
-                // If no categories from API, use predefined ones
-                if (allCategories.length === 0) {
-                    allCategories = [...predefinedCategories];
-                }
-
-                // Also fetch legacy inventory categories and merge them
-                return fetch('/api/inventory/categories')
-                    .then(response => response.json())
-                    .then(legacyCategories => {
-                        // Add any legacy categories that aren't already included
-                        legacyCategories.forEach(category => {
-                            if (!allCategories.includes(category)) {
-                                allCategories.push(category);
-                            }
-                        });
-
-                        // Sort alphabetically
-                        allCategories.sort();
-
-                        // Update categories in filter dropdown
-                        categoryFilter.innerHTML = '<option value="">All Categories</option>';
-
-                        // Also update categories in the add/edit forms
-                        const itemCategorySelect = document.getElementById('itemCategory');
-                        const editItemCategorySelect = document.getElementById('editItemCategory');
-
-                        itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-                        editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-
-                        allCategories.forEach(category => {
-                            // Add to filter dropdown
-                            const option = document.createElement('option');
-                            option.value = category;
-                            option.textContent = category;
-                            categoryFilter.appendChild(option);
-
-                            // Add to new item form
-                            const newItemOption = document.createElement('option');
-                            newItemOption.value = category;
-                            newItemOption.textContent = category;
-                            itemCategorySelect.appendChild(newItemOption);
-
-                            // Add to edit item form
-                            const editItemOption = document.createElement('option');
-                            editItemOption.value = category;
-                            editItemOption.textContent = category;
-                            editItemCategorySelect.appendChild(editItemOption);
-                        });
-
-                        // Also add subcategories from the Categories API
-                        if (categoriesData && categoriesData.length > 0) {
-                            categoriesData.forEach(category => {
-                                if (category.subcategories && category.subcategories.length > 0) {
-                                    category.subcategories.forEach(subcategory => {
-                                        // Add subcategory to filter dropdown
-                                        const subOption = document.createElement('option');
-                                        subOption.value = subcategory.name;
-                                        subOption.textContent = `${category.name} > ${subcategory.name}`;
-                                        categoryFilter.appendChild(subOption);
-
-                                        // Add subcategory to new item form
-                                        const newSubOption = document.createElement('option');
-                                        newSubOption.value = subcategory.name;
-                                        newSubOption.textContent = `${category.name} > ${subcategory.name}`;
-                                        itemCategorySelect.appendChild(newSubOption);
-
-                                        // Add subcategory to edit item form
-                                        const editSubOption = document.createElement('option');
-                                        editSubOption.value = subcategory.name;
-                                        editSubOption.textContent = `${category.name} > ${subcategory.name}`;
-                                        editItemCategorySelect.appendChild(editSubOption);
-                                    });
-                                }
+                        // Add subcategories if they exist
+                        if (category.subcategories && category.subcategories.length > 0) {
+                            category.subcategories.forEach(subcategory => {
+                                const subOption = document.createElement('option');
+                                subOption.value = subcategory.name;
+                                subOption.textContent = `${category.name} > ${subcategory.name}`;
+                                categoryFilter.appendChild(subOption);
                             });
                         }
-                    });
-            })
-            .catch(error => {
-                console.error('Error loading categories:', error);
-
-                // Fallback to predefined categories
-                const itemCategorySelect = document.getElementById('itemCategory');
-                const editItemCategorySelect = document.getElementById('editItemCategory');
-
-                // Sort alphabetically
-                const sortedCategories = [...predefinedCategories].sort();
-
-                // Clear and populate dropdowns with predefined categories
-                categoryFilter.innerHTML = '<option value="">All Categories</option>';
-                itemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-                editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-
-                sortedCategories.forEach(category => {
-                    // Add to filter dropdown
-                    const option = document.createElement('option');
-                    option.value = category;
-                    option.textContent = category;
-                    categoryFilter.appendChild(option);
-
-                    // Add to new item form
-                    const newItemOption = document.createElement('option');
-                    newItemOption.value = category;
-                    newItemOption.textContent = category;
-                    itemCategorySelect.appendChild(newItemOption);
-
-                    // Add to edit item form
-                    const editItemOption = document.createElement('option');
-                    editItemOption.value = category;
-                    editItemOption.textContent = category;
-                    editItemCategorySelect.appendChild(editItemOption);
+                    }
                 });
-            });
+
+                // Store categories data globally for use in item forms
+                window.categoriesData = data;
     }
 
     // Calculate inventory health based on quantity

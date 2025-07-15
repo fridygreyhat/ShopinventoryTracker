@@ -6,6 +6,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize page
     loadCategories();
+    loadParentCategories();
 
     // Event listeners
     document.getElementById('categoryForm').addEventListener('submit', handleCategorySubmit);
@@ -543,3 +544,88 @@ document.getElementById('subcategoryModal').addEventListener('hidden.bs.modal', 
     document.getElementById('parentCategoryId').value = '';
     document.getElementById('subcategoryModalLabel').textContent = 'Add Subcategory';
 });
+
+// DOM Elements
+const categoryForm = document.getElementById('categoryForm');
+const categoryNameInput = document.getElementById('categoryName');
+const categoryDescInput = document.getElementById('categoryDescription');
+const parentCategorySelect = document.getElementById('parentCategory');
+const saveCategoryBtn = document.getElementById('saveCategoryBtn');
+const categoriesContainer = document.getElementById('categoriesContainer');
+
+categoryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const name = categoryNameInput.value.trim();
+        const description = categoryDescInput.value.trim();
+        const parentId = parentCategorySelect.value || null;
+
+        if (!name) {
+            showAlert('Category name is required', 'danger');
+            return;
+        }
+
+        const categoryData = {
+            name: name,
+            description: description,
+            parent_id: parentId
+        };
+
+        saveCategoryBtn.disabled = true;
+        saveCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        fetch('/api/categories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(categoryData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showAlert(data.error, 'danger');
+            } else {
+                showAlert(data.message, 'success');
+                categoryForm.reset();
+                loadCategories();
+                loadParentCategories();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Failed to save category', 'danger');
+        })
+        .finally(() => {
+            saveCategoryBtn.disabled = false;
+            saveCategoryBtn.innerHTML = '<i class="fas fa-save"></i> Save Category';
+        });
+    });
+
+    function loadParentCategories() {
+        fetch('/api/categories')
+            .then(response => response.json())
+            .then(data => {
+                populateParentCategorySelect(data);
+            })
+            .catch(error => {
+                console.error('Error loading parent categories:', error);
+            });
+    }
+
+    function populateParentCategorySelect(categories) {
+        if (!parentCategorySelect) return;
+
+        // Clear existing options except the first one
+        parentCategorySelect.innerHTML = '<option value="">None (Main Category)</option>';
+
+        // Add only parent categories (those without parent_id)
+        categories.forEach(category => {
+            if (!category.parent_id) {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                parentCategorySelect.appendChild(option);
+            }
+        });
+    }

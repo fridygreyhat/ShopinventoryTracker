@@ -96,16 +96,17 @@ class CSVImportService:
             return {"error": header_error}
         
         # Process rows
-        processor = CSVRowProcessor(self.db, self.Item)
+        processor = CSVRowProcessor(self.db, self.Item, self.user_id)
         return processor.process_rows(csv_reader)
 
 
 class CSVRowProcessor:
     """Handles processing of individual CSV rows"""
     
-    def __init__(self, db_session, item_model):
+    def __init__(self, db_session, item_model, user_id=None):
         self.db = db_session
         self.Item = item_model
+        self.user_id = user_id
         
     def process_rows(self, csv_reader: csv.DictReader) -> Dict[str, Any]:
         """Process all rows in the CSV"""
@@ -205,13 +206,13 @@ class CSVRowProcessor:
                 sku=sku,
                 description=description,
                 category=category,
-                quantity=quantity,
+                stock_quantity=quantity,
                 buying_price=buying_price,
-                selling_price_retail=selling_price_retail,
-                selling_price_wholesale=selling_price_wholesale,
-                price=selling_price_retail,  # For backward compatibility
+                retail_price=selling_price_retail,
+                wholesale_price=selling_price_wholesale,
                 sales_type=sales_type,
-                user_id=self.user_id
+                user_id=self.user_id,
+                created_at=datetime.utcnow()
             )
             return new_item
         except Exception as e:
@@ -223,7 +224,7 @@ class CSVRowProcessor:
         original_sku = sku
         counter = 1
         
-        while self.Item.query.filter_by(sku=sku).first():
+        while self.Item.query.filter_by(sku=sku, user_id=self.user_id).first():
             sku = f"{original_sku}-{counter}"
             counter += 1
         
