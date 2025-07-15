@@ -301,8 +301,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
-                // Show installment customer modal immediately
-                showInstallmentCustomerModal();
+                // Show New Installment Sale modal immediately
+                showNewInstallmentSaleModal();
             }
         });
     }
@@ -1082,6 +1082,379 @@ document.addEventListener('DOMContentLoaded', function() {
     window.closeSuccessPopup = closeSuccessPopup;
     window.closeErrorPopup = closeErrorPopup;
     window.printReceipt = printReceipt;
+
+    // New Installment Sale Modal Function
+    function showNewInstallmentSaleModal() {
+        if (cart.length === 0) {
+            alert('Please add items to cart before creating an installment sale');
+            return;
+        }
+
+        if (cart.length > 1) {
+            alert('Installment sales currently support only one item at a time. Please remove other items from cart.');
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        
+        // Create and show New Installment Sale modal
+        const modalHtml = `
+            <div class="modal fade" id="newInstallmentSaleModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-handshake me-2"></i> New Installment Sale
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="installmentSaleForm">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Creating installment sale for: <strong>${cart[0].name}</strong> (Qty: ${cart[0].quantity}) - Total: <strong>TZS ${totalAmount.toLocaleString()}</strong>
+                                </div>
+
+                                <!-- Customer Selection -->
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <h6 class="mb-3">Customer Information</h6>
+                                        <label for="installmentCustomerSelect" class="form-label">Select Customer</label>
+                                        <select class="form-select" id="installmentCustomerSelect">
+                                            <option value="">Select existing customer</option>
+                                        </select>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="newCustomerToggle">
+                                            <label class="form-check-label" for="newCustomerToggle">
+                                                Add new customer
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- New Customer Fields -->
+                                <div id="newCustomerFields" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="newCustomerName" class="form-label">Full Name *</label>
+                                                <input type="text" class="form-control" id="newCustomerName" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="newCustomerPhone" class="form-label">Phone Number *</label>
+                                                <input type="tel" class="form-control" id="newCustomerPhone" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="newCustomerEmail" class="form-label">Email Address</label>
+                                                <input type="email" class="form-control" id="newCustomerEmail">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="newCustomerNationalId" class="form-label">National ID *</label>
+                                                <input type="text" class="form-control" id="newCustomerNationalId" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="newCustomerAddress" class="form-label">Address *</label>
+                                                <textarea class="form-control" id="newCustomerAddress" rows="2" required></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Payment Plan -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Payment Plan</h6>
+                                        <div class="mb-3">
+                                            <label for="installmentDownPayment" class="form-label">Down Payment (TZS) *</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">TZS</span>
+                                                <input type="number" class="form-control" id="installmentDownPayment" min="0" step="1000" required>
+                                            </div>
+                                            <div class="form-text">Minimum 20% of total amount (TZS ${(totalAmount * 0.2).toLocaleString()})</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="installmentPeriod" class="form-label">Payment Period *</label>
+                                            <select class="form-select" id="installmentPeriod" required>
+                                                <option value="">Select Period</option>
+                                                <option value="3">3 Months</option>
+                                                <option value="6">6 Months</option>
+                                                <option value="12">12 Months</option>
+                                                <option value="18">18 Months</option>
+                                                <option value="24">24 Months</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="installmentStartDate" class="form-label">Start Date *</label>
+                                            <input type="date" class="form-control" id="installmentStartDate" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Payment Summary</h6>
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Total Amount:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>TZS ${totalAmount.toLocaleString()}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Down Payment:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong id="downPaymentDisplay">TZS 0</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Remaining:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong id="remainingAmountDisplay">TZS ${totalAmount.toLocaleString()}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-6">
+                                                        <small class="text-muted">Monthly Payment:</small>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong class="text-primary" id="monthlyPaymentDisplay">TZS 0</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label for="installmentNotes" class="form-label">Notes</label>
+                                            <textarea class="form-control" id="installmentNotes" rows="3" placeholder="Additional notes for this installment sale"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="agreementSigned" required>
+                                        <label class="form-check-label" for="agreementSigned">
+                                            Customer has signed the installment agreement and agrees to the payment terms.
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="createInstallmentSale">
+                                <i class="fas fa-save me-1"></i> Create Installment Sale
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('newInstallmentSaleModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Set default start date to today
+        document.getElementById('installmentStartDate').value = new Date().toISOString().split('T')[0];
+
+        // Set minimum down payment
+        const minDownPayment = totalAmount * 0.2;
+        document.getElementById('installmentDownPayment').value = minDownPayment;
+        document.getElementById('installmentDownPayment').setAttribute('min', minDownPayment);
+
+        // Load existing customers
+        loadCustomersForInstallment();
+
+        // Add event listeners
+        setupInstallmentModalListeners();
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('newInstallmentSaleModal'));
+        modal.show();
+    }
+
+    function loadCustomersForInstallment() {
+        fetch('/api/customers')
+            .then(response => response.json())
+            .then(data => {
+                const customerSelect = document.getElementById('installmentCustomerSelect');
+                if (customerSelect && data.success && data.customers) {
+                    customerSelect.innerHTML = '<option value="">Select existing customer</option>';
+                    data.customers.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
+                        option.dataset.customerData = JSON.stringify(customer);
+                        customerSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading customers:', error);
+            });
+    }
+
+    function setupInstallmentModalListeners() {
+        // New customer toggle
+        const newCustomerToggle = document.getElementById('newCustomerToggle');
+        const newCustomerFields = document.getElementById('newCustomerFields');
+        const customerSelect = document.getElementById('installmentCustomerSelect');
+
+        if (newCustomerToggle) {
+            newCustomerToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    newCustomerFields.style.display = 'block';
+                    customerSelect.disabled = true;
+                    customerSelect.value = '';
+                } else {
+                    newCustomerFields.style.display = 'none';
+                    customerSelect.disabled = false;
+                }
+            });
+        }
+
+        // Update payment summary when down payment or period changes
+        const downPaymentInput = document.getElementById('installmentDownPayment');
+        const periodSelect = document.getElementById('installmentPeriod');
+
+        if (downPaymentInput && periodSelect) {
+            [downPaymentInput, periodSelect].forEach(element => {
+                element.addEventListener('change', updateInstallmentPaymentSummary);
+                element.addEventListener('input', updateInstallmentPaymentSummary);
+            });
+        }
+
+        // Create installment sale button
+        const createBtn = document.getElementById('createInstallmentSale');
+        if (createBtn) {
+            createBtn.addEventListener('click', createInstallmentSaleFromModal);
+        }
+    }
+
+    function updateInstallmentPaymentSummary() {
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+        const period = parseInt(document.getElementById('installmentPeriod').value) || 1;
+
+        const remainingAmount = totalAmount - downPayment;
+        const monthlyPayment = remainingAmount / period;
+
+        document.getElementById('downPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+        document.getElementById('remainingAmountDisplay').textContent = `TZS ${remainingAmount.toLocaleString()}`;
+        document.getElementById('monthlyPaymentDisplay').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
+    }
+
+    function createInstallmentSaleFromModal() {
+        const form = document.getElementById('installmentSaleForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
+        const period = parseInt(document.getElementById('installmentPeriod').value);
+
+        // Validate down payment
+        if (downPayment < totalAmount * 0.2) {
+            alert('Down payment must be at least 20% of total amount');
+            return;
+        }
+
+        const isNewCustomer = document.getElementById('newCustomerToggle').checked;
+        let customerId = null;
+        let customerData = null;
+
+        if (isNewCustomer) {
+            customerData = {
+                name: document.getElementById('newCustomerName').value,
+                phone: document.getElementById('newCustomerPhone').value,
+                email: document.getElementById('newCustomerEmail').value,
+                national_id: document.getElementById('newCustomerNationalId').value,
+                address: document.getElementById('newCustomerAddress').value,
+                customer_type: 'retail'
+            };
+        } else {
+            customerId = document.getElementById('installmentCustomerSelect').value;
+            if (!customerId) {
+                alert('Please select a customer or add new customer information');
+                return;
+            }
+        }
+
+        const installmentData = {
+            customer_id: customerId,
+            customer_data: customerData,
+            item_id: cart[0].id,
+            quantity: cart[0].quantity,
+            total_amount: totalAmount,
+            down_payment: downPayment,
+            number_of_installments: period,
+            start_date: document.getElementById('installmentStartDate').value,
+            agreement_signed: document.getElementById('agreementSigned').checked,
+            notes: document.getElementById('installmentNotes').value
+        };
+
+        // Show loading state
+        const createBtn = document.getElementById('createInstallmentSale');
+        createBtn.disabled = true;
+        createBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Creating...';
+
+        // Create installment sale
+        fetch('/api/installment-sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(installmentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success popup
+                showSuccessPopup({
+                    sale_number: data.sale_number,
+                    total_amount: totalAmount
+                });
+
+                // Clear cart and close modal
+                cart = [];
+                updateCartDisplay();
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentSaleModal'));
+                modal.hide();
+
+                // Reset payment method
+                const paymentMethodCards = document.querySelectorAll('.payment-method-card');
+                paymentMethodCards.forEach(card => card.classList.remove('active'));
+                document.querySelector('.payment-method-card[data-method="cash"]').classList.add('active');
+                document.getElementById('paymentMethod').value = 'cash';
+            } else {
+                throw new Error(data.error || 'Failed to create installment sale');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating installment sale:', error);
+            showErrorPopup(`Failed to create installment sale: ${error.message}`);
+        })
+        .finally(() => {
+            createBtn.disabled = false;
+            createBtn.innerHTML = '<i class="fas fa-save me-1"></i> Create Installment Sale';
+        });
+    }
+
+    // Make function global
+    window.showNewInstallmentSaleModal = showNewInstallmentSaleModal;
 
     // Enhanced features
     function switchCamera() {
