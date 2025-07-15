@@ -256,11 +256,82 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Store categories data globally for use in item forms
                 window.categoriesData = data;
+                
+                // Update item form category dropdowns
+                updateItemFormCategoryDropdowns(data);
             })
             .catch(error => {
                 console.error('Error loading categories:', error);
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
             });
+    }
+
+    function updateItemFormCategoryDropdowns(categories) {
+        // Update Add Item form category dropdown
+        const addItemCategorySelect = document.getElementById('itemCategory');
+        if (addItemCategorySelect) {
+            addItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+            
+            if (categories && categories.length > 0) {
+                categories.forEach(category => {
+                    // Add main category
+                    const option = document.createElement('option');
+                    option.value = category.name;
+                    option.textContent = `📁 ${category.name}`;
+                    addItemCategorySelect.appendChild(option);
+
+                    // Add subcategories if they exist
+                    if (category.subcategories && category.subcategories.length > 0) {
+                        category.subcategories.forEach(subcategory => {
+                            const subOption = document.createElement('option');
+                            subOption.value = subcategory.name;
+                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            addItemCategorySelect.appendChild(subOption);
+                        });
+                    }
+                });
+            } else {
+                // Add option to create categories if none exist
+                const createOption = document.createElement('option');
+                createOption.value = '';
+                createOption.textContent = 'No categories available - Create one first';
+                createOption.disabled = true;
+                addItemCategorySelect.appendChild(createOption);
+            }
+        }
+
+        // Update Edit Item form category dropdown
+        const editItemCategorySelect = document.getElementById('editItemCategory');
+        if (editItemCategorySelect) {
+            editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
+            
+            if (categories && categories.length > 0) {
+                categories.forEach(category => {
+                    // Add main category
+                    const option = document.createElement('option');
+                    option.value = category.name;
+                    option.textContent = `📁 ${category.name}`;
+                    editItemCategorySelect.appendChild(option);
+
+                    // Add subcategories if they exist
+                    if (category.subcategories && category.subcategories.length > 0) {
+                        category.subcategories.forEach(subcategory => {
+                            const subOption = document.createElement('option');
+                            subOption.value = subcategory.name;
+                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            editItemCategorySelect.appendChild(subOption);
+                        });
+                    }
+                });
+            } else {
+                // Add option to create categories if none exist
+                const createOption = document.createElement('option');
+                createOption.value = '';
+                createOption.textContent = 'No categories available - Create one first';
+                createOption.disabled = true;
+                editItemCategorySelect.appendChild(createOption);
+            }
+        }
     }
 
     // Calculate inventory health based on quantity
@@ -466,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = document.getElementById('itemName').value.trim();
         const sku = document.getElementById('itemSKU').value.trim();
         const description = document.getElementById('itemDescription').value.trim();
-        const category = document.getElementById('itemCategory').value.trim();
+        const category = document.getElementById('itemCategory').value.trim() || 'Uncategorized';
         const quantityStr = document.getElementById('itemQuantity').value.trim();
 
         // Get price fields
@@ -604,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = document.getElementById('editItemName').value.trim();
         const sku = document.getElementById('editItemSKU').value.trim();
         const description = document.getElementById('editItemDescription').value.trim();
-        const category = document.getElementById('editItemCategory').value.trim();
+        const category = document.getElementById('editItemCategory').value.trim() || 'Uncategorized';
         const quantityStr = document.getElementById('editItemQuantity').value.trim();
 
         // Get price fields
