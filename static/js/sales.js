@@ -724,12 +724,77 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            installmentInfo = {
+            // For installment sales, we'll create the installment sale directly
+            if (cart.length !== 1) {
+                alert('Installment sales currently support only one item at a time');
+                return;
+            }
+
+            const installmentData = {
+                customer_id: installmentCustomerData.customer_id,
+                item_id: cart[0].id,
+                quantity: cart[0].quantity,
+                total_amount: totalAmount,
                 down_payment: installmentCustomerData.installment_plan.down_payment,
                 number_of_installments: installmentCustomerData.installment_plan.period_months,
-                monthly_payment: installmentCustomerData.installment_plan.monthly_payment,
-                customer_data: installmentCustomerData
+                start_date: new Date().toISOString().split('T')[0],
+                agreement_signed: true,
+                notes: notes
             };
+
+            // Send directly to installment API
+            fetch('/api/installment-sales', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(installmentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show modern success popup
+                    showSuccessPopup({
+                        sale_number: data.sale_number,
+                        total_amount: totalAmount
+                    });
+
+                    // Clear the cart and reset form
+                    cart = [];
+                    installmentCustomerData = null;
+                    updateCartDisplay();
+                    const checkoutForm = document.getElementById('checkoutForm');
+                    if (checkoutForm) {
+                        checkoutForm.reset();
+                    }
+
+                    // Reset payment fields
+                    if (paymentAmount) {
+                        paymentAmount.value = '';
+                    }
+                    if (mobileMoneyFields) {
+                        mobileMoneyFields.classList.add('d-none');
+                    }
+                    const installmentFields = document.getElementById('installmentFields');
+                    if (installmentFields) {
+                        installmentFields.classList.add('d-none');
+                    }
+                } else {
+                    throw new Error(data.error || 'Installment sale creation failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating installment sale:', error);
+                showErrorPopup(`Installment sale failed: ${error.message}`);
+            })
+            .finally(() => {
+                // Reset button
+                if (completeTransactionBtn) {
+                    completeTransactionBtn.disabled = false;
+                    completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
+                }
+            });
+            
+            return; // Exit early for installment sales
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
@@ -1380,6 +1445,41 @@ function saveInstallmentCustomerInfo() {
         is_existing_customer: !!existingCustomerId
     };
 
+    // If new customer, create customer first
+    if (!existingCustomerId) {
+        const customerData = {
+            name: installmentCustomerData.name,
+            phone: installmentCustomerData.phone,
+            email: installmentCustomerData.email,
+            address: installmentCustomerData.address,
+            customer_type: 'retail'
+        };
+
+        fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(customerData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                installmentCustomerData.customer_id = data.customer_id;
+                finalizeSaveInstallmentCustomer();
+            } else {
+                alert('Error creating customer: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error creating customer:', error);
+            alert('Error creating customer');
+        });
+    } else {
+        finalizeSaveInstallmentCustomer();
+    }
+}
+
+function finalizeSaveInstallmentCustomer() {
     // Update checkout form with customer data
     const customerNameField = document.getElementById('customerName');
     const customerPhoneField = document.getElementById('customerPhone');
@@ -1389,7 +1489,7 @@ function saveInstallmentCustomerInfo() {
     
     // Update payment amount to down payment
     if (paymentAmount) {
-        paymentAmount.value = downPayment;
+        paymentAmount.value = installmentCustomerData.installment_plan.down_payment;
     }
 
     // Show installment fields in main form
@@ -1401,8 +1501,8 @@ function saveInstallmentCustomerInfo() {
         const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
         const customerAddressField = document.getElementById('customerAddress');
         
-        if (downPaymentField) downPaymentField.value = downPayment;
-        if (numberOfInstallmentsField) numberOfInstallmentsField.value = period;
+        if (downPaymentField) downPaymentField.value = installmentCustomerData.installment_plan.down_payment;
+        if (numberOfInstallmentsField) numberOfInstallmentsField.value = installmentCustomerData.installment_plan.period_months;
         if (customerAddressField) customerAddressField.value = installmentCustomerData.address;
     }
 
@@ -1411,7 +1511,7 @@ function saveInstallmentCustomerInfo() {
     modalInstance.hide();
 
     // Show success message
-    const customerType = existingCustomerId ? 'existing' : 'new';
+    const customerType = installmentCustomerData.customer_id ? 'existing' : 'new';
     showSuccessAlert(`${customerType.charAt(0).toUpperCase() + customerType.slice(1)} customer information saved! You can now complete the installment sale.`);
 }
 

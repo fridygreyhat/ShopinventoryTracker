@@ -237,6 +237,12 @@ class Sale(db.Model):
     payment_amount = db.Column(db.Float, default=0.0)
     change_amount = db.Column(db.Float, default=0.0)
     
+    # Installment specific fields
+    is_installment = db.Column(db.Boolean, default=False)
+    down_payment = db.Column(db.Float, default=0.0)
+    installment_months = db.Column(db.Integer, default=0)
+    monthly_payment = db.Column(db.Float, default=0.0)
+    
     # Additional information
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -613,48 +619,131 @@ class PurchaseOrder(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-class InstallmentPlan(db.Model):
-    __tablename__ = 'installment_plan'
+class InstallmentSale(db.Model):
+    __tablename__ = 'installment_sales'
     
     id = db.Column(db.Integer, primary_key=True)
     sale_id = db.Column(db.Integer, db.ForeignKey('sale.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    
+    # Basic details
+    quantity = db.Column(db.Integer, nullable=False)
     total_amount = db.Column(db.Float, nullable=False)
     down_payment = db.Column(db.Float, default=0.0)
+    remaining_amount = db.Column(db.Float, nullable=False)
+    
+    # Payment plan
+    number_of_installments = db.Column(db.Integer, nullable=False)
     monthly_payment = db.Column(db.Float, nullable=False)
-    number_of_payments = db.Column(db.Integer, nullable=False)
-    payments_made = db.Column(db.Integer, default=0)
     interest_rate = db.Column(db.Float, default=0.0)
+    
+    # Dates
     start_date = db.Column(db.Date, nullable=False)
     next_due_date = db.Column(db.Date)
-    status = db.Column(db.String(20), default='active')
+    
+    # Status and tracking
+    status = db.Column(db.String(20), default='Active')  # Active, Completed, Overdue, Cancelled
+    total_paid = db.Column(db.Float, default=0.0)
+    payments_made = db.Column(db.Integer, default=0)
+    
+    # Agreement details
+    agreement_signed = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text)
+    
+    # Metadata
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    sale = db.relationship('Sale', backref='installment_plan')
-    user = db.relationship('User', backref='installment_plans')
+    sale = db.relationship('Sale', backref='installment_sales')
+    customer = db.relationship('Customer', backref='installment_purchases')
+    item = db.relationship('Item', backref='installment_sales')
+    user = db.relationship('User', backref='installment_sales')
+    payments = db.relationship('InstallmentPayment', backref='installment_sale', lazy=True, cascade='all, delete-orphan')
     
     @property
-    def outstanding_amount(self):
-        """Calculate outstanding amount"""
-        paid_amount = self.down_payment + (self.monthly_payment * self.payments_made)
-        return max(0, self.total_amount - paid_amount)
+    def remaining_balance(self):
+        """Calculate remaining balance"""
+        return max(0, self.total_amount - self.total_paid)
+    
+    @property
+    def customer_name(self):
+        return self.customer.name if self.customer else 'Unknown Customer'
+    
+    @property
+    def item_name(self):
+        return self.item.name if self.item else 'Unknown Item'
     
     def to_dict(self):
         return {
             'id': self.id,
             'sale_id': self.sale_id,
+            'customer_id': self.customer_id,
+            'customer_name': self.customer_name,
+            'item_id': self.item_id,
+            'item_name': self.item_name,
+            'quantity': self.quantity,
             'total_amount': float(self.total_amount or 0),
             'down_payment': float(self.down_payment or 0),
+            'remaining_amount': float(self.remaining_amount or 0),
+            'remaining_balance': float(self.remaining_balance),
+            'number_of_installments': self.number_of_installments,
             'monthly_payment': float(self.monthly_payment or 0),
-            'number_of_payments': self.number_of_payments,
-            'payments_made': self.payments_made,
             'interest_rate': float(self.interest_rate or 0),
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'next_due_date': self.next_due_date.isoformat() if self.next_due_date else None,
             'status': self.status,
-            'outstanding_amount': float(self.outstanding_amount),
+            'total_paid': float(self.total_paid or 0),
+            'payments_made': self.payments_made,
+            'agreement_signed': self.agreement_signed,
+            'notes': self.notes,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class InstallmentPayment(db.Model):
+    __tablename__ = 'installment_payments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    installment_sale_id = db.Column(db.Integer, db.ForeignKey('installment_sales.id'), nullable=False)
+    
+    # Payment details
+    installment_number = db.Column(db.Integer, nullable=False)
+    amount_due = db.Column(db.Float, nullable=False)
+    amount_paid = db.Column(db.Float, default=0.0)
+    
+    # Dates
+    due_date = db.Column(db.Date, nullable=False)
+    payment_date = db.Column(db.Date)
+    
+    # Payment information
+    payment_method = db.Column(db.String(20), default='cash')
+    status = db.Column(db.String(20), default='Pending')  # Pending, Paid, Overdue, Partial
+    remarks = db.Column(db.Text)
+    
+    # Metadata
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='installment_payments')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'installment_sale_id': self.installment_sale_id,
+            'installment_number': self.installment_number,
+            'amount_due': float(self.amount_due or 0),
+            'amount_paid': float(self.amount_paid or 0),
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'payment_method': self.payment_method,
+            'status': self.status,
+            'remarks': self.remarks,
             'user_id': self.user_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

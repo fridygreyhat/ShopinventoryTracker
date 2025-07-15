@@ -1635,6 +1635,13 @@ def finance():
     """Render the financial statement page"""
     return render_template('finance.html')
 
+# Installments Routes
+@app.route('/installments')
+@login_required
+def installments():
+    """Render the installments page"""
+    return render_template('installments.html')
+
 # Financial API Routes
 @app.route('/api/finance/transactions', methods=['GET'])
 @app.route('/api/transactions', methods=['GET'])
@@ -2502,24 +2509,61 @@ def get_trial_balance_api():
 def get_installment_dashboard():
     """Get installment sales dashboard data"""
     try:
+        from models import InstallmentSale, InstallmentPayment
+        from sqlalchemy import func, and_
+        from datetime import date, timedelta
+        
         user_id = session.get('user_id')
-
-        # Mock installment data
+        
+        # Get counts by status
+        total_active = InstallmentSale.query.filter_by(user_id=user_id, status='Active').count()
+        total_completed = InstallmentSale.query.filter_by(user_id=user_id, status='Completed').count()
+        total_overdue = InstallmentSale.query.filter_by(user_id=user_id, status='Overdue').count()
+        
+        # Calculate outstanding balance
+        outstanding_balance = db.session.query(func.sum(InstallmentSale.remaining_amount)).filter(
+            InstallmentSale.user_id == user_id,
+            InstallmentSale.status.in_(['Active', 'Overdue'])
+        ).scalar() or 0
+        
+        # Get upcoming payments (next 30 days)
+        today = date.today()
+        next_month = today + timedelta(days=30)
+        
+        upcoming_payments = db.session.query(
+            InstallmentPayment.installment_sale_id,
+            InstallmentPayment.amount_due,
+            InstallmentPayment.due_date,
+            InstallmentSale.customer_name,
+            InstallmentSale.item_name
+        ).join(InstallmentSale).filter(
+            InstallmentSale.user_id == user_id,
+            InstallmentPayment.status == 'Pending',
+            InstallmentPayment.due_date.between(today, next_month)
+        ).order_by(InstallmentPayment.due_date).limit(10).all()
+        
+        upcoming_payments_list = [
+            {
+                'installment_sale_id': payment.installment_sale_id,
+                'customer_name': payment.customer_name,
+                'item_name': payment.item_name,
+                'amount_due': float(payment.amount_due),
+                'due_date': payment.due_date.isoformat()
+            }
+            for payment in upcoming_payments
+        ]
+        
         dashboard_data = {
-            'total_installment_sales': 150000.0,
-            'active_plans': 25,
-            'completed_plans': 15,
-            'overdue_payments': 3,
-            'total_outstanding': 45000.0,
-            'this_month_collections': 8500.0,
-            'upcoming_payments': [
-                {'customer_name': 'John Doe', 'amount': 1500.0, 'due_date': '2024-02-15'},
-                {'customer_name': 'Jane Smith', 'amount': 2000.0, 'due_date': '2024-02-20'},
-                {'customer_name': 'Bob Johnson', 'amount': 1200.0, 'due_date': '2024-02-25'}
-            ]
+            'summary': {
+                'total_active': total_active,
+                'total_completed': total_completed,
+                'total_overdue': total_overdue,
+                'outstanding_balance': float(outstanding_balance)
+            },
+            'upcoming_payments': upcoming_payments_list
         }
 
-        return jsonify({'success': True, 'dashboard': dashboard_data})
+        return jsonify(dashboard_data)
     except Exception as e:
         logger.error(f"Error getting installment dashboard: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -2527,43 +2571,261 @@ def get_installment_dashboard():
 @app.route('/api/installment-sales', methods=['GET'])
 @login_required
 def get_installment_sales():
-    """Get installment sales"""
+    """Get installment sales with filtering"""
     try:
+        from models import InstallmentSale
+        
         user_id = session.get('user_id')
-
-        # Mock installment sales data
-        installment_sales = [
-            {
-                'id': 1,
-                'customer_name': 'John Doe',
-                'product_name': 'Laptop Computer',
-                'total_amount': 15000.0,
-                'down_payment': 3000.0,
-                'remaining_amount': 12000.0,
-                'monthly_payment': 2000.0,
-                'payments_made': 3,
-                'payments_remaining': 3,
-                'status': 'active',
-                'next_due_date': '2024-02-15'
-            },
-            {
-                'id': 2,
-                'customer_name': 'Jane Smith',
-                'product_name': 'Smartphone',
-                'total_amount': 8000.0,
-                'down_payment': 2000.0,
-                'remaining_amount': 6000.0,
-                'monthly_payment': 1500.0,
-                'payments_made': 2,
-                'payments_remaining': 2,
-                'status': 'active',
-                'next_due_date': '2024-02-20'
-            }
-        ]
-
-        return jsonify({'success': True, 'installment_sales': installment_sales})
+        
+        # Get filter parameters
+        status = request.args.get('status')
+        customer_id = request.args.get('customer_id')
+        
+        # Build query
+        query = InstallmentSale.query.filter_by(user_id=user_id)
+        
+        if status:
+            query = query.filter(InstallmentSale.status == status)
+        if customer_id:
+            query = query.filter(InstallmentSale.customer_id == customer_id)
+        
+        # Execute query
+        installment_sales = query.order_by(InstallmentSale.created_at.desc()).all()
+        
+        return jsonify([sale.to_dict() for sale in installment_sales])
     except Exception as e:
         logger.error(f"Error getting installment sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installment-sales', methods=['POST'])
+@login_required
+def create_installment_sale():
+    """Create new installment sale"""
+    try:
+        from models import InstallmentSale, InstallmentPayment, Sale, SaleItem, Customer, Item
+        from datetime import date, timedelta
+        import uuid
+        
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['customer_id', 'item_id', 'quantity', 'total_amount', 'down_payment', 'number_of_installments']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Create customer if new customer data provided
+        if data.get('customer_data') and not data.get('customer_id'):
+            customer = Customer(
+                name=data['customer_data']['name'],
+                phone=data['customer_data']['phone'],
+                email=data['customer_data'].get('email'),
+                address=data['customer_data'].get('address'),
+                user_id=user_id
+            )
+            db.session.add(customer)
+            db.session.flush()
+            customer_id = customer.id
+        else:
+            customer_id = data['customer_id']
+        
+        # Get customer and item
+        customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+        item = Item.query.filter_by(id=data['item_id'], user_id=user_id).first()
+        
+        if not customer or not item:
+            return jsonify({'error': 'Customer or item not found'}), 404
+        
+        # Calculate installment details
+        total_amount = float(data['total_amount'])
+        down_payment = float(data['down_payment'])
+        remaining_amount = total_amount - down_payment
+        number_of_installments = int(data['number_of_installments'])
+        monthly_payment = remaining_amount / number_of_installments
+        
+        # Create sale record first
+        sale_number = f"INST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        
+        sale = Sale(
+            invoice_number=f"INV-{sale_number}",
+            sale_number=sale_number,
+            customer_name=customer.name,
+            customer_phone=customer.phone,
+            customer_id=customer_id,
+            sale_type='retail',
+            subtotal=total_amount,
+            total_amount=total_amount,
+            payment_method='installment',
+            payment_status='partial',
+            payment_amount=down_payment,
+            is_installment=True,
+            down_payment=down_payment,
+            installment_months=number_of_installments,
+            monthly_payment=monthly_payment,
+            user_id=user_id
+        )
+        db.session.add(sale)
+        db.session.flush()
+        
+        # Create sale item
+        sale_item = SaleItem(
+            sale_id=sale.id,
+            item_id=data['item_id'],
+            quantity=data['quantity'],
+            unit_price=total_amount / data['quantity'],
+            total_price=total_amount
+        )
+        db.session.add(sale_item)
+        
+        # Create installment sale record
+        installment_sale = InstallmentSale(
+            sale_id=sale.id,
+            customer_id=customer_id,
+            item_id=data['item_id'],
+            quantity=data['quantity'],
+            total_amount=total_amount,
+            down_payment=down_payment,
+            remaining_amount=remaining_amount,
+            number_of_installments=number_of_installments,
+            monthly_payment=monthly_payment,
+            start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
+            next_due_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() + timedelta(days=30),
+            agreement_signed=data.get('agreement_signed', False),
+            notes=data.get('notes', ''),
+            total_paid=down_payment,
+            user_id=user_id
+        )
+        db.session.add(installment_sale)
+        db.session.flush()
+        
+        # Create payment schedule
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        
+        for i in range(1, number_of_installments + 1):
+            due_date = start_date + timedelta(days=30 * i)
+            
+            payment = InstallmentPayment(
+                installment_sale_id=installment_sale.id,
+                installment_number=i,
+                amount_due=monthly_payment,
+                due_date=due_date,
+                user_id=user_id
+            )
+            db.session.add(payment)
+        
+        # Update item stock
+        item.stock_quantity -= data['quantity']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'installment_sale_id': installment_sale.id,
+            'sale_number': sale_number
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating installment sale: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installment-sales/<int:sale_id>/payments', methods=['GET'])
+@login_required
+def get_installment_payments(sale_id):
+    """Get payment schedule for an installment sale"""
+    try:
+        from models import InstallmentSale, InstallmentPayment
+        
+        user_id = session.get('user_id')
+        
+        # Get installment sale
+        installment_sale = InstallmentSale.query.filter_by(
+            id=sale_id, user_id=user_id
+        ).first()
+        
+        if not installment_sale:
+            return jsonify({'error': 'Installment sale not found'}), 404
+        
+        # Get payment schedule
+        payments = InstallmentPayment.query.filter_by(
+            installment_sale_id=sale_id
+        ).order_by(InstallmentPayment.installment_number).all()
+        
+        return jsonify({
+            'installment_sale': installment_sale.to_dict(),
+            'payment_schedule': [payment.to_dict() for payment in payments]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting installment payments: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/installment-sales/<int:sale_id>/payments', methods=['POST'])
+@login_required
+def record_installment_payment():
+    """Record a payment for an installment sale"""
+    try:
+        from models import InstallmentSale, InstallmentPayment
+        from datetime import date
+        
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        # Get installment sale
+        installment_sale = InstallmentSale.query.filter_by(
+            id=sale_id, user_id=user_id
+        ).first()
+        
+        if not installment_sale:
+            return jsonify({'error': 'Installment sale not found'}), 404
+        
+        # Get the specific payment
+        payment = InstallmentPayment.query.filter_by(
+            installment_sale_id=sale_id,
+            installment_number=data['installment_number']
+        ).first()
+        
+        if not payment:
+            return jsonify({'error': 'Payment record not found'}), 404
+        
+        # Update payment
+        payment.amount_paid = data['amount_paid']
+        payment.payment_date = datetime.strptime(data['payment_date'], '%Y-%m-%d').date()
+        payment.payment_method = data.get('payment_method', 'cash')
+        payment.status = 'Paid' if payment.amount_paid >= payment.amount_due else 'Partial'
+        payment.remarks = data.get('remarks', '')
+        payment.updated_at = datetime.utcnow()
+        
+        # Update installment sale
+        installment_sale.total_paid += data['amount_paid']
+        installment_sale.payments_made += 1
+        
+        # Update next due date and status
+        if installment_sale.payments_made >= installment_sale.number_of_installments:
+            installment_sale.status = 'Completed'
+            installment_sale.next_due_date = None
+        else:
+            next_payment = InstallmentPayment.query.filter_by(
+                installment_sale_id=sale_id,
+                status='Pending'
+            ).order_by(InstallmentPayment.installment_number).first()
+            
+            if next_payment:
+                installment_sale.next_due_date = next_payment.due_date
+        
+        installment_sale.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Payment recorded successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error recording payment: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ===== CUSTOMERS API ROUTES =====
