@@ -480,17 +480,6 @@ function saveInstallmentSale() {
 function createInstallmentSale(installmentData) {
     console.log('Sending installment data:', installmentData);
     
-    // Validate installment data before sending
-    if (!installmentData.item_id || !installmentData.quantity || !installmentData.total_amount) {
-        showErrorMessage('Missing required installment data');
-        return;
-    }
-
-    if (!installmentData.customer_id && !installmentData.customer_data) {
-        showErrorMessage('Customer information is required');
-        return;
-    }
-
     fetch('/api/installment-sales', {
         method: 'POST',
         headers: {
@@ -518,70 +507,12 @@ function createInstallmentSale(installmentData) {
             loadInstallmentSales();
             
             // Clear the form
-            document.getElementById('newInstallmentForm').reset();
-        } else {
-            showErrorMessage(data.error || 'Failed to create installment sale');
-        }
-    })
-    .catch(error => {
-        console.error('Error creating installment sale:', error);
-        showErrorMessage('Error creating installment sale: ' + error.message);
-    });
-}
-
-    if (!installmentData.number_of_installments || installmentData.number_of_installments <= 0) {
-        showErrorMessage('Valid installment period is required');
-        return;
-    }
-    
-    fetch('/api/installment-sales', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(installmentData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json().then(data => {
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP error! status: ${response.status}`);
-            }
-            return data;
-        });
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        
-        if (data.success) {
-            // Show success message
-            showSuccessMessage(`Installment sale created successfully! Sale Number: ${data.sale_number}`);
-            
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Reset form
-            const form = document.getElementById('installmentSaleForm');
+            const form = document.getElementById('newInstallmentForm');
             if (form) {
                 form.reset();
             }
-            
-            // Reset customer fields if they exist
-            const newCustomerFields = document.getElementById('new-customer-fields');
-            if (newCustomerFields) {
-                newCustomerFields.style.display = 'none';
-            }
-            
-            // Reload data
-            loadDashboardData();
-            loadInstallmentSales();
         } else {
-            throw new Error(data.error || 'Failed to create installment sale');
+            showErrorMessage(data.error || 'Failed to create installment sale');
         }
     })
     .catch(error => {

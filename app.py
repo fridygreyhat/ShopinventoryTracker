@@ -105,7 +105,7 @@ def init_database():
             # Import all models to ensure they're registered
             from models import (User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
                 Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
-                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentPlan
+                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentSale, InstallmentPayment
             )
             
             # Create all tables
@@ -5277,7 +5277,7 @@ def sales():
             logger.error(f"Error calculating sales metrics: {str(e)}")
             total_sales = cash_sales = installment_sales = other_sales = 0
 
-        # Get installment plans summary with error handling
+        # Get installment sales summary with error handling
         try:
             from models import InstallmentSale
             from datetime import datetime
@@ -5288,7 +5288,7 @@ def sales():
             overdue_count = 0
             
             try:
-                # Use InstallmentSale instead of InstallmentPlan
+                # Get active installment sales
                 active_plans = InstallmentSale.query.filter(
                     InstallmentSale.user_id == user_id,
                     InstallmentSale.status == 'Active'
