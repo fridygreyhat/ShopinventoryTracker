@@ -13,6 +13,7 @@ const AVAILABLE_THEMES = [
 ];
 
 // DOM variables
+// Theme selector variables
 let themeSelectors;
 let currentTheme = 'sunset'; // Default theme
 

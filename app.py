@@ -1003,7 +1003,13 @@ def bulk_import_inventory():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Bulk import failed: {str(e)}")
-        return jsonify({"error": f"Import failed: {str(e)}"}), 500
+        return jsonify({
+            "success": False,
+            "error": f"Import failed: {str(e)}",
+            "imported_count": 0,
+            "total_rows": 0,
+            "errors": [f"System error: {str(e)}"]
+        }), 500
 
 @app.route('/api/inventory/csv-template', methods=['GET'])
 def get_csv_template():

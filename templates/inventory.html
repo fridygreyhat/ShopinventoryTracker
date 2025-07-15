@@ -193,18 +193,11 @@
                             <li><strong>Optional:</strong> sku, description, category, quantity, buying_price, selling_price_retail, selling_price_wholesale, sales_type</li>
                         </ul>
                         <div class="row mt-3">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <strong>Example CSV header:</strong><br>
-                                <code class="small">name,sku,description,category,quantity,buying_price,selling_price_retail,selling_price_wholesale,sales_type</code>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Field Notes:</strong>
-                                <ul class="small mb-0">
-                                    <li>quantity: defaults to 0 if empty</li>
-                                    <li>prices: defaults to 0 if empty</li>
-                                    <li>sales_type: retail, wholesale, or both</li>
-                                    <li>sku: auto-generated if empty</li>
-                                </ul>
+                                <code class="small d-block mb-2">name,sku,description,category,quantity,buying_price,selling_price_retail,selling_price_wholesale,sales_type</code>
+                                <strong>Example CSV row:</strong><br>
+                                <code class="small d-block">iPhone 14,IPHONE14,Latest iPhone model,Electronics,10,800000,1000000,950000,both</code>
                             </div>
                         </div>
                         <div class="mt-3 d-flex gap-2">

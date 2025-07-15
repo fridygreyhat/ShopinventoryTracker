@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-function loadCategories() {
+    function loadCategories() {
         fetch('/api/categories')
             .then(response => response.json())
             .then(data => {
@@ -258,6 +258,11 @@ function loadCategories() {
 
                 // Store categories data globally for use in item forms
                 window.categoriesData = data;
+            })
+            .catch(error => {
+                console.error('Error loading categories:', error);
+                inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
+            });
     }
 
     // Calculate inventory health based on quantity
