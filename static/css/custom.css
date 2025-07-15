@@ -1220,6 +1220,45 @@ footer {
     overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
+/* Categories Table Styles */
+#categoriesTable {
+    font-size: 0.9rem;
+}
+
+#categoriesTable th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #dee2e6;
+    padding: 12px 8px;
+}
+
+#categoriesTable td {
+    vertical-align: middle;
+    padding: 10px 8px;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+#categoriesTable .table-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    font-weight: 500;
+}
+
+#categoriesTable .badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+#categoriesTable .btn-group-sm .btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+#categoriesTable .ps-4 {
+    padding-left: 2rem !important;
+}
+
 /* Enhanced tab navigation scrolling */
 .nav-tabs {
     display: flex;
