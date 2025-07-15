@@ -137,11 +137,40 @@
                                             <span class="submenu-text">Completed Sales</span>
                                         </a>
                                     </li>
-                                    <li class="submenu-item">
-                                        <a class="submenu-link" href="{{ url_for('sales') }}#transactions">
+                                    <li class="submenu-item has-submenu">
+                                        <a class="submenu-link submenu-toggle" href="#" data-bs-toggle="collapse" data-bs-target="#completedTransactionsSubmenu" aria-expanded="false">
                                             <i class="submenu-icon fas fa-receipt"></i>
                                             <span class="submenu-text">Completed Transactions</span>
+                                            <i class="submenu-arrow fas fa-chevron-down"></i>
                                         </a>
+                                        <div class="collapse submenu" id="completedTransactionsSubmenu">
+                                            <ul class="submenu-list">
+                                                <li class="submenu-item">
+                                                    <a class="submenu-link" href="{{ url_for('sales') }}#completed-transactions">
+                                                        <i class="submenu-icon fas fa-list"></i>
+                                                        <span class="submenu-text">All Transactions</span>
+                                                    </a>
+                                                </li>
+                                                <li class="submenu-item">
+                                                    <a class="submenu-link" href="{{ url_for('sales') }}#completed-transactions-today">
+                                                        <i class="submenu-icon fas fa-calendar-day"></i>
+                                                        <span class="submenu-text">Today's Transactions</span>
+                                                    </a>
+                                                </li>
+                                                <li class="submenu-item">
+                                                    <a class="submenu-link" href="{{ url_for('sales') }}#completed-transactions-week">
+                                                        <i class="submenu-icon fas fa-calendar-week"></i>
+                                                        <span class="submenu-text">This Week</span>
+                                                    </a>
+                                                </li>
+                                                <li class="submenu-item">
+                                                    <a class="submenu-link" href="{{ url_for('sales') }}#completed-transactions-month">
+                                                        <i class="submenu-icon fas fa-calendar-month"></i>
+                                                        <span class="submenu-text">This Month</span>
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </li>
                                 </ul>
                             </div>

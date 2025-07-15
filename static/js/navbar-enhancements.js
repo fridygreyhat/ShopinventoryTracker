@@ -378,6 +378,7 @@ function initializeSubmenuToggle() {
 
             if (submenu) {
                 const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                const isNestedSubmenu = this.closest('.submenu-item').closest('.submenu');
 
                 if (isExpanded) {
                     // Close this submenu
@@ -387,17 +388,22 @@ function initializeSubmenuToggle() {
                     this.setAttribute('aria-expanded', 'false');
                     this.classList.remove('active');
                 } else {
-                    // Close other open submenus first
-                    document.querySelectorAll('.submenu.show').forEach(openSubmenu => {
-                        openSubmenu.classList.remove('show');
-                        openSubmenu.style.height = '0px';
-                        openSubmenu.style.overflow = 'hidden';
-                        const openToggle = document.querySelector(`[data-bs-target="#${openSubmenu.id}"]`);
-                        if (openToggle) {
-                            openToggle.setAttribute('aria-expanded', 'false');
-                            openToggle.classList.remove('active');
-                        }
-                    });
+                    // For main level submenus, close other main level submenus
+                    if (!isNestedSubmenu) {
+                        document.querySelectorAll('.submenu.show').forEach(openSubmenu => {
+                            // Only close if it's not a nested submenu within this one
+                            if (!this.closest('.nav-item').contains(openSubmenu)) {
+                                openSubmenu.classList.remove('show');
+                                openSubmenu.style.height = '0px';
+                                openSubmenu.style.overflow = 'hidden';
+                                const openToggle = document.querySelector(`[data-bs-target="#${openSubmenu.id}"]`);
+                                if (openToggle) {
+                                    openToggle.setAttribute('aria-expanded', 'false');
+                                    openToggle.classList.remove('active');
+                                }
+                            }
+                        });
+                    }
 
                     // Open this submenu with animation
                     submenu.classList.add('show');

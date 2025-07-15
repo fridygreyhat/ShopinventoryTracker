@@ -1997,7 +1997,72 @@ function initializeCompletedTransactions() {
             loadCompletedTransactions();
         });
     }
+
+    // Handle navigation from submenu links
+    handleCompletedTransactionNavigation();
 }
+
+function handleCompletedTransactionNavigation() {
+    // Check if we need to show completed transactions based on URL hash
+    const hash = window.location.hash;
+    
+    if (hash === '#completed-transactions' || 
+        hash === '#completed-transactions-today' || 
+        hash === '#completed-transactions-week' || 
+        hash === '#completed-transactions-month') {
+        
+        // Switch to completed transactions tab
+        const completedTab = document.getElementById('completed-tab');
+        if (completedTab) {
+            completedTab.click();
+        }
+        
+        // Apply appropriate filters based on hash
+        switch(hash) {
+            case '#completed-transactions-today':
+                setTodayFilter();
+                break;
+            case '#completed-transactions-week':
+                setWeekFilter();
+                break;
+            case '#completed-transactions-month':
+                setMonthFilter();
+                break;
+        }
+        
+        // Load transactions with filters
+        setTimeout(() => {
+            loadCompletedTransactions();
+        }, 100);
+    }
+}
+
+function setTodayFilter() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFromFilter').value = today;
+    document.getElementById('dateToFilter').value = today;
+}
+
+function setWeekFilter() {
+    const today = new Date();
+    const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
+    const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 6));
+    
+    document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
+}
+
+function setMonthFilter() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
+}
+
+// Listen for hash changes
+window.addEventListener('hashchange', handleCompletedTransactionNavigation);
 
 function loadCompletedTransactions(page = 1) {
     const dateFrom = document.getElementById('dateFromFilter')?.value || '';
