@@ -1390,6 +1390,33 @@ def api_stock_status_report():
         logger.error(f"Error generating stock status report: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Missing route handlers
+@app.route('/api/transactions', methods=['GET'])
+@login_required
+def get_transactions():
+    """API endpoint to get all transactions"""
+    try:
+        from models import Sale
+        user_id = session.get('user_id')
+        transactions = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).all()
+        
+        transactions_data = []
+        for transaction in transactions:
+            transactions_data.append({
+                'id': transaction.id,
+                'sale_number': transaction.sale_number,
+                'created_at': transaction.created_at.isoformat(),
+                'customer_name': transaction.customer.name if transaction.customer else 'Walk-in Customer',
+                'total_amount': float(transaction.total_amount),
+                'payment_type': transaction.payment_type,
+                'payment_status': transaction.payment_status
+            })
+        
+        return jsonify(transactions_data)
+    except Exception as e:
+        logger.error(f"Error getting transactions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Sales API Routes
 @app.route('/api/sales', methods=['GET'])
 @login_required
@@ -1668,6 +1695,34 @@ def create_customer():
         logger.error(f"Error creating customer: {str(e)}")
         return jsonify({"error": f"Failed to create customer: {str(e)}"}), 500
 
+# Additional Customer API Routes
+@app.route('/api/customers/<int:customer_id>', methods=['GET'])
+@login_required
+def get_customer(customer_id):
+    """API endpoint to get a specific customer"""
+    try:
+        from models import Customer
+        user_id = session.get('user_id')
+        customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+        
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+        
+        return jsonify({
+            'id': customer.id,
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'customer_type': customer.customer_type,
+            'credit_limit': float(customer.credit_limit or 0),
+            'loyalty_points': customer.loyalty_points or 0,
+            'created_at': customer.created_at.isoformat() if customer.created_at else None
+        })
+    except Exception as e:
+        logger.error(f"Error getting customer: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Installment API Routes
 @app.route('/api/installments', methods=['GET'])
 @login_required
@@ -1797,6 +1852,29 @@ def get_categories():
 
     except Exception as e:
         logger.error(f"Error getting categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['GET'])
+@login_required
+def get_category(category_id):
+    """API endpoint to get a specific category"""
+    try:
+        from models import Category
+        user_id = session.get('user_id')
+        category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+        
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        
+        return jsonify({
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'parent_id': category.parent_id,
+            'created_at': category.created_at.isoformat() if category.created_at else None
+        })
+    except Exception as e:
+        logger.error(f"Error getting category: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/categories', methods=['POST'])
@@ -1986,9 +2064,26 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+# Debug route to help identify routing issues
+@app.route('/debug/routes')
+def debug_routes():
+    """Debug endpoint to list all available routes"""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'rule': str(rule)
+        })
+    return jsonify(routes)
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
+    # Log the requested URL for debugging
+    logger.warning(f"404 error for URL: {request.url}")
+    if request.is_json or request.path.startswith('/api/'):
+        return jsonify({'error': 'Not found', 'path': request.path}), 404
     return render_template('404.html'), 404
 
 @app.errorhandler(500)

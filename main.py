@@ -19,6 +19,12 @@ if __name__ == '__main__':
             logger.error("Database initialization failed - exiting")
             exit(1)
         logger.info("✅ Database initialization completed successfully")
+        
+        # Print available routes for debugging
+        logger.info("📍 Available routes:")
+        for rule in app.url_map.iter_rules():
+            logger.info(f"  {rule.rule} -> {rule.endpoint} [{', '.join(rule.methods)}]")
+            
     except Exception as e:
         logger.error(f"❌ Critical error during startup: {str(e)}")
         exit(1)
