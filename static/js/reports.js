@@ -1,436 +1,454 @@
+
 document.addEventListener('DOMContentLoaded', function() {
-    // DOM Elements
-    const reportTypeSelect = document.getElementById('reportType');
-    const lowStockThresholdInput = document.getElementById('lowStockThreshold');
-    const generateReportBtn = document.getElementById('generateReportBtn');
+    // Event listeners for report generation buttons
+    document.getElementById('generateSalesReportBtn').addEventListener('click', generateSalesReport);
+    document.getElementById('generateStockReportBtn').addEventListener('click', generateStockReport);
+    document.getElementById('generateAccountingReportBtn').addEventListener('click', generateAccountingReport);
     
-    // Report Section Elements
-    const stockStatusReport = document.getElementById('stockStatusReport');
-    const categoryBreakdownReport = document.getElementById('categoryBreakdownReport');
-    const valueAnalysisReport = document.getElementById('valueAnalysisReport');
-    
-    // Charts
-    let categoryItemsChart = null;
-    let categoryStockChart = null;
-    let categoryValueChart = null;
-    
-    // Load initial report
-    generateReport();
-    
-    // Event Listeners
-    generateReportBtn.addEventListener('click', generateReport);
-    reportTypeSelect.addEventListener('change', function() {
-        // Update visibility of threshold input based on report type
-        if (this.value === 'stock-status') {
-            document.querySelector('label[for="lowStockThreshold"]').classList.remove('d-none');
-            lowStockThresholdInput.classList.remove('d-none');
-        } else {
-            document.querySelector('label[for="lowStockThreshold"]').classList.add('d-none');
-            lowStockThresholdInput.classList.add('d-none');
-        }
+    // Date range selectors
+    document.getElementById('salesDateRange').addEventListener('change', function() {
+        toggleCustomDateRange('customDateRange', this.value === 'custom');
     });
     
-    function generateReport() {
-        const reportType = reportTypeSelect.value;
-        
-        // Hide all report sections
-        stockStatusReport.classList.add('d-none');
-        categoryBreakdownReport.classList.add('d-none');
-        valueAnalysisReport.classList.add('d-none');
-        
-        // Show selected report section
-        if (reportType === 'stock-status') {
-            stockStatusReport.classList.remove('d-none');
-            generateStockStatusReport();
-        } else if (reportType === 'category-breakdown') {
-            categoryBreakdownReport.classList.remove('d-none');
-            generateCategoryBreakdownReport();
-        } else if (reportType === 'value-analysis') {
-            valueAnalysisReport.classList.remove('d-none');
-            generateValueAnalysisReport();
+    document.getElementById('accountingPeriod').addEventListener('change', function() {
+        toggleCustomDateRange('customAccountingPeriod', this.value === 'custom');
+    });
+
+    function toggleCustomDateRange(elementId, show) {
+        const element = document.getElementById(elementId);
+        if (show) {
+            element.classList.remove('d-none');
+        } else {
+            element.classList.add('d-none');
         }
     }
-    
-    function generateStockStatusReport() {
-        const lowStockThreshold = parseInt(lowStockThresholdInput.value) || 10;
+
+    function generateSalesReport() {
+        const reportType = document.getElementById('salesReportType').value;
+        const dateRange = document.getElementById('salesDateRange').value;
         
-        fetch(`/api/reports/stock-status?low_stock_threshold=${lowStockThreshold}`)
+        hideAllReportDisplays();
+        document.getElementById('salesReportsDisplay').classList.remove('d-none');
+        document.getElementById('salesReportTitle').textContent = getSalesReportTitle(reportType);
+        
+        let apiUrl = '/api/reports/sales';
+        let params = new URLSearchParams({ type: reportType, range: dateRange });
+        
+        if (dateRange === 'custom') {
+            const startDate = document.getElementById('salesStartDate').value;
+            const endDate = document.getElementById('salesEndDate').value;
+            if (startDate && endDate) {
+                params.append('start_date', startDate);
+                params.append('end_date', endDate);
+            }
+        }
+        
+        fetch(`${apiUrl}?${params}`)
             .then(response => response.json())
             .then(data => {
-                updateStockStatusSummary(data);
-                updateLowStockTable(data.low_stock_items);
+                if (data.success) {
+                    displaySalesReport(data.reports, reportType);
+                } else {
+                    showError('Failed to generate sales report');
+                }
             })
             .catch(error => {
-                console.error('Error generating stock status report:', error);
+                console.error('Error generating sales report:', error);
+                showError('Error generating sales report');
             });
     }
-    
-    function generateCategoryBreakdownReport() {
-        fetch('/api/reports/category-breakdown')
+
+    function generateStockReport() {
+        const reportType = document.getElementById('stockReportType').value;
+        const threshold = document.getElementById('lowStockThreshold').value;
+        
+        hideAllReportDisplays();
+        document.getElementById('stockReportsDisplay').classList.remove('d-none');
+        document.getElementById('stockReportTitle').textContent = getStockReportTitle(reportType);
+        
+        let apiUrl = '/api/reports/stock';
+        let params = new URLSearchParams({ type: reportType, threshold: threshold });
+        
+        fetch(`${apiUrl}?${params}`)
             .then(response => response.json())
             .then(data => {
-                createCategoryItemsChart(data);
-                createCategoryStockChart(data);
-                updateCategoryBreakdownTable(data);
+                if (data.success) {
+                    displayStockReport(data, reportType);
+                } else {
+                    showError('Failed to generate stock report');
+                }
             })
             .catch(error => {
-                console.error('Error generating category breakdown report:', error);
+                console.error('Error generating stock report:', error);
+                showError('Error generating stock report');
             });
     }
-    
-    function generateValueAnalysisReport() {
-        // Load category breakdown and inventory data for value analysis
-        Promise.all([
-            fetch('/api/reports/category-breakdown').then(res => res.json()),
-            fetch('/api/inventory').then(res => res.json())
-        ])
-        .then(([categoryData, inventoryData]) => {
-            createCategoryValueChart(categoryData);
-            updateValueAnalysisSummary(categoryData, inventoryData);
-            updateValueAnalysisTable(inventoryData);
-        })
-        .catch(error => {
-            console.error('Error generating value analysis report:', error);
-        });
-    }
-    
-    function updateStockStatusSummary(data) {
-        // Update summary cards
-        document.getElementById('total-items').textContent = data.total_items;
-        document.getElementById('total-stock').textContent = data.total_stock;
-        document.getElementById('low-stock-count').textContent = data.low_stock_items_count;
-        document.getElementById('out-of-stock-count').textContent = data.out_of_stock_items_count;
-    }
-    
-    function updateLowStockTable(lowStockItems) {
-        const lowStockTable = document.getElementById('low-stock-table');
+
+    function generateAccountingReport() {
+        const reportType = document.getElementById('accountingReportType').value;
+        const period = document.getElementById('accountingPeriod').value;
         
-        if (lowStockItems && lowStockItems.length > 0) {
+        hideAllReportDisplays();
+        document.getElementById('accountingReportsDisplay').classList.remove('d-none');
+        document.getElementById('accountingReportTitle').textContent = getAccountingReportTitle(reportType);
+        
+        let apiUrl = '/api/reports/accounting';
+        let params = new URLSearchParams({ type: reportType, period: period });
+        
+        if (period === 'custom') {
+            const startDate = document.getElementById('accountingStartDate').value;
+            const endDate = document.getElementById('accountingEndDate').value;
+            if (startDate && endDate) {
+                params.append('start_date', startDate);
+                params.append('end_date', endDate);
+            }
+        }
+        
+        fetch(`${apiUrl}?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAccountingReport(data, reportType);
+                } else {
+                    showError('Failed to generate accounting report');
+                }
+            })
+            .catch(error => {
+                console.error('Error generating accounting report:', error);
+                showError('Error generating accounting report');
+            });
+    }
+
+    function hideAllReportDisplays() {
+        document.querySelectorAll('.report-display').forEach(el => el.classList.add('d-none'));
+    }
+
+    function displaySalesReport(data, reportType) {
+        const tableHead = document.getElementById('salesTableHead');
+        const tableBody = document.getElementById('salesTableBody');
+        
+        if (reportType === 'completed-sales') {
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Sale Number</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Total Amount</th>
+                    <th>Payment Method</th>
+                </tr>
+            `;
+            
             let tableHtml = '';
+            data.forEach(sale => {
+                tableHtml += `
+                    <tr>
+                        <td>${sale.sale_number}</td>
+                        <td>${new Date(sale.created_at).toLocaleDateString()}</td>
+                        <td>${sale.customer_name || 'Walk-in Customer'}</td>
+                        <td>${sale.items_count}</td>
+                        <td><span class="currency-symbol">TZS</span> ${parseFloat(sale.total_amount).toLocaleString()}</td>
+                        <td><span class="badge bg-success">${sale.payment_method}</span></td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="6" class="text-center">No completed sales found</td></tr>';
+        } else if (reportType === 'pending-sales') {
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Sale Number</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            `;
             
-            // Sort by quantity (lowest first)
-            lowStockItems.sort((a, b) => a.quantity - b.quantity);
+            let tableHtml = '';
+            data.forEach(sale => {
+                tableHtml += `
+                    <tr>
+                        <td>${sale.sale_number}</td>
+                        <td>${new Date(sale.created_at).toLocaleDateString()}</td>
+                        <td>${sale.customer_name || 'Walk-in Customer'}</td>
+                        <td>${sale.items_count}</td>
+                        <td><span class="currency-symbol">TZS</span> ${parseFloat(sale.total_amount).toLocaleString()}</td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="completeSale(${sale.id})">
+                                <i class="fas fa-check"></i> Complete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="7" class="text-center">No pending sales found</td></tr>';
+        }
+    }
+
+    function displayStockReport(data, reportType) {
+        const tableHead = document.getElementById('stockTableHead');
+        const tableBody = document.getElementById('stockTableBody');
+        const summaryCards = document.getElementById('stockSummaryCards');
+        
+        if (reportType === 'stock-available') {
+            // Update summary cards
+            document.getElementById('total-items').textContent = data.total_items || 0;
+            document.getElementById('total-stock').textContent = data.total_stock || 0;
+            document.getElementById('low-stock-count').textContent = data.low_stock_count || 0;
+            document.getElementById('out-of-stock-count').textContent = data.out_of_stock_count || 0;
             
-            lowStockItems.forEach(item => {
-                const quantityClass = item.quantity === 0 ? 'bg-danger' : 'bg-warning';
+            summaryCards.classList.remove('d-none');
+            
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Name</th>
+                    <th>SKU</th>
+                    <th>Category</th>
+                    <th>Current Stock</th>
+                    <th>Minimum Stock</th>
+                    <th>Status</th>
+                    <th>Value</th>
+                </tr>
+            `;
+            
+            let tableHtml = '';
+            data.items.forEach(item => {
+                const status = item.stock_quantity <= 0 ? 'Out of Stock' : 
+                              item.stock_quantity <= item.minimum_stock ? 'Low Stock' : 'In Stock';
+                const statusClass = item.stock_quantity <= 0 ? 'bg-danger' : 
+                                   item.stock_quantity <= item.minimum_stock ? 'bg-warning' : 'bg-success';
                 
                 tableHtml += `
-                <tr>
-                    <td>
-                        <a href="/item/${item.id}" class="text-decoration-none">
-                            ${item.name}
-                        </a>
-                    </td>
-                    <td>${item.sku || ''}</td>
-                    <td>${item.category || 'Uncategorized'}</td>
-                    <td><span class="badge ${quantityClass}">${item.quantity}</span></td>
-                    <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
-                    <td>
-                        <a href="/item/${item.id}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-edit"></i> Update
-                        </a>
-                    </td>
-                </tr>
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.sku || ''}</td>
+                        <td>${item.category || 'Uncategorized'}</td>
+                        <td>${item.stock_quantity}</td>
+                        <td>${item.minimum_stock || 0}</td>
+                        <td><span class="badge ${statusClass}">${status}</span></td>
+                        <td><span class="currency-symbol">TZS</span> ${(item.stock_quantity * item.price).toLocaleString()}</td>
+                    </tr>
                 `;
             });
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="7" class="text-center">No items found</td></tr>';
+        } else if (reportType === 'stock-transactions') {
+            summaryCards.classList.add('d-none');
             
-            lowStockTable.innerHTML = tableHtml;
-        } else {
-            lowStockTable.innerHTML = `
+            tableHead.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center">No low stock items found</td>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Reason</th>
+                    <th>Reference</th>
                 </tr>
             `;
-        }
-    }
-    
-    function createCategoryItemsChart(categoryData) {
-        // Prepare data for chart
-        const categories = Object.keys(categoryData);
-        const itemCounts = categories.map(category => categoryData[category].count);
-        
-        // Get canvas context
-        const ctx = document.getElementById('categoryItemsChart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (categoryItemsChart) {
-            categoryItemsChart.destroy();
-        }
-        
-        // Create new chart
-        categoryItemsChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: categories,
-                datasets: [{
-                    label: 'Number of Items',
-                    data: itemCounts,
-                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Number of Items'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Category'
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    function createCategoryStockChart(categoryData) {
-        // Prepare data for chart
-        const categories = Object.keys(categoryData);
-        const stockQuantities = categories.map(category => categoryData[category].total_quantity);
-        
-        // Get canvas context
-        const ctx = document.getElementById('categoryStockChart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (categoryStockChart) {
-            categoryStockChart.destroy();
-        }
-        
-        // Create new chart
-        categoryStockChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: categories,
-                datasets: [{
-                    label: 'Total Stock',
-                    data: stockQuantities,
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Total Stock Quantity'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Category'
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    function updateCategoryBreakdownTable(categoryData) {
-        const categoryBreakdownTable = document.getElementById('category-breakdown-table');
-        
-        if (Object.keys(categoryData).length > 0) {
+            
             let tableHtml = '';
-            
-            // Sort categories by item count (highest first)
-            const sortedCategories = Object.keys(categoryData).sort((a, b) => {
-                return categoryData[b].count - categoryData[a].count;
-            });
-            
-            sortedCategories.forEach(category => {
-                const data = categoryData[category];
-                const avgQuantity = (data.total_quantity / data.count).toFixed(1);
+            data.transactions.forEach(transaction => {
+                const typeClass = transaction.type === 'in' ? 'bg-success' : 'bg-danger';
+                const typeText = transaction.type === 'in' ? 'Stock In' : 'Stock Out';
                 
                 tableHtml += `
-                <tr>
-                    <td>${category}</td>
-                    <td>${data.count}</td>
-                    <td>${data.total_quantity}</td>
-                    <td>${avgQuantity}</td>
-                    <td><span class="currency-symbol">TZS</span> ${data.total_value.toLocaleString()}</td>
-                </tr>
+                    <tr>
+                        <td>${new Date(transaction.date).toLocaleDateString()}</td>
+                        <td>${transaction.item_name}</td>
+                        <td><span class="badge ${typeClass}">${typeText}</span></td>
+                        <td>${transaction.quantity}</td>
+                        <td>${transaction.reason}</td>
+                        <td>${transaction.reference || ''}</td>
+                    </tr>
                 `;
             });
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="6" class="text-center">No stock transactions found</td></tr>';
+        } else if (reportType === 'stock-issues') {
+            summaryCards.classList.add('d-none');
             
-            categoryBreakdownTable.innerHTML = tableHtml;
-        } else {
-            categoryBreakdownTable.innerHTML = `
+            tableHead.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center">No categories found</td>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Issue Type</th>
+                    <th>Quantity</th>
+                    <th>Value Lost</th>
+                    <th>Notes</th>
                 </tr>
             `;
-        }
-    }
-    
-    function createCategoryValueChart(categoryData) {
-        // Prepare data for chart
-        const categories = Object.keys(categoryData);
-        const values = categories.map(category => categoryData[category].total_value);
-        
-        // Get canvas context
-        const ctx = document.getElementById('categoryValueChart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (categoryValueChart) {
-            categoryValueChart.destroy();
-        }
-        
-        // Create new chart
-        categoryValueChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: categories,
-                datasets: [{
-                    data: values,
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 206, 86, 0.7)',
-                        'rgba(75, 192, 192, 0.7)',
-                        'rgba(153, 102, 255, 0.7)',
-                        'rgba(255, 159, 64, 0.7)',
-                        'rgba(199, 199, 199, 0.7)',
-                        'rgba(83, 102, 255, 0.7)',
-                        'rgba(40, 159, 64, 0.7)',
-                        'rgba(210, 199, 199, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(199, 199, 199, 1)',
-                        'rgba(83, 102, 255, 1)',
-                        'rgba(40, 159, 64, 1)',
-                        'rgba(210, 199, 199, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.raw;
-                                const label = context.label || '';
-                                const percentage = ((value / values.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
-                                return `${label}: $${value.toFixed(2)} (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    function updateValueAnalysisSummary(categoryData, inventoryData) {
-        // Calculate total inventory value
-        const totalValue = Object.values(categoryData).reduce(
-            (sum, category) => sum + category.total_value, 0
-        );
-        
-        // Calculate average item value
-        const avgItemValue = totalValue / inventoryData.length;
-        
-        // Find highest value category
-        let highestValueCategory = '';
-        let highestCategoryValue = 0;
-        
-        for (const category in categoryData) {
-            if (categoryData[category].total_value > highestCategoryValue) {
-                highestValueCategory = category;
-                highestCategoryValue = categoryData[category].total_value;
-            }
-        }
-        
-        // Find highest value item
-        let highestValueItem = { name: 'None' };
-        let highestItemTotalValue = 0;
-        
-        inventoryData.forEach(item => {
-            const itemTotalValue = item.quantity * item.price;
-            if (itemTotalValue > highestItemTotalValue) {
-                highestValueItem = item;
-                highestItemTotalValue = itemTotalValue;
-            }
-        });
-        
-        // Update summary elements
-        document.getElementById('total-inventory-value').innerHTML = `<span class="currency-symbol">TZS</span> ${totalValue.toLocaleString()}`;
-        document.getElementById('average-item-value').innerHTML = `<span class="currency-symbol">TZS</span> ${avgItemValue.toLocaleString()}`;
-        document.getElementById('highest-value-category').textContent = highestValueCategory;
-        document.getElementById('highest-value-item').textContent = highestValueItem.name;
-    }
-    
-    function updateValueAnalysisTable(inventoryData) {
-        const valueAnalysisTable = document.getElementById('value-analysis-table');
-        
-        if (inventoryData && inventoryData.length > 0) {
-            // Calculate total value for each item
-            inventoryData.forEach(item => {
-                item.total_value = item.quantity * item.price;
-            });
-            
-            // Sort by total value (highest first)
-            inventoryData.sort((a, b) => b.total_value - a.total_value);
             
             let tableHtml = '';
-            
-            inventoryData.forEach(item => {
+            data.issues.forEach(issue => {
+                const issueClass = issue.type === 'expired' ? 'bg-warning' : 
+                                  issue.type === 'broken' ? 'bg-danger' : 'bg-dark';
+                
                 tableHtml += `
-                <tr>
-                    <td>
-                        <a href="/item/${item.id}" class="text-decoration-none">
-                            ${item.name}
-                        </a>
-                    </td>
-                    <td>${item.category || 'Uncategorized'}</td>
-                    <td>${item.quantity}</td>
-                    <td><span class="currency-symbol">TZS</span> ${item.price.toLocaleString()}</td>
-                    <td><span class="currency-symbol">TZS</span> ${item.total_value.toLocaleString()}</td>
-                </tr>
+                    <tr>
+                        <td>${new Date(issue.date).toLocaleDateString()}</td>
+                        <td>${issue.item_name}</td>
+                        <td><span class="badge ${issueClass}">${issue.type.charAt(0).toUpperCase() + issue.type.slice(1)}</span></td>
+                        <td>${issue.quantity}</td>
+                        <td><span class="currency-symbol">TZS</span> ${issue.value_lost.toLocaleString()}</td>
+                        <td>${issue.notes || ''}</td>
+                    </tr>
                 `;
             });
-            
-            valueAnalysisTable.innerHTML = tableHtml;
-        } else {
-            valueAnalysisTable.innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center">No items found</td>
-                </tr>
-            `;
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="6" class="text-center">No stock issues found</td></tr>';
         }
     }
+
+    function displayAccountingReport(data, reportType) {
+        const tableHead = document.getElementById('accountingTableHead');
+        const tableBody = document.getElementById('accountingTableBody');
+        const financialSummary = document.getElementById('financialSummary');
+        
+        if (reportType === 'profit-loss' || reportType === 'income-statement') {
+            financialSummary.classList.remove('d-none');
+            
+            const metrics = document.getElementById('financialMetrics');
+            metrics.innerHTML = `
+                <div class="row mb-2">
+                    <div class="col-6 fw-bold">Total Revenue:</div>
+                    <div class="col-6"><span class="currency-symbol">TZS</span> ${data.revenue.toLocaleString()}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6 fw-bold">Total Expenses:</div>
+                    <div class="col-6"><span class="currency-symbol">TZS</span> ${data.expenses.toLocaleString()}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-6 fw-bold">Net Profit:</div>
+                    <div class="col-6 ${data.net_profit >= 0 ? 'text-success' : 'text-danger'}">
+                        <span class="currency-symbol">TZS</span> ${data.net_profit.toLocaleString()}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6 fw-bold">Profit Margin:</div>
+                    <div class="col-6">${data.profit_margin.toFixed(2)}%</div>
+                </div>
+            `;
+            
+            tableHead.innerHTML = `
+                <tr>
+                    <th>Account</th>
+                    <th>Amount</th>
+                    <th>Percentage</th>
+                </tr>
+            `;
+            
+            let tableHtml = '';
+            data.breakdown.forEach(item => {
+                tableHtml += `
+                    <tr>
+                        <td>${item.account}</td>
+                        <td><span class="currency-symbol">TZS</span> ${item.amount.toLocaleString()}</td>
+                        <td>${item.percentage.toFixed(2)}%</td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = tableHtml;
+        } else {
+            financialSummary.classList.add('d-none');
+            
+            if (reportType === 'balance-sheet') {
+                tableHead.innerHTML = `
+                    <tr>
+                        <th>Account Type</th>
+                        <th>Account</th>
+                        <th>Amount</th>
+                    </tr>
+                `;
+            } else if (reportType === 'expenses') {
+                tableHead.innerHTML = `
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                    </tr>
+                `;
+            }
+            
+            let tableHtml = '';
+            data.items.forEach(item => {
+                if (reportType === 'balance-sheet') {
+                    tableHtml += `
+                        <tr>
+                            <td>${item.type}</td>
+                            <td>${item.account}</td>
+                            <td><span class="currency-symbol">TZS</span> ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                } else if (reportType === 'expenses') {
+                    tableHtml += `
+                        <tr>
+                            <td>${new Date(item.date).toLocaleDateString()}</td>
+                            <td>${item.category}</td>
+                            <td>${item.description}</td>
+                            <td><span class="currency-symbol">TZS</span> ${item.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                }
+            });
+            tableBody.innerHTML = tableHtml || '<tr><td colspan="4" class="text-center">No data found</td></tr>';
+        }
+    }
+
+    function getSalesReportTitle(type) {
+        const titles = {
+            'completed-sales': 'Completed Sales Report',
+            'pending-sales': 'Pending Sales Report'
+        };
+        return titles[type] || 'Sales Report';
+    }
+
+    function getStockReportTitle(type) {
+        const titles = {
+            'stock-available': 'Stock Availability Report',
+            'stock-transactions': 'Stock Transactions Report',
+            'stock-issues': 'Stock Issues Report'
+        };
+        return titles[type] || 'Stock Report';
+    }
+
+    function getAccountingReportTitle(type) {
+        const titles = {
+            'profit-loss': 'Profit & Loss Statement',
+            'balance-sheet': 'Balance Sheet',
+            'income-statement': 'Income Statement',
+            'expenses': 'Expenses Report'
+        };
+        return titles[type] || 'Accounting Report';
+    }
+
+    function showError(message) {
+        // You can implement a toast or alert system here
+        alert(message);
+    }
+
+    // Helper function for completing sales (for pending sales report)
+    window.completeSale = function(saleId) {
+        if (confirm('Are you sure you want to complete this sale?')) {
+            fetch(`/api/sales/${saleId}/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the pending sales report
+                    generateSalesReport();
+                } else {
+                    showError('Failed to complete sale');
+                }
+            })
+            .catch(error => {
+                console.error('Error completing sale:', error);
+                showError('Error completing sale');
+            });
+        }
+    };
 });

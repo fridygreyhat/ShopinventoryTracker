@@ -3,34 +3,167 @@
 {% block content %}
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Inventory Reports</h1>
+        <h1>Business Reports</h1>
         <a href="/api/export/csv" class="btn btn-secondary">
             <i class="fas fa-file-export"></i> Export Full Inventory
         </a>
     </div>
     
+    <!-- Report Category Navigation -->
     <div class="row mb-4">
-        <!-- Report Controls -->
-        <div class="col-md-12">
-            <div class="card mb-4">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="reportType" class="form-label">Report Type</label>
-                            <select id="reportType" class="form-select">
-                                <option value="stock-status">Stock Status</option>
-                                <option value="category-breakdown">Category Breakdown</option>
-                                <option value="value-analysis">Value Analysis</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="lowStockThreshold" class="form-label">Low Stock Threshold</label>
-                            <input type="number" id="lowStockThreshold" class="form-control" value="10" min="1">
-                        </div>
-                        <div class="col-md-4 mb-3 d-flex align-items-end">
-                            <button id="generateReportBtn" class="btn btn-primary w-100">
-                                <i class="fas fa-chart-line"></i> Generate Report
+                    <ul class="nav nav-pills nav-fill" id="reportCategoryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="sales-reports-tab" data-bs-toggle="pill" data-bs-target="#sales-reports" type="button" role="tab">
+                                <i class="fas fa-cash-register me-2"></i>Sales Reports
                             </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="stock-reports-tab" data-bs-toggle="pill" data-bs-target="#stock-reports" type="button" role="tab">
+                                <i class="fas fa-boxes me-2"></i>Stock Reports
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="accounting-reports-tab" data-bs-toggle="pill" data-bs-target="#accounting-reports" type="button" role="tab">
+                                <i class="fas fa-calculator me-2"></i>Accounting Reports
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="tab-content" id="reportCategoryContent">
+        <!-- Sales Reports Tab -->
+        <div class="tab-pane fade show active" id="sales-reports" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Sales Report Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="salesReportType" class="form-label">Report Type</label>
+                                    <select id="salesReportType" class="form-select">
+                                        <option value="completed-sales">Completed Sales</option>
+                                        <option value="pending-sales">Pending Sales</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="salesDateRange" class="form-label">Date Range</label>
+                                    <select id="salesDateRange" class="form-select">
+                                        <option value="today">Today</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3 d-flex align-items-end">
+                                    <button id="generateSalesReportBtn" class="btn btn-primary w-100">
+                                        <i class="fas fa-chart-line"></i> Generate Sales Report
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row d-none" id="customDateRange">
+                                <div class="col-md-6 mb-3">
+                                    <label for="salesStartDate" class="form-label">Start Date</label>
+                                    <input type="date" id="salesStartDate" class="form-control">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="salesEndDate" class="form-label">End Date</label>
+                                    <input type="date" id="salesEndDate" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Reports Tab -->
+        <div class="tab-pane fade" id="stock-reports" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Stock Report Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="stockReportType" class="form-label">Report Type</label>
+                                    <select id="stockReportType" class="form-select">
+                                        <option value="stock-available">Stock Available</option>
+                                        <option value="stock-transactions">Stock Transactions</option>
+                                        <option value="stock-issues">Stock Issues (Expired/Broken/Stolen)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="lowStockThreshold" class="form-label">Low Stock Threshold</label>
+                                    <input type="number" id="lowStockThreshold" class="form-control" value="10" min="1">
+                                </div>
+                                <div class="col-md-4 mb-3 d-flex align-items-end">
+                                    <button id="generateStockReportBtn" class="btn btn-primary w-100">
+                                        <i class="fas fa-chart-line"></i> Generate Stock Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accounting Reports Tab -->
+        <div class="tab-pane fade" id="accounting-reports" role="tabpanel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Accounting Report Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="accountingReportType" class="form-label">Report Type</label>
+                                    <select id="accountingReportType" class="form-select">
+                                        <option value="profit-loss">Profit & Loss</option>
+                                        <option value="balance-sheet">Balance Sheet</option>
+                                        <option value="income-statement">Income Statement</option>
+                                        <option value="expenses">Expenses</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="accountingPeriod" class="form-label">Period</label>
+                                    <select id="accountingPeriod" class="form-select">
+                                        <option value="month">This Month</option>
+                                        <option value="quarter">This Quarter</option>
+                                        <option value="year">This Year</option>
+                                        <option value="custom">Custom Period</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3 d-flex align-items-end">
+                                    <button id="generateAccountingReportBtn" class="btn btn-primary w-100">
+                                        <i class="fas fa-chart-line"></i> Generate Accounting Report
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row d-none" id="customAccountingPeriod">
+                                <div class="col-md-6 mb-3">
+                                    <label for="accountingStartDate" class="form-label">Start Date</label>
+                                    <input type="date" id="accountingStartDate" class="form-control">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="accountingEndDate" class="form-label">End Date</label>
+                                    <input type="date" id="accountingEndDate" class="form-control">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -38,67 +171,120 @@
         </div>
     </div>
     
-    <!-- Stock Status Report -->
-    <div id="stockStatusReport" class="report-section">
-        <div class="row mb-4">
-            <!-- Summary Cards -->
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Total Items</h5>
-                        <p class="display-4 mb-0" id="total-items">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Total Stock</h5>
-                        <p class="display-4 mb-0" id="total-stock">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Low Stock Items</h5>
-                        <p class="display-4 mb-0" id="low-stock-count">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Out of Stock</h5>
-                        <p class="display-4 mb-0" id="out-of-stock-count">0</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-12">
+    <!-- Report Display Sections -->
+    <div class="row">
+        <div class="col-12">
+            <!-- Sales Reports Display -->
+            <div id="salesReportsDisplay" class="report-display d-none">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Low Stock Items</h5>
+                        <h5 class="card-title mb-0" id="salesReportTitle">Sales Report</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>SKU</th>
-                                        <th>Category</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Action</th>
-                                    </tr>
+                                <thead id="salesTableHead">
+                                    <!-- Dynamic headers -->
                                 </thead>
-                                <tbody id="low-stock-table">
-                                    <tr>
-                                        <td colspan="6" class="text-center">No low stock items found</td>
-                                    </tr>
+                                <tbody id="salesTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Reports Display -->
+            <div id="stockReportsDisplay" class="report-display d-none">
+                <!-- Stock Summary Cards -->
+                <div class="row mb-4" id="stockSummaryCards">
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Total Items</h5>
+                                <p class="display-4 mb-0" id="total-items">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Total Stock</h5>
+                                <p class="display-4 mb-0" id="total-stock">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Low Stock Items</h5>
+                                <p class="display-4 mb-0" id="low-stock-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Out of Stock</h5>
+                                <p class="display-4 mb-0" id="out-of-stock-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0" id="stockReportTitle">Stock Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead id="stockTableHead">
+                                    <!-- Dynamic headers -->
+                                </thead>
+                                <tbody id="stockTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accounting Reports Display -->
+            <div id="accountingReportsDisplay" class="report-display d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0" id="accountingReportTitle">Accounting Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Financial Summary for P&L and Income Statement -->
+                        <div id="financialSummary" class="mb-4 d-none">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Financial Summary</h6>
+                                            <div id="financialMetrics">
+                                                <!-- Dynamic financial metrics -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <canvas id="financialChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead id="accountingTableHead">
+                                    <!-- Dynamic headers -->
+                                </thead>
+                                <tbody id="accountingTableBody">
+                                    <!-- Dynamic content -->
                                 </tbody>
                             </table>
                         </div>
@@ -108,133 +294,7 @@
         </div>
     </div>
     
-    <!-- Category Breakdown Report -->
-    <div id="categoryBreakdownReport" class="report-section d-none">
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Items by Category</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="categoryItemsChart" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Stock by Category</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="categoryStockChart" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Category Breakdown</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Category</th>
-                                        <th>Number of Items</th>
-                                        <th>Total Quantity</th>
-                                        <th>Average Quantity per Item</th>
-                                        <th>Total Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="category-breakdown-table">
-                                    <tr>
-                                        <td colspan="5" class="text-center">No categories found</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
-    
-    <!-- Value Analysis Report -->
-    <div id="valueAnalysisReport" class="report-section d-none">
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Inventory Value by Category</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="categoryValueChart" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Total Inventory Stats</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row mb-3">
-                            <div class="col-6 fw-bold">Total Inventory Value:</div>
-                            <div class="col-6" id="total-inventory-value">$0.00</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6 fw-bold">Average Item Value:</div>
-                            <div class="col-6" id="average-item-value">$0.00</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6 fw-bold">Highest Value Category:</div>
-                            <div class="col-6" id="highest-value-category">None</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-6 fw-bold">Highest Value Item:</div>
-                            <div class="col-6" id="highest-value-item">None</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Items by Value</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Category</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Total Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="value-analysis-table">
-                                    <tr>
-                                        <td colspan="5" class="text-center">No items found</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
