@@ -345,14 +345,14 @@ function saveInstallmentSale() {
         return;
     }
     
-    // Get form values with validation
-    const customerSelect = document.getElementById('installmentCustomerSelect');
+    // Get form values with validation - use correct element IDs
+    const customerSelect = document.getElementById('installmentCustomerSelect') || document.getElementById('customer-select');
     const productSelect = document.getElementById('product-select');
     const quantityInput = document.getElementById('quantity');
     const totalAmountInput = document.getElementById('total-amount');
-    const downPaymentInput = document.getElementById('installmentDownPayment');
-    const installmentsCountInput = document.getElementById('installmentPeriod');
-    const startDateInput = document.getElementById('installmentStartDate');
+    const downPaymentInput = document.getElementById('installmentDownPayment') || document.getElementById('down-payment');
+    const installmentsCountInput = document.getElementById('installmentPeriod') || document.getElementById('installments-count');
+    const startDateInput = document.getElementById('installmentStartDate') || document.getElementById('start-date');
     const agreementSignedInput = document.getElementById('agreementSigned');
     const notesInput = document.getElementById('installmentNotes');
     
@@ -379,7 +379,7 @@ function saveInstallmentSale() {
     }
     
     if (!installmentsCountInput || !installmentsCountInput.value || parseInt(installmentsCountInput.value) <= 0) {
-        showErrorMessage('Please enter a valid number of installments');
+        showErrorMessage('Please select a valid payment period');
         return;
     }
     

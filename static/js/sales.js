@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const startScanBtn = document.getElementById('startScanBtn');
@@ -739,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Show New Installment Sale modal
             showNewInstallmentSaleModal();
-            
+
             return; // Exit early for installment sales
         }
 
@@ -1042,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        
+
         // Create and show New Installment Sale modal
         const modalHtml = `
             <div class="modal fade" id="newInstallmentSaleModal" tabindex="-1" aria-hidden="true">
@@ -1113,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <!-- New Customer Tab -->
                                             <div class="tab-pane fade" id="new-customer" role="tabpanel">
                                                 <div class="row">
@@ -1279,10 +1278,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const customerSelect = document.getElementById('installmentCustomerSelect');
                 if (customerSelect) {
                     customerSelect.innerHTML = '<option value="">Choose an existing customer...</option>';
-                    
+
                     // Handle both array response and object with customers property
                     const customers = Array.isArray(data) ? data : (data.customers || []);
-                    
+
                     customers.forEach(customer => {
                         const option = document.createElement('option');
                         option.value = customer.id;
@@ -1375,21 +1374,31 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('monthlyPaymentDisplay').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
     }
 
-    function createInstallmentSaleFromModal() {
+function createInstallmentSaleFromModal() {
         const form = document.getElementById('installmentSaleForm');
-        
+
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
-        const period = parseInt(document.getElementById('installmentPeriod').value);
+        const downPaymentInput = document.getElementById('installmentDownPayment');
+        const periodInput = document.getElementById('installmentPeriod');
+
+        if (!downPaymentInput || !periodInput) {
+            alert('Form elements not found. Please refresh the page and try again.');
+            return;
+        }
+
+        const downPayment = parseFloat(downPaymentInput.value);
+        const period = parseInt(periodInput.value);
 
         // Validate required fields
         if (!downPayment || downPayment <= 0) {
             alert('Please enter a valid down payment amount');
+            downPaymentInput.focus();
             return;
         }
 
         if (!period || period <= 0) {
             alert('Please select a valid payment period');
+            periodInput.focus();
             return;
         }
 
@@ -1402,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Determine if using new or existing customer
         const activeTab = document.querySelector('#customerTabs .nav-link.active').id;
         const isNewCustomer = activeTab === 'new-customer-tab';
-        
+
         let customerId = null;
         let customerData = null;
 
@@ -1479,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear cart and close modal
                 cart = [];
                 updateCartDisplay();
-                
+
                 const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentSaleModal'));
                 modal.hide();
 
@@ -1525,10 +1534,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             timestamp: new Date().toISOString()
         };
-        
+
         localStorage.setItem('heldTransaction', JSON.stringify(heldTransaction));
         clearCart();
-        
+
         // Show confirmation
         const alert = document.createElement('div');
         alert.className = 'alert alert-info alert-dismissible fade show position-fixed';
@@ -1539,7 +1548,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(alert);
-        
+
         setTimeout(() => {
             if (alert.parentNode) alert.remove();
         }, 3000);
@@ -1551,14 +1560,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const transaction = JSON.parse(held);
             cart = transaction.cart;
             updateCartDisplay();
-            
+
             if (transaction.customer.name) {
                 document.getElementById('customerName').value = transaction.customer.name;
             }
             if (transaction.customer.phone) {
                 document.getElementById('customerPhone').value = transaction.customer.phone;
             }
-            
+
             localStorage.removeItem('heldTransaction');
         }
     }
@@ -1604,7 +1613,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load auto-saved cart and held transactions on page load
     loadAutoSavedCart();
-    
+
     // Check for held transactions
     if (localStorage.getItem('heldTransaction')) {
         const loadBtn = document.createElement('button');
@@ -1657,7 +1666,7 @@ function initializeInstallmentCustomerModal() {
             if (selectedOption.value && selectedOption.dataset.customerData) {
                 const customerData = JSON.parse(selectedOption.dataset.customerData);
                 populateInstallmentCustomerForm(customerData);
-                
+
                 // Hide new customer fields when existing customer is selected
                 toggleInstallmentCustomerFields(false);
             } else {
@@ -1734,7 +1743,7 @@ function clearInstallmentCustomerForm() {
 function toggleInstallmentCustomerFields(showNewCustomerFields) {
     const newCustomerFieldsContainer = document.getElementById('installmentNewCustomerFields');
     const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
-    
+
     if (showNewCustomerFields) {
         if (newCustomerFieldsContainer) {
             newCustomerFieldsContainer.style.display = 'block';
@@ -1764,13 +1773,13 @@ function showInstallmentCustomerModal() {
     // Pre-fill form data
     document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
     document.getElementById('installmentDownPayment').value = suggestedDownPayment;
-    
+
     // Set minimum down payment
     document.getElementById('installmentDownPayment').setAttribute('min', totalAmount * 0.1); // 10% minimum
-    
+
     // Load existing customers into dropdown
     loadInstallmentCustomers();
-    
+
     // Update summary
     updateInstallmentSummary();
 
@@ -1786,7 +1795,7 @@ function loadInstallmentCustomers() {
             const customerSelect = document.getElementById('installmentExistingCustomer');
             if (customerSelect) {
                 customerSelect.innerHTML = '<option value="">Select existing customer</option>';
-                
+
                 if (data.success && data.customers) {
                     data.customers.forEach(customer => {
                         const option = document.createElement('option');
@@ -1807,14 +1816,16 @@ function updateInstallmentSummary() {
     const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
     const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
     const period = parseInt(document.getElementById('installmentPeriod').value) || 12;
-    
+
     const remainingAmount = totalAmount - downPayment;
     const monthlyPayment = remainingAmount / period;
-    
+
     document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
     document.getElementById('installmentRemainingAmount').textContent = `TZS ${remainingAmount.toLocaleString()}`;
     document.getElementById('installmentMonthlyPayment').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
-    
+
+    ```python
+
     // Validate minimum down payment
     const minDownPayment = totalAmount * 0.1;
     if (downPayment < minDownPayment) {
@@ -1826,7 +1837,7 @@ function updateInstallmentSummary() {
 
 function saveInstallmentCustomerInfo() {
     const form = document.getElementById('installmentCustomerForm');
-    
+
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -1835,7 +1846,7 @@ function saveInstallmentCustomerInfo() {
     const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
     const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
     const period = parseInt(document.getElementById('installmentPeriod').value);
-    
+
     // Validate down payment
     if (downPayment < totalAmount * 0.1) {
         alert('Down payment must be at least 10% of total amount');
@@ -1844,7 +1855,7 @@ function saveInstallmentCustomerInfo() {
 
     const modal = document.getElementById('installmentCustomerModal');
     const existingCustomerId = modal.dataset.existingCustomerId;
-    
+
     // Collect customer data
     installmentCustomerData = {
         customer_id: existingCustomerId || null,
@@ -1906,10 +1917,10 @@ function finalizeSaveInstallmentCustomer() {
     // Update checkout form with customer data
     const customerNameField = document.getElementById('customerName');
     const customerPhoneField = document.getElementById('customerPhone');
-    
+
     if (customerNameField) customerNameField.value = installmentCustomerData.name;
     if (customerPhoneField) customerPhoneField.value = installmentCustomerData.phone;
-    
+
     // Update payment amount to down payment
     if (paymentAmount) {
         paymentAmount.value = installmentCustomerData.installment_plan.down_payment;
@@ -1919,11 +1930,11 @@ function finalizeSaveInstallmentCustomer() {
     const installmentFields = document.getElementById('installmentFields');
     if (installmentFields) {
         installmentFields.classList.remove('d-none');
-        
+
         const downPaymentField = document.getElementById('downPayment');
         const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
         const customerAddressField = document.getElementById('customerAddress');
-        
+
         if (downPaymentField) downPaymentField.value = installmentCustomerData.installment_plan.down_payment;
         if (numberOfInstallmentsField) numberOfInstallmentsField.value = installmentCustomerData.installment_plan.period_months;
         if (customerAddressField) customerAddressField.value = installmentCustomerData.address;
@@ -1948,7 +1959,7 @@ function showSuccessAlert(message) {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     document.body.appendChild(alert);
-    
+
     setTimeout(() => {
         if (alert.parentNode) alert.remove();
     }, 5000);
@@ -2074,7 +2085,7 @@ function displayCompletedTransactions(data) {
     data.sales.forEach(sale => {
         const date = new Date(sale.created_at);
         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        
+
         html += `
             <tr>
                 <td>
@@ -2134,7 +2145,7 @@ function updateTransactionsSummary(summary) {
     if (totalCount) totalCount.textContent = summary.total_completed_sales.toLocaleString();
     if (totalRevenue) totalRevenue.textContent = `TZS ${summary.total_revenue.toLocaleString()}`;
     if (averageTransaction) averageTransaction.textContent = `TZS ${summary.average_transaction.toLocaleString()}`;
-    
+
     // Calculate today's sales from current data (simplified)
     if (todaysCount) {
         const today = new Date().toISOString().split('T')[0];
