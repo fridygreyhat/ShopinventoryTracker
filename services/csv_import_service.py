@@ -2,6 +2,7 @@
 import io
 import csv
 import logging
+import re
 from typing import Dict, List, Tuple, Any, Optional
 from datetime import datetime
 
@@ -194,10 +195,13 @@ class CSVRowProcessor:
         
         # Generate SKU if not provided
         if not sku:
-            # Simple SKU generation since Item.generate_sku might not exist
-            import re
-            clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
-            sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
+            # Use Item model's generate_sku method if available, otherwise create simple one
+            try:
+                sku = self.Item.generate_sku(name, category)
+            except AttributeError:
+                # Fallback SKU generation
+                clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
+                sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
         
         # Ensure SKU uniqueness
         sku = self._ensure_unique_sku(sku, row_number, errors)
@@ -210,12 +214,15 @@ class CSVRowProcessor:
                 description=description,
                 category=category,
                 stock_quantity=quantity,
+                minimum_stock=max(1, quantity // 10),  # Set minimum stock to 10% of initial quantity
                 buying_price=buying_price,
                 retail_price=selling_price_retail,
                 wholesale_price=selling_price_wholesale,
                 sales_type=sales_type,
                 user_id=self.user_id,
-                created_at=datetime.utcnow()
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
             return new_item
         except Exception as e:

@@ -976,6 +976,9 @@ def bulk_import_inventory():
 
     file = request.files['file']
 
+    if not file or file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
     try:
         # Get current user ID
         current_user_id = session.get('user_id')
@@ -987,6 +990,9 @@ def bulk_import_inventory():
 
         # Process the import
         result = import_service.process_csv_import(file)
+
+        # Log the import result
+        logger.info(f"CSV import result for user {current_user_id}: {result}")
 
         # Return appropriate status code
         if result.get("success"):
