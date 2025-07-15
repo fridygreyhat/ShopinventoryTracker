@@ -731,75 +731,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // For installment sales, we'll create the installment sale directly
+            // For installment sales, show the installment modal
             if (cart.length !== 1) {
                 alert('Installment sales currently support only one item at a time');
                 return;
             }
 
-            const installmentData = {
-                customer_id: installmentCustomerData.customer_id,
-                item_id: cart[0].id,
-                quantity: cart[0].quantity,
-                total_amount: totalAmount,
-                down_payment: installmentCustomerData.installment_plan.down_payment,
-                number_of_installments: installmentCustomerData.installment_plan.period_months,
-                start_date: new Date().toISOString().split('T')[0],
-                agreement_signed: true,
-                notes: notes
-            };
-
-            // Send directly to installment API
-            fetch('/api/installment-sales', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(installmentData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show modern success popup
-                    showSuccessPopup({
-                        sale_number: data.sale_number,
-                        total_amount: totalAmount
-                    });
-
-                    // Clear the cart and reset form
-                    cart = [];
-                    installmentCustomerData = null;
-                    updateCartDisplay();
-                    const checkoutForm = document.getElementById('checkoutForm');
-                    if (checkoutForm) {
-                        checkoutForm.reset();
-                    }
-
-                    // Reset payment fields
-                    if (paymentAmount) {
-                        paymentAmount.value = '';
-                    }
-                    if (mobileMoneyFields) {
-                        mobileMoneyFields.classList.add('d-none');
-                    }
-                    const installmentFields = document.getElementById('installmentFields');
-                    if (installmentFields) {
-                        installmentFields.classList.add('d-none');
-                    }
-                } else {
-                    throw new Error(data.error || 'Installment sale creation failed');
-                }
-            })
-            .catch(error => {
-                console.error('Error creating installment sale:', error);
-                showErrorPopup(`Installment sale failed: ${error.message}`);
-            })
-            .finally(() => {
-                // Reset button
-                if (completeTransactionBtn) {
-                    completeTransactionBtn.disabled = false;
-                    completeTransactionBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Complete Transaction';
-                }
-            });
+            // Show New Installment Sale modal
+            showNewInstallmentSaleModal();
             
             return; // Exit early for installment sales
         }

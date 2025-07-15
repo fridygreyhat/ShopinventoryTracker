@@ -56,7 +56,9 @@ function loadDashboardData() {
 }
 
 function loadCustomers() {
-    fetch('/api/customers')
+    fetch('/api/customers', {
+        credentials: 'same-origin'
+    })
         .then(response => response.json())
         .then(data => {
             const customerSelect = document.getElementById('customer-select');
@@ -492,7 +494,8 @@ function createInstallmentSale(installmentData) {
         console.log('Response data:', data);
         
         if (data.success) {
-            alert(`Installment sale created successfully! Sale Number: ${data.sale_number}`);
+            // Show success message
+            showSuccessMessage(`Installment sale created successfully! Sale Number: ${data.sale_number}`);
             
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal'));
@@ -518,8 +521,40 @@ function createInstallmentSale(installmentData) {
     })
     .catch(error => {
         console.error('Error creating installment sale:', error);
-        alert('Error creating installment sale: ' + error.message);
+        showErrorMessage('Error creating installment sale: ' + error.message);
     });
+}
+
+function showSuccessMessage(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) alertDiv.remove();
+    }, 5000);
+}
+
+function showErrorMessage(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) alertDiv.remove();
+    }, 5000);
 }
 
 function savePayment() {
