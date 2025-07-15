@@ -314,6 +314,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         paymentAmount.value = suggestedDownPayment;
                     }
                 }
+                
+                // Show installment customer modal
+                showInstallmentCustomerModal();
             }
         });
     }
@@ -728,23 +731,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
-            // Validate installment fields
-            const customerAddress = document.getElementById('customerAddress');
-            if (!customerAddress || !customerAddress.value.trim()) {
-                alert('Customer address is required for installment sales');
-                return;
-            }
-            if (!customerPhone) {
-                alert('Customer phone number is required for installment sales');
+            // Validate installment customer data
+            if (!installmentCustomerData) {
+                alert('Please fill in customer information for installment sales');
+                showInstallmentCustomerModal();
                 return;
             }
 
-            const downPayment = document.getElementById('downPayment');
-            const numberOfInstallments = document.getElementById('numberOfInstallments');
             installmentInfo = {
-                down_payment: downPayment ? parseFloat(downPayment.value) || 0 : 0,
-                number_of_installments: numberOfInstallments ? parseInt(numberOfInstallments.value) : 12,
-                customer_address: customerAddress.value
+                down_payment: installmentCustomerData.installment_plan.down_payment,
+                number_of_installments: installmentCustomerData.installment_plan.period_months,
+                monthly_payment: installmentCustomerData.installment_plan.monthly_payment,
+                customer_data: installmentCustomerData
             };
         }
 
@@ -766,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function() {
             customer: {
                 name: customerName,
                 phone: customerPhone,
-                address: payment === 'installment' ? installmentInfo.customer_address : null
+                address: payment === 'installment' ? installmentCustomerData?.address : null
             },
             items: cart.map(item => ({
                 id: item.id,
@@ -832,6 +830,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Clear the cart and reset form
                 cart = [];
+                installmentCustomerData = null;
                 updateCartDisplay();
                 const checkoutForm = document.getElementById('checkoutForm');
                 if (checkoutForm) {
@@ -1142,6 +1141,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(loadBtn);
     }
 
+    // Initialize installment customer modal
+    initializeInstallmentCustomerModal();
+
     // Initialize search on page load
     if (productSearchInput) {
         loadAllProducts();
@@ -1150,6 +1152,157 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize completed transactions tab
     initializeCompletedTransactions();
 });
+
+// Installment Customer Modal Functions
+let installmentCustomerData = null;
+
+function initializeInstallmentCustomerModal() {
+    // Event listeners for installment modal
+    const saveInstallmentCustomerBtn = document.getElementById('saveInstallmentCustomer');
+    const installmentDownPaymentInput = document.getElementById('installmentDownPayment');
+    const installmentPeriodSelect = document.getElementById('installmentPeriod');
+
+    if (saveInstallmentCustomerBtn) {
+        saveInstallmentCustomerBtn.addEventListener('click', saveInstallmentCustomerInfo);
+    }
+
+    if (installmentDownPaymentInput) {
+        installmentDownPaymentInput.addEventListener('input', updateInstallmentSummary);
+    }
+
+    if (installmentPeriodSelect) {
+        installmentPeriodSelect.addEventListener('change', updateInstallmentSummary);
+    }
+}
+
+function showInstallmentCustomerModal() {
+    if (cart.length === 0) {
+        alert('Please add items to cart before setting up installment payment');
+        return;
+    }
+
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const suggestedDownPayment = Math.max(totalAmount * 0.2, 50000); // Minimum 20% or 50,000 TZS
+
+    // Pre-fill form data
+    document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
+    document.getElementById('installmentDownPayment').value = suggestedDownPayment;
+    
+    // Set minimum down payment
+    document.getElementById('installmentDownPayment').setAttribute('min', totalAmount * 0.1); // 10% minimum
+    
+    // Update summary
+    updateInstallmentSummary();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('installmentCustomerModal'));
+    modal.show();
+}
+
+function updateInstallmentSummary() {
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
+    const period = parseInt(document.getElementById('installmentPeriod').value) || 12;
+    
+    const remainingAmount = totalAmount - downPayment;
+    const monthlyPayment = remainingAmount / period;
+    
+    document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
+    document.getElementById('installmentRemainingAmount').textContent = `TZS ${remainingAmount.toLocaleString()}`;
+    document.getElementById('installmentMonthlyPayment').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
+    
+    // Validate minimum down payment
+    const minDownPayment = totalAmount * 0.1;
+    if (downPayment < minDownPayment) {
+        document.getElementById('installmentDownPayment').setCustomValidity(`Minimum down payment is TZS ${minDownPayment.toLocaleString()}`);
+    } else {
+        document.getElementById('installmentDownPayment').setCustomValidity('');
+    }
+}
+
+function saveInstallmentCustomerInfo() {
+    const form = document.getElementById('installmentCustomerForm');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+    const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
+    const period = parseInt(document.getElementById('installmentPeriod').value);
+    
+    // Validate down payment
+    if (downPayment < totalAmount * 0.1) {
+        alert('Down payment must be at least 10% of total amount');
+        return;
+    }
+
+    // Collect customer data
+    installmentCustomerData = {
+        name: document.getElementById('installmentCustomerName').value,
+        phone: document.getElementById('installmentCustomerPhone').value,
+        email: document.getElementById('installmentCustomerEmail').value,
+        national_id: document.getElementById('installmentCustomerNationalId').value,
+        address: document.getElementById('installmentCustomerAddress').value,
+        region: document.getElementById('installmentCustomerRegion').value,
+        occupation: document.getElementById('installmentCustomerOccupation').value,
+        emergency_contact: {
+            name: document.getElementById('installmentEmergencyName').value,
+            phone: document.getElementById('installmentEmergencyPhone').value,
+            relation: document.getElementById('installmentEmergencyRelation').value
+        },
+        installment_plan: {
+            down_payment: downPayment,
+            period_months: period,
+            monthly_payment: (totalAmount - downPayment) / period
+        }
+    };
+
+    // Update checkout form with customer data
+    document.getElementById('customerName').value = installmentCustomerData.name;
+    document.getElementById('customerPhone').value = installmentCustomerData.phone;
+    
+    // Update payment amount to down payment
+    if (paymentAmount) {
+        paymentAmount.value = downPayment;
+    }
+
+    // Update installment fields in main form
+    const installmentFields = document.getElementById('installmentFields');
+    if (installmentFields) {
+        const downPaymentField = document.getElementById('downPayment');
+        const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
+        const customerAddressField = document.getElementById('customerAddress');
+        
+        if (downPaymentField) downPaymentField.value = downPayment;
+        if (numberOfInstallmentsField) numberOfInstallmentsField.value = period;
+        if (customerAddressField) customerAddressField.value = installmentCustomerData.address;
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('installmentCustomerModal'));
+    modal.hide();
+
+    // Show success message
+    showSuccessAlert('Customer information saved! You can now complete the installment sale.');
+}
+
+function showSuccessAlert(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    setTimeout(() => {
+        if (alert.parentNode) alert.remove();
+    }, 5000);
+}
 
 // Completed Transactions Functionality
 function initializeCompletedTransactions() {
