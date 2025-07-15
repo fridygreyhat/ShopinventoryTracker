@@ -235,23 +235,32 @@ async function handleCategorySubmit(event) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to save category');
+            const errorData = await response.json();
+            const errorMessage = errorData.error || 'Failed to save category';
+            console.error('Category save error:', errorMessage);
+            showAlert(errorMessage, 'danger');
+            return;
         }
 
-        // Close modal and reload categories
-        const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
-        modal.hide();
+        const result = await response.json();
+        
+        if (result.success) {
+            // Close modal and reload categories
+            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            modal.hide();
 
-        document.getElementById('categoryForm').reset();
-        document.getElementById('categoryId').value = '';
+            document.getElementById('categoryForm').reset();
+            document.getElementById('categoryId').value = '';
 
-        showAlert(categoryId ? 'Category updated successfully' : 'Category created successfully', 'success');
-        loadCategories();
+            showAlert(categoryId ? 'Category updated successfully' : 'Category created successfully', 'success');
+            loadCategories();
+        } else {
+            showAlert(result.error || 'Failed to save category', 'danger');
+        }
 
     } catch (error) {
         console.error('Error saving category:', error);
-        showAlert(error.message, 'danger');
+        showAlert('Network error: ' + error.message, 'danger');
     }
 }
 
@@ -515,20 +524,31 @@ function showAlert(message, type = 'info') {
 
     // Create new alert
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+    alertDiv.style.zIndex = '9999';
     alertDiv.innerHTML = `
+        <i class="fas fa-${type === 'danger' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    // Insert at the top of the page
-    const container = document.querySelector('.container-fluid');
-    container.insertBefore(alertDiv, container.firstChild);
+    // Insert at the top of the page or in the modal if it's open
+    const modal = document.querySelector('.modal.show');
+    if (modal) {
+        const modalBody = modal.querySelector('.modal-body');
+        modalBody.insertBefore(alertDiv, modalBody.firstChild);
+    } else {
+        const container = document.querySelector('.container-fluid');
+        container.insertBefore(alertDiv, container.firstChild);
+    }
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after 8 seconds for errors, 5 seconds for others
+    const timeout = type === 'danger' ? 8000 : 5000;
     setTimeout(() => {
-        alertDiv.remove();
-    }, 5000);
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, timeout);
 }
 
 // Reset modal forms when hidden

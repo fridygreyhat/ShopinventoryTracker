@@ -2177,16 +2177,19 @@ def create_category_api():
 
         from models import Category
 
-        # Check if category name already exists for this user
-        existing_category = Category.query.filter_by(
-            name=category_name,
-            user_id=user_id,
-            parent_id=data.get('parent_id'),
-            is_active=True
+        # Check if category name already exists for this user (case-insensitive)
+        existing_category = Category.query.filter(
+            func.lower(Category.name) == func.lower(category_name),
+            Category.user_id == user_id,
+            Category.parent_id == data.get('parent_id'),
+            Category.is_active == True
         ).first()
         
         if existing_category:
-            return jsonify({'error': f'Category "{category_name}" already exists'}), 400
+            return jsonify({
+                'success': False,
+                'error': f'Category "{category_name}" already exists. Please choose a different name.'
+            }), 400
 
         # Validate parent category if specified
         parent_id = data.get('parent_id')
