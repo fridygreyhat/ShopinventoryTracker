@@ -2613,40 +2613,86 @@ def create_installment_sale():
         user_id = session.get('user_id')
         data = request.get_json()
         
-        # Validate required fields
-        required_fields = ['customer_id', 'item_id', 'quantity', 'total_amount', 'down_payment', 'number_of_installments']
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields with proper None checks
+        required_fields = ['item_id', 'quantity', 'total_amount', 'number_of_installments']
         for field in required_fields:
-            if field not in data:
+            if field not in data or data[field] is None:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
+        # Convert and validate numeric fields
+        try:
+            item_id = int(data['item_id'])
+            quantity = int(data['quantity'])
+            total_amount = float(data['total_amount'])
+            number_of_installments = int(data['number_of_installments'])
+            down_payment = float(data.get('down_payment', 0))
+        except (ValueError, TypeError) as e:
+            return jsonify({'error': f'Invalid numeric value: {str(e)}'}), 400
+        
+        # Validate values
+        if quantity <= 0:
+            return jsonify({'error': 'Quantity must be greater than 0'}), 400
+        if total_amount <= 0:
+            return jsonify({'error': 'Total amount must be greater than 0'}), 400
+        if number_of_installments <= 0:
+            return jsonify({'error': 'Number of installments must be greater than 0'}), 400
+        if down_payment < 0:
+            return jsonify({'error': 'Down payment cannot be negative'}), 400
+        if down_payment >= total_amount:
+            return jsonify({'error': 'Down payment must be less than total amount'}), 400
+        
         # Create customer if new customer data provided
+        customer_id = None
         if data.get('customer_data') and not data.get('customer_id'):
+            customer_data = data['customer_data']
+            if not customer_data.get('name') or not customer_data.get('phone'):
+                return jsonify({'error': 'Customer name and phone are required'}), 400
+                
             customer = Customer(
-                name=data['customer_data']['name'],
-                phone=data['customer_data']['phone'],
-                email=data['customer_data'].get('email'),
-                address=data['customer_data'].get('address'),
+                name=customer_data['name'],
+                phone=customer_data['phone'],
+                email=customer_data.get('email'),
+                address=customer_data.get('address'),
                 user_id=user_id
             )
             db.session.add(customer)
             db.session.flush()
             customer_id = customer.id
         else:
-            customer_id = data['customer_id']
+            customer_id = data.get('customer_id')
+            if not customer_id:
+                return jsonify({'error': 'Customer ID is required'}), 400
+            customer_id = int(customer_id)
         
         # Get customer and item
         customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
-        item = Item.query.filter_by(id=data['item_id'], user_id=user_id).first()
+        item = Item.query.filter_by(id=item_id, user_id=user_id).first()
         
-        if not customer or not item:
-            return jsonify({'error': 'Customer or item not found'}), 404
+        if not customer:
+            return jsonify({'error': 'Customer not found'}), 404
+        if not item:
+            return jsonify({'error': 'Item not found'}), 404
+        
+        # Check stock availability
+        if item.stock_quantity < quantity:
+            return jsonify({'error': f'Insufficient stock. Available: {item.stock_quantity}'}), 400
         
         # Calculate installment details
-        total_amount = float(data['total_amount'])
-        down_payment = float(data['down_payment'])
         remaining_amount = total_amount - down_payment
-        number_of_installments = int(data['number_of_installments'])
         monthly_payment = remaining_amount / number_of_installments
+        
+        # Parse start date
+        start_date_str = data.get('start_date')
+        if not start_date_str:
+            start_date = datetime.utcnow().date()
+        else:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Invalid start date format. Use YYYY-MM-DD'}), 400
         
         # Create sale record first
         sale_number = f"INST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
@@ -2661,7 +2707,7 @@ def create_installment_sale():
             subtotal=total_amount,
             total_amount=total_amount,
             payment_method='installment',
-            payment_status='partial',
+            payment_status='partial' if down_payment > 0 else 'pending',
             payment_amount=down_payment,
             is_installment=True,
             down_payment=down_payment,
@@ -2675,9 +2721,9 @@ def create_installment_sale():
         # Create sale item
         sale_item = SaleItem(
             sale_id=sale.id,
-            item_id=data['item_id'],
-            quantity=data['quantity'],
-            unit_price=total_amount / data['quantity'],
+            item_id=item_id,
+            quantity=quantity,
+            unit_price=total_amount / quantity,
             total_price=total_amount
         )
         db.session.add(sale_item)
@@ -2686,26 +2732,25 @@ def create_installment_sale():
         installment_sale = InstallmentSale(
             sale_id=sale.id,
             customer_id=customer_id,
-            item_id=data['item_id'],
-            quantity=data['quantity'],
+            item_id=item_id,
+            quantity=quantity,
             total_amount=total_amount,
             down_payment=down_payment,
             remaining_amount=remaining_amount,
             number_of_installments=number_of_installments,
             monthly_payment=monthly_payment,
-            start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
-            next_due_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() + timedelta(days=30),
-            agreement_signed=data.get('agreement_signed', False),
+            start_date=start_date,
+            next_due_date=start_date + timedelta(days=30),
+            agreement_signed=bool(data.get('agreement_signed', False)),
             notes=data.get('notes', ''),
             total_paid=down_payment,
+            payments_made=1 if down_payment > 0 else 0,
             user_id=user_id
         )
         db.session.add(installment_sale)
         db.session.flush()
         
         # Create payment schedule
-        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-        
         for i in range(1, number_of_installments + 1):
             due_date = start_date + timedelta(days=30 * i)
             
@@ -2719,7 +2764,18 @@ def create_installment_sale():
             db.session.add(payment)
         
         # Update item stock
-        item.stock_quantity -= data['quantity']
+        item.stock_quantity -= quantity
+        
+        # Create stock movement record
+        stock_movement = StockMovement(
+            movement_type='out',
+            quantity=quantity,
+            reason=f'Installment sale {sale_number}',
+            item_id=item_id,
+            user_id=user_id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(stock_movement)
         
         db.session.commit()
         

@@ -286,32 +286,97 @@ function saveInstallmentSale() {
         return;
     }
     
-    let customerId = document.getElementById('customer-select').value;
+    // Get form values with validation
+    const customerSelect = document.getElementById('customer-select');
+    const productSelect = document.getElementById('product-select');
+    const quantityInput = document.getElementById('quantity');
+    const totalAmountInput = document.getElementById('total-amount');
+    const downPaymentInput = document.getElementById('down-payment');
+    const installmentsCountInput = document.getElementById('installments-count');
+    const startDateInput = document.getElementById('start-date');
+    const agreementSignedInput = document.getElementById('agreement-signed');
+    const notesInput = document.getElementById('notes');
+    
+    // Validate required fields
+    if (!productSelect || !productSelect.value) {
+        alert('Please select a product');
+        return;
+    }
+    
+    if (!quantityInput || !quantityInput.value || parseInt(quantityInput.value) <= 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    if (!totalAmountInput || !totalAmountInput.value || parseFloat(totalAmountInput.value) <= 0) {
+        alert('Please enter a valid total amount');
+        return;
+    }
+    
+    if (!installmentsCountInput || !installmentsCountInput.value || parseInt(installmentsCountInput.value) <= 0) {
+        alert('Please enter a valid number of installments');
+        return;
+    }
+    
+    if (!startDateInput || !startDateInput.value) {
+        alert('Please select a start date');
+        return;
+    }
+    
+    let customerId = customerSelect ? customerSelect.value : null;
     let customerData = null;
     
     // Check if creating new customer
-    if (!customerId && document.getElementById('new-customer-fields').style.display === 'block') {
+    const newCustomerFields = document.getElementById('new-customer-fields');
+    if (!customerId && newCustomerFields && newCustomerFields.style.display === 'block') {
+        const nameInput = document.getElementById('new-customer-name');
+        const phoneInput = document.getElementById('new-customer-phone');
+        const nationalIdInput = document.getElementById('new-customer-national-id');
+        const emailInput = document.getElementById('new-customer-email');
+        const addressInput = document.getElementById('new-customer-address');
+        
+        if (!nameInput || !nameInput.value.trim()) {
+            alert('Please enter customer name');
+            return;
+        }
+        
+        if (!phoneInput || !phoneInput.value.trim()) {
+            alert('Please enter customer phone');
+            return;
+        }
+        
         customerData = {
-            name: document.getElementById('new-customer-name').value,
-            phone: document.getElementById('new-customer-phone').value,
-            national_id: document.getElementById('new-customer-national-id').value,
-            email: document.getElementById('new-customer-email').value,
-            address: document.getElementById('new-customer-address').value
+            name: nameInput.value.trim(),
+            phone: phoneInput.value.trim(),
+            national_id: nationalIdInput ? nationalIdInput.value.trim() : '',
+            email: emailInput ? emailInput.value.trim() : '',
+            address: addressInput ? addressInput.value.trim() : ''
         };
     }
     
+    if (!customerId && !customerData) {
+        alert('Please select a customer or create a new one');
+        return;
+    }
+    
     const installmentData = {
-        customer_id: customerId,
+        customer_id: customerId || null,
         customer_data: customerData,
-        item_id: document.getElementById('product-select').value,
-        quantity: parseInt(document.getElementById('quantity').value),
-        total_amount: parseFloat(document.getElementById('total-amount').value),
-        down_payment: parseFloat(document.getElementById('down-payment').value) || 0,
-        number_of_installments: parseInt(document.getElementById('installments-count').value),
-        start_date: document.getElementById('start-date').value,
-        agreement_signed: document.getElementById('agreement-signed').checked,
-        notes: document.getElementById('notes').value
+        item_id: parseInt(productSelect.value),
+        quantity: parseInt(quantityInput.value),
+        total_amount: parseFloat(totalAmountInput.value),
+        down_payment: parseFloat(downPaymentInput ? downPaymentInput.value : 0) || 0,
+        number_of_installments: parseInt(installmentsCountInput.value),
+        start_date: startDateInput.value,
+        agreement_signed: agreementSignedInput ? agreementSignedInput.checked : false,
+        notes: notesInput ? notesInput.value.trim() : ''
     };
+    
+    // Validate installment data
+    if (installmentData.down_payment >= installmentData.total_amount) {
+        alert('Down payment must be less than total amount');
+        return;
+    }
     
     // Create customer first if needed
     if (customerData) {
@@ -322,13 +387,17 @@ function saveInstallmentSale() {
         })
         .then(response => response.json())
         .then(customer => {
-            installmentData.customer_id = customer.id;
-            delete installmentData.customer_data;
-            createInstallmentSale(installmentData);
+            if (customer.success && customer.customer_id) {
+                installmentData.customer_id = customer.customer_id;
+                delete installmentData.customer_data;
+                createInstallmentSale(installmentData);
+            } else {
+                throw new Error(customer.error || 'Failed to create customer');
+            }
         })
         .catch(error => {
             console.error('Error creating customer:', error);
-            alert('Error creating customer');
+            alert('Error creating customer: ' + error.message);
         });
     } else {
         createInstallmentSale(installmentData);
