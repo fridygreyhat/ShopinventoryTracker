@@ -2607,6 +2607,9 @@ def get_installment_sales():
 def create_installment_sale():
     """Create new installment sale"""
     try:
+        from models import InstallmentSale, InstallmentPayment, Customer, Item, Sale, SaleItem, StockMovement
+        from datetime import timedelta
+        
         user_id = session.get('user_id')
         data = request.get_json()
         
@@ -5108,13 +5111,19 @@ def api_create_sale():
 
         # Handle payment details for mobile money and installments
         payment_details = {}
-        if data.get('payment', {}).get('method') == 'mobile_money':
+        payment_method = data.get('payment_method', 'cash')
+        
+        if payment_method == 'mobile_money':
             mobile_info = data.get('payment', {}).get('mobile_info', {})
             payment_details.update(mobile_info)
-        elif data.get('payment', {}).get('method') == 'installment':
+        elif payment_method == 'installment':
             installment_info = data.get('payment', {}).get('installment_info', {})
             payment_details.update(installment_info)
             sale.payment_status = 'partial' if installment_info.get('down_payment', 0) > 0 else 'pending'
+            sale.is_installment = True
+            sale.down_payment = float(installment_info.get('down_payment', 0))
+            sale.installment_months = int(installment_info.get('months', 12))
+            sale.monthly_payment = (total_amount - sale.down_payment) / sale.installment_months
 
         if payment_details:
             sale.payment_details = json.dumps(payment_details)

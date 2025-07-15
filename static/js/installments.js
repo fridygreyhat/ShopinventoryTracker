@@ -491,6 +491,44 @@ function createInstallmentSale(installmentData) {
         return;
     }
 
+    fetch('/api/installment-sales', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(installmentData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            // Show success message
+            showSuccessMessage(`Installment sale created successfully! Sale Number: ${data.sale_number}`);
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Refresh the data
+            loadDashboardData();
+            loadInstallmentSales();
+            
+            // Clear the form
+            document.getElementById('newInstallmentForm').reset();
+        } else {
+            showErrorMessage(data.error || 'Failed to create installment sale');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating installment sale:', error);
+        showErrorMessage('Error creating installment sale: ' + error.message);
+    });
+}
+
     if (!installmentData.number_of_installments || installmentData.number_of_installments <= 0) {
         showErrorMessage('Valid installment period is required');
         return;
