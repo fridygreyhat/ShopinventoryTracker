@@ -83,12 +83,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Active nav link highlighting
     const currentPath = window.location.pathname;
     const navLinks = document.querySelectorAll('.nav-link');
+    const submenuLinks = document.querySelectorAll('.submenu-link');
 
     navLinks.forEach(link => {
         if (link.getAttribute('href') === currentPath) {
             link.classList.add('active');
         }
     });
+
+    // Highlight active submenu links
+    submenuLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+            // Expand parent submenu if active
+            const parentSubmenu = link.closest('.collapse');
+            if (parentSubmenu) {
+                parentSubmenu.classList.add('show');
+                const toggle = document.querySelector(`[data-bs-target="#${parentSubmenu.id}"]`);
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+    });
+
+    // Initialize submenu collapse functionality
+    initializeSubmenuToggle();
 
     // Handle window resize
     window.addEventListener('resize', function() {
@@ -344,6 +364,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('Vertical sidebar navigation initialized');
 });
+
+// Initialize submenu toggle functionality
+function initializeSubmenuToggle() {
+    const submenuToggles = document.querySelectorAll('.submenu-toggle');
+    
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const target = this.getAttribute('data-bs-target');
+            const submenu = document.querySelector(target);
+            
+            if (submenu) {
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                
+                if (isExpanded) {
+                    submenu.classList.remove('show');
+                    this.setAttribute('aria-expanded', 'false');
+                } else {
+                    // Close other open submenus
+                    document.querySelectorAll('.submenu.show').forEach(openSubmenu => {
+                        openSubmenu.classList.remove('show');
+                        const openToggle = document.querySelector(`[data-bs-target="#${openSubmenu.id}"]`);
+                        if (openToggle) {
+                            openToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                    
+                    // Open this submenu
+                    submenu.classList.add('show');
+                    this.setAttribute('aria-expanded', 'true');
+                }
+            }
+        });
+    });
+    
+    // Handle submenu link clicks
+    const submenuLinks = document.querySelectorAll('.submenu-link');
+    submenuLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            // Remove active class from all submenu links
+            submenuLinks.forEach(l => l.classList.remove('active'));
+            // Add active class to clicked link
+            this.classList.add('active');
+            
+            // Close sidebar on mobile after clicking submenu link
+            if (window.innerWidth <= 991.98) {
+                setTimeout(() => {
+                    closeSidebar();
+                }, 300);
+            }
+        });
+    });
+}
 
 // Escape key to close sidebar
 document.addEventListener('keydown', function(e) {

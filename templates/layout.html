@@ -76,30 +76,82 @@
                                 <span class="nav-text">Dashboard</span>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('inventory') %}active{% endif %}" href="{{ url_for('inventory') }}">
+                        
+                        <!-- Inventory Parent Menu -->
+                        <li class="nav-item has-submenu">
+                            <a class="nav-link submenu-toggle {% if request.path in [url_for('inventory'), url_for('categories')] %}active{% endif %}" 
+                               href="#" data-bs-toggle="collapse" data-bs-target="#inventorySubmenu" aria-expanded="false">
                                 <i class="nav-icon fas fa-boxes"></i>
                                 <span class="nav-text">Inventory</span>
+                                <i class="submenu-arrow fas fa-chevron-down"></i>
                             </a>
+                            <div class="collapse submenu" id="inventorySubmenu">
+                                <ul class="submenu-list">
+                                    <li class="submenu-item">
+                                        <a class="submenu-link {% if request.path == url_for('inventory') %}active{% endif %}" href="{{ url_for('inventory') }}">
+                                            <i class="submenu-icon fas fa-list"></i>
+                                            <span class="submenu-text">Item/Product List</span>
+                                        </a>
+                                    </li>
+                                    <li class="submenu-item">
+                                        <a class="submenu-link {% if request.path == url_for('categories') %}active{% endif %}" href="{{ url_for('categories') }}">
+                                            <i class="submenu-icon fas fa-folder-open"></i>
+                                            <span class="submenu-text">Categories</span>
+                                        </a>
+                                    </li>
+                                    <li class="submenu-item">
+                                        <a class="submenu-link" href="{{ url_for('categories') }}#subcategories">
+                                            <i class="submenu-icon fas fa-folder"></i>
+                                            <span class="submenu-text">Subcategories</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('categories') %}active{% endif %}" href="{{ url_for('categories') }}">
-                                <i class="nav-icon fas fa-folder-open"></i>
-                                <span class="nav-text">Categories</span>
+                        
+                        <!-- Sales Parent Menu -->
+                        <li class="nav-item has-submenu">
+                            <a class="nav-link submenu-toggle {% if request.path in [url_for('sales'), url_for('installments')] %}active{% endif %}" 
+                               href="#" data-bs-toggle="collapse" data-bs-target="#salesSubmenu" aria-expanded="false">
+                                <i class="nav-icon fas fa-cash-register"></i>
+                                <span class="nav-text">Sales</span>
+                                <i class="submenu-arrow fas fa-chevron-down"></i>
                             </a>
+                            <div class="collapse submenu" id="salesSubmenu">
+                                <ul class="submenu-list">
+                                    <li class="submenu-item">
+                                        <a class="submenu-link {% if request.path == url_for('sales') %}active{% endif %}" href="{{ url_for('sales') }}">
+                                            <i class="submenu-icon fas fa-plus-circle"></i>
+                                            <span class="submenu-text">Add Sales</span>
+                                        </a>
+                                    </li>
+                                    <li class="submenu-item">
+                                        <a class="submenu-link" href="{{ url_for('sales') }}#pending">
+                                            <i class="submenu-icon fas fa-hourglass-half"></i>
+                                            <span class="submenu-text">Pending Sales</span>
+                                        </a>
+                                    </li>
+                                    <li class="submenu-item">
+                                        <a class="submenu-link" href="{{ url_for('sales') }}#completed">
+                                            <i class="submenu-icon fas fa-check-circle"></i>
+                                            <span class="submenu-text">Completed Sales</span>
+                                        </a>
+                                    </li>
+                                    <li class="submenu-item">
+                                        <a class="submenu-link" href="{{ url_for('sales') }}#transactions">
+                                            <i class="submenu-icon fas fa-receipt"></i>
+                                            <span class="submenu-text">Completed Transactions</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
                     </ul>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section-title">Sales & Finance</div>
+                    <div class="nav-section-title">Finance & Analysis</div>
                     <ul class="nav-menu">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.path == url_for('sales') %}active{% endif %}" href="{{ url_for('sales') }}">
-                                <i class="nav-icon fas fa-cash-register"></i>
-                                <span class="nav-text">Sales</span>
-                            </a>
-                        </li>
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == url_for('margin') %}active{% endif %}" href="{{ url_for('margin') }}">
                                 <i class="nav-icon fas fa-percentage"></i>
