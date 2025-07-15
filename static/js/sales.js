@@ -721,7 +721,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const notes = document.getElementById('saleNotes') ? document.getElementById('saleNotes').value || '' : '';
 
         let mobileInfo = {};
-        let installmentInfo = {};
 
         if (payment === 'mobile_money') {
             const mobileProvider = document.getElementById('mobileProvider');
@@ -731,22 +730,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
-            // Validate installment customer data
-            if (!installmentCustomerData) {
-                alert('Please fill in customer information for installment sales');
-                showInstallmentCustomerModal();
-                return;
-            }
-
-            // For installment sales, show the installment modal
+            // For installment sales, redirect to installment creation
             if (cart.length !== 1) {
                 alert('Installment sales currently support only one item at a time');
                 return;
             }
 
-            // Show New Installment Sale modal
+            // Show New Installment Sale modal instead of processing as regular sale
             showNewInstallmentSaleModal();
-
             return; // Exit early for installment sales
         }
 

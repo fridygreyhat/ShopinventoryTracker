@@ -2613,6 +2613,8 @@ def create_installment_sale():
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
+        logger.info(f"Creating installment sale with data: {data}")
+        
         # Validate required fields with proper None checks
         required_fields = ['item_id', 'quantity', 'total_amount', 'number_of_installments']
         for field in required_fields:
@@ -2641,6 +2643,11 @@ def create_installment_sale():
         if down_payment >= total_amount:
             return jsonify({'success': False, 'error': 'Down payment must be less than total amount'}), 400
         
+        # Validate installment period (must be valid option)
+        valid_periods = [3, 6, 12, 18, 24]
+        if number_of_installments not in valid_periods:
+            return jsonify({'success': False, 'error': 'Invalid installment period. Valid options: 3, 6, 12, 18, 24 months'}), 400
+        
         # Create customer if new customer data provided
         customer_id = None
         if data.get('customer_data') and not data.get('customer_id'):
@@ -2658,6 +2665,7 @@ def create_installment_sale():
             db.session.add(customer)
             db.session.flush()
             customer_id = customer.id
+            logger.info(f"Created new customer with ID: {customer_id}")
         else:
             customer_id = data.get('customer_id')
             if not customer_id:
@@ -2777,6 +2785,8 @@ def create_installment_sale():
         
         db.session.commit()
         
+        logger.info(f"Installment sale created successfully: {sale_number}")
+        
         return jsonify({
             'success': True,
             'installment_sale_id': installment_sale.id,
@@ -2889,9 +2899,133 @@ def record_installment_payment(sale_id):
 
 # ===== SALES API ROUTES =====
 
+@app.route('/api/sales', methods=['GET'])
+@login_required
+def get_sales():
+    """Get sales history with filtering"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
 
+        # Get filter parameters
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        payment_method = request.args.get('payment_method')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
 
+        # Build query
+        query = Sale.query.filter_by(user_id=user_id)
 
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+                query = query.filter(func.date(Sale.created_at) >= date_from_obj)
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+                query = query.filter(func.date(Sale.created_at) <= date_to_obj)
+            except ValueError:
+                pass
+
+        if payment_method:
+            query = query.filter(Sale.payment_method == payment_method)
+
+        # Execute query with pagination
+        sales_paginated = query.order_by(Sale.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
+        # Prepare sales data with items
+        sales_data = []
+        for sale in sales_paginated.items:
+            sale_dict = sale.to_dict()
+            # Get sale items
+            items = []
+            for sale_item in sale.sale_items:
+                items.append({
+                    'name': sale_item.item.name if sale_item.item else 'Unknown Item',
+                    'quantity': sale_item.quantity,
+                    'unit_price': sale_item.unit_price,
+                    'total_price': sale_item.total_price
+                })
+            sale_dict['items'] = items
+            sale_dict['items_count'] = len(items)
+            sales_data.append(sale_dict)
+
+        # Calculate summary
+        total_sales = query.count()
+        total_revenue = query.with_entities(func.sum(Sale.total_amount)).scalar() or 0
+        average_transaction = total_revenue / total_sales if total_sales > 0 else 0
+
+        return jsonify({
+            'success': True,
+            'sales': sales_data,
+            'pagination': {
+                'page': page,
+                'pages': sales_paginated.pages,
+                'per_page': per_page,
+                'total': sales_paginated.total,
+                'has_next': sales_paginated.has_next,
+                'has_prev': sales_paginated.has_prev
+            },
+            'summary': {
+                'total_completed_sales': total_sales,
+                'total_revenue': float(total_revenue),
+                'average_transaction': float(average_transaction)
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sales: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/completed', methods=['GET'])
+@login_required
+def get_completed_sales():
+    """Get completed sales for the sales dashboard"""
+    return get_sales()  # Reuse the same logic
+
+@app.route('/api/sales/<int:sale_id>', methods=['GET'])
+@login_required
+def get_sale_details(sale_id):
+    """Get detailed information about a specific sale"""
+    try:
+        user_id = session.get('user_id')
+        sale = Sale.query.filter_by(id=sale_id, user_id=user_id).first()
+
+        if not sale:
+            return jsonify({'error': 'Sale not found'}), 404
+
+        sale_data = sale.to_dict()
+        
+        # Add sale items with details
+        items = []
+        for sale_item in sale.sale_items:
+            item_data = sale_item.to_dict()
+            if sale_item.item:
+                item_data['item_details'] = {
+                    'name': sale_item.item.name,
+                    'sku': sale_item.item.sku,
+                    'category': sale_item.item.category
+                }
+            items.append(item_data)
+        
+        sale_data['items'] = items
+        sale_data['items_count'] = len(items)
+
+        return jsonify({
+            'success': True,
+            'sale': sale_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting sale details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/sales/receipt/<sale_number>')
 @login_required

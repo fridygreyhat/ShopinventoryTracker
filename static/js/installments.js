@@ -480,6 +480,22 @@ function saveInstallmentSale() {
 function createInstallmentSale(installmentData) {
     console.log('Sending installment data:', installmentData);
     
+    // Validate installment data before sending
+    if (!installmentData.item_id || !installmentData.quantity || !installmentData.total_amount) {
+        showErrorMessage('Missing required installment data');
+        return;
+    }
+
+    if (!installmentData.customer_id && !installmentData.customer_data) {
+        showErrorMessage('Customer information is required');
+        return;
+    }
+
+    if (!installmentData.number_of_installments || installmentData.number_of_installments <= 0) {
+        showErrorMessage('Valid installment period is required');
+        return;
+    }
+    
     fetch('/api/installment-sales', {
         method: 'POST',
         headers: { 
@@ -512,13 +528,16 @@ function createInstallmentSale(installmentData) {
             }
             
             // Reset form
-            const form = document.getElementById('installment-form');
+            const form = document.getElementById('installmentSaleForm');
             if (form) {
                 form.reset();
             }
             
-            // Reset customer fields
-            toggleNewCustomerFields(false);
+            // Reset customer fields if they exist
+            const newCustomerFields = document.getElementById('new-customer-fields');
+            if (newCustomerFields) {
+                newCustomerFields.style.display = 'none';
+            }
             
             // Reload data
             loadDashboardData();
