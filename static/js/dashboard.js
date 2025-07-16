@@ -294,8 +294,9 @@ function loadInventoryStatus() {
         }
         return response.json();
     })
-    .then(items => {
-        updateInventoryStatus(Array.isArray(items) ? items : []);
+    .then(data => {
+        const items = Array.isArray(data) ? data : (data.items || []);
+        updateInventoryStatus(items);
     })
     .catch(error => {
         console.error('Error loading inventory status:', error);

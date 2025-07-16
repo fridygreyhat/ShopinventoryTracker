@@ -114,10 +114,12 @@ class APIHandler {
     async getCategoryBreakdown() {
         try {
             const response = await this.fetchWithAuth('/api/reports/category-breakdown');
-            return response.ok ? await response.json() : {};
+            if (!response.ok) return { success: false, categories: [] };
+            const data = await response.json();
+            return data.success ? data : { success: false, categories: [] };
         } catch (error) {
             console.error('Error loading category breakdown:', error);
-            return {};
+            return { success: false, categories: [] };
         }
     }
 
@@ -129,10 +131,12 @@ class APIHandler {
     async getOnDemandProducts() {
         try {
             const response = await this.fetchWithAuth('/api/on-demand?active_only=true');
-            return response.ok ? await response.json() : [];
+            if (!response.ok) return { success: false, items: [] };
+            const data = await response.json();
+            return data.success ? data : { success: false, items: [] };
         } catch (error) {
             console.error('Error loading on-demand products:', error);
-            return [];
+            return { success: false, items: [] };
         }
     }
 
