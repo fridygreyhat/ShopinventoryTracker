@@ -211,12 +211,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Functions
     function loadInventory() {
-        fetch('/api/inventory')
+        fetch('/api/inventory?format=simple')
             .then(response => response.json())
             .then(data => {
-                if (data && data.length > 0) {
-                    displayInventory(data);
+                // Handle both simple format and enhanced format
+                const items = Array.isArray(data) ? data : (data.items || []);
+                
+                if (items && items.length > 0) {
+                    displayInventory(items);
                     noItemsMessage.classList.add('d-none');
+                    
+                    // Update inventory count if available
+                    if (data.total_count !== undefined) {
+                        updateInventoryCount(data.total_count);
+                    }
                 } else {
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No inventory items found</td></tr>';
                     noItemsMessage.classList.remove('d-none');
@@ -226,6 +234,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading inventory:', error);
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
             });
+    }
+
+    function updateInventoryCount(count) {
+        const countElements = document.querySelectorAll('.inventory-count');
+        countElements.forEach(element => {
+            element.textContent = count.toLocaleString();
+        });
     }
 
     function loadCategories() {
@@ -495,42 +510,55 @@ document.addEventListener('DOMContentLoaded', function() {
         const minStock = minStockFilter.value ? parseInt(minStockFilter.value) : '';
         const maxStock = maxStockFilter.value ? parseInt(maxStockFilter.value) : '';
 
-        let url = '/api/inventory?';
+        let url = '/api/inventory?format=simple';
 
         if (searchTerm) {
-            url += `search=${encodeURIComponent(searchTerm)}&`;
+            url += `&search=${encodeURIComponent(searchTerm)}`;
         }
 
         if (category) {
-            url += `category=${encodeURIComponent(category)}&`;
+            url += `&category=${encodeURIComponent(category)}`;
         }
 
         if (minStock !== '') {
-            url += `min_stock=${minStock}&`;
+            url += `&min_stock=${minStock}`;
         }
 
         if (maxStock !== '') {
-            url += `max_stock=${maxStock}&`;
+            url += `&max_stock=${maxStock}`;
         }
-
-        // Remove trailing ampersand
-        url = url.replace(/&$/, '');
 
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                if (data && data.length > 0) {
-                    displayInventory(data);
+                // Handle both simple format and enhanced format
+                const items = Array.isArray(data) ? data : (data.items || []);
+                
+                if (items && items.length > 0) {
+                    displayInventory(items);
                     noItemsMessage.classList.add('d-none');
+                    
+                    // Show filter results count
+                    const resultsCount = Array.isArray(data) ? data.length : (data.total_count || items.length);
+                    showFilterResults(resultsCount);
                 } else {
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No items match your search criteria</td></tr>';
                     noItemsMessage.classList.add('d-none');
+                    showFilterResults(0);
                 }
             })
             .catch(error => {
                 console.error('Error applying filters:', error);
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error applying filters. Please try again.</td></tr>';
             });
+    }
+
+    function showFilterResults(count) {
+        // Update any results counter elements
+        const resultsElements = document.querySelectorAll('.filter-results-count');
+        resultsElements.forEach(element => {
+            element.textContent = `${count} item${count !== 1 ? 's' : ''} found`;
+        });
     }
 
     function resetFilters() {

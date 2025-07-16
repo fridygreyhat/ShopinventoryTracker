@@ -623,9 +623,9 @@ def api_validate_session():
 @app.route('/api/inventory', methods=['GET'])
 @login_required
 def get_inventory():
-    """Get all inventory items with optional filtering"""
+    """Get all inventory items with optional filtering and enhanced category support"""
     try:
-        from models import Item
+        from models import Item, Category
 
         # Get current user ID
         current_user_id = session.get('user_id')
@@ -637,20 +637,47 @@ def get_inventory():
 
         # Optional filtering
         category = request.args.get('category')
+        subcategory = request.args.get('subcategory')
         search_term = request.args.get('search', '').lower()
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        
+        # Include inactive items if requested (for admin purposes)
+        if include_inactive:
+            query = Item.query.filter(Item.user_id == current_user_id)
 
-        # Apply filters if provided
+        # Apply category filter (support both category name and subcategory)
         if category:
-            query = query.filter(Item.category == category)
+            if subcategory:
+                # Filter by both category and subcategory
+                query = query.filter(
+                    or_(
+                        Item.category == category,
+                        Item.subcategory == subcategory
+                    )
+                )
+            else:
+                # Filter by category or subcategory matching the category name
+                query = query.filter(
+                    or_(
+                        Item.category == category,
+                        Item.subcategory == category
+                    )
+                )
 
+        # Enhanced search filter
         if search_term:
-            search_filter = (Item.name.ilike(f'%{search_term}%')
-                             | Item.sku.ilike(f'%{search_term}%')
-                             | Item.description.ilike(f'%{search_term}%'))
+            search_filter = (
+                Item.name.ilike(f'%{search_term}%')
+                | Item.sku.ilike(f'%{search_term}%')
+                | Item.description.ilike(f'%{search_term}%')
+                | Item.category.ilike(f'%{search_term}%')
+                | Item.subcategory.ilike(f'%{search_term}%')
+            )
             query = query.filter(search_filter)
 
+        # Stock level filters
         if min_stock:
             try:
                 min_stock = int(min_stock)
@@ -665,18 +692,72 @@ def get_inventory():
             except ValueError:
                 pass
 
-        # Execute query and convert to dictionary
-        items = query.order_by(Item.name).all()
-        items_data = []
+        # Order by name for consistent results
+        query = query.order_by(Item.name)
 
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 100, type=int)
+        limit = request.args.get('limit', type=int)
+
+        # Apply limit if specified (for dashboard widgets)
+        if limit:
+            items = query.limit(limit).all()
+            total_count = query.count()
+        else:
+            # Use pagination for large datasets
+            paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+            items = paginated.items
+            total_count = paginated.total
+
+        # Convert items to dictionary format
+        items_data = []
         for item in items:
             item_dict = item.to_dict()
-            # Ensure backward compatibility with frontend expecting 'quantity' field
+            
+            # Ensure backward compatibility with frontend expectations
             item_dict['quantity'] = item.stock_quantity
             item_dict['price'] = item.retail_price or 0
+            
+            # Add category relationship data if available
+            if item.category_rel:
+                item_dict['category_details'] = {
+                    'id': item.category_rel.id,
+                    'name': item.category_rel.name,
+                    'description': item.category_rel.description,
+                    'parent_id': item.category_rel.parent_id
+                }
+            
+            # Add stock status indicators
+            item_dict['stock_status'] = 'out_of_stock' if item.stock_quantity == 0 else (
+                'low_stock' if item.stock_quantity <= (item.minimum_stock or 5) else 'in_stock'
+            )
+            
+            # Calculate profit margins
+            if item.buying_price and item.retail_price:
+                profit = item.retail_price - item.buying_price
+                item_dict['profit_margin'] = round((profit / item.retail_price) * 100, 2) if item.retail_price > 0 else 0
+                item_dict['profit_per_unit'] = profit
+            else:
+                item_dict['profit_margin'] = 0
+                item_dict['profit_per_unit'] = 0
+            
             items_data.append(item_dict)
 
-        return jsonify(items_data)
+        # Prepare response with metadata
+        response_data = {
+            'items': items_data,
+            'total_count': total_count,
+            'page': page if not limit else 1,
+            'per_page': per_page if not limit else len(items_data),
+            'has_more': total_count > (page * per_page) if not limit else False
+        }
+
+        # If simple format requested (backward compatibility)
+        if request.args.get('format') == 'simple':
+            return jsonify(items_data)
+        
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Error getting inventory: {str(e)}")
