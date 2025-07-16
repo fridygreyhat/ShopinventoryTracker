@@ -10,7 +10,7 @@ deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Project"
+runButton = "Start Flask Application"
 
 [[workflows.workflow]]
 name = "Project"

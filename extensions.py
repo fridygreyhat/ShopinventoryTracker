@@ -10,7 +10,7 @@ login_manager = LoginManager()
 # Ensure PostgreSQL configuration
 def configure_database(app):
     """Configure database to use PostgreSQL exclusively"""
-    
+
     # Check for PostgreSQL configuration
     postgres_url = os.environ.get('DATABASE_URL')
     if not postgres_url:
@@ -21,7 +21,7 @@ def configure_database(app):
         print("2. Click 'create a database'")
         print("3. This will set the DATABASE_URL environment variable")
         raise Exception("PostgreSQL DATABASE_URL is required")
-    
+
     try:
         # Use PostgreSQL with optimized settings
         app.config['SQLALCHEMY_DATABASE_URI'] = postgres_url
@@ -40,4 +40,4 @@ def configure_database(app):
         return True
     except Exception as e:
         print(f"❌ Error configuring PostgreSQL: {str(e)}")
-        raise
+        return False
