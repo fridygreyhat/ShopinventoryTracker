@@ -1673,7 +1673,7 @@ def get_installments():
         logger.error(f"Error getting installments: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/installments', methods=['POST'])```python
+@app.route('/api/installments', methods=['POST'])
 @login_required
 def create_installment():
     """API endpoint to create a new installment sale"""
