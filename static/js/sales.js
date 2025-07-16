@@ -451,8 +451,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return response.json();
             })
-            .then(items => {
-                console.log('Products loaded:', items);
+            .then(data => {
+                console.log('Products loaded:', data);
+                // Handle both simple array format and enhanced object format
+                const items = Array.isArray(data) ? data : (data.items || []);
                 searchResults = items;
                 displaySearchResults(items);
             })
@@ -484,9 +486,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         items.forEach(item => {
             // Determine which price to display based on the sale type
-            const displayPrice = saleType === 'retail' 
-                ? item.selling_price_retail 
-                : item.selling_price_wholesale;
+            const retailPrice = item.selling_price_retail || item.retail_price || 0;
+            const wholesalePrice = item.selling_price_wholesale || item.wholesale_price || 0;
+            const displayPrice = saleType === 'retail' ? retailPrice : wholesalePrice;
+            const stockQuantity = item.stock_quantity || item.quantity || 0;
 
             html += `
                 <tr>
@@ -494,9 +497,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.sku || 'N/A'}</td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td><span class="currency-symbol">TZS</span> ${displayPrice.toLocaleString()}</td>
-                    <td>${item.quantity}</td>
+                    <td>${stockQuantity}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}">
+                        <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}" ${stockQuantity <= 0 ? 'disabled' : ''}>
                             <i class="fas fa-plus"></i>
                         </button>
                     </td>
@@ -524,27 +527,42 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Check stock availability
+        const stockQuantity = item.stock_quantity || item.quantity || 0;
+        if (stockQuantity <= 0) {
+            alert('This item is out of stock');
+            return;
+        }
+
         // Check if the item is already in the cart
         const existingItemIndex = cart.findIndex(cartItem => cartItem.id == itemId);
 
         if (existingItemIndex >= 0) {
+            // Check if we can increment (stock check)
+            if (cart[existingItemIndex].quantity >= stockQuantity) {
+                alert('Cannot add more items - insufficient stock');
+                return;
+            }
             // Increment quantity if already in cart
             cart[existingItemIndex].quantity += 1;
             cart[existingItemIndex].total = cart[existingItemIndex].price * cart[existingItemIndex].quantity;
         } else {
             // Add new item to cart
-            const price = saleType === 'retail' ? item.selling_price_retail : item.selling_price_wholesale;
+            const retailPrice = item.selling_price_retail || item.retail_price || 0;
+            const wholesalePrice = item.selling_price_wholesale || item.wholesale_price || 0;
+            const price = saleType === 'retail' ? retailPrice : wholesalePrice;
 
             cart.push({
                 id: item.id,
                 name: item.name,
                 sku: item.sku,
                 price: price,
-                selling_price_retail: item.selling_price_retail,
-                selling_price_wholesale: item.selling_price_wholesale,
+                selling_price_retail: retailPrice,
+                selling_price_wholesale: wholesalePrice,
                 quantity: 1,
                 unit_type: item.unit_type || 'quantity',
-                total: price
+                total: price,
+                stock_quantity: stockQuantity
             });
         }
 

@@ -118,12 +118,12 @@ function updateInventoryMetrics(inventory) {
     updateElement('totalStock', inventory.total_stock || 0);
     updateElement('inventoryValue', formatCurrency(inventory.inventory_value || 0));
     updateElement('lowStockCount', inventory.low_stock_count || 0);
-    
+
     // Update low stock items list
     if (inventory.low_stock_items) {
         updateLowStockItems(inventory.low_stock_items);
     }
-    
+
     // Update category breakdown
     if (inventory.category_breakdown) {
         updateCategoryBreakdown(inventory.category_breakdown);
@@ -136,7 +136,7 @@ function updateSalesMetrics(sales) {
     updateElement('totalRevenue', formatCurrency(sales.total_revenue || 0));
     updateElement('todaySales', formatCurrency(sales.today_sales || 0));
     updateElement('todaySalesCount', sales.today_sales_count || 0);
-    
+
     // Update top selling items
     if (sales.top_selling_items) {
         updateTopSellingItems(sales.top_selling_items);
@@ -154,7 +154,7 @@ function updateFinancialMetrics(financial) {
     updateElement('monthlyIncome', formatCurrency(financial.monthly_income || 0));
     updateElement('monthlyExpenses', formatCurrency(financial.monthly_expenses || 0));
     updateElement('monthlyProfit', formatCurrency(financial.monthly_profit || 0));
-    
+
     // Add visual indicator for profit/loss
     const profitElement = document.getElementById('monthlyProfit');
     if (profitElement) {
@@ -172,14 +172,14 @@ function updateRecentActivity(activity) {
 function updateCategoryBreakdown(categories) {
     const container = document.getElementById('categoryBreakdown');
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     if (categories.length === 0) {
         container.innerHTML = '<p class="text-muted">No categories found</p>';
         return;
     }
-    
+
     categories.forEach(category => {
         const categoryElement = document.createElement('div');
         categoryElement.className = 'mb-2 p-2 border rounded';
@@ -197,14 +197,14 @@ function updateCategoryBreakdown(categories) {
 function updateTopSellingItems(items) {
     const container = document.getElementById('topSellingItems');
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     if (items.length === 0) {
         container.innerHTML = '<p class="text-muted">No sales data available</p>';
         return;
     }
-    
+
     items.forEach((item, index) => {
         const itemElement = document.createElement('div');
         itemElement.className = 'mb-2 p-2 border rounded';
@@ -400,13 +400,13 @@ function loadTopSellingItems() {
                 }
             });
         }
-        
+
         // Convert to array and sort by sales quantity
         const topItems = Object.entries(itemSales)
             .map(([name, quantity]) => ({ name, quantity }))
             .sort((a, b) => b.quantity - a.quantity)
             .slice(0, 5);
-            
+
         updateTopSellingItems(topItems);
     })
     .catch(error => {
@@ -453,12 +453,14 @@ function updateInventoryStatus(items) {
 
     let html = '<div class="row">';
     items.slice(0, 5).forEach(item => {
-        const stockLevel = (item.stock_quantity || 0) <= (item.minimum_stock || 0) ? 'danger' : 'success';
+        const stockQuantity = item.stock_quantity || item.quantity || 0;
+        const minimumStock = item.minimum_stock || 5;
+        const stockLevel = stockQuantity <= minimumStock ? 'danger' : 'success';
         html += `
             <div class="col-md-12 mb-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <span>${item.name}</span>
-                    <span class="badge bg-${stockLevel}">${item.stock_quantity || 0}</span>
+                    <span class="badge bg-${stockLevel}">${stockQuantity}</span>
                 </div>
             </div>
         `;
