@@ -2064,6 +2064,40 @@ def account():
     """User account management page"""
     return render_template('account.html')
 
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/finance')
+@login_required
+def finance():
+    """Finance management page"""
+    return render_template('finance.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand products page"""
+    return render_template('on_demand.html')
+
+@app.route('/admin_users')
+@login_required
+def admin_users():
+    """Admin users management page"""
+    user_id = session.get('user_id')
+    from models import User
+    if not user_id:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(user_id)
+    if not user or not user.is_admin:
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('admin_users.html')
+
 @app.route('/logout')
 def logout():
     """Logout route"""
