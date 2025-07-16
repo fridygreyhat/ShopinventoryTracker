@@ -25,6 +25,7 @@ class APIHandler {
      */
     async fetchWithAuth(url, options = {}) {
         const config = {
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -39,7 +40,10 @@ class APIHandler {
             if (response.status === 302 || response.status === 401) {
                 this.isAuthenticated = false;
                 console.warn(`Authentication required for ${url}`);
-                // Return a mock response that indicates auth failure
+                // Redirect to login if not authenticated
+                if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+                    window.location.href = '/login';
+                }
                 return {
                     ok: false,
                     status: 401,
@@ -51,7 +55,6 @@ class APIHandler {
             
         } catch (error) {
             console.error(`API Error for ${url}:`, error);
-            // Return a mock response that indicates network error
             return {
                 ok: false,
                 status: 500,

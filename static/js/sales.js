@@ -819,17 +819,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             },
             credentials: 'same-origin',
-            body: JSON.stringify(transaction)
+            body: JSON.stringify({
+                items: transaction.items.map(item => ({
+                    item_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: item.price
+                })),
+                customer_name: transaction.customer.name,
+                customer_phone: transaction.customer.phone,
+                payment_type: transaction.payment.method,
+                payment_amount: transaction.payment.amount,
+                total_amount: transaction.total,
+                discount_type: transaction.discount.type,
+                discount_value: transaction.discount.value,
+                notes: transaction.notes,
+                is_installment: transaction.payment.method === 'installment'
+            })
         })
         .then(response => {
             console.log('Transaction response status:', response.status);
 
+            if (response.status === 401 || response.status === 302) {
+                console.error('Transaction failed - user not authenticated');
+                throw new Error('Authentication required. Please log in again.');
+            }
             if (!response.ok) {
-                // If it's a redirect (like 302), log the issue
-                if (response.status === 302) {
-                    console.error('Transaction failed - user not authenticated');
-                    throw new Error('Authentication required. Please log in again.');
-                }
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();

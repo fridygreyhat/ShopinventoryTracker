@@ -642,7 +642,7 @@ def get_inventory():
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
         include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
-        
+
         # Include inactive items if requested (for admin purposes)
         if include_inactive:
             query = Item.query.filter(Item.user_id == current_user_id)
@@ -714,11 +714,11 @@ def get_inventory():
         items_data = []
         for item in items:
             item_dict = item.to_dict()
-            
+
             # Ensure backward compatibility with frontend expectations
             item_dict['quantity'] = item.stock_quantity
             item_dict['price'] = item.retail_price or 0
-            
+
             # Add category relationship data if available
             if item.category_rel:
                 item_dict['category_details'] = {
@@ -727,12 +727,12 @@ def get_inventory():
                     'description': item.category_rel.description,
                     'parent_id': item.category_rel.parent_id
                 }
-            
+
             # Add stock status indicators
             item_dict['stock_status'] = 'out_of_stock' if item.stock_quantity == 0 else (
                 'low_stock' if item.stock_quantity <= (item.minimum_stock or 5) else 'in_stock'
             )
-            
+
             # Calculate profit margins
             if item.buying_price and item.retail_price:
                 profit = item.retail_price - item.buying_price
@@ -741,7 +741,7 @@ def get_inventory():
             else:
                 item_dict['profit_margin'] = 0
                 item_dict['profit_per_unit'] = 0
-            
+
             items_data.append(item_dict)
 
         # Calculate inventory analytics
@@ -750,7 +750,7 @@ def get_inventory():
             total_value = sum(item.stock_quantity * (item.buying_price or 0) for item in items)
             low_stock_count = sum(1 for item in items if item.stock_quantity <= (item.minimum_stock or 5))
             out_of_stock_count = sum(1 for item in items if item.stock_quantity == 0)
-            
+
             analytics = {
                 'total_inventory_value': total_value,
                 'low_stock_count': low_stock_count,
@@ -772,7 +772,7 @@ def get_inventory():
         # If simple format requested (backward compatibility)
         if request.args.get('format') == 'simple':
             return jsonify(items_data)
-        
+
         return jsonify(response_data)
 
     except Exception as e:
@@ -861,7 +861,7 @@ def add_item():
         # Handle category and category_id
         category_name = item_data.get("category", "Uncategorized")
         category_id = item_data.get("category_id")
-        
+
         # If category_id is provided, validate it exists and belongs to user
         if category_id:
             from models import Category
@@ -1101,7 +1101,7 @@ def batch_update_inventory():
     """API endpoint for batch updating inventory items"""
     try:
         from models import Item
-        
+
         batch_data = request.get_json()
         if not batch_data or 'items' not in batch_data:
             return jsonify({"error": "No items provided for batch update"}), 400
@@ -1944,7 +1944,7 @@ def get_categories():
         # Separate parent categories and subcategories
         parent_categories = [cat for cat in all_categories if cat.parent_id is None]
         subcategories_dict = {}
-        
+
         # Group subcategories by parent_id
         for cat in all_categories:
             if cat.parent_id is not None:
@@ -2064,7 +2064,7 @@ def create_category():
         db.session.rollback()
         logger.error(f"Error creating category: {str(e)}")
         return jsonify({"error": f"Failed to create category: {str(e)}"}), 500
-    
+
 @app.route('/api/categories/<int:category_id>', methods=['PUT'])
 @login_required
 def update_category(category_id):
@@ -2287,7 +2287,7 @@ def get_dashboard_summary():
             Item.stock_quantity <= Item.minimum_stock
         )
         low_stock_count = low_stock_items_query.count()
-        
+
         # Get detailed low stock items
         low_stock_items = []
         for item in low_stock_items_query.limit(10).all():
@@ -2301,7 +2301,7 @@ def get_dashboard_summary():
 
         # === SALES METRICS ===
         total_sales = Sale.query.filter_by(user_id=user_id).count()
-        
+
         # Get revenue (completed sales only)
         total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
             Sale.user_id == user_id,
@@ -2311,7 +2311,7 @@ def get_dashboard_summary():
         # Today's sales
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         tomorrow = today + timedelta(days=1)
-        
+
         today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
             Sale.user_id == user_id,
             Sale.payment_status == 'completed',
@@ -2327,7 +2327,7 @@ def get_dashboard_summary():
 
         # === CUSTOMER METRICS ===
         total_customers = Customer.query.filter_by(user_id=user_id).count()
-        
+
         # New customers this month
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         new_customers_this_month = Customer.query.filter(
@@ -2454,15 +2454,15 @@ def get_financial_transactions():
         from datetime import datetime
 
         user_id = session.get('user_id')
-        
+
         # Get date parameters
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         transaction_type = request.args.get('type')  # 'income', 'expense', or None for all
-        
+
         # Build query
         query = FinancialTransaction.query.filter_by(user_id=user_id)
-        
+
         # Apply date filters
         if start_date:
             try:
@@ -2470,21 +2470,21 @@ def get_financial_transactions():
                 query = query.filter(FinancialTransaction.created_at >= start_date_obj)
             except ValueError:
                 pass
-        
+
         if end_date:
             try:
                 end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
                 query = query.filter(FinancialTransaction.created_at <= end_date_obj)
             except ValueError:
                 pass
-        
+
         # Apply transaction type filter
         if transaction_type:
             query = query.filter(FinancialTransaction.transaction_type == transaction_type)
-        
+
         # Execute query
         transactions = query.order_by(FinancialTransaction.created_at.desc()).all()
-        
+
         # Format response
         transactions_data = []
         for transaction in transactions:
@@ -2494,12 +2494,11 @@ def get_financial_transactions():
                 'description': transaction.description,
                 'amount': float(transaction.amount),
                 'transaction_type': transaction.transaction_type,
-                'category': transaction.category,
-                'payment_method': transaction.payment_method,
+                'category': transaction.category,                'payment_method': transaction.payment_method,
                 'reference_id': transaction.reference_id,
                 'notes': transaction.notes
             })
-        
+
         return jsonify({
             'success': True,
             'transactions': transactions_data,
@@ -2515,528 +2514,357 @@ def get_financial_transactions():
 def get_monthly_financial_summary():
     """API endpoint to get monthly financial summary"""
     try:
-        from models import Sale, FinancialTransaction
-        from sqlalchemy import func
         from datetime import datetime, timedelta
 
         user_id = session.get('user_id')
-        
-        # Get current month data
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         next_month = (current_month + timedelta(days=32)).replace(day=1)
 
-        # Monthly income from sales
-        monthly_income = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.user_id == user_id,
-            Sale.payment_status == 'completed',
-            Sale.created_at >= current_month,
-            Sale.created_at < next_month
-        ).scalar() or 0
-
-        # Monthly expenses
-        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-            FinancialTransaction.user_id == user_id,
-            FinancialTransaction.transaction_type == 'expense',
-            FinancialTransaction.created_at >= current_month,
-            FinancialTransaction.created_at < next_month
-        ).scalar() or 0
-
-        # Monthly profit
-        monthly_profit = monthly_income - monthly_expenses
-
-        # Get last 6 months data for chart
-        months_data = []
-        for i in range(6):
-            month_start = (current_month - timedelta(days=32 * i)).replace(day=1)
+        # Get monthly data for the past 12 months
+        monthly_data = {}
+        for i in range(12):
+            month_start = (current_month - timedelta(days=30*i)).replace(day=1)
             month_end = (month_start + timedelta(days=32)).replace(day=1)
-            
-            month_income = db.session.query(func.sum(Sale.total_amount)).filter(
+
+            # Get sales for this month
+            monthly_sales = db.session.query(func.sum(Sale.total_amount)).filter(
                 Sale.user_id == user_id,
                 Sale.payment_status == 'completed',
                 Sale.created_at >= month_start,
                 Sale.created_at < month_end
             ).scalar() or 0
-            
-            month_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+
+            # Get expenses for this month
+            monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
                 FinancialTransaction.user_id == user_id,
                 FinancialTransaction.transaction_type == 'expense',
                 FinancialTransaction.created_at >= month_start,
                 FinancialTransaction.created_at < month_end
             ).scalar() or 0
-            
-            months_data.append({
-                'month': month_start.strftime('%Y-%m'),
-                'income': float(month_income),
-                'expenses': float(month_expenses),
-                'profit': float(month_income - month_expenses)
-            })
+
+            monthly_data[month_start.month] = {
+                'income': float(monthly_sales),
+                'expenses': float(monthly_expenses),
+                'profit': float(monthly_sales - monthly_expenses)
+            }
 
         return jsonify({
             'success': True,
+            'monthly_data': monthly_data,
             'current_month': {
-                'income': float(monthly_income),
-                'expenses': float(monthly_expenses),
-                'profit': float(monthly_profit)
-            },
-            'months_data': list(reversed(months_data))
+                'income': float(monthly_data.get(current_month.month, {}).get('income', 0)),
+                'expenses': float(monthly_data.get(current_month.month, {}).get('expenses', 0)),
+                'profit': float(monthly_data.get(current_month.month, {}).get('profit', 0))
+            }
         })
 
     except Exception as e:
         logger.error(f"Error getting monthly financial summary: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# Additional missing API endpoints
-@app.route('/api/on-demand', methods=['GET'])
+# Missing API endpoints that frontend is trying to access
+@app.route('/api/installment-sales', methods=['GET'])
 @login_required
-def get_on_demand_products():
-    """API endpoint to get on-demand products"""
+def get_installment_sales():
+    """API endpoint to get all installment sales"""
     try:
+        from models import InstallmentSale
+
         user_id = session.get('user_id')
-        active_only = request.args.get('active_only', 'false').lower() == 'true'
-        
-        # Get items marked as on-demand (low stock items)
-        query = Item.query.filter_by(user_id=user_id)
-        if active_only:
-            query = query.filter_by(is_active=True)
-        
-        # Consider items with low stock as on-demand
-        on_demand_items = query.filter(Item.stock_quantity <= 5).all()
-        
-        items_data = []
-        for item in on_demand_items:
-            items_data.append({
-                'id': item.id,
-                'name': item.name,
-                'sku': item.sku,
-                'category': item.category,
-                'stock_quantity': item.stock_quantity,
-                'retail_price': float(item.retail_price or 0),
-                'cost_price': float(item.cost_price or 0),
-                'is_active': item.is_active
+        installment_sales = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
+
+        sales_data = []
+        for sale in installment_sales:
+            sales_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale.sale_number if sale.sale else f"INST-{sale.id}",
+                'customer_name': sale.customer.name if sale.customer else 'Unknown Customer',
+                'total_amount': float(sale.total_amount),
+                'down_payment': float(sale.down_payment or 0),
+                'remaining_amount': float(sale.remaining_amount),
+                'monthly_payment': float(sale.monthly_payment),
+                'duration_months': sale.duration_months,
+                'status': sale.status,
+                'created_at': sale.created_at.isoformat()
             })
-        
-        return jsonify({
-            'success': True,
-            'products': items_data,
-            'count': len(items_data)
-        })
-    
-    except Exception as e:
-        logger.error(f"Error getting on-demand products: {str(e)}")
-        return jsonify({"error": "Failed to get on-demand products"}), 500
 
-@app.route('/api/reports/category-breakdown', methods=['GET'])
-@login_required
-def get_category_breakdown():
-    """API endpoint to get category breakdown"""
-    try:
-        user_id = session.get('user_id')
-        
-        # Get category breakdown from dashboard summary
-        from models import Category
-        categories = Category.query.filter_by(user_id=user_id).all()
-        
-        category_breakdown = []
-        for category in categories:
-            item_count = category.get_item_count()
-            if item_count > 0:  # Only include categories with items
-                category_breakdown.append({
-                    'category': category.name,
-                    'item_count': item_count,
-                    'total_items': category.get_total_item_count()
-                })
-        
-        return jsonify({
-            'success': True,
-            'category_breakdown': category_breakdown
-        })
-    
-    except Exception as e:
-        logger.error(f"Error getting category breakdown: {str(e)}")
-        return jsonify({"error": "Failed to get category breakdown"}), 500
+        return jsonify({'success': True, 'installment_sales': sales_data})
 
-# Analytics and Smart Inventory endpoints
-@app.route('/api/analytics/demand-forecast', methods=['GET'])
-@login_required
-def get_demand_forecast():
-    """API endpoint for demand forecast"""
-    try:
-        days_ahead = request.args.get('days_ahead', 30, type=int)
-        # Basic implementation - can be enhanced with actual ML
-        return jsonify({
-            'success': True,
-            'forecast': {
-                'days_ahead': days_ahead,
-                'predicted_sales': 150,  # Mock data for now
-                'confidence': 0.85
-            }
-        })
     except Exception as e:
-        logger.error(f"Error getting demand forecast: {str(e)}")
-        return jsonify({"error": "Failed to get demand forecast"}), 500
+        logger.error(f"Error getting installment sales: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/analytics/seasonal-trends', methods=['GET'])
+@app.route('/api/installment-sales', methods=['POST'])
 @login_required
-def get_seasonal_trends():
-    """API endpoint for seasonal trends"""
+def create_installment_sale():
+    """API endpoint to create a new installment sale"""
     try:
-        return jsonify({
-            'success': True,
-            'trends': [
-                {'season': 'Spring', 'growth_rate': 15},
-                {'season': 'Summer', 'growth_rate': 25},
-                {'season': 'Fall', 'growth_rate': 10},
-                {'season': 'Winter', 'growth_rate': 5}
-            ]
-        })
-    except Exception as e:
-        logger.error(f"Error getting seasonal trends: {str(e)}")
-        return jsonify({"error": "Failed to get seasonal trends"}), 500
+        from models import InstallmentSale, InstallmentPayment, Customer, Item, Sale, SaleItem
 
-@app.route('/api/analytics/price-optimization', methods=['GET'])
-@login_required
-def get_price_optimization():
-    """API endpoint for price optimization"""
-    try:
-        return jsonify({
-            'success': True,
-            'recommendations': [
-                {'item_id': 1, 'current_price': 10.00, 'recommended_price': 12.00},
-                {'item_id': 2, 'current_price': 15.00, 'recommended_price': 14.50}
-            ]
-        })
-    except Exception as e:
-        logger.error(f"Error getting price optimization: {str(e)}")
-        return jsonify({"error": "Failed to get price optimization"}), 500
-
-@app.route('/api/analytics/customer-behavior', methods=['GET'])
-@login_required
-def get_customer_behavior():
-    """API endpoint for customer behavior analysis"""
-    try:
-        return jsonify({
-            'success': True,
-            'behavior': {
-                'repeat_customers': 65,
-                'average_order_value': 45.50,
-                'purchase_frequency': 2.3
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error getting customer behavior: {str(e)}")
-        return jsonify({"error": "Failed to get customer behavior"}), 500
-
-@app.route('/api/smart-inventory/abc-analysis', methods=['GET'])
-@login_required
-def get_abc_analysis():
-    """API endpoint for ABC analysis"""
-    try:
-        user_id = session.get('user_id')
-        items = Item.query.filter_by(user_id=user_id).all()
-        
-        # Simple ABC analysis based on stock quantity
-        total_items = len(items)
-        a_items = int(total_items * 0.2)  # Top 20%
-        b_items = int(total_items * 0.3)  # Next 30%
-        
-        return jsonify({
-            'success': True,
-            'analysis': {
-                'a_items': a_items,
-                'b_items': b_items,
-                'c_items': total_items - a_items - b_items
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error getting ABC analysis: {str(e)}")
-        return jsonify({"error": "Failed to get ABC analysis"}), 500
-
-@app.route('/api/smart-inventory/health-score', methods=['GET'])
-@login_required
-def get_health_score():
-    """API endpoint for inventory health score"""
-    try:
-        user_id = session.get('user_id')
-        items = Item.query.filter_by(user_id=user_id).all()
-        
-        if not items:
-            return jsonify({
-                'success': True,
-                'health_score': 100,
-                'recommendations': []
-            })
-        
-        # Calculate health score based on stock levels
-        total_items = len(items)
-        low_stock_items = len([item for item in items if item.stock_quantity <= 5])
-        out_of_stock_items = len([item for item in items if item.stock_quantity == 0])
-        
-        health_score = max(0, 100 - (low_stock_items * 10) - (out_of_stock_items * 20))
-        
-        recommendations = []
-        if low_stock_items > 0:
-            recommendations.append(f"Restock {low_stock_items} low stock items")
-        if out_of_stock_items > 0:
-            recommendations.append(f"Urgent: {out_of_stock_items} items out of stock")
-        
-        return jsonify({
-            'success': True,
-            'health_score': health_score,
-            'recommendations': recommendations
-        })
-    except Exception as e:
-        logger.error(f"Error getting health score: {str(e)}")
-        return jsonify({"error": "Failed to get health score"}), 500
-
-@app.route('/api/smart-inventory/auto-reorder', methods=['GET'])
-@login_required
-def get_auto_reorder():
-    """API endpoint for auto-reorder suggestions"""
-    try:
-        user_id = session.get('user_id')
-        items = Item.query.filter_by(user_id=user_id).filter(Item.stock_quantity <= 5).all()
-        
-        suggestions = []
-        for item in items:
-            suggestions.append({
-                'item_id': item.id,
-                'name': item.name,
-                'current_stock': item.stock_quantity,
-                'suggested_order': max(20, item.stock_quantity * 4),
-                'priority': 'high' if item.stock_quantity == 0 else 'medium'
-            })
-        
-        return jsonify({
-            'success': True,
-            'suggestions': suggestions
-        })
-    except Exception as e:
-        logger.error(f"Error getting auto-reorder suggestions: {str(e)}")
-        return jsonify({"error": "Failed to get auto-reorder suggestions"}), 500
-
-# Accounting endpoints
-@app.route('/api/accounting/initialize', methods=['POST'])
-@login_required
-def initialize_accounting():
-    """Initialize accounting chart of accounts"""
-    try:
-        user_id = session.get('user_id')
-        from accounting_service import AccountingService
-        AccountingService.initialize_chart_of_accounts(user_id)
-        return jsonify({'success': True, 'message': 'Chart of accounts initialized'})
-    except Exception as e:
-        logger.error(f"Error initializing accounting: {str(e)}")
-        return jsonify({"error": "Failed to initialize accounting"}), 500
-
-@app.route('/api/accounting/chart-of-accounts', methods=['GET'])
-@login_required
-def get_chart_of_accounts():
-    """Get chart of accounts"""
-    try:
-        user_id = session.get('user_id')
-        from models import ChartOfAccounts
-        accounts = ChartOfAccounts.query.filter_by(user_id=user_id).all()
-        
-        accounts_data = []
-        for account in accounts:
-            accounts_data.append({
-                'id': account.id,
-                'account_code': account.account_code,
-                'account_name': account.account_name,
-                'account_type': account.account_type,
-                'balance': float(account.balance or 0),
-                'is_active': account.is_active
-            })
-        
-        return jsonify({'success': True, 'accounts': accounts_data})
-    except Exception as e:
-        logger.error(f"Error getting chart of accounts: {str(e)}")
-        return jsonify({"error": "Failed to get chart of accounts"}), 500
-
-@app.route('/api/accounting/accounts', methods=['POST'])
-@login_required
-def create_account():
-    """Create new account"""
-    try:
-        user_id = session.get('user_id')
         data = request.get_json()
-        
-        from models import ChartOfAccounts
-        account = ChartOfAccounts(
-            user_id=user_id,
-            account_code=data.get('account_code'),
-            account_name=data.get('account_name'),
-            account_type=data.get('account_type'),
-            balance=float(data.get('balance', 0)),
-            is_active=True
-        )
-        
-        db.session.add(account)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'account': {
-            'id': account.id,
-            'account_code': account.account_code,
-            'account_name': account.account_name,
-            'account_type': account.account_type,
-            'balance': float(account.balance or 0)
-        }})
-    except Exception as e:
-        logger.error(f"Error creating account: {str(e)}")
-        return jsonify({"error": "Failed to create account"}), 500
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-@app.route('/api/accounting/journal-entries', methods=['GET', 'POST'])
-@login_required
-def handle_journal_entries():
-    """Handle journal entries (GET and POST)"""
-    try:
         user_id = session.get('user_id')
-        
-        if request.method == 'GET':
-            from models import Journal
-            entries = Journal.query.filter_by(user_id=user_id).order_by(Journal.transaction_date.desc()).all()
-            
-            entries_data = []
-            for entry in entries:
-                entries_data.append({
-                    'id': entry.id,
-                    'transaction_date': entry.transaction_date.isoformat(),
-                    'description': entry.description,
-                    'reference': entry.reference,
-                    'total_debit': float(entry.total_debit or 0),
-                    'total_credit': float(entry.total_credit or 0)
-                })
-            
-            return jsonify({'success': True, 'entries': entries_data})
-        
-        elif request.method == 'POST':
-            data = request.get_json()
-            from models import Journal
-            
-            entry = Journal(
-                user_id=user_id,
-                transaction_date=datetime.now(),
-                description=data.get('description'),
-                reference=data.get('reference'),
-                total_debit=float(data.get('total_debit', 0)),
-                total_credit=float(data.get('total_credit', 0))
+
+        # Handle customer creation or selection
+        customer_id = data.get('customer_id')
+        customer_data = data.get('customer_data')
+
+        if customer_data and not customer_id:
+            # Create new customer
+            customer = Customer(
+                name=customer_data['name'],
+                phone=customer_data.get('phone'),
+                email=customer_data.get('email'),
+                address=customer_data.get('address'),
+                national_id=customer_data.get('national_id'),
+                customer_type='retail',
+                user_id=user_id
             )
-            
-            db.session.add(entry)
-            db.session.commit()
-            
-            return jsonify({'success': True, 'entry': {
-                'id': entry.id,
-                'description': entry.description,
-                'total_debit': float(entry.total_debit or 0),
-                'total_credit': float(entry.total_credit or 0)
-            }})
-            
-    except Exception as e:
-        logger.error(f"Error handling journal entries: {str(e)}")
-        return jsonify({"error": "Failed to handle journal entries"}), 500
+            db.session.add(customer)
+            db.session.flush()
+            customer_id = customer.id
+        elif customer_id:
+            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+            if not customer:
+                return jsonify({'error': 'Customer not found'}), 404
+        else:
+            return jsonify({'error': 'Customer information is required'}), 400
 
-@app.route('/api/accounting/trial-balance', methods=['GET'])
-@login_required
-def get_trial_balance():
-    """Get trial balance"""
-    try:
-        user_id = session.get('user_id')
-        from accounting_service import AccountingService
-        trial_balance = AccountingService.get_trial_balance()
-        return jsonify({'success': True, 'trial_balance': trial_balance})
-    except Exception as e:
-        logger.error(f"Error getting trial balance: {str(e)}")
-        return jsonify({"error": "Failed to get trial balance"}), 500
+        # Get item details
+        item_id = data.get('item_id')
+        quantity = int(data.get('quantity', 1))
 
-@app.route('/api/accounting/balance-sheet', methods=['GET'])
-@login_required
-def get_balance_sheet():
-    """Get balance sheet"""
-    try:
-        user_id = session.get('user_id')
-        from accounting_service import AccountingService
-        balance_sheet = AccountingService.get_balance_sheet()
-        return jsonify({'success': True, 'balance_sheet': balance_sheet})
-    except Exception as e:
-        logger.error(f"Error getting balance sheet: {str(e)}")
-        return jsonify({"error": "Failed to get balance sheet"}), 500
+        item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+        if not item:
+            return jsonify({'error': 'Item not found'}), 404
 
-@app.route('/api/accounting/income-statement', methods=['GET'])
-@login_required
-def get_income_statement():
-    """Get income statement"""
-    try:
-        user_id = session.get('user_id')
-        from accounting_service import AccountingService
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        
-        if start_date:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        if end_date:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            
-        income_statement = AccountingService.get_income_statement(start_date, end_date)
-        return jsonify({'success': True, 'income_statement': income_statement})
-    except Exception as e:
-        logger.error(f"Error getting income statement: {str(e)}")
-        return jsonify({"error": "Failed to get income statement"}), 500
+        if item.stock_quantity < quantity:
+            return jsonify({'error': 'Insufficient stock'}), 400
 
-@app.route('/api/accounting/cash-flow', methods=['GET'])
+        # Calculate amounts
+        total_amount = float(data.get('total_amount'))
+        down_payment = float(data.get('down_payment', 0))
+        duration_months = int(data.get('number_of_installments', 1))
+        remaining_amount = total_amount - down_payment
+        monthly_payment = remaining_amount / duration_months if duration_months > 0 else 0
+
+        # Create sale record first
+        sale = Sale(
+            user_id=user_id,
+            customer_id=customer_id,
+            total_amount=total_amount,
+            payment_type='installment',
+            payment_status='pending',
+            is_installment=True,
+            sale_number=Sale.generate_sale_number(),
+            down_payment=down_payment,
+            installment_months=duration_months,
+            monthly_payment=monthly_payment
+        )
+        db.session.add(sale)
+        db.session.flush()
+
+        # Create sale item
+        sale_item = SaleItem(
+            sale_id=sale.id,
+            item_id=item.id,
+            quantity=quantity,
+            unit_price=total_amount / quantity,
+            subtotal=total_amount
+        )
+        db.session.add(sale_item)
+
+        # Update stock
+        item.stock_quantity -= quantity
+
+        # Create installment plan
+        installment_sale = InstallmentSale(
+            sale_id=sale.id,
+            customer_id=customer_id,
+            total_amount=total_amount,
+            down_payment=down_payment,
+            remaining_amount=remaining_amount,
+            payment_frequency='monthly',
+            duration_months=duration_months,
+            monthly_payment=monthly_payment,
+            status='active',
+            user_id=user_id
+        )
+        db.session.add(installment_sale)
+        db.session.flush()
+
+        # Create down payment record if applicable
+        if down_payment > 0:
+            payment = InstallmentPayment(
+                installment_sale_id=installment_sale.id,
+                amount=down_payment,
+                payment_date=datetime.utcnow(),
+                payment_method='cash',
+                status='completed',
+                user_id=user_id
+            )
+            db.session.add(payment)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'sale_number': sale.sale_number,
+            'installment_sale_id': installment_sale.id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating installment sale: {str(e)}")
+        return jsonify({'error': f'Failed to create installment sale: {str(e)}'}), 500
+
+@app.route('/api/suppliers', methods=['GET'])
 @login_required
-def get_cash_flow():
-    """Get cash flow statement"""
+def get_suppliers():
+    """API endpoint to get all suppliers"""
     try:
+        from models import Supplier
+
         user_id = session.get('user_id')
-        # Basic cash flow calculation
-        from models import FinancialTransaction
-        
-        # Get recent transactions
-        transactions = FinancialTransaction.query.filter_by(user_id=user_id).order_by(FinancialTransaction.created_at.desc()).limit(50).all()
-        
-        cash_flow_data = []
-        for transaction in transactions:
-            cash_flow_data.append({
-                'date': transaction.created_at.isoformat(),
-                'description': transaction.description,
-                'amount': float(transaction.amount),
-                'type': transaction.transaction_type
+        suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).order_by(Supplier.name).all()
+
+        suppliers_data = []
+        for supplier in suppliers:
+            suppliers_data.append({
+                'id': supplier.id,
+                'name': supplier.name,
+                'contact_person': supplier.contact_person,
+                'email': supplier.email,
+                'phone': supplier.phone,
+                'address': supplier.address,
+                'payment_terms': supplier.payment_terms,
+                'created_at': supplier.created_at.isoformat() if supplier.created_at else None
             })
-        
-        return jsonify({'success': True, 'cash_flow': cash_flow_data})
-    except Exception as e:
-        logger.error(f"Error getting cash flow: {str(e)}")
-        return jsonify({"error": "Failed to get cash flow"}), 500
 
-@app.route('/api/accounting/reconciliation', methods=['GET', 'POST'])
+        return jsonify({'success': True, 'suppliers': suppliers_data})
+
+    except Exception as e:
+        logger.error(f"Error getting suppliers: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/purchase-orders', methods=['GET'])
 @login_required
-def handle_reconciliation():
-    """Handle reconciliation records"""
+def get_purchase_orders():
+    """API endpoint to get all purchase orders"""
     try:
-        user_id = session.get('user_id')
-        
-        if request.method == 'GET':
-            # Return empty reconciliation data for now
-            return jsonify({'success': True, 'reconciliations': []})
-        
-        elif request.method == 'POST':
-            data = request.get_json()
-            # Basic reconciliation handling
-            return jsonify({'success': True, 'message': 'Reconciliation processed'})
-            
-    except Exception as e:
-        logger.error(f"Error handling reconciliation: {str(e)}")
-        return jsonify({"error": "Failed to handle reconciliation"}), 500
+        from models import PurchaseOrder
 
-# Web Routes (Template rendering)
+        user_id = session.get('user_id')
+        orders = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
+
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier_name': order.supplier.name if order.supplier else 'Unknown',
+                'total_amount': float(order.total_amount),
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None
+            })
+
+        return jsonify({'success': True, 'purchase_orders': orders_data})
+
+    except Exception as e:
+        logger.error(f"Error getting purchase orders: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/stock-movements', methods=['GET'])
+@login_required
+def get_stock_movements():
+    """API endpoint to get stock movements"""
+    try:
+        from models import StockMovement
+
+        user_id = session.get('user_id')
+        movements = StockMovement.query.filter_by(user_id=user_id).order_by(StockMovement.created_at.desc()).limit(100).all()
+
+        movements_data = []
+        for movement in movements:
+            movements_data.append({
+                'id': movement.id,
+                'item_name': movement.item.name if movement.item else 'Unknown Item',
+                'movement_type': movement.movement_type,
+                'quantity': movement.quantity,
+                'reason': movement.reason,
+                'reference_number': movement.reference_number,
+                'notes': movement.notes,
+                'created_at': movement.created_at.isoformat()
+            })
+
+        return jsonify({'success': True, 'stock_movements': movements_data})
+
+    except Exception as e:
+        logger.error(f"Error getting stock movements: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings', methods=['GET'])
+@login_required
+def get_settings():
+    """API endpoint to get user settings"""
+    try:
+        from models import Setting
+
+        user_id = session.get('user_id')
+        settings = Setting.query.filter_by(user_id=user_id).all()
+
+        settings_data = {}
+        for setting in settings:
+            settings_data[setting.key] = {
+                'value': setting.value,
+                'description': setting.description,
+                'category': setting.category
+            }
+
+        return jsonify({'success': True, 'settings': settings_data})
+
+    except Exception as e:
+        logger.error(f"Error getting settings: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings', methods=['POST'])
+@login_required
+def update_settings():
+    """API endpoint to update user settings"""
+    try:
+        from models import Setting
+
+        data = request.get_json()
+        user_id = session.get('user_id')
+
+        for key, value in data.items():
+            setting = Setting.query.filter_by(key=key, user_id=user_id).first()
+            if setting:
+                setting.value = str(value)
+            else:
+                setting = Setting(
+                    key=key,
+                    value=str(value),
+                    user_id=user_id
+                )
+                db.session.add(setting)
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Settings updated successfully'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating settings: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Web Routes (Pages)
 @app.route('/')
 def index():
     """Home page route"""
-    # Check if user is logged in
-    user_id = session.get('user_id')
-    if user_id:
-        return redirect(url_for('dashboard'))
     return render_template('cover.html')
 
 @app.route('/login')
@@ -3090,7 +2918,11 @@ def new_sale():
 @login_required
 def customers():
     """Customers page route"""
-    return render_template('customers.html')
+    # Check if template exists, fallback to placeholder
+    try:
+        return render_template('customers.html')
+    except:
+        return render_template('dashboard.html')  # Fallback
 
 @app.route('/installments')
 @login_required
@@ -3161,6 +2993,18 @@ def admin_users():
 def accounting():
     """Accounting dashboard page"""
     return render_template('accounting.html')
+
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Analytics dashboard route"""
+    return render_template('analytics_dashboard.html')
+
+@app.route('/performance')
+@login_required
+def performance():
+    """Performance dashboard route"""
+    return render_template('performance_dashboard.html')
 
 @app.route('/logout')
 def logout():

@@ -217,9 +217,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const includeAnalytics = document.getElementById('includeAnalytics')?.checked || false;
         const url = includeAnalytics ? '/api/inventory?include_analytics=true' : '/api/inventory?format=simple';
         
-        fetch(url)
-            .then(response => response.json())
+        fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.status === 401 || response.status === 302) {
+                    window.location.href = '/login';
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                if (!data) return; // Handle authentication redirect case
+                
                 // Handle both simple format and enhanced format
                 const items = Array.isArray(data) ? data : (data.items || []);
                 

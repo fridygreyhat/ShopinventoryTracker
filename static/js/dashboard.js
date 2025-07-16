@@ -227,12 +227,19 @@ function loadDashboardSummary() {
         }
     })
     .then(response => {
+        if (response.status === 401 || response.status === 302) {
+            // Redirect to login if not authenticated
+            window.location.href = '/login';
+            return;
+        }
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        if (!data) return; // Handle authentication redirect case
+        
         if (data.success) {
             // Update dashboard with organized data
             updateInventoryMetrics(data.inventory);
