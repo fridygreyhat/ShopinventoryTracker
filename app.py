@@ -761,6 +761,19 @@ def add_item():
         if existing_item:
             return jsonify({"error": f"SKU '{sku}' already exists"}), 400
 
+        # Handle category and category_id
+        category_name = item_data.get("category", "Uncategorized")
+        category_id = item_data.get("category_id")
+        
+        # If category_id is provided, validate it exists and belongs to user
+        if category_id:
+            from models import Category
+            category_obj = Category.query.filter_by(id=category_id, user_id=current_user_id).first()
+            if category_obj:
+                category_name = category_obj.name
+            else:
+                category_id = None  # Reset if invalid
+
         # Create new item
         new_item = Item(
             name=item_data["name"].strip(),
@@ -772,7 +785,8 @@ def add_item():
             retail_price=selling_price_retail,
             wholesale_price=selling_price_wholesale,
             sales_type=item_data.get("sales_type", "both"),
-            category=item_data.get("category", "Uncategorized"),
+            category=category_name,
+            category_id=category_id,
             subcategory=item_data.get("subcategory"),
             unit_type=item_data.get("unit_type", "quantity"),
             sell_by=item_data.get("sell_by", "quantity"),
@@ -860,6 +874,20 @@ def update_item(item_id):
                 except (ValueError, TypeError):
                     return jsonify({"error": f"Invalid {old_field} format"}), 400
 
+        # Handle category and category_id
+        if 'category_id' in item_data:
+            category_id = item_data.get('category_id')
+            if category_id:
+                from models import Category
+                category_obj = Category.query.filter_by(id=category_id, user_id=current_user_id).first()
+                if category_obj:
+                    item.category_id = category_id
+                    item.category = category_obj.name
+                else:
+                    return jsonify({"error": "Invalid category ID"}), 400
+            else:
+                item.category_id = None
+
         # Update allowed fields only
         allowed_fields = [
             'name', 'description', 'sku', 'stock_quantity', 'minimum_stock',
@@ -869,7 +897,7 @@ def update_item(item_id):
 
         # Validate and update fields
         for key, value in item_data.items():
-            if key in allowed_fields:
+            if key in allowed_fields and key not in ['category']:  # Skip category as it's handled above
                 # Special handling for numeric fields
                 if key in ['stock_quantity', 'minimum_stock']:
                     try:
@@ -1748,22 +1776,54 @@ def create_installment():
 @app.route('/api/categories', methods=['GET'])
 @login_required
 def get_categories():
-    """API endpoint to get all categories"""
+    """API endpoint to get all categories with hierarchical structure"""
     try:
         from models import Category
 
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id).order_by(Category.name).all()
+        all_categories = Category.query.filter_by(user_id=user_id).order_by(Category.name).all()
+
+        # Separate parent categories and subcategories
+        parent_categories = [cat for cat in all_categories if cat.parent_id is None]
+        subcategories_dict = {}
+        
+        # Group subcategories by parent_id
+        for cat in all_categories:
+            if cat.parent_id is not None:
+                if cat.parent_id not in subcategories_dict:
+                    subcategories_dict[cat.parent_id] = []
+                subcategories_dict[cat.parent_id].append(cat)
 
         categories_data = []
-        for category in categories:
-            categories_data.append({
+        for category in parent_categories:
+            category_dict = {
                 'id': category.id,
                 'name': category.name,
                 'description': category.description,
                 'parent_id': category.parent_id,
-                'created_at': category.created_at.isoformat() if category.created_at else None
-            })
+                'is_active': category.is_active,
+                'item_count': category.get_item_count(),
+                'total_item_count': category.get_total_item_count(),
+                'created_at': category.created_at.isoformat() if category.created_at else None,
+                'subcategories': []
+            }
+
+            # Add subcategories if they exist
+            if category.id in subcategories_dict:
+                for subcategory in subcategories_dict[category.id]:
+                    subcategory_dict = {
+                        'id': subcategory.id,
+                        'name': subcategory.name,
+                        'description': subcategory.description,
+                        'parent_id': subcategory.parent_id,
+                        'is_active': subcategory.is_active,
+                        'item_count': subcategory.get_item_count(),
+                        'total_item_count': subcategory.get_total_item_count(),
+                        'created_at': subcategory.created_at.isoformat() if subcategory.created_at else None
+                    }
+                    category_dict['subcategories'].append(subcategory_dict)
+
+            categories_data.append(category_dict)
 
         return jsonify(categories_data)
 
@@ -1920,18 +1980,119 @@ def delete_category(category_id):
         if items_in_category > 0:
             return jsonify({"error": "Cannot delete category with associated items"}), 400
 
+        # Check if there are subcategories
+        subcategories = Category.query.filter_by(parent_id=category_id, user_id=user_id).count()
+        if subcategories > 0:
+            return jsonify({"error": "Cannot delete category with subcategories"}), 400
+
         # Delete the category
         db.session.delete(category)
         db.session.commit()
 
         logger.info(f"Category deleted: {category.name} (ID: {category.id}) by user {user_id}")
 
-        return jsonify({"message": f"Category '{category.name}' deleted successfully"})
+        return jsonify({"success": True, "message": f"Category '{category.name}' deleted successfully"})
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting category: {str(e)}")
         return jsonify({"error": f"Failed to delete category: {str(e)}"}), 500
+
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
+@login_required
+def get_subcategories(category_id):
+    """API endpoint to get subcategories of a category"""
+    try:
+        from models import Category
+
+        user_id = session.get('user_id')
+        parent_category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+
+        if not parent_category:
+            return jsonify({"error": "Parent category not found"}), 404
+
+        subcategories = Category.query.filter_by(parent_id=category_id, user_id=user_id).order_by(Category.name).all()
+
+        subcategories_data = []
+        for subcategory in subcategories:
+            subcategories_data.append({
+                'id': subcategory.id,
+                'name': subcategory.name,
+                'description': subcategory.description,
+                'parent_id': subcategory.parent_id,
+                'item_count': subcategory.get_item_count(),
+                'total_item_count': subcategory.get_total_item_count(),
+                'created_at': subcategory.created_at.isoformat() if subcategory.created_at else None
+            })
+
+        return jsonify(subcategories_data)
+
+    except Exception as e:
+        logger.error(f"Error getting subcategories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/categories/<int:category_id>/subcategories', methods=['POST'])
+@login_required
+def create_subcategory(category_id):
+    """API endpoint to create a subcategory"""
+    try:
+        from models import Category
+
+        subcategory_data = request.get_json()
+        if not subcategory_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        # Verify parent category exists
+        parent_category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+        if not parent_category:
+            return jsonify({"error": "Parent category not found"}), 404
+
+        # Validate required fields
+        if not subcategory_data.get('name'):
+            return jsonify({"error": "Subcategory name is required"}), 400
+
+        # Check if subcategory already exists under this parent
+        existing_subcategory = Category.query.filter_by(
+            name=subcategory_data['name'], 
+            parent_id=category_id,
+            user_id=user_id
+        ).first()
+        if existing_subcategory:
+            return jsonify({"error": "Subcategory already exists under this category"}), 400
+
+        # Create new subcategory
+        subcategory = Category(
+            name=subcategory_data['name'].strip(),
+            description=subcategory_data.get('description', '').strip(),
+            parent_id=category_id,
+            user_id=user_id
+        )
+
+        db.session.add(subcategory)
+        db.session.commit()
+
+        logger.info(f"Subcategory created: {subcategory.name} (ID: {subcategory.id}) under category {parent_category.name} by user {user_id}")
+
+        return jsonify({
+            'success': True,
+            'subcategory': {
+                'id': subcategory.id,
+                'name': subcategory.name,
+                'description': subcategory.description,
+                'parent_id': subcategory.parent_id,
+                'item_count': subcategory.get_item_count(),
+                'created_at': subcategory.created_at.isoformat()
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating subcategory: {str(e)}")
+        return jsonify({"error": f"Failed to create subcategory: {str(e)}"}), 500
 
 # Dashboard API Routes
 @app.route('/api/dashboard/summary')

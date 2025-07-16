@@ -525,22 +525,22 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
 
         const result = await response.json();
 
-        if (result.success) {
+        if (result.success || response.ok) {
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('subcategoryModal'));
             modal.hide();
 
             // Show success message
-            showAlert('success', subcategoryId ? 'Subcategory updated successfully!' : 'Subcategory created successfully!');
+            showAlert(subcategoryId ? 'Subcategory updated successfully!' : 'Subcategory created successfully!', 'success');
 
             // Reload categories
             loadCategories();
         } else {
-            showAlert('danger', result.error || 'Failed to save subcategory');
+            showAlert(result.error || 'Failed to save subcategory', 'danger');
         }
     } catch (error) {
         console.error('Error saving subcategory:', error);
-        showAlert('danger', 'An error occurred while saving the subcategory');
+        showAlert('An error occurred while saving the subcategory', 'danger');
     }
 });
 

@@ -277,6 +277,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Add main category
                     const option = document.createElement('option');
                     option.value = category.name;
+                    option.setAttribute('data-category-id', category.id);
+                    option.setAttribute('data-is-subcategory', 'false');
                     option.textContent = `📁 ${category.name}`;
                     addItemCategorySelect.appendChild(option);
 
@@ -285,7 +287,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         category.subcategories.forEach(subcategory => {
                             const subOption = document.createElement('option');
                             subOption.value = subcategory.name;
-                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            subOption.setAttribute('data-category-id', subcategory.id);
+                            subOption.setAttribute('data-parent-id', category.id);
+                            subOption.setAttribute('data-is-subcategory', 'true');
+                            subOption.textContent = `  └─ ${subcategory.name}`;
                             addItemCategorySelect.appendChild(subOption);
                         });
                     }
@@ -310,6 +315,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Add main category
                     const option = document.createElement('option');
                     option.value = category.name;
+                    option.setAttribute('data-category-id', category.id);
+                    option.setAttribute('data-is-subcategory', 'false');
                     option.textContent = `📁 ${category.name}`;
                     editItemCategorySelect.appendChild(option);
 
@@ -318,7 +325,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         category.subcategories.forEach(subcategory => {
                             const subOption = document.createElement('option');
                             subOption.value = subcategory.name;
-                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            subOption.setAttribute('data-category-id', subcategory.id);
+                            subOption.setAttribute('data-parent-id', category.id);
+                            subOption.setAttribute('data-is-subcategory', 'true');
+                            subOption.textContent = `  └─ ${subcategory.name}`;
                             editItemCategorySelect.appendChild(subOption);
                         });
                     }
@@ -579,12 +589,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Get category information
+        const categorySelect = document.getElementById('itemCategory');
+        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryId = selectedOption ? selectedOption.getAttribute('data-category-id') : null;
+        const isSubcategory = selectedOption ? selectedOption.getAttribute('data-is-subcategory') === 'true' : false;
+
         // Create item object
         const newItem = {
             name,
             sku,
             description,
             category,
+            category_id: categoryId ? parseInt(categoryId) : null,
             quantity,
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
@@ -717,12 +734,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Get category information
+        const categorySelect = document.getElementById('editItemCategory');
+        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryId = selectedOption ? selectedOption.getAttribute('data-category-id') : null;
+        const isSubcategory = selectedOption ? selectedOption.getAttribute('data-is-subcategory') === 'true' : false;
+
         // Create updated item object
         const updatedItem = {
             name,
             sku,
             description,
             category,
+            category_id: categoryId ? parseInt(categoryId) : null,
             quantity,
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
