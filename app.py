@@ -2098,6 +2098,12 @@ def admin_users():
     
     return render_template('admin_users.html')
 
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting dashboard page"""
+    return render_template('accounting.html')
+
 @app.route('/logout')
 def logout():
     """Logout route"""
