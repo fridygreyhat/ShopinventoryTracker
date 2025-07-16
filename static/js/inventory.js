@@ -181,6 +181,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     loadInventory();
     loadCategories();
+    
+    // Add batch operations functionality
+    initializeBatchOperations();
 
     // Unit type change handler
     document.getElementById('itemUnitType').addEventListener('change', function() {
@@ -211,7 +214,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Functions
     function loadInventory() {
-        fetch('/api/inventory?format=simple')
+        const includeAnalytics = document.getElementById('includeAnalytics')?.checked || false;
+        const url = includeAnalytics ? '/api/inventory?include_analytics=true' : '/api/inventory?format=simple';
+        
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 // Handle both simple format and enhanced format
@@ -225,6 +231,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.total_count !== undefined) {
                         updateInventoryCount(data.total_count);
                     }
+                    
+                    // Display analytics if available
+                    if (data.analytics) {
+                        displayInventoryAnalytics(data.analytics);
+                    }
                 } else {
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No inventory items found</td></tr>';
                     noItemsMessage.classList.remove('d-none');
@@ -234,6 +245,112 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading inventory:', error);
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
             });
+    }
+
+    function displayInventoryAnalytics(analytics) {
+        const analyticsContainer = document.getElementById('inventoryAnalytics');
+        if (analyticsContainer) {
+            analyticsContainer.innerHTML = `
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Value</h5>
+                                <p class="card-text">TZS ${analytics.total_inventory_value.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Low Stock</h5>
+                                <p class="card-text text-warning">${analytics.low_stock_count} items</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Out of Stock</h5>
+                                <p class="card-text text-danger">${analytics.out_of_stock_count} items</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Avg Stock Level</h5>
+                                <p class="card-text">${Math.round(analytics.average_stock_level)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function initializeBatchOperations() {
+        // Add batch update functionality
+        const batchUpdateBtn = document.getElementById('batchUpdateBtn');
+        if (batchUpdateBtn) {
+            batchUpdateBtn.addEventListener('click', performBatchUpdate);
+        }
+    }
+
+    function performBatchUpdate() {
+        const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+        if (selectedItems.length === 0) {
+            alert('Please select items to update');
+            return;
+        }
+
+        const batchUpdates = [];
+        selectedItems.forEach(checkbox => {
+            const itemId = checkbox.value;
+            const row = checkbox.closest('tr');
+            const quantityInput = row.querySelector('.batch-quantity');
+            const priceInput = row.querySelector('.batch-price');
+            
+            if (quantityInput && quantityInput.value) {
+                batchUpdates.push({
+                    id: parseInt(itemId),
+                    stock_quantity: parseInt(quantityInput.value)
+                });
+            }
+            
+            if (priceInput && priceInput.value) {
+                batchUpdates.push({
+                    id: parseInt(itemId),
+                    retail_price: parseFloat(priceInput.value)
+                });
+            }
+        });
+
+        if (batchUpdates.length === 0) {
+            alert('No updates to perform');
+            return;
+        }
+
+        fetch('/api/inventory/batch-update', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items: batchUpdates })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully updated ${data.updated_count} items`);
+                loadInventory();
+            } else {
+                alert('Batch update failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error in batch update:', error);
+            alert('Batch update failed: ' + error.message);
+        });
     }
 
     function updateInventoryCount(count) {

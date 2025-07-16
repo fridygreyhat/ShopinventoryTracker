@@ -744,13 +744,29 @@ def get_inventory():
             
             items_data.append(item_dict)
 
+        # Calculate inventory analytics
+        analytics = {}
+        if request.args.get('include_analytics') == 'true':
+            total_value = sum(item.stock_quantity * (item.buying_price or 0) for item in items)
+            low_stock_count = sum(1 for item in items if item.stock_quantity <= (item.minimum_stock or 5))
+            out_of_stock_count = sum(1 for item in items if item.stock_quantity == 0)
+            
+            analytics = {
+                'total_inventory_value': total_value,
+                'low_stock_count': low_stock_count,
+                'out_of_stock_count': out_of_stock_count,
+                'average_stock_level': sum(item.stock_quantity for item in items) / len(items) if items else 0,
+                'categories_represented': len(set(item.category for item in items if item.category))
+            }
+
         # Prepare response with metadata
         response_data = {
             'items': items_data,
             'total_count': total_count,
             'page': page if not limit else 1,
             'per_page': per_page if not limit else len(items_data),
-            'has_more': total_count > (page * per_page) if not limit else False
+            'has_more': total_count > (page * per_page) if not limit else False,
+            'analytics': analytics if analytics else None
         }
 
         # If simple format requested (backward compatibility)
@@ -1078,6 +1094,67 @@ def delete_item(item_id):
         db.session.rollback()
         logger.error(f"Error deleting item: {str(e)}")
         return jsonify({"error": "Failed to delete item"}), 500
+
+@app.route('/api/inventory/batch-update', methods=['PUT'])
+@login_required
+def batch_update_inventory():
+    """API endpoint for batch updating inventory items"""
+    try:
+        from models import Item
+        
+        batch_data = request.get_json()
+        if not batch_data or 'items' not in batch_data:
+            return jsonify({"error": "No items provided for batch update"}), 400
+
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        updated_items = []
+        errors = []
+
+        for item_update in batch_data['items']:
+            try:
+                item_id = item_update.get('id')
+                if not item_id:
+                    errors.append("Item ID is required for batch update")
+                    continue
+
+                item = Item.query.filter_by(id=item_id, user_id=current_user_id).first()
+                if not item:
+                    errors.append(f"Item with ID {item_id} not found")
+                    continue
+
+                # Update allowed fields
+                allowed_fields = ['stock_quantity', 'minimum_stock', 'retail_price', 'wholesale_price', 'buying_price']
+                for field in allowed_fields:
+                    if field in item_update:
+                        if field in ['stock_quantity', 'minimum_stock']:
+                            setattr(item, field, int(item_update[field]))
+                        else:
+                            setattr(item, field, float(item_update[field]))
+
+                item.updated_at = datetime.utcnow()
+                updated_items.append(item.to_dict())
+
+            except Exception as e:
+                errors.append(f"Error updating item {item_id}: {str(e)}")
+
+        if updated_items:
+            db.session.commit()
+            logger.info(f"Batch updated {len(updated_items)} items for user {current_user_id}")
+
+        return jsonify({
+            "success": True,
+            "updated_count": len(updated_items),
+            "updated_items": updated_items,
+            "errors": errors
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in batch update: {str(e)}")
+        return jsonify({"error": f"Batch update failed: {str(e)}"}), 500
 
 @app.route('/api/inventory/bulk-import', methods=['POST'])
 @login_required
