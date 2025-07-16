@@ -2022,10 +2022,29 @@ def inventory():
     """Inventory page route"""
     return render_template('inventory.html')
 
+@app.route('/inventory/add')
+@login_required
+def add_item_page():
+    """Add item page route"""
+    return render_template('inventory.html')
+
+# For backward compatibility
+@app.route('/add-item')
+@login_required
+def add_item_redirect():
+    """Redirect to inventory page for adding items"""
+    return redirect(url_for('inventory'))
+
 @app.route('/sales')
 @login_required
 def sales():
     """Sales page route"""
+    return render_template('sales.html')
+
+@app.route('/sales/new')
+@login_required
+def new_sale():
+    """New sale page route"""
     return render_template('sales.html')
 
 @app.route('/customers')
