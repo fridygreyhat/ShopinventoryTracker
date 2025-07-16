@@ -2100,8 +2100,9 @@ def create_subcategory(category_id):
 def get_dashboard_summary():
     """API endpoint to get dashboard summary data"""
     try:
-        from models import Item, Sale, Customer
+        from models import Item, Sale, Customer, FinancialTransaction
         from sqlalchemy import func
+        from datetime import datetime, timedelta
 
         user_id = session.get('user_id')
 
@@ -2109,6 +2110,21 @@ def get_dashboard_summary():
         total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
         total_sales = Sale.query.filter_by(user_id=user_id).count()
         total_customers = Customer.query.filter_by(user_id=user_id).count()
+
+        # Calculate total stock quantity across all items
+        total_stock = db.session.query(func.sum(Item.stock_quantity)).filter(
+            Item.user_id == user_id,
+            Item.is_active == True
+        ).scalar() or 0
+
+        # Calculate inventory value (stock_quantity * buying_price)
+        inventory_value = db.session.query(
+            func.sum(Item.stock_quantity * Item.buying_price)
+        ).filter(
+            Item.user_id == user_id,
+            Item.is_active == True,
+            Item.buying_price.isnot(None)
+        ).scalar() or 0
 
         # Get revenue (completed sales only)
         total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
@@ -2122,6 +2138,29 @@ def get_dashboard_summary():
             Item.is_active == True,
             Item.stock_quantity <= Item.minimum_stock
         ).count()
+
+        # Calculate monthly financial data
+        current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = (current_month + timedelta(days=32)).replace(day=1)
+
+        # Monthly income from sales
+        monthly_income = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.user_id == user_id,
+            Sale.payment_status == 'completed',
+            Sale.created_at >= current_month,
+            Sale.created_at < next_month
+        ).scalar() or 0
+
+        # Monthly expenses
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'expense',
+            FinancialTransaction.created_at >= current_month,
+            FinancialTransaction.created_at < next_month
+        ).scalar() or 0
+
+        # Monthly profit
+        monthly_profit = monthly_income - monthly_expenses
 
         # Get recent sales
         recent_sales = Sale.query.filter_by(user_id=user_id).order_by(
@@ -2142,9 +2181,15 @@ def get_dashboard_summary():
             'success': True,
             'summary': {
                 'total_items': total_items,
-                'total_sales': total_sales,
+                'total_stock': total_stock,
+                'low_stock_count': low_stock_items,
+                'inventory_value': float(inventory_value),
                 'total_customers': total_customers,
+                'total_sales': total_sales,
                 'total_revenue': float(total_revenue),
+                'monthly_income': float(monthly_income),
+                'monthly_expenses': float(monthly_expenses),
+                'monthly_profit': float(monthly_profit),
                 'low_stock_items': low_stock_items
             },
             'recent_sales': recent_sales_data
@@ -2152,6 +2197,82 @@ def get_dashboard_summary():
 
     except Exception as e:
         logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Financial API Routes
+@app.route('/api/finance/summaries/monthly')
+@login_required
+def get_monthly_financial_summary():
+    """API endpoint to get monthly financial summary"""
+    try:
+        from models import Sale, FinancialTransaction
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+
+        user_id = session.get('user_id')
+        
+        # Get current month data
+        current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = (current_month + timedelta(days=32)).replace(day=1)
+
+        # Monthly income from sales
+        monthly_income = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.user_id == user_id,
+            Sale.payment_status == 'completed',
+            Sale.created_at >= current_month,
+            Sale.created_at < next_month
+        ).scalar() or 0
+
+        # Monthly expenses
+        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+            FinancialTransaction.user_id == user_id,
+            FinancialTransaction.transaction_type == 'expense',
+            FinancialTransaction.created_at >= current_month,
+            FinancialTransaction.created_at < next_month
+        ).scalar() or 0
+
+        # Monthly profit
+        monthly_profit = monthly_income - monthly_expenses
+
+        # Get last 6 months data for chart
+        months_data = []
+        for i in range(6):
+            month_start = (current_month - timedelta(days=32 * i)).replace(day=1)
+            month_end = (month_start + timedelta(days=32)).replace(day=1)
+            
+            month_income = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.user_id == user_id,
+                Sale.payment_status == 'completed',
+                Sale.created_at >= month_start,
+                Sale.created_at < month_end
+            ).scalar() or 0
+            
+            month_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
+                FinancialTransaction.user_id == user_id,
+                FinancialTransaction.transaction_type == 'expense',
+                FinancialTransaction.created_at >= month_start,
+                FinancialTransaction.created_at < month_end
+            ).scalar() or 0
+            
+            months_data.append({
+                'month': month_start.strftime('%Y-%m'),
+                'income': float(month_income),
+                'expenses': float(month_expenses),
+                'profit': float(month_income - month_expenses)
+            })
+
+        return jsonify({
+            'success': True,
+            'current_month': {
+                'income': float(monthly_income),
+                'expenses': float(monthly_expenses),
+                'profit': float(monthly_profit)
+            },
+            'months_data': list(reversed(months_data))
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting monthly financial summary: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Web Routes (Template rendering)
