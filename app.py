@@ -1316,7 +1316,7 @@ def api_stock_status_report():
                 'sku': item.sku,
                 'category': item.category,
                 'quantity': item.stock_quantity,
-                'price': float(item.price)
+                'price': float(item.retail_price or 0)
             })
 
         return jsonify({
@@ -1621,10 +1621,10 @@ def get_customer(customer_id):
         from models import Customer
         user_id = session.get('user_id')
         customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
-        
+
         if not customer:
             return jsonify({'error': 'Customer not found'}), 404
-        
+
         return jsonify({
             'id': customer.id,
             'name': customer.name,
@@ -1673,7 +1673,7 @@ def get_installments():
         logger.error(f"Error getting installments: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/installments', methods=['POST'])
+@app.route('/api/installments', methods=['POST'])```python
 @login_required
 def create_installment():
     """API endpoint to create a new installment sale"""
@@ -1779,10 +1779,10 @@ def get_category(category_id):
         from models import Category
         user_id = session.get('user_id')
         category = Category.query.filter_by(id=category_id, user_id=user_id).first()
-        
+
         if not category:
             return jsonify({'error': 'Category not found'}), 404
-        
+
         return jsonify({
             'id': category.id,
             'name': category.name,
@@ -1846,6 +1846,92 @@ def create_category():
         db.session.rollback()
         logger.error(f"Error creating category: {str(e)}")
         return jsonify({"error": f"Failed to create category: {str(e)}"}), 500
+    
+@app.route('/api/categories/<int:category_id>', methods=['PUT'])
+@login_required
+def update_category(category_id):
+    """API endpoint to update an existing category"""
+    try:
+        from models import Category
+
+        category_data = request.get_json()
+        if not category_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+
+        category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+        if not category:
+            return jsonify({"error": "Category not found"}), 404
+
+        # Update allowed fields only
+        if 'name' in category_data:
+            # Check if the updated name already exists for another category owned by the same user
+            existing_category = Category.query.filter_by(
+                name=category_data['name'],
+                user_id=user_id
+            ).filter(Category.id != category_id).first()
+
+            if existing_category:
+                return jsonify({"error": "Category name already exists"}), 400
+            category.name = category_data['name'].strip()
+
+        if 'description' in category_data:
+            category.description = category_data['description'].strip()
+        if 'parent_id' in category_data:
+            category.parent_id = category_data['parent_id']
+
+        db.session.commit()
+
+        logger.info(f"Category updated: {category.name} (ID: {category.id}) by user {user_id}")
+
+        return jsonify({
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'parent_id': category.parent_id,
+            'created_at': category.created_at.isoformat() if category.created_at else None
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating category: {str(e)}")
+        return jsonify({"error": f"Failed to update category: {str(e)}"}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
+@login_required
+def delete_category(category_id):
+    """API endpoint to delete a category"""
+    try:
+        from models import Category
+
+        user_id = session.get('user_id')
+        category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+
+        if not category:
+            return jsonify({"error": "Category not found"}), 404
+
+        # Check if there are items associated with the category
+        from models import Item
+        items_in_category = Item.query.filter_by(category_id=category_id, user_id=user_id).count()
+
+        if items_in_category > 0:
+            return jsonify({"error": "Cannot delete category with associated items"}), 400
+
+        # Delete the category
+        db.session.delete(category)
+        db.session.commit()
+
+        logger.info(f"Category deleted: {category.name} (ID: {category.id}) by user {user_id}")
+
+        return jsonify({"message": f"Category '{category.name}' deleted successfully"})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting category: {str(e)}")
+        return jsonify({"error": f"Failed to delete category: {str(e)}"}), 500
 
 # Dashboard API Routes
 @app.route('/api/dashboard/summary')
@@ -2026,12 +2112,12 @@ def admin_users():
     from models import User
     if not user_id:
         return redirect(url_for('login'))
-    
+
     user = User.query.get(user_id)
     if not user or not user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('admin_users.html')
 
 @app.route('/accounting')
@@ -2076,7 +2162,7 @@ def internal_error(error):
 if __name__ == '__main__':
     # Initialize database
     init_database()
-    
+
     # Run the application
     app.run(host='0.0.0.0', port=5000, debug=True)
 import logging
