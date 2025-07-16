@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('salesReportsDisplay').classList.remove('d-none');
         document.getElementById('salesReportTitle').textContent = getSalesReportTitle(reportType);
         
-        let apiUrl = '/api/reports/sales';
+        let apiUrl = '/api/sales';
         let params = new URLSearchParams({ type: reportType, range: dateRange });
         
         if (dateRange === 'custom') {
@@ -430,25 +430,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper function for completing sales (for pending sales report)
     window.completeSale = function(saleId) {
         if (confirm('Are you sure you want to complete this sale?')) {
-            fetch(`/api/sales/${saleId}/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Refresh the pending sales report
-                    generateSalesReport();
-                } else {
-                    showError('Failed to complete sale');
-                }
-            })
-            .catch(error => {
-                console.error('Error completing sale:', error);
-                showError('Error completing sale');
-            });
+            // Complete sale functionality removed - sales are created as completed
+            alert('This sale is already marked as completed.');
         }
     };
 });

@@ -1093,65 +1093,7 @@ def get_products():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
-@app.route('/api/reports/sales')
-@login_required
-def api_sales_reports():
-    try:
-        report_type = request.args.get('type', 'completed-sales')
-        date_range = request.args.get('range', 'month')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-
-        # Calculate date range
-        if date_range == 'today':
-            start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
-        elif date_range == 'week':
-            start = datetime.now() - timedelta(days=7)
-            end = datetime.now()
-        elif date_range == 'month':
-            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            end = datetime.now()
-        elif date_range == 'custom' and start_date and end_date:
-            start = datetime.strptime(start_date, '%Y-%m-%d')
-            end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-        else:
-            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            end = datetime.now()
-
-        query = Sale.query.filter_by(user_id=session['user_id']).filter(
-            Sale.created_at >= start,
-            Sale.created_at <= end
-        )
-
-        if report_type == 'completed-sales':
-            sales = query.filter_by(payment_status='completed').all()
-        elif report_type == 'pending-sales':
-            sales = query.filter_by(payment_status='pending').all()
-        else:
-            sales = query.all()
-
-        reports_data = []
-        for sale in sales:
-            reports_data.append({
-                'id': sale.id,
-                'sale_number': sale.sale_number,
-                'created_at': sale.created_at.isoformat(),
-                'customer_name': sale.customer.name if sale.customer else None,
-                'total_amount': float(sale.total_amount),
-                'payment_method': sale.payment_type,
-                'items_count': len(sale.sale_items)
-            })
-
-        return jsonify({
-            'success': True,
-            'reports': reports_data,
-            'total_count': len(reports_data)
-        })
-
-    except Exception as e:
-        logger.error(f"Error generating sales report: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+# Removed duplicate sales reports endpoint - use /api/sales instead
 
 @app.route('/api/reports/stock')
 @login_required
@@ -1390,32 +1332,7 @@ def api_stock_status_report():
         logger.error(f"Error generating stock status report: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Missing route handlers
-@app.route('/api/transactions', methods=['GET'])
-@login_required
-def get_transactions():
-    """API endpoint to get all transactions"""
-    try:
-        from models import Sale
-        user_id = session.get('user_id')
-        transactions = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).all()
-        
-        transactions_data = []
-        for transaction in transactions:
-            transactions_data.append({
-                'id': transaction.id,
-                'sale_number': transaction.sale_number,
-                'created_at': transaction.created_at.isoformat(),
-                'customer_name': transaction.customer.name if transaction.customer else 'Walk-in Customer',
-                'total_amount': float(transaction.total_amount),
-                'payment_type': transaction.payment_type,
-                'payment_status': transaction.payment_status
-            })
-        
-        return jsonify(transactions_data)
-    except Exception as e:
-        logger.error(f"Error getting transactions: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+# Removed duplicate transactions endpoint - use /api/sales instead
 
 # Sales API Routes
 @app.route('/api/sales', methods=['GET'])

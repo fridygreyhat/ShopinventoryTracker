@@ -251,7 +251,7 @@ function loadLowStockItems() {
 }
 
 function loadTopSellingItems() {
-    return fetch('/api/sales/performance/top', {
+    return fetch('/api/sales', {
         method: 'GET',
         credentials: 'same-origin',
         headers: {
@@ -265,11 +265,30 @@ function loadTopSellingItems() {
         return response.json();
     })
     .then(data => {
-        if (data.success && data.top_items) {
-            updateTopSellingItems(data.top_items);
-        } else {
-            updateTopSellingItems([]);
+        // Calculate top selling items from sales data
+        const itemSales = {};
+        if (data && Array.isArray(data)) {
+            data.forEach(sale => {
+                if (sale.sale_items) {
+                    sale.sale_items.forEach(item => {
+                        const itemName = item.item_name || item.name;
+                        if (itemSales[itemName]) {
+                            itemSales[itemName] += item.quantity;
+                        } else {
+                            itemSales[itemName] = item.quantity;
+                        }
+                    });
+                }
+            });
         }
+        
+        // Convert to array and sort by sales quantity
+        const topItems = Object.entries(itemSales)
+            .map(([name, quantity]) => ({ name, quantity }))
+            .sort((a, b) => b.quantity - a.quantity)
+            .slice(0, 5);
+            
+        updateTopSellingItems(topItems);
     })
     .catch(error => {
         console.error('Error loading top selling items:', error);

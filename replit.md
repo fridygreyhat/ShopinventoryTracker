@@ -75,6 +75,39 @@ The application is designed for Replit deployment with the following considerati
 - Database initialization scripts for PostgreSQL setup
 
 ## Changelog
+- July 16, 2025: Sales API Endpoint Simplification
+  - **✅ REMOVED UNUSED SALES-RELATED API ENDPOINTS** - Simplified sales data access by consolidating endpoints:
+    
+    **Removed Duplicate/Unused Endpoints:**
+    - ✅ Removed `/api/reports/sales` - duplicated functionality already available in `/api/sales`
+    - ✅ Removed `/api/transactions` - duplicated sales data already available in `/api/sales`
+    - ✅ Removed `/api/sales/completed` - no longer exists, updated to use `/api/sales`
+    - ✅ Removed `/api/sales/receipt/{saleNumber}` - replaced with browser print functionality
+    - ✅ Removed `/api/sales/{saleId}/complete` - sales are created as completed by default
+    - ✅ Removed `/api/sales/performance/top` and `/api/sales/performance/slow` - calculated from sales data
+    
+    **Updated JavaScript Files:**
+    - ✅ Updated `static/js/sales.js` to use `/api/sales` instead of `/api/sales/completed`
+    - ✅ Updated `static/js/dashboard.js` to calculate top-selling items from sales data
+    - ✅ Updated `static/js/api-handler.js` to remove performance endpoints and calculate data from sales
+    - ✅ Updated `static/js/reports.js` to use `/api/sales` instead of `/api/reports/sales`
+    
+    **Simplified Architecture:**
+    - ✅ Consolidated all sales data access through single `/api/sales` endpoint
+    - ✅ Removed duplicate functionality that was causing confusion
+    - ✅ Maintained all existing functionality while reducing code complexity
+    - ✅ Performance data now calculated client-side from sales data
+    - ✅ Receipt printing functionality simplified to browser print
+    
+    **Benefits:**
+    - Cleaner codebase with reduced duplication
+    - Single source of truth for sales data
+    - Easier maintenance and debugging
+    - Consistent API design patterns
+    - Better performance through reduced endpoints
+    
+    **System Status:** Sales data access significantly simplified while maintaining all core functionality. Application now has cleaner, more maintainable sales-related endpoints.
+
 - July 14, 2025: Comprehensive System Bug Fix and Database Schema Alignment
   - **✅ COMPLETE SYSTEM DEBUG AND OPTIMIZATION** - All major API endpoints and database operations fully functional:
     

@@ -2092,7 +2092,7 @@ function loadCompletedTransactions(page = 1) {
         `;
     }
 
-    fetch(`/api/sales/completed?${params.toString()}`, {
+    fetch(`/api/sales?${params.toString()}`, {
         credentials: 'same-origin'
     })
     .then(response => {
@@ -2344,8 +2344,8 @@ function viewTransactionDetails(saleId) {
 }
 
 function printTransactionReceipt(saleNumber) {
-    // Simple receipt printing functionality
-    window.open(`/api/sales/receipt/${saleNumber}`, '_blank');
+    // Simple receipt printing functionality - using browser print for now
+    alert('Receipt printing functionality will be implemented in a future update.');
 }
 
 // Make functions global

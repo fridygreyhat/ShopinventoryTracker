@@ -74,27 +74,33 @@ class APIHandler {
     }
 
     /**
-     * Get top selling items
+     * Get top selling items - calculated from sales data
      */
     async getTopSellingItems() {
         try {
-            const response = await this.fetchWithAuth('/api/sales/performance/top');
-            return response.ok ? await response.json() : [];
+            const response = await this.fetchWithAuth('/api/sales');
+            if (!response.ok) return [];
+            
+            const salesData = await response.json();
+            const itemSales = {};
+            
+            if (salesData && Array.isArray(salesData)) {
+                salesData.forEach(sale => {
+                    if (sale.sale_items) {
+                        sale.sale_items.forEach(item => {
+                            const itemName = item.item_name || item.name;
+                            itemSales[itemName] = (itemSales[itemName] || 0) + item.quantity;
+                        });
+                    }
+                });
+            }
+            
+            return Object.entries(itemSales)
+                .map(([name, quantity]) => ({ name, quantity }))
+                .sort((a, b) => b.quantity - a.quantity)
+                .slice(0, 10);
         } catch (error) {
             console.error('Error loading top selling items:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Get slow moving items
-     */
-    async getSlowMovingItems() {
-        try {
-            const response = await this.fetchWithAuth('/api/sales/performance/slow');
-            return response.ok ? await response.json() : [];
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
             return [];
         }
     }
@@ -112,18 +118,7 @@ class APIHandler {
         }
     }
 
-    /**
-     * Get slow moving items
-     */
-    async getSlowMovingItems() {
-        try {
-            const response = await this.fetchWithAuth('/api/sales/performance/slow');
-            return response.ok ? await response.json() : [];
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
-            return [];
-        }
-    }
+
 
     /**
      * Get on-demand products
