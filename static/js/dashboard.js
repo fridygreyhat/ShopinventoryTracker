@@ -97,14 +97,11 @@ function loadDashboardData() {
     console.log('Loading dashboard data...');
     showLoading(true);
 
-    // Load all dashboard components
+    // Load main dashboard summary (now includes all organized data)
     Promise.allSettled([
         loadDashboardSummary(),
         loadInventoryStatus(), 
-        loadRecentSales(),
-        loadFinancialSummary(),
-        loadLowStockItems(),
-        loadTopSellingItems()
+        loadFinancialSummary()
     ]).then(() => {
         showLoading(false);
         console.log('Dashboard data loaded successfully');
@@ -112,6 +109,112 @@ function loadDashboardData() {
         console.error('Error loading dashboard:', error);
         showLoading(false);
         showError('Failed to load dashboard data');
+    });
+}
+
+function updateInventoryMetrics(inventory) {
+    // Update inventory summary cards
+    updateElement('totalItems', inventory.total_items || 0);
+    updateElement('totalStock', inventory.total_stock || 0);
+    updateElement('inventoryValue', formatCurrency(inventory.inventory_value || 0));
+    updateElement('lowStockCount', inventory.low_stock_count || 0);
+    
+    // Update low stock items list
+    if (inventory.low_stock_items) {
+        updateLowStockItems(inventory.low_stock_items);
+    }
+    
+    // Update category breakdown
+    if (inventory.category_breakdown) {
+        updateCategoryBreakdown(inventory.category_breakdown);
+    }
+}
+
+function updateSalesMetrics(sales) {
+    // Update sales summary cards
+    updateElement('totalSales', sales.total_sales || 0);
+    updateElement('totalRevenue', formatCurrency(sales.total_revenue || 0));
+    updateElement('todaySales', formatCurrency(sales.today_sales || 0));
+    updateElement('todaySalesCount', sales.today_sales_count || 0);
+    
+    // Update top selling items
+    if (sales.top_selling_items) {
+        updateTopSellingItems(sales.top_selling_items);
+    }
+}
+
+function updateCustomerMetrics(customers) {
+    // Update customer summary cards
+    updateElement('totalCustomers', customers.total_customers || 0);
+    updateElement('newCustomersThisMonth', customers.new_customers_this_month || 0);
+}
+
+function updateFinancialMetrics(financial) {
+    // Update financial summary cards
+    updateElement('monthlyIncome', formatCurrency(financial.monthly_income || 0));
+    updateElement('monthlyExpenses', formatCurrency(financial.monthly_expenses || 0));
+    updateElement('monthlyProfit', formatCurrency(financial.monthly_profit || 0));
+    
+    // Add visual indicator for profit/loss
+    const profitElement = document.getElementById('monthlyProfit');
+    if (profitElement) {
+        const profit = financial.monthly_profit || 0;
+        profitElement.className = profit >= 0 ? 'text-success' : 'text-danger';
+    }
+}
+
+function updateRecentActivity(activity) {
+    if (activity.recent_sales) {
+        updateRecentSales(activity.recent_sales);
+    }
+}
+
+function updateCategoryBreakdown(categories) {
+    const container = document.getElementById('categoryBreakdown');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (categories.length === 0) {
+        container.innerHTML = '<p class="text-muted">No categories found</p>';
+        return;
+    }
+    
+    categories.forEach(category => {
+        const categoryElement = document.createElement('div');
+        categoryElement.className = 'mb-2 p-2 border rounded';
+        categoryElement.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <span class="fw-bold">${category.category}</span>
+                <span class="badge bg-primary">${category.item_count} items</span>
+            </div>
+            <small class="text-muted">Stock: ${category.total_stock}</small>
+        `;
+        container.appendChild(categoryElement);
+    });
+}
+
+function updateTopSellingItems(items) {
+    const container = document.getElementById('topSellingItems');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-muted">No sales data available</p>';
+        return;
+    }
+    
+    items.forEach((item, index) => {
+        const itemElement = document.createElement('div');
+        itemElement.className = 'mb-2 p-2 border rounded';
+        itemElement.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <span>${index + 1}. ${item.name}</span>
+                <span class="badge bg-success">${item.quantity_sold} sold</span>
+            </div>
+        `;
+        container.appendChild(itemElement);
     });
 }
 
@@ -131,9 +234,12 @@ function loadDashboardSummary() {
     })
     .then(data => {
         if (data.success) {
-            updateDashboardSummary(data.summary);
-            updateLowStockItems(data.low_stock_items || []);
-            updateRecentSales(data.recent_sales || []);
+            // Update dashboard with organized data
+            updateInventoryMetrics(data.inventory);
+            updateSalesMetrics(data.sales);
+            updateCustomerMetrics(data.customers);
+            updateFinancialMetrics(data.financial);
+            updateRecentActivity(data.recent_activity);
         } else {
             throw new Error(data.error || 'Failed to load dashboard summary');
         }
@@ -141,12 +247,25 @@ function loadDashboardSummary() {
     .catch(error => {
         console.error('Error loading dashboard summary:', error);
         // Set default values to prevent UI breakage
-        updateDashboardSummary({
+        updateInventoryMetrics({
             total_items: 0,
             total_stock: 0,
             low_stock_count: 0,
             inventory_value: 0,
+            category_breakdown: []
+        });
+        updateSalesMetrics({
+            total_sales: 0,
+            total_revenue: 0,
+            today_sales: 0,
+            today_sales_count: 0,
+            top_selling_items: []
+        });
+        updateCustomerMetrics({
             total_customers: 0,
+            new_customers_this_month: 0
+        });
+        updateFinancialMetrics({
             monthly_income: 0,
             monthly_expenses: 0,
             monthly_profit: 0
@@ -451,6 +570,13 @@ function formatCurrency(amount) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     }).format(amount || 0);
+}
+
+function updateElement(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value;
+    }
 }
 
 function showLoading(show) {

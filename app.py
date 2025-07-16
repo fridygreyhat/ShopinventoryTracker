@@ -2098,20 +2098,16 @@ def create_subcategory(category_id):
 @app.route('/api/dashboard/summary')
 @login_required
 def get_dashboard_summary():
-    """API endpoint to get dashboard summary data"""
+    """API endpoint to get comprehensive dashboard summary data organized by categories"""
     try:
-        from models import Item, Sale, Customer, FinancialTransaction
+        from models import Item, Sale, Customer, FinancialTransaction, SaleItem, Category
         from sqlalchemy import func
         from datetime import datetime, timedelta
 
         user_id = session.get('user_id')
 
-        # Get counts
+        # === INVENTORY METRICS ===
         total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
-        total_sales = Sale.query.filter_by(user_id=user_id).count()
-        total_customers = Customer.query.filter_by(user_id=user_id).count()
-
-        # Calculate total stock quantity across all items
         total_stock = db.session.query(func.sum(Item.stock_quantity)).filter(
             Item.user_id == user_id,
             Item.is_active == True
@@ -2126,21 +2122,62 @@ def get_dashboard_summary():
             Item.buying_price.isnot(None)
         ).scalar() or 0
 
+        # Low stock items analysis
+        low_stock_items_query = Item.query.filter(
+            Item.user_id == user_id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        )
+        low_stock_count = low_stock_items_query.count()
+        
+        # Get detailed low stock items
+        low_stock_items = []
+        for item in low_stock_items_query.limit(10).all():
+            low_stock_items.append({
+                'id': item.id,
+                'name': item.name,
+                'current_stock': item.stock_quantity,
+                'minimum_stock': item.minimum_stock,
+                'category': item.category
+            })
+
+        # === SALES METRICS ===
+        total_sales = Sale.query.filter_by(user_id=user_id).count()
+        
         # Get revenue (completed sales only)
         total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
             Sale.user_id == user_id,
             Sale.payment_status == 'completed'
         ).scalar() or 0
 
-        # Get low stock items
-        low_stock_items = Item.query.filter(
-            Item.user_id == user_id,
-            Item.is_active == True,
-            Item.stock_quantity <= Item.minimum_stock
+        # Today's sales
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+        
+        today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.user_id == user_id,
+            Sale.payment_status == 'completed',
+            Sale.created_at >= today,
+            Sale.created_at < tomorrow
+        ).scalar() or 0
+
+        today_sales_count = Sale.query.filter(
+            Sale.user_id == user_id,
+            Sale.created_at >= today,
+            Sale.created_at < tomorrow
         ).count()
 
-        # Calculate monthly financial data
+        # === CUSTOMER METRICS ===
+        total_customers = Customer.query.filter_by(user_id=user_id).count()
+        
+        # New customers this month
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        new_customers_this_month = Customer.query.filter(
+            Customer.user_id == user_id,
+            Customer.created_at >= current_month
+        ).count()
+
+        # === FINANCIAL METRICS ===
         next_month = (current_month + timedelta(days=32)).replace(day=1)
 
         # Monthly income from sales
@@ -2162,7 +2199,25 @@ def get_dashboard_summary():
         # Monthly profit
         monthly_profit = monthly_income - monthly_expenses
 
-        # Get recent sales
+        # === TOP SELLING ITEMS ===
+        top_selling = db.session.query(
+            Item.name,
+            func.sum(SaleItem.quantity).label('total_sold')
+        ).join(SaleItem).join(Sale).filter(
+            Sale.user_id == user_id,
+            Sale.created_at >= current_month
+        ).group_by(Item.id, Item.name).order_by(
+            func.sum(SaleItem.quantity).desc()
+        ).limit(5).all()
+
+        top_selling_items = []
+        for item_name, quantity_sold in top_selling:
+            top_selling_items.append({
+                'name': item_name,
+                'quantity_sold': int(quantity_sold)
+            })
+
+        # === RECENT SALES ===
         recent_sales = Sale.query.filter_by(user_id=user_id).order_by(
             Sale.created_at.desc()
         ).limit(5).all()
@@ -2174,32 +2229,129 @@ def get_dashboard_summary():
                 'sale_number': sale.sale_number,
                 'customer_name': sale.customer.name if sale.customer else 'Walk-in Customer',
                 'total_amount': float(sale.total_amount),
+                'payment_status': sale.payment_status,
                 'created_at': sale.created_at.isoformat()
+            })
+
+        # === CATEGORY BREAKDOWN ===
+        category_stats = db.session.query(
+            Item.category,
+            func.count(Item.id).label('item_count'),
+            func.sum(Item.stock_quantity).label('total_stock')
+        ).filter(
+            Item.user_id == user_id,
+            Item.is_active == True
+        ).group_by(Item.category).all()
+
+        category_breakdown = []
+        for category, item_count, total_stock in category_stats:
+            category_breakdown.append({
+                'category': category or 'Uncategorized',
+                'item_count': int(item_count),
+                'total_stock': int(total_stock or 0)
             })
 
         return jsonify({
             'success': True,
-            'summary': {
+            'inventory': {
                 'total_items': total_items,
                 'total_stock': total_stock,
-                'low_stock_count': low_stock_items,
                 'inventory_value': float(inventory_value),
-                'total_customers': total_customers,
+                'low_stock_count': low_stock_count,
+                'low_stock_items': low_stock_items,
+                'category_breakdown': category_breakdown
+            },
+            'sales': {
                 'total_sales': total_sales,
                 'total_revenue': float(total_revenue),
+                'today_sales': float(today_sales),
+                'today_sales_count': today_sales_count,
+                'top_selling_items': top_selling_items
+            },
+            'customers': {
+                'total_customers': total_customers,
+                'new_customers_this_month': new_customers_this_month
+            },
+            'financial': {
                 'monthly_income': float(monthly_income),
                 'monthly_expenses': float(monthly_expenses),
-                'monthly_profit': float(monthly_profit),
-                'low_stock_items': low_stock_items
+                'monthly_profit': float(monthly_profit)
             },
-            'recent_sales': recent_sales_data
+            'recent_activity': {
+                'recent_sales': recent_sales_data
+            }
         })
 
     except Exception as e:
         logger.error(f"Error getting dashboard summary: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Financial API Routes
+@app.route('/api/finance/transactions')
+@login_required
+def get_financial_transactions():
+    """API endpoint to get financial transactions with date filtering"""
+    try:
+        from models import FinancialTransaction
+        from datetime import datetime
+
+        user_id = session.get('user_id')
+        
+        # Get date parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        transaction_type = request.args.get('type')  # 'income', 'expense', or None for all
+        
+        # Build query
+        query = FinancialTransaction.query.filter_by(user_id=user_id)
+        
+        # Apply date filters
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(FinancialTransaction.created_at >= start_date_obj)
+            except ValueError:
+                pass
+        
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+                query = query.filter(FinancialTransaction.created_at <= end_date_obj)
+            except ValueError:
+                pass
+        
+        # Apply transaction type filter
+        if transaction_type:
+            query = query.filter(FinancialTransaction.transaction_type == transaction_type)
+        
+        # Execute query
+        transactions = query.order_by(FinancialTransaction.created_at.desc()).all()
+        
+        # Format response
+        transactions_data = []
+        for transaction in transactions:
+            transactions_data.append({
+                'id': transaction.id,
+                'date': transaction.created_at.strftime('%Y-%m-%d'),
+                'description': transaction.description,
+                'amount': float(transaction.amount),
+                'transaction_type': transaction.transaction_type,
+                'category': transaction.category,
+                'payment_method': transaction.payment_method,
+                'reference_id': transaction.reference_id,
+                'notes': transaction.notes
+            })
+        
+        return jsonify({
+            'success': True,
+            'transactions': transactions_data,
+            'total_count': len(transactions_data)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting financial transactions: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/finance/summaries/monthly')
 @login_required
 def get_monthly_financial_summary():
