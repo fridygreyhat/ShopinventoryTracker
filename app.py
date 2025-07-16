@@ -2058,6 +2058,12 @@ def settings():
     """Settings page route"""
     return render_template('settings.html')
 
+@app.route('/account')
+@login_required
+def account():
+    """User account management page"""
+    return render_template('account.html')
+
 @app.route('/logout')
 def logout():
     """Logout route"""
