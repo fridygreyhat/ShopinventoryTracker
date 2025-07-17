@@ -12,7 +12,7 @@ class FirebaseConfig:
         self.app = None
         self.db = None
         self.auth = None
-        self.api_key = None
+        self._api_key = None
 
     def initialize_firebase(self):
         """Initialize Firebase app and Firestore database"""
@@ -72,6 +72,11 @@ class FirebaseConfig:
         """Get Firebase API key for REST API calls"""
         # Use the API key from your Firebase config
         return "AIzaSyBc8dD1OwzxWJrf-bAxowOtYj-OHZr2epo"
+    
+    @api_key.setter
+    def api_key(self, value):
+        """Set Firebase API key"""
+        self._api_key = value
 
 # Global Firebase instance
 firebase_config = FirebaseConfig()
