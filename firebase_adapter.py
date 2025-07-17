@@ -156,7 +156,9 @@ class FirebaseAdapter:
     def get_items_by_user(self, user_id, **kwargs):
         """Get items with filtering support"""
         try:
-            query = self.service.db.collection('items').where('user_id', '==', user_id).where('is_active', '==', True)
+            query = (self.service.db.collection('items')
+                    .where(filter=('user_id', '==', user_id))
+                    .where(filter=('is_active', '==', True)))
 
             # Apply filters
             category = kwargs.get('category')

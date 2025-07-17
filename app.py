@@ -56,7 +56,7 @@ if not configure_database(app):
     logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
     logger.error("Please add your Firebase service account JSON to the FIREBASE_CREDENTIALS environment variable")
     sys.exit(1)
-    
+
 # Disable SQLAlchemy to prevent PostgreSQL connection attempts
 app.config['SQLALCHEMY_DATABASE_URI'] = None
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -97,7 +97,7 @@ def init_database():
         if not firebase_config.initialized:
             logger.info("Firebase initialization skipped - using Firebase for data management")
             return True
-        
+
         logger.info("🔥 Firebase database system initialized successfully")
         return True
 
@@ -144,27 +144,27 @@ def api_login():
 
         # Get user from Firestore first to verify account exists and is active
         user_data = firebase_adapter.get_user_by_email(email)
-        
+
         if not user_data:
             logger.warning(f"Failed login attempt for email: {email} - user not found")
             return jsonify({'error': 'Invalid email or password'}), 401
-            
+
         if not user_data.get('is_active', True):
             return jsonify({'error': 'Account is inactive'}), 401
 
         # Use Firebase Admin SDK for password verification
         try:
             from firebase_admin import auth
-            
+
             # For development, we'll use a simpler approach
             # In production, you should use proper Firebase Auth REST API
-            
+
             # For now, let's authenticate by checking if user exists and is active
             # This is a temporary solution - in production you'd verify the password properly
-            
+
             # Update last login
             firebase_adapter.service.update_user_last_login(user_data['id'])
-            
+
             # Create session
             session.clear()
             session['user_id'] = user_data['id']
@@ -185,7 +185,7 @@ def api_login():
                     'last_name': user_data.get('last_name', '')
                 }
             }), 200
-                
+
         except Exception as firebase_error:
             logger.error(f"Firebase authentication error: {str(firebase_error)}")
             return jsonify({'error': 'Authentication service error'}), 500
@@ -249,7 +249,7 @@ def api_register():
         # Create new user in Firebase Auth and Firestore
         try:
             from firebase_admin import auth
-            
+
             # Create user in Firebase Auth
             auth_user = auth.create_user(
                 email=email,
@@ -440,34 +440,34 @@ def get_inventory():
         # Use Firebase for inventory management
         if not firebase_config.initialized:
             return jsonify({'error': 'Firebase not configured'}), 500
-            
+
         filter_params = {
             'category': request.args.get('category'),
             'search': request.args.get('search', '').lower(),
             'min_stock': request.args.get('min_stock'),
             'max_stock': request.args.get('max_stock')
         }
-        
+
         items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
-        
+
         # Apply additional filters for Firebase data
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
-        
+
         if min_stock:
             try:
                 min_stock = int(min_stock)
                 items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
             except ValueError:
                 pass
-                
+
         if max_stock:
             try:
                 max_stock = int(max_stock)
                 items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
             except ValueError:
                 pass
-        
+
         return jsonify({
             'items': items_data,
             'total_count': len(items_data),
@@ -674,17 +674,17 @@ def add_item():
         # Use Firebase for inventory management
         if not firebase_config.initialized:
             return jsonify({"error": "Firebase not configured"}), 500
-            
+
         try:
             # Handle quantity field mapping
             quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
             item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
-            
+
             # Handle price fields
             item_data['buying_price'] = float(item_data.get("buying_price", 0))
             item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
             item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
-            
+
             # Set defaults
             item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
             item_data['category'] = item_data.get("category", "Uncategorized")
@@ -692,22 +692,22 @@ def add_item():
             item_data['unit_type'] = item_data.get("unit_type", "quantity")
             item_data['sell_by'] = item_data.get("sell_by", "quantity")
             item_data['is_active'] = True
-            
+
             # Create item in Firebase
             new_item = firebase_adapter.create_item(item_data, current_user_id)
-            
+
             if hasattr(new_item, 'to_dict'):
                 result = new_item.to_dict()
             else:
                 result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
-                
+
             logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
             return jsonify(result), 201
-            
+
         except Exception as firebase_error:
             logger.error(f"Firebase item creation error: {str(firebase_error)}")
             return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
-            
+
     except Exception as e:
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": f"Failed to add item: {str(e)}"}), 500
@@ -809,9 +809,10 @@ def update_item(item_id):
 
         # Update item using Firebase
         firebase_adapter.update_item(item_id, updates, current_user_id)
-        
+
         # Get updated item
-        updated_item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+        updated_item```python
+_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
         if updated_item_doc.exists:
             updated_item = updated_item_doc.to_dict()
             updated_item['id'] = item_id
@@ -833,7 +834,7 @@ def verify_database_systems():
     """Verify that database systems are working properly"""
     firebase_ready = False
     postgresql_ready = False
-    
+
     # Check Firebase
     try:
         if firebase_config.initialize_firebase():
@@ -843,7 +844,7 @@ def verify_database_systems():
             logger.warning("⚠️ Firebase database not configured")
     except Exception as e:
         logger.error(f"❌ Firebase initialization error: {str(e)}")
-    
+
     # Check PostgreSQL as fallback
     try:
         from models import User
@@ -852,7 +853,7 @@ def verify_database_systems():
         logger.info(f"✅ PostgreSQL fallback ready - {user_count} users in database")
     except Exception as e:
         logger.error(f"❌ PostgreSQL fallback error: {str(e)}")
-    
+
     if firebase_ready:
         logger.info("🔥 Firebase is the primary database")
         return "firebase"
@@ -2091,7 +2092,7 @@ def get_dashboard_summary():
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = sale_date_str
-                    
+
                     if today <= sale_date < tomorrow:
                         today_sales_count += 1
                         if sale.get('payment_status') == 'completed':
@@ -2115,7 +2116,7 @@ def get_dashboard_summary():
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                     else:
                         created_at = created_at_str
-                    
+
                     if created_at >= current_month:
                         new_customers_this_month += 1
                 except:
@@ -2134,7 +2135,7 @@ def get_dashboard_summary():
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = sale_date_str
-                    
+
                     if current_month <= sale_date < next_month:
                         monthly_income += float(sale.get('total_amount', 0))
                 except:
@@ -2475,7 +2476,7 @@ def get_suppliers():
                 'created_at': supplier.created_at.isoformat() if supplier.created_at else None
             })
 
-        return jsonify({'success': True, 'suppliers': suppliers_data})
+        return jsonify({'success': True, ''suppliers': suppliers_data})
 
     except Exception as e:
         logger.error(f"Error getting suppliers: {str(e)}")
@@ -2775,10 +2776,10 @@ def debug_firebase_users():
     try:
         # Get all users
         users = firebase_adapter.get_all_users()
-        
+
         # Get user statistics
         stats = firebase_adapter.get_user_stats()
-        
+
         return jsonify({
             'success': True,
             'total_users': len(users),
@@ -2805,25 +2806,25 @@ def debug_firebase_status():
             'error_message': None,
             'setup_instructions': []
         }
-        
+
         if firebase_config.initialized:
             try:
                 # Get project ID
                 import firebase_admin
                 app_info = firebase_admin.get_app()
                 status['project_id'] = app_info.project_id
-                
+
                 # Test Firestore
                 test_ref = firebase_adapter.service.db.collection('test')
                 test_ref.limit(1).get()
                 status['firestore_enabled'] = True
                 status['database_exists'] = True
-                
+
                 # Test Auth
                 from firebase_admin import auth
                 auth.list_users(max_results=1)
                 status['auth_enabled'] = True
-                
+
             except Exception as e:
                 status['error_message'] = str(e)
                 if "SERVICE_DISABLED" in str(e):
@@ -2833,7 +2834,7 @@ def debug_firebase_status():
                     status['database_exists'] = False
                     status['setup_instructions'].append("Create Firestore database in Firebase Console")
                     status['setup_instructions'].append(f"Visit: https://console.cloud.google.com/datastore/setup?project={status['project_id']}")
-        
+
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error checking Firebase status: {str(e)}")
@@ -2850,17 +2851,17 @@ def debug_firebase_collections():
             'project_id': 'inventory-management-75a65',
             'collections': []
         }
-        
+
         # Check common collections
         collection_names = ['users', 'items', 'sales', 'customers', 'categories', 'transactions']
-        
+
         for collection_name in collection_names:
             try:
                 collection_ref = firebase_adapter.service.db.collection(collection_name)
                 docs = collection_ref.limit(5).stream()
                 doc_count = 0
                 sample_docs = []
-                
+
                 for doc in docs:
                     doc_count += 1
                     doc_data = doc.to_dict()
@@ -2870,7 +2871,7 @@ def debug_firebase_collections():
                         'sample_data': {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v 
                                        for k, v in doc_data.items()}
                     })
-                
+
                 collections_info['collections'].append({
                     'name': collection_name,
                     'exists': doc_count > 0,
@@ -2883,7 +2884,7 @@ def debug_firebase_collections():
                     'exists': False,
                     'error': str(e)
                 })
-        
+
         return jsonify(collections_info)
     except Exception as e:
         logger.error(f"Error analyzing collections: {str(e)}")
@@ -2903,10 +2904,10 @@ def debug_create_sample_data():
                 'success': False,
                 'error': 'Test user not found. Create user first.'
             })
-        
+
         user_id = existing_user['id']
         results = {'created': [], 'errors': []}
-        
+
         # Create sample items
         sample_items = [
             {
@@ -2928,14 +2929,14 @@ def debug_create_sample_data():
                 'description': 'Professional laptop'
             }
         ]
-        
+
         for item_data in sample_items:
             try:
                 item = firebase_adapter.create_item(item_data, user_id)
                 results['created'].append(f"Item: {item_data['name']}")
             except Exception as e:
                 results['errors'].append(f"Item {item_data['name']}: {str(e)}")
-        
+
         # Create sample customer
         customer_data = {
             'name': 'John Doe',
@@ -2943,31 +2944,31 @@ def debug_create_sample_data():
             'phone': '+1234567891',
             'address': '123 Main St, City, State'
         }
-        
+
         try:
             customer = firebase_adapter.create_customer(customer_data, user_id)
             results['created'].append(f"Customer: {customer_data['name']}")
         except Exception as e:
             results['errors'].append(f"Customer {customer_data['name']}: {str(e)}")
-        
+
         # Create sample category
         category_data = {
             'name': 'Electronics',
             'description': 'Electronic devices and accessories'
         }
-        
+
         try:
             category = firebase_adapter.create_category(category_data, user_id)
             results['created'].append(f"Category: {category_data['name']}")
         except Exception as e:
             results['errors'].append(f"Category {category_data['name']}: {str(e)}")
-        
+
         return jsonify({
             'success': True,
             'results': results,
             'user_id': user_id
         })
-        
+
     except Exception as e:
         logger.error(f"Error creating sample data: {str(e)}")
         return jsonify({
@@ -2982,15 +2983,15 @@ def debug_database_summary():
         # Get Firebase status
         status_response = debug_firebase_status()
         status_data = status_response.get_json()
-        
+
         # Get user data
         users_response = debug_firebase_users()
         users_data = users_response.get_json()
-        
+
         # Get collections data
         collections_response = debug_firebase_collections()
         collections_data = collections_response.get_json()
-        
+
         summary = {
             'firebase_status': status_data,
             'user_analysis': {
@@ -3004,20 +3005,20 @@ def debug_database_summary():
             },
             'recommendations': []
         }
-        
+
         # Add recommendations based on analysis
         if summary['user_analysis']['total_users'] == 0:
             summary['recommendations'].append("No users found. Consider creating test users for development.")
-        
+
         empty_collections = [col for col in summary['database_structure']['collections'] if not col.get('exists')]
         if empty_collections:
             summary['recommendations'].append(f"Empty collections: {', '.join([col['name'] for col in empty_collections])}")
-        
+
         if summary['firebase_status'].get('firestore_enabled') and summary['firebase_status'].get('auth_enabled'):
             summary['recommendations'].append("Firebase is fully configured and ready for production use.")
-        
+
         return jsonify(summary)
-        
+
     except Exception as e:
         logger.error(f"Error creating database summary: {str(e)}")
         return jsonify({
