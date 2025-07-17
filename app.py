@@ -28,6 +28,10 @@ from firebase_config import firebase_config
 from firebase_adapter import firebase_adapter
 from extensions import configure_database
 
+# Prevent any SQLAlchemy/PostgreSQL imports
+import os
+os.environ.pop('DATABASE_URL', None)  # Remove any PostgreSQL URL
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,18 +57,23 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure database (Firebase only)
-if not configure_database(app, use_firebase=True):
+# Configure Firebase as the only database
+if not configure_database(app):
     logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
+    logger.error("Please add your Firebase service account JSON to the FIREBASE_CREDENTIALS environment variable")
     sys.exit(1)
+    
+# Disable SQLAlchemy to prevent PostgreSQL connection attempts
+app.config['SQLALCHEMY_DATABASE_URI'] = None
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
 
 # Firebase-based authentication - no Flask-Login needed
 
-# Make User inherit from UserMixin for Flask-Login
-# class User(db.Model, UserMixin):
-#     pass
+# PostgreSQL models disabled - using Firebase only
+# All user management now handled through Firebase
+print("📊 Using Firebase for all data operations")
 
 
 @app.context_processor
