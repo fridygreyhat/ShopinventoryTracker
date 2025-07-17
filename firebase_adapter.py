@@ -299,6 +299,26 @@ class FirebaseAdapter:
             logger.error(f"Error getting item by SKU: {str(e)}")
             return None
 
+    def update_item_stock(self, item_id, new_stock, user_id):
+        """Update item stock quantity"""
+        try:
+            item_ref = self.service.db.collection('items').document(item_id)
+            item_doc = item_ref.get()
+            
+            if item_doc.exists:
+                item_data = item_doc.to_dict()
+                if item_data.get('user_id') == user_id:
+                    item_ref.update({
+                        'stock_quantity': new_stock,
+                        'updated_at': datetime.now().isoformat()
+                    })
+                    logger.info(f"Stock updated for item {item_id}: {new_stock}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating item stock: {str(e)}")
+            return False
+
     # Sale operations
     def create_sale(self, sale_data, user_id):
         """Create sale using Firebase service"""
@@ -319,6 +339,23 @@ class FirebaseAdapter:
         """Get customers using Firebase service"""
         customers = self.service.get_customers_by_user(user_id)
         return [customer.to_dict() if hasattr(customer, 'to_dict') else customer.__dict__ for customer in customers]
+
+    def get_customer_by_id(self, customer_id, user_id):
+        """Get a specific customer by ID"""
+        try:
+            customer_ref = self.service.db.collection('customers').document(customer_id)
+            customer_doc = customer_ref.get()
+            
+            if customer_doc.exists:
+                customer_data = customer_doc.to_dict()
+                if customer_data.get('user_id') == user_id:
+                    customer_data['id'] = customer_id
+                    return customer_data
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error getting customer by ID: {str(e)}")
+            return None
 
     # Category operations
     def create_category(self, category_data, user_id):

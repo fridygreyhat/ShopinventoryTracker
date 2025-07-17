@@ -1199,6 +1199,47 @@ def get_products():
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
 
+# Items API Routes
+@app.route('/api/items', methods=['GET'])
+@login_required
+def get_items():
+    """API endpoint to get all items using Firebase"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get items from Firebase
+        items_data = firebase_adapter.get_items_by_user(user_id)
+
+        formatted_items = []
+        for item in items_data:
+            formatted_items.append({
+                'id': item.get('id'),
+                'name': item.get('name', ''),
+                'sku': item.get('sku', ''),
+                'description': item.get('description', ''),
+                'category': item.get('category', ''),
+                'stock_quantity': item.get('stock_quantity', 0),
+                'minimum_stock': item.get('minimum_stock', 0),
+                'buying_price': float(item.get('buying_price', 0)),
+                'retail_price': float(item.get('retail_price', 0)),
+                'wholesale_price': float(item.get('wholesale_price', 0)),
+                'sales_type': item.get('sales_type', 'retail'),
+                'is_active': item.get('is_active', True),
+                'created_at': item.get('created_at'),
+                'updated_at': item.get('updated_at')
+            })
+
+        return jsonify(formatted_items)
+
+    except Exception as e:
+        logger.error(f"Error getting items: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Removed duplicate sales reports endpoint - use /api/sales instead
 
 @app.route('/api/reports/stock')
@@ -1440,10 +1481,8 @@ def get_sales():
 @app.route('/api/sales', methods=['POST'])
 @login_required
 def create_sale():
-    """API endpoint to create a new sale"""
+    """API endpoint to create a new sale using Firebase"""
     try:
-        from models import Sale, SaleItem, Customer, Item
-
         sale_data = request.get_json()
         if not sale_data:
             return jsonify({"error": "No data provided"}), 400
@@ -1451,6 +1490,9 @@ def create_sale():
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "User not authenticated"}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
 
         # Validate required fields
         items = sale_data.get('items', [])
@@ -1461,21 +1503,23 @@ def create_sale():
         customer_id = sale_data.get('customer_id')
         is_installment = sale_data.get('is_installment', False)
 
-        # Handle customer data
+        # Handle customer data using Firebase
         customer = None
         if customer_id:
-            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+            customer = firebase_adapter.get_customer_by_id(customer_id, user_id)
         elif sale_data.get('customer_name'):
             # Create new customer if provided
-            customer = Customer(
-                name=sale_data['customer_name'],
-                email=sale_data.get('customer_email'),
-                phone=sale_data.get('customer_phone'),
-                address=sale_data.get('customer_address'),
-                user_id=user_id
-            )
+            customer_data = {
+                'name': sale_data['customer_name'],
+                'email': sale_data.get('customer_email', ''),
+                'phone': sale_data.get('customer_phone', ''),
+                'address': sale_data.get('customer_address', ''),
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            customer = firebase_adapter.create_customer(customer_data, user_id)
 
-        # Calculate total amount
+        # Calculate total amount and validate items using Firebase
         total_amount = 0
         sale_items_data = []
 
@@ -1487,96 +1531,86 @@ def create_sale():
             if not item_id:
                 return jsonify({"error": "Item ID is required"}), 400
 
-            # Get item and verify stock
-            item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+            # Get item from Firebase and verify stock
+            item = firebase_adapter.get_item_by_id(item_id, user_id)
             if not item:
                 return jsonify({"error": f"Item with ID {item_id} not found"}), 404
 
-            if item.stock_quantity < quantity:
-                return jsonify({"error": f"Insufficient stock for {item.name}"}), 400
+            current_stock = item.get('stock_quantity', 0)
+            if current_stock < quantity:
+                return jsonify({"error": f"Insufficient stock for {item.get('name')}. Available: {current_stock}, Requested: {quantity}"}), 400
 
             subtotal = quantity * unit_price
             total_amount += subtotal
 
             sale_items_data.append({
-                'item': item,
+                'item_id': item_id,
+                'item_name': item.get('name'),
                 'quantity': quantity,
                 'unit_price': unit_price,
-                'subtotal': subtotal
+                'subtotal': subtotal,
+                'item_data': item
             })
 
-        # Create sale record
-        sale = Sale(
-            user_id=user_id,
-            customer_id=customer.id if customer else None,
-            total_amount=total_amount,
-            payment_type=payment_type,
-            payment_status='completed' if not is_installment else 'pending',
-            is_installment=is_installment,
-            sale_number=Sale.generate_sale_number()
-        )
+        # Generate sale number
+        sale_number = f"SALE-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        # Create sale record in Firebase
+        sale_data_for_firebase = {
+            'sale_number': sale_number,
+            'customer_id': customer.get('id') if customer else None,
+            'customer_name': customer.get('name') if customer else sale_data.get('customer_name', ''),
+            'total_amount': total_amount,
+            'payment_type': payment_type,
+            'payment_status': 'completed' if not is_installment else 'pending',
+            'is_installment': is_installment,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+            'sale_items': []
+        }
 
         # Handle installment data
         if is_installment:
-            sale.down_payment = float(sale_data.get('down_payment', 0))
-            sale.installment_months = int(sale_data.get('installment_months', 1))
-            remaining_amount = total_amount - sale.down_payment
-            sale.monthly_payment = remaining_amount / sale.installment_months if sale.installment_months > 0 else 0
+            down_payment = float(sale_data.get('down_payment', 0))
+            installment_months = int(sale_data.get('installment_months', 1))
+            remaining_amount = total_amount - down_payment
+            monthly_payment = remaining_amount / installment_months if installment_months > 0 else 0
+            
+            sale_data_for_firebase.update({
+                'down_payment': down_payment,
+                'installment_months': installment_months,
+                'monthly_payment': monthly_payment,
+                'remaining_amount': remaining_amount
+            })
 
-
-        # Create sale items and update stock
+        # Add sale items to Firebase sale data
         for item_data in sale_items_data:
-            sale_item = SaleItem(
-                sale_id=sale.id,
-                item_id=item_data['item'].id,
-                quantity=item_data['quantity'],
-                unit_price=item_data['unit_price'],
-                subtotal=item_data['subtotal']
-            )
+            sale_data_for_firebase['sale_items'].append({
+                'item_id': item_data['item_id'],
+                'item_name': item_data['item_name'],
+                'quantity': item_data['quantity'],
+                'unit_price': item_data['unit_price'],
+                'subtotal': item_data['subtotal']
+            })
 
-            # Update stock
-            item_data['item'].stock_quantity -= item_data['quantity']
+        # Create sale in Firebase
+        sale_result = firebase_adapter.create_sale(sale_data_for_firebase, user_id)
 
-        # Create installment plan if needed
-        if is_installment:
-            from models import InstallmentSale, InstallmentPayment
+        # Update stock for all items
+        for item_data in sale_items_data:
+            item = item_data['item_data']
+            new_stock = item.get('stock_quantity', 0) - item_data['quantity']
+            firebase_adapter.update_item_stock(item_data['item_id'], new_stock, user_id)
 
-            installment_sale = InstallmentSale(
-                sale_id=sale.id,
-                customer_id=customer.id if customer else None,
-                total_amount=total_amount,
-                down_payment=sale.down_payment,
-                remaining_amount=total_amount - sale.down_payment,
-                payment_frequency='monthly',
-                duration_months=sale.installment_months,
-                monthly_payment=sale.monthly_payment,
-                user_id=user_id
-            )
-
-            # Create initial payment record for down payment if any
-            if sale.down_payment > 0:
-                payment = InstallmentPayment(
-                    installment_sale_id=installment_sale.id,
-                    amount=sale.down_payment,
-                    payment_date=datetime.utcnow(),
-                    payment_method=payment_type,
-                    status='completed',
-                    user_id=user_id
-                )
-
-
-        logger.info(f"Sale created: {sale.sale_number} for user {user_id}")
+        logger.info(f"Sale created: {sale_number} for user {user_id}")
 
         return jsonify({
             'success': True,
-            'sale': {
-                'id': sale.id,
-                'sale_number': sale.sale_number,
-                'total_amount': float(sale.total_amount),
-                'payment_type': sale.payment_type,
-                'is_installment': sale.is_installment
-            }
-        }), 201
+            'sale_id': sale_result.get('id'),
+            'sale_number': sale_number,
+            'total_amount': total_amount,
+            'message': 'Sale created successfully'
+        })
 
     except Exception as e:
         logger.error(f"Error creating sale: {str(e)}")
@@ -1586,28 +1620,33 @@ def create_sale():
 @app.route('/api/customers', methods=['GET'])
 @login_required
 def get_customers():
-    """API endpoint to get all customers"""
+    """API endpoint to get all customers using Firebase"""
     try:
-        from models import Customer
-
         user_id = session.get('user_id')
-        customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
 
-        customers_data = []
-        for customer in customers:
-            customers_data.append({
-                'id': customer.id,
-                'name': customer.name,
-                'email': customer.email,
-                'phone': customer.phone,
-                'address': customer.address,
-                'customer_type': customer.customer_type,
-                'credit_limit': float(customer.credit_limit or 0),
-                'loyalty_points': customer.loyalty_points or 0,
-                'created_at': customer.created_at.isoformat() if customer.created_at else None
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get customers from Firebase
+        customers_data = firebase_adapter.get_customers_by_user(user_id)
+
+        formatted_customers = []
+        for customer in customers_data:
+            formatted_customers.append({
+                'id': customer.get('id'),
+                'name': customer.get('name', ''),
+                'email': customer.get('email', ''),
+                'phone': customer.get('phone', ''),
+                'address': customer.get('address', ''),
+                'customer_type': customer.get('customer_type', 'regular'),
+                'credit_limit': float(customer.get('credit_limit', 0)),
+                'loyalty_points': customer.get('loyalty_points', 0),
+                'created_at': customer.get('created_at')
             })
 
-        return jsonify(customers_data)
+        return jsonify(formatted_customers)
 
     except Exception as e:
         logger.error(f"Error getting customers: {str(e)}")
