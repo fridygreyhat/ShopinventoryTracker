@@ -839,7 +839,6 @@ def add_item():
 
         # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
         quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
-        ```python
         try:
             quantity = int(quantity) if quantity is not None else 0
         except (ValueError, TypeError):
@@ -2495,7 +2494,6 @@ def get_financial_transactions():
         # Execute query
         transactions = query.order_by(FinancialTransaction.created_at.desc()).all()
 
-        #```python
         # Format response
         transactions_data = []
         for transaction in transactions:
