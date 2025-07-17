@@ -1406,7 +1406,7 @@ def get_sales():
             return jsonify({'error': 'Firebase not configured'}), 500
 
         # Get sales from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
 
         formatted_sales = []
         for sale in sales_data:
@@ -2164,7 +2164,7 @@ def get_dashboard_summary():
 
         # === SALES METRICS ===
         # Get sales from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
         total_sales = len(sales_data)
 
         # Calculate revenue (completed sales only)
@@ -2348,7 +2348,7 @@ def get_monthly_financial_summary():
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Get sales data from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
 
         # Get monthly data for the past 12 months
         monthly_data = {}
