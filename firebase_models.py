@@ -100,6 +100,17 @@ class FirebaseItem(FirebaseModel):
         self.user_id = ""
         self.is_active = True
 
+    def to_dict(self):
+        """Convert to dictionary for Firestore"""
+        data = {}
+        for key, value in self.__dict__.items():
+            if not key.startswith('_'):
+                if isinstance(value, datetime):
+                    data[key] = value.isoformat() if value else None
+                else:
+                    data[key] = value
+        return data
+
     @staticmethod
     def generate_sku(name, category=""):
         """Generate a unique SKU"""

@@ -177,6 +177,32 @@ class FirebaseService:
             logger.error(f"Error updating item: {str(e)}")
             raise
 
+    def delete_item(self, item_id, user_id):
+        """Soft delete an item"""
+        try:
+            # First check if item exists and belongs to user
+            item_doc = self.db.collection('items').document(item_id).get()
+
+            if not item_doc.exists:
+                raise ValueError("Item not found")
+
+            item_data_current = item_doc.to_dict()
+            if item_data_current.get('user_id') != user_id:
+                raise ValueError("Item does not belong to user")
+
+            # Soft delete by marking as inactive
+            self.db.collection('items').document(item_id).update({
+                'is_active': False,
+                'updated_at': datetime.utcnow().isoformat()
+            })
+
+            logger.info(f"Item deleted: {item_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting item: {str(e)}")
+            raise
+
     # Customer operations
     def create_customer(self, customer_data, user_id):
         """Create a new customer"""
@@ -206,19 +232,86 @@ class FirebaseService:
         try:
             docs = (self.db.collection('customers')
                    .where('user_id', '==', user_id)
-                   .where('is_active', '==', True)
+                   .order_by('created_at', direction='DESCENDING')
                    .stream())
             customers = []
 
             for doc in docs:
-                customer = FirebaseCustomer(doc.to_dict(), doc.id)
-                customers.append(customer)
+                customer_data = doc.to_dict()
+                customer_data['id'] = doc.id
+                customers.append(customer_data)
 
             return customers
 
         except Exception as e:
             logger.error(f"Error getting customers: {str(e)}")
             return []
+
+    def get_customer_by_id(self, customer_id, user_id):
+        """Get a specific customer by ID"""
+        try:
+            customer_doc = self.db.collection('customers').document(customer_id).get()
+
+            if customer_doc.exists:
+                customer_data = customer_doc.to_dict()
+                if customer_data.get('user_id') == user_id:
+                    customer_data['id'] = customer_id
+                    return customer_data
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting customer by ID: {str(e)}")
+            return None
+
+    def update_customer(self, customer_id, customer_data, user_id):
+        """Update an existing customer"""
+        try:
+            # First check if customer exists and belongs to user
+            customer_doc = self.db.collection('customers').document(customer_id).get()
+
+            if not customer_doc.exists:
+                raise ValueError("Customer not found")
+
+            customer_data_current = customer_doc.to_dict()
+            if customer_data_current.get('user_id') != user_id:
+                raise ValueError("Customer does not belong to user")
+
+            # Update the customer
+            customer_data['updated_at'] = datetime.utcnow().isoformat()
+            self.db.collection('customers').document(customer_id).update(customer_data)
+
+            logger.info(f"Customer updated: {customer_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating customer: {str(e)}")
+            raise
+
+    def delete_customer(self, customer_id, user_id):
+        """Soft delete a customer"""
+        try:
+            # First check if customer exists and belongs to user
+            customer_doc = self.db.collection('customers').document(customer_id).get()
+
+            if not customer_doc.exists:
+                raise ValueError("Customer not found")
+
+            customer_data_current = customer_doc.to_dict()
+            if customer_data_current.get('user_id') != user_id:
+                raise ValueError("Customer does not belong to user")
+
+            # Soft delete by marking as inactive
+            self.db.collection('customers').document(customer_id).update({
+                'is_active': False,
+                'updated_at': datetime.utcnow().isoformat()
+            })
+
+            logger.info(f"Customer deleted: {customer_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting customer: {str(e)}")
+            raise
 
     # Category operations
     def create_category(self, category_data, user_id):
@@ -308,7 +401,8 @@ class FirebaseService:
         """Get all sales for a user"""
         try:
             query = (self.db.collection('sales')
-                    .where('user_id', '==', user_id))
+                    .where('user_id', '==', user_id)
+                    .order_by('created_at', direction='DESCENDING'))
 
             if limit:
                 query = query.limit(limit)
@@ -317,14 +411,55 @@ class FirebaseService:
             sales = []
 
             for doc in docs:
-                sale = FirebaseSale(doc.to_dict(), doc.id)
-                sales.append(sale)
+                sale_data = doc.to_dict()
+                sale_data['id'] = doc.id
+                sales.append(sale_data)
 
             return sales
 
         except Exception as e:
             logger.error(f"Error getting sales: {str(e)}")
             return []
+
+    def get_sale_by_id(self, sale_id, user_id):
+        """Get a specific sale by ID"""
+        try:
+            sale_doc = self.db.collection('sales').document(sale_id).get()
+
+            if sale_doc.exists:
+                sale_data = sale_doc.to_dict()
+                if sale_data.get('user_id') == user_id:
+                    sale_data['id'] = sale_id
+                    return sale_data
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting sale by ID: {str(e)}")
+            return None
+
+    def update_sale(self, sale_id, sale_data, user_id):
+        """Update an existing sale"""
+        try:
+            # First check if sale exists and belongs to user
+            sale_doc = self.db.collection('sales').document(sale_id).get()
+
+            if not sale_doc.exists:
+                raise ValueError("Sale not found")
+
+            sale_data_current = sale_doc.to_dict()
+            if sale_data_current.get('user_id') != user_id:
+                raise ValueError("Sale does not belong to user")
+
+            # Update the sale
+            sale_data['updated_at'] = datetime.utcnow().isoformat()
+            self.db.collection('sales').document(sale_id).update(sale_data)
+
+            logger.info(f"Sale updated: {sale_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating sale: {str(e)}")
+            raise
 
 # Global Firebase service instance
 firebase_service = FirebaseService()

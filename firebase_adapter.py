@@ -2,6 +2,7 @@ from firebase_service import firebase_service
 from firebase_models import FirebaseUser, FirebaseItem, FirebaseSale, FirebaseCustomer, FirebaseCategory
 from datetime import datetime
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +299,48 @@ class FirebaseAdapter:
         except Exception as e:
             logger.error(f"Error getting item by SKU: {str(e)}")
             return None
+
+    def item_exists(self, sku, user_id):
+        """Check if an item with given SKU exists for user"""
+        try:
+            query = (self.service.db.collection('items')
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
+                    .limit(1))
+
+            docs = list(query.stream())
+            return len(docs) > 0
+        except Exception as e:
+            logger.error(f"Error checking if item exists: {str(e)}")
+            return False
+
+    def add(self, item):
+        """Add item to Firebase (for CSV import compatibility)"""
+        try:
+            if hasattr(item, 'to_dict'):
+                item_data = item.to_dict()
+            else:
+                item_data = item.__dict__ if hasattr(item, '__dict__') else item
+
+            # Generate ID if not present
+            if not item_data.get('id'):
+                item_data['id'] = str(uuid.uuid4())
+
+            # Save to Firestore
+            self.service.db.collection('items').document(item_data['id']).set(item_data)
+            return item_data
+        except Exception as e:
+            logger.error(f"Error adding item: {str(e)}")
+            raise
+
+    def commit(self):
+        """Commit changes (Firebase auto-commits, so this is a no-op)"""
+        return True
+
+    def rollback(self):
+        """Rollback changes (Firebase doesn't support transactions in this context)"""
+        logger.warning("Rollback called on Firebase adapter - no action taken")
+        return True
 
     def update_item_stock(self, item_id, new_stock, user_id):
         """Update item stock quantity"""

@@ -183,60 +183,61 @@ class CSVRowProcessor:
 
         return errors
 
-    def _create_item_from_row(self, row: Dict[str, str], row_number: int, errors: List[str]) -> Optional[Any]:
-        """Create an Item instance from a CSV row"""
-        validator = CSVDataValidator()
-
-        # Extract and validate data
-        name = row.get('name', '').strip()
-        sku = row.get('sku', '').strip()
-        description = row.get('description', '').strip()
-        category = row.get('category', 'Uncategorized').strip()
-
-        # Validate numeric fields
-        quantity = validator.validate_quantity(row.get('quantity', '0'), row_number, errors)
-        buying_price = validator.validate_price(row.get('buying_price', '0'), 'buying price', row_number, errors)
-        selling_price_retail = validator.validate_price(row.get('selling_price_retail', '0'), 'retail price', row_number, errors)
-        selling_price_wholesale = validator.validate_price(row.get('selling_price_wholesale', '0'), 'wholesale price', row_number, errors)
-
-        # Validate sales type
-        sales_type = validator.validate_sales_type(row.get('sales_type', 'both'), row_number, errors)
-
-        # Generate SKU if not provided
-        if not sku:
-            # Use Item model's generate_sku method if available, otherwise create simple one
-            try:
-                sku = self.Item.generate_sku(name, category)
-            except AttributeError:
-                # Fallback SKU generation
-                clean_name = re.sub(r'[^a-zA-Z0-9]', '', name[:10]).upper()
-                sku = f"{clean_name}-{datetime.utcnow().strftime('%Y%m%d')}"
-
-        # Ensure SKU uniqueness
-        sku = self._ensure_unique_sku(sku, row_number, errors)
-
-        # Create new item
+    def _create_item_from_row(self, row, row_number, errors):
+        """Create item data from CSV row data"""
         try:
-            new_item = self.Item(
-                name=name,
-                sku=sku,
-                description=description,
-                category=category,
-                stock_quantity=quantity,
-                minimum_stock=max(1, quantity // 10),  # Set minimum stock to 10% of initial quantity
-                buying_price=buying_price,
-                retail_price=selling_price_retail,
-                wholesale_price=selling_price_wholesale,
-                sales_type=sales_type,
-                user_id=self.user_id,
-                is_active=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            return new_item
+            # Extract and validate data
+            name = self._clean_string(row.get('name', '').strip())
+            if not name:
+                errors.append(f"Row {row_number}: Item name is required")
+                return None
+
+            # Generate SKU if not provided
+            sku = self._clean_string(row.get('sku', '').strip())
+            if not sku:
+                category = self._clean_string(row.get('category', 'General'))
+                sku = self._generate_sku(name, category)
+
+            # Ensure SKU uniqueness
+            sku = self._ensure_unique_sku(sku)
+
+            # Create item data dictionary
+            item_data = {
+                'name': name,
+                'sku': sku,
+                'description': self._clean_string(row.get('description', '')),
+                'category': self._clean_string(row.get('category', 'Uncategorized')),
+                'subcategory': self._clean_string(row.get('subcategory', '')),
+                'stock_quantity': self._parse_number(row.get('quantity', 0), 'quantity', row_number, errors),
+                'minimum_stock': self._parse_number(row.get('minimum_stock', 5), 'minimum_stock', row_number, errors),
+                'buying_price': self._parse_decimal(row.get('buying_price', 0), 'buying_price', row_number, errors),
+                'retail_price': self._parse_decimal(row.get('retail_price', 0), 'retail_price', row_number, errors),
+                'wholesale_price': self._parse_decimal(row.get('wholesale_price', 0), 'wholesale_price', row_number, errors),
+                'unit_type': self._clean_string(row.get('unit_type', 'quantity')),
+                'sell_by': self._clean_string(row.get('sell_by', 'quantity')),
+                'is_active': True
+            }
+
+            # Handle sales type
+            sales_type = self._clean_string(row.get('sales_type', 'both')).lower()
+            if sales_type not in self.VALID_SALES_TYPES:
+                sales_type = 'both'
+            item_data['sales_type'] = sales_type
+
+            return item_data
+
         except Exception as e:
-            errors.append(f"Row {row_number}: Failed to create item - {str(e)}")
+            logger.error(f"Error creating item from row {row_number}: {str(e)}")
+            errors.append(f"Row {row_number}: {str(e)}")
             return None
+
+    def _generate_sku(self, name, category=""):
+        """Generate a SKU for an item"""
+        import string
+        import random
+        base = f"{category[:3].upper()}{name[:3].upper()}"
+        random_part = ''.join(random.choices(string.digits, k=4))
+        return f"{base}-{random_part}"
 
     def _ensure_unique_sku(self, sku: str, row_number: int, errors: List[str]) -> str:
         """Ensure SKU is unique by appending counter if needed"""
@@ -252,6 +253,28 @@ class CSVRowProcessor:
             errors.append(f"Row {row_number}: SKU '{original_sku}' already exists, using '{sku}' instead")
 
         return sku
+
+    def _clean_string(self, value):
+        """Clean and standardize string values."""
+        return str(value).strip() if value else ""
+
+    def _parse_number(self, value, field_name, row_number, errors):
+        """Parse and validate number values."""
+        try:
+            num = int(value)
+            return num
+        except ValueError:
+            errors.append(f"Row {row_number}: Invalid {field_name} '{value}'. Setting to 0.")
+            return 0
+
+    def _parse_decimal(self, value, field_name, row_number, errors):
+        """Parse and validate decimal values."""
+        try:
+            decimal_val = float(value)
+            return decimal_val
+        except ValueError:
+            errors.append(f"Row {row_number}: Invalid {field_name} '{value}'. Setting to 0.0.")
+            return 0.0
 
 
 class CSVDataValidator:
