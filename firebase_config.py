@@ -67,6 +67,11 @@ class FirebaseConfig:
         if not self.initialized:
             self.initialize_firebase()
         return auth
+    @property
+    def api_key(self):
+        """Get Firebase API key for REST API calls"""
+        # Use the API key from your Firebase config
+        return "AIzaSyBc8dD1OwzxWJrf-bAxowOtYj-OHZr2epo"
 
 # Global Firebase instance
 firebase_config = FirebaseConfig()

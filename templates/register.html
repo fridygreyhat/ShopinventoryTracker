@@ -274,8 +274,14 @@
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Registration successful - redirect to dashboard
-                window.location.href = '/';
+                // Registration successful - show success message and redirect to dashboard
+                registerButton.innerHTML = '<i class="fas fa-check me-2"></i>Account Created! Redirecting...';
+                registerButton.classList.add('btn-success');
+                
+                // Redirect to dashboard after a brief delay
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
             } else {
                 showError(result.error || 'Registration failed. Please try again.');
             }
