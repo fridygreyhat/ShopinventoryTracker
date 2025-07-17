@@ -2475,7 +2475,7 @@ def get_suppliers():
                 'created_at': supplier.created_at.isoformat() if supplier.created_at else None
             })
 
-        return jsonify({'success': True, ''suppliers': suppliers_data})
+        return jsonify({'success': True, 'suppliers': suppliers_data})
 
     except Exception as e:
         logger.error(f"Error getting suppliers: {str(e)}")
