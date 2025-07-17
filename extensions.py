@@ -9,12 +9,13 @@ login_manager = LoginManager()
 
 # Database configuration options
 def configure_database(app, use_firebase=True):
-    """Configure database - Firebase or PostgreSQL fallback"""
+    """Configure database - Firebase only"""
     
     if use_firebase:
         return configure_firebase(app)
     else:
-        return configure_postgresql(app)
+        print("❌ PostgreSQL support has been removed. Please configure Firebase.")
+        return False
 
 def configure_firebase(app):
     """Configure Firebase as primary database"""

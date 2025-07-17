@@ -22,12 +22,8 @@ from functools import wraps
 
 
 
-# Import db from extensions to avoid circular imports
-from extensions import db, configure_database
-
-# Import models to ensure they're available (for PostgreSQL fallback)
-from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction, InstallmentSale, InstallmentPayment
-from datetime import timedelta
+# Import Firebase components
+from extensions import configure_database
 
 # Import Firebase components
 from firebase_adapter import firebase_adapter
@@ -58,25 +54,14 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure database (Firebase as default)
-configure_database(app)
+# Configure database (Firebase only)
+if not configure_database(app, use_firebase=True):
+    logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
+    sys.exit(1)
 
 
 
-# Initialize extensions with app
-db.init_app(app)
-
-# Configure Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
-
-@login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+# Firebase-based authentication - no Flask-Login needed
 
 # Make User inherit from UserMixin for Flask-Login
 # class User(db.Model, UserMixin):
@@ -666,45 +651,42 @@ def get_inventory():
         if not current_user_id:
             return jsonify([])
 
-        # Check if Firebase is configured, otherwise fallback to PostgreSQL
-        if firebase_config.initialized:
-            # Use Firebase
-            filter_params = {
-                'category': request.args.get('category'),
-                'search': request.args.get('search', '').lower(),
-                'min_stock': request.args.get('min_stock'),
-                'max_stock': request.args.get('max_stock')
-            }
+        # Use Firebase only
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
             
-            items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
-            
-            # Apply additional filters for Firebase data
-            min_stock = request.args.get('min_stock')
-            max_stock = request.args.get('max_stock')
-            
-            if min_stock:
-                try:
-                    min_stock = int(min_stock)
-                    items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
-                except ValueError:
-                    pass
-                    
-            if max_stock:
-                try:
-                    max_stock = int(max_stock)
-                    items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
-                except ValueError:
-                    pass
-            
-            return jsonify({
-                'items': items_data,
-                'total_count': len(items_data),
-                'source': 'Firebase'
-            })
-        else:
-            # Fallback to PostgreSQL
-            from models import Item, Category
-            query = Item.query.filter(Item.user_id == current_user_id, Item.is_active == True)
+        filter_params = {
+            'category': request.args.get('category'),
+            'search': request.args.get('search', '').lower(),
+            'min_stock': request.args.get('min_stock'),
+            'max_stock': request.args.get('max_stock')
+        }
+        
+        items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
+        
+        # Apply additional filters for Firebase data
+        min_stock = request.args.get('min_stock')
+        max_stock = request.args.get('max_stock')
+        
+        if min_stock:
+            try:
+                min_stock = int(min_stock)
+                items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
+            except ValueError:
+                pass
+                
+        if max_stock:
+            try:
+                max_stock = int(max_stock)
+                items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
+            except ValueError:
+                pass
+        
+        return jsonify({
+            'items': items_data,
+            'total_count': len(items_data),
+            'source': 'Firebase'
+        })
 
         # Optional filtering
         category = request.args.get('category')
@@ -898,44 +880,42 @@ def add_item():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Check if Firebase is configured
-        if firebase_config.initialized:
-            # Use Firebase
-            try:
-                # Handle quantity field mapping
-                quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
-                item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
+        # Use Firebase only
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
+            
+        try:
+            # Handle quantity field mapping
+            quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+            item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
+            
+            # Handle price fields
+            item_data['buying_price'] = float(item_data.get("buying_price", 0))
+            item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
+            item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
+            
+            # Set defaults
+            item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
+            item_data['category'] = item_data.get("category", "Uncategorized")
+            item_data['sales_type'] = item_data.get("sales_type", "both")
+            item_data['unit_type'] = item_data.get("unit_type", "quantity")
+            item_data['sell_by'] = item_data.get("sell_by", "quantity")
+            item_data['is_active'] = True
+            
+            # Create item in Firebase
+            new_item = firebase_adapter.create_item(item_data, current_user_id)
+            
+            if hasattr(new_item, 'to_dict'):
+                result = new_item.to_dict()
+            else:
+                result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
                 
-                # Handle price fields
-                item_data['buying_price'] = float(item_data.get("buying_price", 0))
-                item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
-                item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
-                
-                # Set defaults
-                item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
-                item_data['category'] = item_data.get("category", "Uncategorized")
-                item_data['sales_type'] = item_data.get("sales_type", "both")
-                item_data['unit_type'] = item_data.get("unit_type", "quantity")
-                item_data['sell_by'] = item_data.get("sell_by", "quantity")
-                item_data['is_active'] = True
-                
-                # Create item in Firebase
-                new_item = firebase_adapter.create_item(item_data, current_user_id)
-                
-                if hasattr(new_item, 'to_dict'):
-                    result = new_item.to_dict()
-                else:
-                    result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
-                    
-                logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
-                return jsonify(result), 201
-                
-            except Exception as firebase_error:
-                logger.error(f"Firebase item creation error: {str(firebase_error)}")
-                return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
-        else:
-            # Fallback to PostgreSQL
-            from models import Item
+            logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
+            return jsonify(result), 201
+            
+        except Exception as firebase_error:
+            logger.error(f"Firebase item creation error: {str(firebase_error)}")
+            return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
 
         # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
         quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
@@ -1192,13 +1172,13 @@ def verify_database_systems():
         logger.error("❌ No database system available")
         return None
 
-# Verify database systems on startup
+# Verify Firebase system on startup
 with app.app_context():
-    db_system = verify_database_systems()
-    if db_system:
-        logger.info(f"🔐 Database system initialized successfully: {db_system}")
+    if firebase_config.initialized:
+        logger.info("🔥 Firebase database system initialized successfully")
     else:
-        logger.error("⚠️ No database system available - application may not work properly")
+        logger.error("❌ Firebase database system not available - application cannot start")
+        sys.exit(1)
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
@@ -3172,10 +3152,7 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
-    # Initialize database
-    init_database()
-
-    # Run the application
+    # Run the application with Firebase only
     app.run(host='0.0.0.0', port=5000, debug=True)
 import logging
 import uuid
