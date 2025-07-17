@@ -28,6 +28,10 @@ from firebase_config import firebase_config
 from firebase_adapter import firebase_adapter
 from extensions import configure_database
 
+# Prevent any SQLAlchemy/PostgreSQL imports
+import os
+os.environ.pop('DATABASE_URL', None)  # Remove any PostgreSQL URL
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,18 +57,23 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure database (Firebase only)
-if not configure_database(app, use_firebase=True):
+# Configure Firebase as the only database
+if not configure_database(app):
     logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
+    logger.error("Please add your Firebase service account JSON to the FIREBASE_CREDENTIALS environment variable")
     sys.exit(1)
+    
+# Disable SQLAlchemy to prevent PostgreSQL connection attempts
+app.config['SQLALCHEMY_DATABASE_URI'] = None
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
 
 # Firebase-based authentication - no Flask-Login needed
 
-# Make User inherit from UserMixin for Flask-Login
-# class User(db.Model, UserMixin):
-#     pass
+# PostgreSQL models disabled - using Firebase only
+# All user management now handled through Firebase
+print("📊 Using Firebase for all data operations")
 
 
 @app.context_processor
@@ -597,24 +606,29 @@ def get_shop_details():
     """API endpoint to get shop/user details for the dashboard"""
     try:
         user_id = session.get('user_id')
-        from models import User
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
 
-        user = User.query.get(user_id)
-        if not user:
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get user from Firebase
+        user_data = firebase_adapter.get_user_by_id(user_id)
+        if not user_data:
             return jsonify({'error': 'User not found'}), 404
 
         return jsonify({
             'success': True,
             'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'shop_name': user.shop_name or f"{user.first_name}'s Shop" if user.first_name else "Your Shop",
-                'phone': user.phone,
-                'is_admin': user.is_admin,
-                'created_at': user.created_at.isoformat() if user.created_at else None
+                'id': user_data.get('id', user_id),
+                'username': user_data.get('username', ''),
+                'email': user_data.get('email', ''),
+                'first_name': user_data.get('first_name', ''),
+                'last_name': user_data.get('last_name', ''),
+                'shop_name': user_data.get('shop_name') or f"{user_data.get('first_name', '')}'s Shop" if user_data.get('first_name') else "Your Shop",
+                'phone': user_data.get('phone', ''),
+                'is_admin': user_data.get('is_admin', False),
+                'created_at': user_data.get('created_at')
             }
         })
     except Exception as e:
@@ -680,25 +694,42 @@ def add_item():
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": f"Failed to add item: {str(e)}"}), 500
 
-@app.route('/api/inventory/<int:item_id>', methods=['GET'])
+@app.route('/api/inventory/<item_id>', methods=['GET'])
+@login_required
 def get_item(item_id):
     """API endpoint to get a specific inventory item"""
-    from models import Item
+    try:
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
 
-    item = Item.query.get(item_id)
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
 
-    if not item:
-        return jsonify({"error": "Item not found"}), 404
+        # Get item from Firebase
+        item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+        if not item_doc.exists:
+            return jsonify({"error": "Item not found"}), 404
 
-    return jsonify(item.to_dict())
+        item_data = item_doc.to_dict()
+        if item_data.get('user_id') != current_user_id:
+            return jsonify({"error": "Unauthorized access to item"}), 403
 
-@app.route('/api/inventory/<int:item_id>', methods=['PUT'])
+        item_data['id'] = item_id
+        item_data['quantity'] = item_data.get('stock_quantity', 0)  # Backward compatibility
+        item_data['price'] = item_data.get('retail_price', 0)  # Backward compatibility
+
+        return jsonify(item_data)
+
+    except Exception as e:
+        logger.error(f"Error getting item: {str(e)}")
+        return jsonify({"error": "Failed to get item"}), 500
+
+@app.route('/api/inventory/<item_id>', methods=['PUT'])
 @login_required
 def update_item(item_id):
     """API endpoint to update an inventory item"""
     try:
-        from models import Item, Setting
-
         item_data = request.get_json()
         if not item_data:
             return jsonify({"error": "No data provided"}), 400
@@ -708,10 +739,9 @@ def update_item(item_id):
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Get item and verify ownership
-        item = Item.query.filter_by(id=item_id, user_id=current_user_id).first()
-        if not item:
-            return jsonify({"error": "Item not found"}), 404
+        # Use Firebase to update item
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
 
         # Handle quantity field mapping
         if 'quantity' in item_data and 'stock_quantity' not in item_data:
@@ -733,79 +763,48 @@ def update_item(item_id):
                 except (ValueError, TypeError):
                     return jsonify({"error": f"Invalid {old_field} format"}), 400
 
-        # Handle category and category_id
-        if 'category_id' in item_data:
-            category_id = item_data.get('category_id')
-            if category_id:
-                from models import Category
-                category_obj = Category.query.filter_by(id=category_id, user_id=current_user_id).first()
-                if category_obj:
-                    item.category_id = category_id
-                    item.category = category_obj.name
-                else:
-                    return jsonify({"error": "Invalid category ID"}), 400
-            else:
-                item.category_id = None
-
-        # Update allowed fields only
+        # Validate and prepare update data
         allowed_fields = [
             'name', 'description', 'sku', 'stock_quantity', 'minimum_stock',
             'buying_price', 'retail_price', 'wholesale_price', 'sales_type',
             'category', 'subcategory', 'unit_type', 'sell_by', 'is_active'
         ]
 
-        # Validate and update fields
+        updates = {}
         for key, value in item_data.items():
-            if key in allowed_fields and key not in ['category']:  # Skip category as it's handled above
+            if key in allowed_fields:
                 # Special handling for numeric fields
                 if key in ['stock_quantity', 'minimum_stock']:
                     try:
-                        value = int(value) if value is not None else 0
+                        updates[key] = int(value) if value is not None else 0
                     except (ValueError, TypeError):
                         return jsonify({"error": f"Invalid {key} format"}), 400
                 elif key in ['buying_price', 'retail_price', 'wholesale_price']:
                     try:
-                        value = float(value) if value is not None else 0.0
+                        updates[key] = float(value) if value is not None else 0.0
                     except (ValueError, TypeError):
                         return jsonify({"error": f"Invalid {key} format"}), 400
                 elif key == 'name' and not value:
                     return jsonify({"error": "Item name cannot be empty"}), 400
+                else:
+                    updates[key] = value
 
-                setattr(item, key, value)
+        # Update item using Firebase
+        firebase_adapter.update_item(item_id, updates, current_user_id)
+        
+        # Get updated item
+        updated_item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+        if updated_item_doc.exists:
+            updated_item = updated_item_doc.to_dict()
+            updated_item['id'] = item_id
+            updated_item['quantity'] = updated_item.get('stock_quantity', 0)  # Backward compatibility
+            updated_item['price'] = updated_item.get('retail_price', 0)  # Backward compatibility
+        else:
+            return jsonify({"error": "Item not found after update"}), 404
 
-        # Update timestamp
-        item.updated_at = datetime.utcnow()
+        logger.info(f"Item updated: {updated_item.get('name')} (ID: {item_id}) by user {current_user_id}")
 
-        # Check SKU uniqueness if changed
-        if 'sku' in item_data and item_data['sku'] != item.sku:
-            existing_item = Item.query.filter_by(
-                sku=item_data['sku'], 
-                user_id=current_user_id
-            ).filter(Item.id != item_id).first()
-
-            if existing_item:
-                return jsonify({"error": f"SKU '{item_data['sku']}' already exists"}), 400
-
-        # Save to database
-        db.session.commit()
-
-        logger.info(f"Item updated: {item.name} (ID: {item.id}) by user {current_user_id}")
-
-        # Check for low stock notification
-        if item.stock_quantity <= item.minimum_stock:
-            try:
-                from notifications.notification_manager import check_low_stock_and_notify
-                import threading
-
-                notification_thread = threading.Thread(
-                    target=check_low_stock_and_notify,
-                    args=(db, Item, Setting))
-                notification_thread.daemon = True
-                notification_thread.start()
-            except Exception as e:
-                logger.warning(f"Could not trigger low stock notification: {str(e)}")
-
-        return jsonify(item.to_dict())
+        return jsonify(updated_item)
 
     except Exception as e:
         db.session.rollback()
@@ -854,29 +853,37 @@ with app.app_context():
         logger.error("❌ Firebase database system not available - application cannot start")
         sys.exit(1)
 
-@app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
+@app.route('/api/inventory/<item_id>', methods=['DELETE'])
+@login_required
 def delete_item(item_id):
     """API endpoint to delete an inventory item"""
-    from models import Item
-
     try:
-        item = Item.query.get(item_id)
+        current_user_id = session.get('user_id')
+        if not current_user_id:
+            return jsonify({"error": "User not authenticated"}), 401
 
-        if item is None:
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
+
+        # Get item before deletion
+        item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+        if not item_doc.exists:
             return jsonify({"error": "Item not found"}), 404
 
-        # Store item details before deletion
-        item_dict = item.to_dict()
-        item_name = item.name
+        item_data = item_doc.to_dict()
+        if item_data.get('user_id') != current_user_id:
+            return jsonify({"error": "Unauthorized access to item"}), 403
 
-        # Remove item from database
-        db.session.delete(item)
-        db.session.commit()
+        item_name = item_data.get('name', 'Unknown Item')
 
-        return jsonify({"message": f"Deleted {item_name}", "item": item_dict})
+        # Delete item using Firebase (soft delete)
+        firebase_adapter.delete_item(item_id, current_user_id)
+
+        logger.info(f"Item deleted: {item_name} (ID: {item_id}) by user {current_user_id}")
+
+        return jsonify({"message": f"Deleted {item_name}", "item": item_data})
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error deleting item: {str(e)}")
         return jsonify({"error": "Failed to delete item"}), 500
 
@@ -1312,34 +1319,41 @@ def get_sales():
     """API endpoint to get all sales"""
     try:
         user_id = session.get('user_id')
-        sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).all()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
 
-        sales_data = []
-        for sale in sales:
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get sales from Firebase
+        sales_data = firebase_adapter.get_sales_by_user(user_id)
+
+        formatted_sales = []
+        for sale in sales_data:
             sale_dict = {
-                'id': sale.id,
-                'sale_number': sale.sale_number,
-                'created_at': sale.created_at.isoformat(),
-                'customer_name': sale.customer.name if sale.customer else None,
-                'customer_id': sale.customer_id,
-                'total_amount': float(sale.total_amount),
-                'payment_type': sale.payment_type,
-                'payment_status': sale.payment_status,
-                'is_installment': sale.is_installment,
-                'items_count': len(sale.sale_items)
+                'id': sale.get('id'),
+                'sale_number': sale.get('sale_number', ''),
+                'created_at': sale.get('created_at', ''),
+                'customer_name': sale.get('customer_name'),
+                'customer_id': sale.get('customer_id'),
+                'total_amount': float(sale.get('total_amount', 0)),
+                'payment_type': sale.get('payment_type', 'cash'),
+                'payment_status': sale.get('payment_status', 'completed'),
+                'is_installment': sale.get('is_installment', False),
+                'items_count': len(sale.get('sale_items', []))
             }
 
             # Add installment details if applicable
-            if sale.is_installment:
+            if sale.get('is_installment'):
                 sale_dict.update({
-                    'down_payment': float(sale.down_payment or 0),
-                    'installment_months': sale.installment_months,
-                    'monthly_payment': float(sale.monthly_payment or 0)
+                    'down_payment': float(sale.get('down_payment', 0)),
+                    'installment_months': sale.get('installment_months', 0),
+                    'monthly_payment': float(sale.get('monthly_payment', 0))
                 })
 
-            sales_data.append(sale_dict)
+            formatted_sales.append(sale_dict)
 
-        return jsonify(sales_data)
+        return jsonify(formatted_sales)
 
     except Exception as e:
         logger.error(f"Error getting sales: {str(e)}")
@@ -2043,155 +2057,158 @@ def create_subcategory(category_id):
 def get_dashboard_summary():
     """API endpoint to get comprehensive dashboard summary data organized by categories"""
     try:
-        from models import Item, Sale, Customer, FinancialTransaction, SaleItem, Category
-        from sqlalchemy import func
         from datetime import datetime, timedelta
 
         user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
 
         # === INVENTORY METRICS ===
-        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
-        total_stock = db.session.query(func.sum(Item.stock_quantity)).filter(
-            Item.user_id == user_id,
-            Item.is_active == True
-        ).scalar() or 0
+        # Get items from Firebase
+        items_data = firebase_adapter.get_items_by_user(user_id)
+        total_items = len(items_data)
+        total_stock = sum(item.get('stock_quantity', 0) for item in items_data)
 
         # Calculate inventory value (stock_quantity * buying_price)
-        inventory_value = db.session.query(
-            func.sum(Item.stock_quantity * Item.buying_price)
-        ).filter(
-            Item.user_id == user_id,
-            Item.is_active == True,
-            Item.buying_price.isnot(None)
-        ).scalar() or 0
+        inventory_value = sum(
+            item.get('stock_quantity', 0) * item.get('buying_price', 0) 
+            for item in items_data 
+            if item.get('buying_price')
+        )
 
         # Low stock items analysis
-        low_stock_items_query = Item.query.filter(
-            Item.user_id == user_id,
-            Item.is_active == True,
-            Item.stock_quantity <= Item.minimum_stock
-        )
-        low_stock_count = low_stock_items_query.count()
-
-        # Get detailed low stock items
         low_stock_items = []
-        for item in low_stock_items_query.limit(10).all():
-            low_stock_items.append({
-                'id': item.id,
-                'name': item.name,
-                'current_stock': item.stock_quantity,
-                'minimum_stock': item.minimum_stock,
-                'category': item.category
-            })
+        low_stock_count = 0
+        for item in items_data:
+            stock_qty = item.get('stock_quantity', 0)
+            min_stock = item.get('minimum_stock', 5)
+            if stock_qty <= min_stock:
+                low_stock_count += 1
+                if len(low_stock_items) < 10:
+                    low_stock_items.append({
+                        'id': item.get('id'),
+                        'name': item.get('name'),
+                        'current_stock': stock_qty,
+                        'minimum_stock': min_stock,
+                        'category': item.get('category')
+                    })
 
         # === SALES METRICS ===
-        total_sales = Sale.query.filter_by(user_id=user_id).count()
+        # Get sales from Firebase
+        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        total_sales = len(sales_data)
 
-        # Get revenue (completed sales only)
-        total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.user_id == user_id,
-            Sale.payment_status == 'completed'
-        ).scalar() or 0
+        # Calculate revenue (completed sales only)
+        total_revenue = sum(
+            float(sale.get('total_amount', 0)) 
+            for sale in sales_data 
+            if sale.get('payment_status') == 'completed'
+        )
 
         # Today's sales
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         tomorrow = today + timedelta(days=1)
 
-        today_sales = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.user_id == user_id,
-            Sale.payment_status == 'completed',
-            Sale.created_at >= today,
-            Sale.created_at < tomorrow
-        ).scalar() or 0
-
-        today_sales_count = Sale.query.filter(
-            Sale.user_id == user_id,
-            Sale.created_at >= today,
-            Sale.created_at < tomorrow
-        ).count()
+        today_sales = 0
+        today_sales_count = 0
+        for sale in sales_data:
+            sale_date_str = sale.get('created_at')
+            if sale_date_str:
+                try:
+                    # Handle different date formats
+                    if isinstance(sale_date_str, str):
+                        sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                    else:
+                        sale_date = sale_date_str
+                    
+                    if today <= sale_date < tomorrow:
+                        today_sales_count += 1
+                        if sale.get('payment_status') == 'completed':
+                            today_sales += float(sale.get('total_amount', 0))
+                except:
+                    continue
 
         # === CUSTOMER METRICS ===
-        total_customers = Customer.query.filter_by(user_id=user_id).count()
+        # Get customers from Firebase
+        customers_data = firebase_adapter.get_customers_by_user(user_id)
+        total_customers = len(customers_data)
 
         # New customers this month
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        new_customers_this_month = Customer.query.filter(
-            Customer.user_id == user_id,
-            Customer.created_at >= current_month
-        ).count()
+        new_customers_this_month = 0
+        for customer in customers_data:
+            created_at_str = customer.get('created_at')
+            if created_at_str:
+                try:
+                    if isinstance(created_at_str, str):
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    else:
+                        created_at = created_at_str
+                    
+                    if created_at >= current_month:
+                        new_customers_this_month += 1
+                except:
+                    continue
 
         # === FINANCIAL METRICS ===
         next_month = (current_month + timedelta(days=32)).replace(day=1)
 
         # Monthly income from sales
-        monthly_income = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.user_id == user_id,
-            Sale.payment_status == 'completed',
-            Sale.created_at >= current_month,
-            Sale.created_at < next_month
-        ).scalar() or 0
+        monthly_income = 0
+        for sale in sales_data:
+            sale_date_str = sale.get('created_at')
+            if sale_date_str and sale.get('payment_status') == 'completed':
+                try:
+                    if isinstance(sale_date_str, str):
+                        sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                    else:
+                        sale_date = sale_date_str
+                    
+                    if current_month <= sale_date < next_month:
+                        monthly_income += float(sale.get('total_amount', 0))
+                except:
+                    continue
 
-        # Monthly expenses
-        monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-            FinancialTransaction.user_id == user_id,
-            FinancialTransaction.transaction_type == 'expense',
-            FinancialTransaction.created_at >= current_month,
-            FinancialTransaction.created_at < next_month
-        ).scalar() or 0
+        # Monthly expenses (placeholder - no financial transactions in Firebase yet)
+        monthly_expenses = 0
 
         # Monthly profit
         monthly_profit = monthly_income - monthly_expenses
 
         # === TOP SELLING ITEMS ===
-        top_selling = db.session.query(
-            Item.name,
-            func.sum(SaleItem.quantity).label('total_sold')
-        ).join(SaleItem).join(Sale).filter(
-            Sale.user_id == user_id,
-            Sale.created_at >= current_month
-        ).group_by(Item.id, Item.name).order_by(
-            func.sum(SaleItem.quantity).desc()
-        ).limit(5).all()
-
+        # Placeholder for top selling items (would need sale items data)
         top_selling_items = []
-        for item_name, quantity_sold in top_selling:
-            top_selling_items.append({
-                'name': item_name,
-                'quantity_sold': int(quantity_sold)
-            })
 
         # === RECENT SALES ===
-        recent_sales = Sale.query.filter_by(user_id=user_id).order_by(
-            Sale.created_at.desc()
-        ).limit(5).all()
-
         recent_sales_data = []
-        for sale in recent_sales:
+        for sale in sales_data[:5]:  # Get first 5 sales
             recent_sales_data.append({
-                'id': sale.id,
-                'sale_number': sale.sale_number,
-                'customer_name': sale.customer.name if sale.customer else 'Walk-in Customer',
-                'total_amount': float(sale.total_amount),
-                'payment_status': sale.payment_status,
-                'created_at': sale.created_at.isoformat()
+                'id': sale.get('id'),
+                'sale_number': sale.get('sale_number', ''),
+                'customer_name': sale.get('customer_name', 'Walk-in Customer'),
+                'total_amount': float(sale.get('total_amount', 0)),
+                'payment_status': sale.get('payment_status', ''),
+                'created_at': sale.get('created_at', '')
             })
 
         # === CATEGORY BREAKDOWN ===
-        category_stats = db.session.query(
-            Item.category,
-            func.count(Item.id).label('item_count'),
-            func.sum(Item.stock_quantity).label('total_stock')
-        ).filter(
-            Item.user_id == user_id,
-            Item.is_active == True
-        ).group_by(Item.category).all()
+        category_stats = {}
+        for item in items_data:
+            category = item.get('category', 'Uncategorized')
+            if category not in category_stats:
+                category_stats[category] = {'item_count': 0, 'total_stock': 0}
+            category_stats[category]['item_count'] += 1
+            category_stats[category]['total_stock'] += item.get('stock_quantity', 0)
 
         category_breakdown = []
-        for category, item_count, total_stock in category_stats:
+        for category, stats in category_stats.items():
             category_breakdown.append({
-                'category': category or 'Uncategorized',
-                'item_count': int(item_count),
-                'total_stock': int(total_stock or 0)
+                'category': category,
+                'item_count': stats['item_count'],
+                'total_stock': stats['total_stock']
             })
 
         return jsonify({
