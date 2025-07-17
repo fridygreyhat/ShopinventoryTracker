@@ -810,7 +810,7 @@ def update_item(item_id):
         # Update item using Firebase
         firebase_adapter.update_item(item_id, updates, current_user_id)
 
-        # Get updated item
+        #        # Get updated item
         updated_item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
         if updated_item_doc.exists:
             updated_item = updated_item_doc.to_dict()
@@ -1642,8 +1642,7 @@ def create_installment():
             return jsonify({"error": "User not authenticated"}), 401
 
         # Validate required fields
-        sale_id = installment_data.get('sale_id')
-        if not sale_id:
+        sale_id = installment_data.get('sale_id')        if not sale_id:
             return jsonify({"error": "Sale ID is required"}), 400
 
         # Get the sale
@@ -2593,6 +2592,305 @@ def update_settings():
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Missing API endpoints that frontend is trying to access
+@app.route('/api/installment-sales', methods=['GET'])
+@login_required
+def get_installment_sales():
+    """API endpoint to get all installment sales"""
+    try:
+        from models import InstallmentSale
+
+        user_id = session.get('user_id')
+        installment_sales = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
+
+        sales_data = []
+        for sale in installment_sales:
+            sales_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale.sale_number if sale.sale else f"INST-{sale.id}",
+                'customer_name': sale.customer.name if sale.customer else 'Unknown Customer',
+                'total_amount': float(sale.total_amount),
+                'down_payment': float(sale.down_payment or 0),
+                'remaining_amount': float(sale.remaining_amount),
+                'monthly_payment': float(sale.monthly_payment),
+                'duration_months': sale.duration_months,
+                'status': sale.status,
+                'created_at': sale.created_at.isoformat()
+            })
+
+        return jsonify({'success': True, 'installment_sales': sales_data})
+
+    except Exception as e:
+        logger.error(f"Error getting installment sales: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/installment-sales', methods=['POST'])
+@login_required
+def create_installment_sale():
+    """API endpoint to create a new installment sale"""
+    try:
+        from models import InstallmentSale, InstallmentPayment, Customer, Item, Sale, SaleItem
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        user_id = session.get('user_id')
+
+        # Handle customer creation or selection
+        customer_id = data.get('customer_id')
+        customer_data = data.get('customer_data')
+
+        if customer_data and not customer_id:
+            # Create new customer
+            customer = Customer(
+                name=customer_data['name'],
+                phone=customer_data.get('phone'),
+                email=customer_data.get('email'),
+                address=customer_data.get('address'),
+                national_id=customer_data.get('national_id'),
+                customer_type='retail',
+                user_id=user_id
+            )
+            db.session.add(customer)
+            db.session.flush()
+            customer_id = customer.id
+        elif customer_id:
+            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+            if not customer:
+                return jsonify({'error': 'Customer not found'}), 404
+        else:
+            return jsonify({'error': 'Customer information is required'}), 400
+
+        # Get item details
+        item_id = data.get('item_id')
+        quantity = int(data.get('quantity', 1))
+
+        item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+        if not item:
+            return jsonify({'error': 'Item not found'}), 404
+
+        if item.stock_quantity < quantity:
+            return jsonify({'error': 'Insufficient stock'}), 400
+
+        # Calculate amounts
+        total_amount = float(data.get('total_amount'))
+        down_payment = float(data.get('down_payment', 0))
+        duration_months = int(data.get('number_of_installments', 1))
+        remaining_amount = total_amount - down_payment
+        monthly_payment = remaining_amount / duration_months if duration_months > 0 else 0
+
+        # Create sale record first
+        sale = Sale(
+            user_id=user_id,
+            customer_id=customer_id,
+            total_amount=total_amount,
+            payment_type='installment',
+            payment_status='pending',
+            is_installment=True,
+            sale_number=Sale.generate_sale_number(),
+            down_payment=down_payment,
+            installment_months=duration_months,
+            monthly_payment=monthly_payment
+        )
+        db.session.add(sale)
+        db.session.flush()
+
+        # Create sale item
+        sale_item = SaleItem(
+            sale_id=sale.id,
+            item_id=item.id,
+            quantity=quantity,
+            unit_price=total_amount / quantity,
+            subtotal=total_amount
+        )
+        db.session.add(sale_item)
+
+        # Update stock
+        item.stock_quantity -= quantity
+
+        # Create installment plan
+        installment_sale = InstallmentSale(
+            sale_id=sale.id,
+            customer_id=customer_id,
+            total_amount=total_amount,
+            down_payment=down_payment,
+            remaining_amount=remaining_amount,
+            payment_frequency='monthly',
+            duration_months=duration_months,
+            monthly_payment=monthly_payment,
+            status='active',
+            user_id=user_id
+        )
+        db.session.add(installment_sale)
+        db.session.flush()
+
+        # Create down payment record if applicable
+        if down_payment > 0:
+            payment = InstallmentPayment(
+                installment_sale_id=installment_sale.id,
+                amount=down_payment,
+                payment_date=datetime.utcnow(),
+                payment_method='cash',
+                status='completed',
+                user_id=user_id
+            )
+            db.session.add(payment)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'sale_number': sale.sale_number,
+            'installment_sale_id': installment_sale.id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating installment sale: {str(e)}")
+        return jsonify({'error': f'Failed to create installment sale: {str(e)}'}), 500
+
+@app.route('/api/suppliers', methods=['GET'])
+@login_required
+def get_suppliers():
+    """API endpoint to get all suppliers"""
+    try:
+        from models import Supplier
+
+        user_id = session.get('user_id')
+        suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).order_by(Supplier.name).all()
+
+        suppliers_data = []
+        for supplier in suppliers:
+            suppliers_data.append({
+                'id': supplier.id,
+                'name': supplier.name,
+                'contact_person': supplier.contact_person,
+                'email': supplier.email,
+                'phone': supplier.phone,
+                'address': supplier.address,
+                'payment_terms': supplier.payment_terms,
+                'created_at': supplier.created_at.isoformat() if supplier.created_at else None
+            })
+
+        return jsonify({'success': True, 'suppliers': suppliers_data})
+
+    except Exception as e:
+        logger.error(f"Error getting suppliers: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/purchase-orders', methods=['GET'])
+@login_required
+def get_purchase_orders():
+    """API endpoint to get all purchase orders"""
+    try:
+        from models import PurchaseOrder
+
+        user_id = session.get('user_id')
+        orders = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
+
+        orders_data = []
+        for order in orders:
+            orders_data.append({
+                'id': order.id,
+                'order_number': order.order_number,
+                'supplier_name': order.supplier.name if order.supplier else 'Unknown',
+                'total_amount': float(order.total_amount),
+                'status': order.status,
+                'order_date': order.order_date.isoformat() if order.order_date else None,
+                'expected_delivery': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None
+            })
+
+        return jsonify({'success': True, 'purchase_orders': orders_data})
+
+    except Exception as e:
+        logger.error(f"Error getting purchase orders: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/stock-movements', methods=['GET'])
+@login_required
+def get_stock_movements():
+    """API endpoint to get stock movements"""
+    try:
+        from models import StockMovement
+
+        user_id = session.get('user_id')
+        movements = StockMovement.query.filter_by(user_id=user_id).order_by(StockMovement.created_at.desc()).limit(100).all()
+
+        movements_data = []
+        for movement in movements:
+            movements_data.append({
+                'id': movement.id,
+                'item_name': movement.item.name if movement.item else 'Unknown Item',
+                'movement_type': movement.movement_type,
+                'quantity': movement.quantity,
+                'reason': movement.reason,
+                'reference_number': movement.reference_number,
+                'notes': movement.notes,
+                'created_at': movement.created_at.isoformat()
+            })
+
+        return jsonify({'success': True, 'stock_movements': movements_data})
+
+    except Exception as e:
+        logger.error(f"Error getting stock movements: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings', methods=['GET'])
+@login_required
+def get_settings():
+    """API endpoint to get user settings"""
+    try:
+        from models import Setting
+
+        user_id = session.get('user_id')
+        settings = Setting.query.filter_by(user_id=user_id).all()
+
+        settings_data = {}
+        for setting in settings:
+            settings_data[setting.key] = {
+                'value': setting.value,
+                'description': setting.description,
+                'category': setting.category
+            }
+
+        return jsonify({'success': True, 'settings': settings_data})
+
+    except Exception as e:
+        logger.error(f"Error getting settings: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings', methods=['POST'])
+@login_required
+def update_settings():
+    """API endpoint to update user settings"""
+    try:
+        from models import Setting
+
+        data = request.get_json()
+        user_id = session.get('user_id')
+
+        for key, value in data.items():
+            setting = Setting.query.filter_by(key=key, user_id=user_id).first()
+            if setting:
+                setting.value = str(value)
+            else:
+                setting = Setting(
+                    key=key,
+                    value=str(value),
+                    user_id=user_id
+                )
+                db.session.add(setting)
+
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Settings updated successfully'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating settings: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Web Routes (Pages)
 @app.route('/')
 def index():
@@ -2926,7 +3224,7 @@ def debug_create_sample_data():
                 'selling_price': 1200.00,
                 'stock_quantity': 5,
                 'description': 'Professional laptop'
-            }
+            },
         ]
 
         for item_data in sample_items:
