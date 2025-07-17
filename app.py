@@ -811,8 +811,7 @@ def update_item(item_id):
         firebase_adapter.update_item(item_id, updates, current_user_id)
 
         # Get updated item
-        updated_item```python
-_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+        updated_item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
         if updated_item_doc.exists:
             updated_item = updated_item_doc.to_dict()
             updated_item['id'] = item_id
