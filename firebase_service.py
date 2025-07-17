@@ -73,11 +73,11 @@ class FirebaseService:
         """Get user by ID"""
         try:
             user_doc = self.db.collection('users').document(user_id).get()
-            
+
             if user_doc.exists:
                 user = FirebaseUser(user_doc.to_dict(), user_id)
                 return user
-            
+
             return None
         except Exception as e:
             logger.error(f"Error getting user by ID: {str(e)}")
@@ -98,21 +98,21 @@ class FirebaseService:
         """Create a new item"""
         try:
             item = FirebaseItem()
-            
+
             # Set item properties
             for key, value in item_data.items():
                 if hasattr(item, key):
                     setattr(item, key, value)
-            
+
             item.user_id = user_id
             item.id = str(uuid.uuid4())
-            
+
             # Save to Firestore
             self.db.collection('items').document(item.id).set(item.to_dict())
-            
+
             logger.info(f"Item created: {item.name}")
             return item
-            
+
         except Exception as e:
             logger.error(f"Error creating item: {str(e)}")
             raise
@@ -123,16 +123,16 @@ class FirebaseService:
             query = (self.db.collection('items')
                     .where('user_id', '==', user_id)
                     .where('is_active', '==', True))
-            
+
             docs = query.stream()
             items = []
-            
+
             for doc in docs:
                 item = FirebaseItem(doc.to_dict(), doc.id)
                 items.append(item)
-            
+
             return items
-            
+
         except Exception as e:
             logger.error(f"Error getting items: {str(e)}")
             return []
@@ -141,13 +141,13 @@ class FirebaseService:
         """Get a specific item by ID"""
         try:
             item_doc = self.db.collection('items').document(item_id).get()
-            
+
             if item_doc.exists:
                 item_data = item_doc.to_dict()
                 if item_data.get('user_id') == user_id:
                     item = FirebaseItem(item_data, item_id)
                     return item
-            
+
             return None
         except Exception as e:
             logger.error(f"Error getting item by ID: {str(e)}")
@@ -158,21 +158,21 @@ class FirebaseService:
         try:
             # First check if item exists and belongs to user
             item_doc = self.db.collection('items').document(item_id).get()
-            
+
             if not item_doc.exists:
                 raise ValueError("Item not found")
-            
+
             item_data_current = item_doc.to_dict()
             if item_data_current.get('user_id') != user_id:
                 raise ValueError("Item does not belong to user")
-            
+
             # Update the item
             item_data['updated_at'] = datetime.utcnow().isoformat()
             self.db.collection('items').document(item_id).update(item_data)
-            
+
             logger.info(f"Item updated: {item_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error updating item: {str(e)}")
             raise
@@ -182,21 +182,21 @@ class FirebaseService:
         """Create a new customer"""
         try:
             customer = FirebaseCustomer()
-            
+
             # Set customer properties
             for key, value in customer_data.items():
                 if hasattr(customer, key):
                     setattr(customer, key, value)
-            
+
             customer.user_id = user_id
             customer.id = str(uuid.uuid4())
-            
+
             # Save to Firestore
             self.db.collection('customers').document(customer.id).set(customer.to_dict())
-            
+
             logger.info(f"Customer created: {customer.name}")
             return customer
-            
+
         except Exception as e:
             logger.error(f"Error creating customer: {str(e)}")
             raise
@@ -209,13 +209,13 @@ class FirebaseService:
                    .where('is_active', '==', True)
                    .stream())
             customers = []
-            
+
             for doc in docs:
                 customer = FirebaseCustomer(doc.to_dict(), doc.id)
                 customers.append(customer)
-            
+
             return customers
-            
+
         except Exception as e:
             logger.error(f"Error getting customers: {str(e)}")
             return []
@@ -267,14 +267,14 @@ class FirebaseService:
         """Get a specific category by ID"""
         try:
             category_doc = self.db.collection('categories').document(category_id).get()
-            
+
             if category_doc.exists:
                 category_data = category_doc.to_dict()
                 # Verify the category belongs to the user
                 if category_data.get('user_id') == user_id:
                     category = FirebaseCategory(category_data, category_id)
                     return category
-            
+
             return None
         except Exception as e:
             logger.error(f"Error getting category by ID: {str(e)}")
@@ -285,21 +285,21 @@ class FirebaseService:
         """Create a new sale"""
         try:
             sale = FirebaseSale()
-            
+
             # Set sale properties
             for key, value in sale_data.items():
                 if hasattr(sale, key):
                     setattr(sale, key, value)
-            
+
             sale.user_id = user_id
             sale.id = str(uuid.uuid4())
-            
+
             # Save to Firestore
             self.db.collection('sales').document(sale.id).set(sale.to_dict())
-            
+
             logger.info(f"Sale created: {sale.id}")
             return sale
-            
+
         except Exception as e:
             logger.error(f"Error creating sale: {str(e)}")
             raise
@@ -309,19 +309,19 @@ class FirebaseService:
         try:
             query = (self.db.collection('sales')
                     .where('user_id', '==', user_id))
-            
+
             if limit:
                 query = query.limit(limit)
-                
+
             docs = query.stream()
             sales = []
-            
+
             for doc in docs:
                 sale = FirebaseSale(doc.to_dict(), doc.id)
                 sales.append(sale)
-            
+
             return sales
-            
+
         except Exception as e:
             logger.error(f"Error getting sales: {str(e)}")
             return []
