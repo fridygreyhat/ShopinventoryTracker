@@ -1642,7 +1642,8 @@ def create_installment():
             return jsonify({"error": "User not authenticated"}), 401
 
         # Validate required fields
-        sale_id = installment_data.get('sale_id')        if not sale_id:
+        sale_id = installment_data.get('sale_id')
+        if not sale_id:
             return jsonify({"error": "Sale ID is required"}), 400
 
         # Get the sale
