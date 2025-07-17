@@ -70,8 +70,13 @@ class FirebaseConfig:
     @property
     def api_key(self):
         """Get Firebase API key for REST API calls"""
-        # Use the API key from your Firebase config
-        return "AIzaSyBc8dD1OwzxWJrf-bAxowOtYj-OHZr2epo"
+        # Get API key from environment variables for security
+        api_key = os.environ.get('FIREBASE_API_KEY')
+        if not api_key:
+            logger.error("FIREBASE_API_KEY environment variable not found")
+            logger.error("Please add your Firebase API key to FIREBASE_API_KEY environment variable")
+            return None
+        return api_key
     
     @api_key.setter
     def api_key(self, value):

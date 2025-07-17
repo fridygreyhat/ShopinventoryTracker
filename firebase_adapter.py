@@ -2,6 +2,7 @@ from firebase_service import firebase_service
 from firebase_models import FirebaseUser, FirebaseItem, FirebaseSale, FirebaseCustomer, FirebaseCategory
 from datetime import datetime
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -47,22 +48,7 @@ class FirebaseAdapter:
             logger.error(f"Error getting user by ID {user_id}: {str(e)}")
             return None
 
-    def get_sales_by_user(self, user_id):
-        """Get all sales for a user"""
-        try:
-            sales_ref = self.service.db.collection('sales').where('user_id', '==', user_id)
-            sales_docs = sales_ref.stream()
 
-            sales_data = []
-            for doc in sales_docs:
-                sale_data = doc.to_dict()
-                sale_data['id'] = doc.id
-                sales_data.append(sale_data)
-
-            return sales_data
-        except Exception as e:
-            logger.error(f"Error getting sales for user {user_id}: {str(e)}")
-            return []
 
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
@@ -242,8 +228,8 @@ class FirebaseAdapter:
         """Get items with filtering support"""
         try:
             query = (self.service.db.collection('items')
-                    .where(filter=('user_id', '==', user_id))
-                    .where(filter=('is_active', '==', True)))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             # Apply filters
             category = kwargs.get('category')
@@ -282,6 +268,102 @@ class FirebaseAdapter:
         """Delete item using Firebase service"""
         return self.service.delete_item(item_id, user_id)
 
+    def get_item_by_id(self, item_id, user_id):
+        """Get a specific item by ID"""
+        try:
+            item_doc = self.service.db.collection('items').document(item_id).get()
+
+            if item_doc.exists:
+                item_data = item_doc.to_dict()
+                if item_data.get('user_id') == user_id:
+                    return item_data
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting item by ID: {str(e)}")
+            return None
+
+    def get_item_by_sku(self, sku, user_id):
+        """Get a specific item by SKU"""
+        try:
+            query = (self.service.db.collection('items')
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
+                    .limit(1))
+
+            docs = list(query.stream())
+            if docs:
+                item_data = docs[0].to_dict()
+                item_data['id'] = docs[0].id
+                return item_data
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting item by SKU: {str(e)}")
+            return None
+
+    def item_exists(self, sku, user_id):
+        """Check if an item with given SKU exists for user"""
+        try:
+            query = (self.service.db.collection('items')
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
+                    .limit(1))
+
+            docs = list(query.stream())
+            return len(docs) > 0
+        except Exception as e:
+            logger.error(f"Error checking if item exists: {str(e)}")
+            return False
+
+    def add(self, item):
+        """Add item to Firebase (for CSV import compatibility)"""
+        try:
+            if hasattr(item, 'to_dict'):
+                item_data = item.to_dict()
+            else:
+                item_data = item.__dict__ if hasattr(item, '__dict__') else item
+
+            # Generate ID if not present
+            if not item_data.get('id'):
+                item_data['id'] = str(uuid.uuid4())
+
+            # Save to Firestore
+            self.service.db.collection('items').document(item_data['id']).set(item_data)
+            return item_data
+        except Exception as e:
+            logger.error(f"Error adding item: {str(e)}")
+            raise
+
+    def commit(self):
+        """Commit changes (Firebase auto-commits, so this is a no-op)"""
+        return True
+
+    def rollback(self):
+        """Rollback changes (Firebase doesn't support transactions in this context)"""
+        logger.warning("Rollback called on Firebase adapter - no action taken")
+        return True
+
+    def update_item_stock(self, item_id, new_stock, user_id):
+        """Update item stock quantity"""
+        try:
+            item_ref = self.service.db.collection('items').document(item_id)
+            item_doc = item_ref.get()
+            
+            if item_doc.exists:
+                item_data = item_doc.to_dict()
+                if item_data.get('user_id') == user_id:
+                    item_ref.update({
+                        'stock_quantity': new_stock,
+                        'updated_at': datetime.now().isoformat()
+                    })
+                    logger.info(f"Stock updated for item {item_id}: {new_stock}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating item stock: {str(e)}")
+            return False
+
     # Sale operations
     def create_sale(self, sale_data, user_id):
         """Create sale using Firebase service"""
@@ -300,8 +382,38 @@ class FirebaseAdapter:
 
     def get_customers_by_user(self, user_id):
         """Get customers using Firebase service"""
-        customers = self.service.get_customers_by_user(user_id)
-        return [customer.to_dict() if hasattr(customer, 'to_dict') else customer.__dict__ for customer in customers]
+        try:
+            customers = self.service.get_customers_by_user(user_id)
+            # Handle both dict and object formats
+            formatted_customers = []
+            for customer in customers:
+                if hasattr(customer, 'to_dict'):
+                    formatted_customers.append(customer.to_dict())
+                elif isinstance(customer, dict):
+                    formatted_customers.append(customer)
+                else:
+                    formatted_customers.append(customer.__dict__ if hasattr(customer, '__dict__') else {})
+            return formatted_customers
+        except Exception as e:
+            logger.error(f"Error getting customers for user {user_id}: {str(e)}")
+            return []
+
+    def get_customer_by_id(self, customer_id, user_id):
+        """Get a specific customer by ID"""
+        try:
+            customer_ref = self.service.db.collection('customers').document(customer_id)
+            customer_doc = customer_ref.get()
+            
+            if customer_doc.exists:
+                customer_data = customer_doc.to_dict()
+                if customer_data.get('user_id') == user_id:
+                    customer_data['id'] = customer_id
+                    return customer_data
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error getting customer by ID: {str(e)}")
+            return None
 
     # Category operations
     def create_category(self, category_data, user_id):

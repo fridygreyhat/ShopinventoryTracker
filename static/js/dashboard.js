@@ -114,14 +114,20 @@ function loadDashboardData() {
 
 function updateInventoryMetrics(inventory) {
     // Update inventory summary cards
-    updateElement('totalItems', inventory.total_items || 0);
-    updateElement('totalStock', inventory.total_stock || 0);
-    updateElement('inventoryValue', formatCurrency(inventory.inventory_value || 0));
-    updateElement('lowStockCount', inventory.low_stock_count || 0);
+    updateElement('total-items', inventory.total_items || 0);
+    updateElement('total-stock', inventory.total_stock || 0);
+    updateElement('inventory-value', formatCurrency(inventory.inventory_value || 0));
+    updateElement('low-stock-count', inventory.low_stock_count || 0);
 
-    // Update low stock items list
+    // Update low stock badge
+    const lowStockBadge = document.getElementById('low-stock-badge');
+    if (lowStockBadge) {
+        lowStockBadge.textContent = `${inventory.low_stock_count || 0} Low Stock`;
+    }
+
+    // Update low stock items table
     if (inventory.low_stock_items) {
-        updateLowStockItems(inventory.low_stock_items);
+        updateLowStockTable(inventory.low_stock_items);
     }
 
     // Update category breakdown
@@ -542,12 +548,59 @@ function updateLowStockItems(items) {
         html += `
             <div class="list-group-item d-flex justify-content-between align-items-center">
                 <span>${item.name}</span>
-                <span class="badge bg-warning">${item.stock_quantity || 0} / ${item.minimum_stock || 0}</span>
+                <span class="badge bg-warning">${item.current_stock || 0} / ${item.minimum_stock || 0}</span>
             </div>
         `;
     });
     html += '</div>';
     container.innerHTML = html;
+}
+
+function updateLowStockTable(items) {
+    const tableBody = document.getElementById('low-stock-table');
+    if (!tableBody) return;
+
+    if (items.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    All items are adequately stocked
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    items.forEach(item => {
+        const stockStatus = item.current_stock <= 0 ? 'Out of Stock' : 'Low Stock';
+        const statusClass = item.current_stock <= 0 ? 'danger' : 'warning';
+        
+        html += `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-box text-muted me-2"></i>
+                        <span>${item.name}</span>
+                    </div>
+                </td>
+                <td>${item.category || 'Uncategorized'}</td>
+                <td>
+                    <span class="badge bg-${statusClass}">${stockStatus}</span>
+                    <small class="d-block text-muted">${item.current_stock}/${item.minimum_stock}</small>
+                </td>
+                <td>TZS ${formatNumber(item.price || 0)}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="restockItem('${item.id}')">
+                        <i class="fas fa-plus me-1"></i>Restock
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tableBody.innerHTML = html;
 }
 
 function updateTopSellingItems(items) {
@@ -580,6 +633,15 @@ function formatCurrency(amount) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     }).format(amount || 0);
+}
+
+function formatNumber(number) {
+    return new Intl.NumberFormat('en-TZ').format(number || 0);
+}
+
+function restockItem(itemId) {
+    // Navigate to inventory page with item selected
+    window.location.href = `/inventory?item=${itemId}`;
 }
 
 function updateElement(elementId, value) {

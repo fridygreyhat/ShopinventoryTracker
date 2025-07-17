@@ -204,6 +204,36 @@ def debug():
         print(f"Is authenticated: {user is not None}")
     return "Check console"
 
+@app.route('/debug/firebase-status')
+def debug_firebase_status():
+    """Debug route to check Firebase status"""
+    try:
+        status = {
+            'firebase_initialized': firebase_config.initialized,
+            'auth_enabled': bool(firebase_config.auth),
+            'database_exists': bool(firebase_config.db),
+            'firestore_enabled': True if firebase_config.db else False,
+            'project_id': getattr(firebase_config, 'project_id', 'unknown'),
+            'error_message': None,
+            'setup_instructions': []
+        }
+        
+        if not firebase_config.initialized:
+            status['error_message'] = 'Firebase not initialized'
+            status['setup_instructions'] = [
+                'Add FIREBASE_CREDENTIALS to environment variables',
+                'Ensure service account JSON is valid',
+                'Check Firebase project configuration'
+            ]
+            
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'firebase_initialized': False,
+            'error_message': str(e),
+            'setup_instructions': ['Check Firebase configuration']
+        }), 500
+
 def init_database():
     """Initialize Firebase database collections and default data"""
     try:
@@ -939,7 +969,6 @@ def update_item(item_id):
         return jsonify(updated_item)
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
 
@@ -1065,7 +1094,6 @@ def batch_update_inventory():
                 errors.append(f"Error updating item {item_id}: {str(e)}")
 
         if updated_items:
-            db.session.commit()
             logger.info(f"Batch updated {len(updated_items)} items for user {current_user_id}")
 
         return jsonify({
@@ -1076,7 +1104,6 @@ def batch_update_inventory():
         })
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error in batch update: {str(e)}")
         return jsonify({"error": f"Batch update failed: {str(e)}"}), 500
 
@@ -1100,8 +1127,8 @@ def bulk_import_inventory():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Initialize import service with user_id
-        import_service = CSVImportService(db.session, Item, current_user_id)
+        # Initialize import service with Firebase adapter
+        import_service = CSVImportService(firebase_adapter, None, current_user_id)
 
         # Process the import
         result = import_service.process_csv_import(file)
@@ -1116,7 +1143,6 @@ def bulk_import_inventory():
             return jsonify(result), 400
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Bulk import failed: {str(e)}")
         return jsonify({
             "success": False,
@@ -1202,6 +1228,47 @@ def get_products():
     # Execute query and convert to dictionary
     items = [item.to_dict() for item in query.all()]
     return jsonify(items)
+
+# Items API Routes
+@app.route('/api/items', methods=['GET'])
+@login_required
+def get_items():
+    """API endpoint to get all items using Firebase"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get items from Firebase
+        items_data = firebase_adapter.get_items_by_user(user_id)
+
+        formatted_items = []
+        for item in items_data:
+            formatted_items.append({
+                'id': item.get('id'),
+                'name': item.get('name', ''),
+                'sku': item.get('sku', ''),
+                'description': item.get('description', ''),
+                'category': item.get('category', ''),
+                'stock_quantity': item.get('stock_quantity', 0),
+                'minimum_stock': item.get('minimum_stock', 0),
+                'buying_price': float(item.get('buying_price', 0)),
+                'retail_price': float(item.get('retail_price', 0)),
+                'wholesale_price': float(item.get('wholesale_price', 0)),
+                'sales_type': item.get('sales_type', 'retail'),
+                'is_active': item.get('is_active', True),
+                'created_at': item.get('created_at'),
+                'updated_at': item.get('updated_at')
+            })
+
+        return jsonify(formatted_items)
+
+    except Exception as e:
+        logger.error(f"Error getting items: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # Removed duplicate sales reports endpoint - use /api/sales instead
 
@@ -1291,7 +1358,7 @@ def api_accounting_reports():
 
         if report_type == 'profit-loss' or report_type == 'income-statement':
             # Calculate revenue from Firebase sales
-            sales_data = firebase_adapter.get_sales_by_user(user_id)
+            sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
             total_revenue = sum(
                 float(sale.get('total_amount', 0))
                 for sale in sales_data
@@ -1408,7 +1475,7 @@ def get_sales():
             return jsonify({'error': 'Firebase not configured'}), 500
 
         # Get sales from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
 
         formatted_sales = []
         for sale in sales_data:
@@ -1444,10 +1511,8 @@ def get_sales():
 @app.route('/api/sales', methods=['POST'])
 @login_required
 def create_sale():
-    """API endpoint to create a new sale"""
+    """API endpoint to create a new sale using Firebase"""
     try:
-        from models import Sale, SaleItem, Customer, Item
-
         sale_data = request.get_json()
         if not sale_data:
             return jsonify({"error": "No data provided"}), 400
@@ -1455,6 +1520,9 @@ def create_sale():
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({"error": "User not authenticated"}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
 
         # Validate required fields
         items = sale_data.get('items', [])
@@ -1465,23 +1533,23 @@ def create_sale():
         customer_id = sale_data.get('customer_id')
         is_installment = sale_data.get('is_installment', False)
 
-        # Handle customer data
+        # Handle customer data using Firebase
         customer = None
         if customer_id:
-            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
+            customer = firebase_adapter.get_customer_by_id(customer_id, user_id)
         elif sale_data.get('customer_name'):
             # Create new customer if provided
-            customer = Customer(
-                name=sale_data['customer_name'],
-                email=sale_data.get('customer_email'),
-                phone=sale_data.get('customer_phone'),
-                address=sale_data.get('customer_address'),
-                user_id=user_id
-            )
-            db.session.add(customer)
-            db.session.flush()
+            customer_data = {
+                'name': sale_data['customer_name'],
+                'email': sale_data.get('customer_email', ''),
+                'phone': sale_data.get('customer_phone', ''),
+                'address': sale_data.get('customer_address', ''),
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
+            customer = firebase_adapter.create_customer(customer_data, user_id)
 
-        # Calculate total amount
+        # Calculate total amount and validate items using Firebase
         total_amount = 0
         sale_items_data = []
 
@@ -1493,106 +1561,88 @@ def create_sale():
             if not item_id:
                 return jsonify({"error": "Item ID is required"}), 400
 
-            # Get item and verify stock
-            item = Item.query.filter_by(id=item_id, user_id=user_id).first()
+            # Get item from Firebase and verify stock
+            item = firebase_adapter.get_item_by_id(item_id, user_id)
             if not item:
                 return jsonify({"error": f"Item with ID {item_id} not found"}), 404
 
-            if item.stock_quantity < quantity:
-                return jsonify({"error": f"Insufficient stock for {item.name}"}), 400
+            current_stock = item.get('stock_quantity', 0)
+            if current_stock < quantity:
+                return jsonify({"error": f"Insufficient stock for {item.get('name')}. Available: {current_stock}, Requested: {quantity}"}), 400
 
             subtotal = quantity * unit_price
             total_amount += subtotal
 
             sale_items_data.append({
-                'item': item,
+                'item_id': item_id,
+                'item_name': item.get('name'),
                 'quantity': quantity,
                 'unit_price': unit_price,
-                'subtotal': subtotal
+                'subtotal': subtotal,
+                'item_data': item
             })
 
-        # Create sale record
-        sale = Sale(
-            user_id=user_id,
-            customer_id=customer.id if customer else None,
-            total_amount=total_amount,
-            payment_type=payment_type,
-            payment_status='completed' if not is_installment else 'pending',
-            is_installment=is_installment,
-            sale_number=Sale.generate_sale_number()
-        )
+        # Generate sale number
+        sale_number = f"SALE-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        # Create sale record in Firebase
+        sale_data_for_firebase = {
+            'sale_number': sale_number,
+            'customer_id': customer.get('id') if customer else None,
+            'customer_name': customer.get('name') if customer else sale_data.get('customer_name', ''),
+            'total_amount': total_amount,
+            'payment_type': payment_type,
+            'payment_status': 'completed' if not is_installment else 'pending',
+            'is_installment': is_installment,
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+            'sale_items': []
+        }
 
         # Handle installment data
         if is_installment:
-            sale.down_payment = float(sale_data.get('down_payment', 0))
-            sale.installment_months = int(sale_data.get('installment_months', 1))
-            remaining_amount = total_amount - sale.down_payment
-            sale.monthly_payment = remaining_amount / sale.installment_months if sale.installment_months > 0 else 0
+            down_payment = float(sale_data.get('down_payment', 0))
+            installment_months = int(sale_data.get('installment_months', 1))
+            remaining_amount = total_amount - down_payment
+            monthly_payment = remaining_amount / installment_months if installment_months > 0 else 0
+            
+            sale_data_for_firebase.update({
+                'down_payment': down_payment,
+                'installment_months': installment_months,
+                'monthly_payment': monthly_payment,
+                'remaining_amount': remaining_amount
+            })
 
-        db.session.add(sale)
-        db.session.flush()
-
-        # Create sale items and update stock
+        # Add sale items to Firebase sale data
         for item_data in sale_items_data:
-            sale_item = SaleItem(
-                sale_id=sale.id,
-                item_id=item_data['item'].id,
-                quantity=item_data['quantity'],
-                unit_price=item_data['unit_price'],
-                subtotal=item_data['subtotal']
-            )
-            db.session.add(sale_item)
+            sale_data_for_firebase['sale_items'].append({
+                'item_id': item_data['item_id'],
+                'item_name': item_data['item_name'],
+                'quantity': item_data['quantity'],
+                'unit_price': item_data['unit_price'],
+                'subtotal': item_data['subtotal']
+            })
 
-            # Update stock
-            item_data['item'].stock_quantity -= item_data['quantity']
+        # Create sale in Firebase
+        sale_result = firebase_adapter.create_sale(sale_data_for_firebase, user_id)
 
-        # Create installment plan if needed
-        if is_installment:
-            from models import InstallmentSale, InstallmentPayment
+        # Update stock for all items
+        for item_data in sale_items_data:
+            item = item_data['item_data']
+            new_stock = item.get('stock_quantity', 0) - item_data['quantity']
+            firebase_adapter.update_item_stock(item_data['item_id'], new_stock, user_id)
 
-            installment_sale = InstallmentSale(
-                sale_id=sale.id,
-                customer_id=customer.id if customer else None,
-                total_amount=total_amount,
-                down_payment=sale.down_payment,
-                remaining_amount=total_amount - sale.down_payment,
-                payment_frequency='monthly',
-                duration_months=sale.installment_months,
-                monthly_payment=sale.monthly_payment,
-                user_id=user_id
-            )
-            db.session.add(installment_sale)
-            db.session.flush()
-
-            # Create initial payment record for down payment if any
-            if sale.down_payment > 0:
-                payment = InstallmentPayment(
-                    installment_sale_id=installment_sale.id,
-                    amount=sale.down_payment,
-                    payment_date=datetime.utcnow(),
-                    payment_method=payment_type,
-                    status='completed',
-                    user_id=user_id
-                )
-                db.session.add(payment)
-
-        db.session.commit()
-
-        logger.info(f"Sale created: {sale.sale_number} for user {user_id}")
+        logger.info(f"Sale created: {sale_number} for user {user_id}")
 
         return jsonify({
             'success': True,
-            'sale': {
-                'id': sale.id,
-                'sale_number': sale.sale_number,
-                'total_amount': float(sale.total_amount),
-                'payment_type': sale.payment_type,
-                'is_installment': sale.is_installment
-            }
-        }), 201
+            'sale_id': sale_result.get('id'),
+            'sale_number': sale_number,
+            'total_amount': total_amount,
+            'message': 'Sale created successfully'
+        })
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating sale: {str(e)}")
         return jsonify({"error": f"Failed to create sale: {str(e)}"}), 500
 
@@ -1600,28 +1650,33 @@ def create_sale():
 @app.route('/api/customers', methods=['GET'])
 @login_required
 def get_customers():
-    """API endpoint to get all customers"""
+    """API endpoint to get all customers using Firebase"""
     try:
-        from models import Customer
-
         user_id = session.get('user_id')
-        customers = Customer.query.filter_by(user_id=user_id).order_by(Customer.name).all()
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
 
-        customers_data = []
-        for customer in customers:
-            customers_data.append({
-                'id': customer.id,
-                'name': customer.name,
-                'email': customer.email,
-                'phone': customer.phone,
-                'address': customer.address,
-                'customer_type': customer.customer_type,
-                'credit_limit': float(customer.credit_limit or 0),
-                'loyalty_points': customer.loyalty_points or 0,
-                'created_at': customer.created_at.isoformat() if customer.created_at else None
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
+        # Get customers from Firebase
+        customers_data = firebase_adapter.get_customers_by_user(user_id)
+
+        formatted_customers = []
+        for customer in customers_data:
+            formatted_customers.append({
+                'id': customer.get('id'),
+                'name': customer.get('name', ''),
+                'email': customer.get('email', ''),
+                'phone': customer.get('phone', ''),
+                'address': customer.get('address', ''),
+                'customer_type': customer.get('customer_type', 'regular'),
+                'credit_limit': float(customer.get('credit_limit', 0)),
+                'loyalty_points': customer.get('loyalty_points', 0),
+                'created_at': customer.get('created_at')
             })
 
-        return jsonify(customers_data)
+        return jsonify(formatted_customers)
 
     except Exception as e:
         logger.error(f"Error getting customers: {str(e)}")
@@ -1632,8 +1687,6 @@ def get_customers():
 def create_customer():
     """API endpoint to create a new customer"""
     try:
-        from models import Customer
-
         customer_data = request.get_json()
         if not customer_data:
             return jsonify({"error": "No data provided"}), 400
@@ -1642,40 +1695,37 @@ def create_customer():
         if not user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
+
         # Validate required fields
         if not customer_data.get('name'):
             return jsonify({"error": "Customer name is required"}), 400
 
-        # Create new customer
-        customer = Customer(
-            name=customer_data['name'].strip(),
-            email=customer_data.get('email', '').strip() or None,
-            phone=customer_data.get('phone', '').strip() or None,
-            address=customer_data.get('address', '').strip() or None,
-            customer_type=customer_data.get('customer_type', 'retail'),
-            credit_limit=float(customer_data.get('credit_limit', 0)),
-            preferred_payment_method=customer_data.get('preferred_payment_method'),
-            user_id=user_id
-        )
+        # Prepare customer data
+        customer_info = {
+            'name': customer_data['name'].strip(),
+            'email': customer_data.get('email', '').strip(),
+            'phone': customer_data.get('phone', '').strip(),
+            'address': customer_data.get('address', '').strip(),
+            'customer_type': customer_data.get('customer_type', 'retail'),
+            'credit_limit': float(customer_data.get('credit_limit', 0)),
+            'loyalty_points': int(customer_data.get('loyalty_points', 0)),
+            'preferred_payment_method': customer_data.get('preferred_payment_method', ''),
+            'is_active': True
+        }
 
-        db.session.add(customer)
-        db.session.commit()
+        # Create customer using Firebase
+        customer = firebase_adapter.create_customer(customer_info, user_id)
 
-        logger.info(f"Customer created: {customer.name} (ID: {customer.id}) by user {user_id}")
+        logger.info(f"Customer created: {customer_info['name']} by user {user_id}")
 
         return jsonify({
-            'id': customer.id,
-            'name': customer.name,
-            'email': customer.email,
-            'phone': customer.phone,
-            'address': customer.address,
-            'customer_type': customer.customer_type,
-            'credit_limit': float(customer.credit_limit),
-            'created_at': customer.created_at.isoformat()
+            'success': True,
+            'customer': customer
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating customer: {str(e)}")
         return jsonify({"error": f"Failed to create customer: {str(e)}"}), 500
 
@@ -1789,8 +1839,6 @@ def create_installment():
             user_id=user_id
         )
 
-        db.session.add(installment)
-        db.session.commit()
 
         logger.info(f"Installment created for sale {sale_id} by user {user_id}")
 
@@ -1807,7 +1855,6 @@ def create_installment():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating installment: {str(e)}")
         return jsonify({"error": f"Failed to create installment: {str(e)}"}), 500
 
@@ -1817,50 +1864,31 @@ def create_installment():
 def get_categories():
     """API endpoint to get all categories with hierarchical structure"""
     try:
-        from models import Category
-
         user_id = session.get('user_id')
-        all_categories = Category.query.filter_by(user_id=user_id).order_by(Category.name).all()
+        # Use Firebase adapter to get categories
+        all_categories = firebase_adapter.service.get_categories_by_user(user_id)
 
-        # Separate parent categories and subcategories
-        parent_categories = [cat for cat in all_categories if cat.parent_id is None]
-        subcategories_dict = {}
-
-        # Group subcategories by parent_id
-        for cat in all_categories:
-            if cat.parent_id is not None:
-                if cat.parent_id not in subcategories_dict:
-                    subcategories_dict[cat.parent_id] = []
-                subcategories_dict[cat.parent_id].append(cat)
-
+        # Convert Firebase category objects to dictionaries
         categories_data = []
-        for category in parent_categories:
-            category_dict = {
-                'id': category.id,
-                'name': category.name,
-                'description': category.description,
-                'parent_id': category.parent_id,
-                'is_active': category.is_active,
-                'item_count': category.get_item_count(),
-                'total_item_count': category.get_total_item_count(),
-                'created_at': category.created_at.isoformat() if category.created_at else None,
+        for category in all_categories:
+            # Handle both FirebaseCategory objects and dictionaries
+            if hasattr(category, 'to_dict'):
+                category_dict = category.to_dict()
+            else:
+                category_dict = category
+            
+            # Ensure required fields exist
+            category_dict.update({
+                'id': category_dict.get('id', ''),
+                'name': category_dict.get('name', ''),
+                'description': category_dict.get('description', ''),
+                'parent_id': category_dict.get('parent_id', None),
+                'is_active': category_dict.get('is_active', True),
+                'item_count': 0,  # TODO: Calculate actual item count
+                'total_item_count': 0,  # TODO: Calculate actual total item count
+                'created_at': category_dict.get('created_at', ''),
                 'subcategories': []
-            }
-
-            # Add subcategories if they exist
-            if category.id in subcategories_dict:
-                for subcategory in subcategories_dict[category.id]:
-                    subcategory_dict = {
-                        'id': subcategory.id,
-                        'name': subcategory.name,
-                        'description': subcategory.description,
-                        'parent_id': subcategory.parent_id,
-                        'is_active': subcategory.is_active,
-                        'item_count': subcategory.get_item_count(),
-                        'total_item_count': subcategory.get_total_item_count(),
-                        'created_at': subcategory.created_at.isoformat() if subcategory.created_at else None
-                    }
-                    category_dict['subcategories'].append(subcategory_dict)
+            })
 
             categories_data.append(category_dict)
 
@@ -1870,24 +1898,29 @@ def get_categories():
         logger.error(f"Error getting categories: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/categories/<int:category_id>', methods=['GET'])
+@app.route('/api/categories/<string:category_id>', methods=['GET'])
 @login_required
 def get_category(category_id):
     """API endpoint to get a specific category"""
     try:
-        from models import Category
         user_id = session.get('user_id')
-        category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+        category = firebase_adapter.service.get_category_by_id(category_id, user_id)
 
         if not category:
             return jsonify({'error': 'Category not found'}), 404
 
+        # Handle both FirebaseCategory objects and dictionaries
+        if hasattr(category, 'to_dict'):
+            category_dict = category.to_dict()
+        else:
+            category_dict = category
+
         return jsonify({
-            'id': category.id,
-            'name': category.name,
-            'description': category.description,
-            'parent_id': category.parent_id,
-            'created_at': category.created_at.isoformat() if category.created_at else None
+            'id': category_dict.get('id', ''),
+            'name': category_dict.get('name', ''),
+            'description': category_dict.get('description', ''),
+            'parent_id': category_dict.get('parent_id', None),
+            'created_at': category_dict.get('created_at', '')
         })
     except Exception as e:
         logger.error(f"Error getting category: {str(e)}")
@@ -1898,8 +1931,6 @@ def get_category(category_id):
 def create_category():
     """API endpoint to create a new category"""
     try:
-        from models import Category
-
         category_data = request.get_json()
         if not category_data:
             return jsonify({"error": "No data provided"}), 400
@@ -1908,41 +1939,33 @@ def create_category():
         if not user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
+
         # Validate required fields
         if not category_data.get('name'):
             return jsonify({"error": "Category name is required"}), 400
 
-        # Check if category already exists
-        existing_category = Category.query.filter_by(
-            name=category_data['name'], 
-            user_id=user_id
-        ).first()
-        if existing_category:
-            return jsonify({"error": "Category already exists"}), 400
+        # Prepare category data
+        category_info = {
+            'name': category_data['name'].strip(),
+            'description': category_data.get('description', '').strip(),
+            'parent_id': category_data.get('parent_id'),
+            'sort_order': int(category_data.get('sort_order', 0)),
+            'is_active': True
+        }
 
-        # Create new category
-        category = Category(
-            name=category_data['name'].strip(),
-            description=category_data.get('description', '').strip(),
-            parent_id=category_data.get('parent_id'),
-            user_id=user_id
-        )
+        # Create category using Firebase
+        category = firebase_adapter.create_category(category_info, user_id)
 
-        db.session.add(category)
-        db.session.commit()
-
-        logger.info(f"Category created: {category.name} (ID: {category.id}) by user {user_id}")
+        logger.info(f"Category created: {category_info['name']} by user {user_id}")
 
         return jsonify({
-            'id': category.id,
-            'name': category.name,
-            'description': category.description,
-            'parent_id': category.parent_id,
-            'created_at': category.created_at.isoformat()
+            'success': True,
+            'category': category
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating category: {str(e)}")
         return jsonify({"error": f"Failed to create category: {str(e)}"}), 500
 
@@ -1982,7 +2005,6 @@ def update_category(category_id):
         if 'parent_id' in category_data:
             category.parent_id = category_data['parent_id']
 
-        db.session.commit()
 
         logger.info(f"Category updated: {category.name} (ID: {category.id}) by user {user_id}")
 
@@ -1995,7 +2017,6 @@ def update_category(category_id):
         })
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating category: {str(e)}")
         return jsonify({"error": f"Failed to update category: {str(e)}"}), 500
 
@@ -2026,14 +2047,12 @@ def delete_category(category_id):
 
         # Delete the category
         db.session.delete(category)
-        db.session.commit()
 
         logger.info(f"Category deleted: {category.name} (ID: {category.id}) by user {user_id}")
 
         return jsonify({"success": True, "message": f"Category '{category.name}' deleted successfully"})
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error deleting category: {str(e)}")
         return jsonify({"error": f"Failed to delete category: {str(e)}"}), 500
 
@@ -2111,8 +2130,6 @@ def create_subcategory(category_id):
             user_id=user_id
         )
 
-        db.session.add(subcategory)
-        db.session.commit()
 
         logger.info(f"Subcategory created: {subcategory.name} (ID: {subcategory.id}) under category {parent_category.name} by user {user_id}")
 
@@ -2129,7 +2146,6 @@ def create_subcategory(category_id):
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating subcategory: {str(e)}")
         return jsonify({"error": f"Failed to create subcategory: {str(e)}"}), 500
 
@@ -2158,7 +2174,159 @@ def get_dashboard_summary():
         inventory_value = sum(
             item.get('stock_quantity', 0) * item.get('buying_price', 0) 
             for item in items_data 
-            if item.get('buying_price')
+            if item.get('buying_price') and item.get('stock_quantity')
+        )
+
+        # Category breakdown
+        category_breakdown = {}
+        for item in items_data:
+            category = item.get('category', 'Uncategorized')
+            if category not in category_breakdown:
+                category_breakdown[category] = {
+                    'category': category,
+                    'item_count': 0,
+                    'total_stock': 0,
+                    'total_value': 0
+                }
+            category_breakdown[category]['item_count'] += 1
+            category_breakdown[category]['total_stock'] += item.get('stock_quantity', 0)
+            category_breakdown[category]['total_value'] += (
+                item.get('stock_quantity', 0) * item.get('buying_price', 0)
+            )
+
+        # Convert to list
+        category_breakdown = list(category_breakdown.values())
+
+        # Low stock items analysis
+        low_stock_items = []
+        low_stock_count = 0
+        for item in items_data:
+            stock_qty = item.get('stock_quantity', 0)
+            min_stock = item.get('minimum_stock', 5)
+            if stock_qty <= min_stock:
+                low_stock_count += 1
+                if len(low_stock_items) < 10:
+                    low_stock_items.append({
+                        'id': item.get('id'),
+                        'name': item.get('name'),
+                        'current_stock': stock_qty,
+                        'minimum_stock': min_stock,
+                        'category': item.get('category')
+                    })
+
+        # === SALES METRICS ===
+        # Get sales from Firebase
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
+        total_sales = len(sales_data)
+
+        # Calculate revenue (completed sales only)
+        total_revenue = sum(
+            float(sale.get('total_amount', 0)) 
+            for sale in sales_data 
+            if sale.get('payment_status') == 'completed'
+        )
+
+        # Today's sales
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_str = today.isoformat()
+        
+        today_sales = 0
+        today_sales_count = 0
+        for sale in sales_data:
+            sale_date = sale.get('created_at', '')
+            if sale_date and sale_date.startswith(today_str[:10]):
+                today_sales += float(sale.get('total_amount', 0))
+                today_sales_count += 1
+
+        # Top selling items (simplified)
+        top_selling_items = []
+        item_sales = {}
+        for sale in sales_data:
+            sale_items = sale.get('sale_items', [])
+            if isinstance(sale_items, list):
+                for item in sale_items:
+                    item_name = item.get('item_name', item.get('name', 'Unknown'))
+                    quantity = int(item.get('quantity', 0))
+                    if item_name in item_sales:
+                        item_sales[item_name] += quantity
+                    else:
+                        item_sales[item_name] = quantity
+
+        # Sort and get top 5
+        sorted_items = sorted(item_sales.items(), key=lambda x: x[1], reverse=True)
+        top_selling_items = [
+            {'name': name, 'quantity_sold': qty} 
+            for name, qty in sorted_items[:5]
+        ]
+
+        # === CUSTOMER METRICS ===
+        customers_data = firebase_adapter.get_customers_by_user(user_id)
+        total_customers = len(customers_data)
+
+        # New customers this month
+        current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_month_str = current_month.isoformat()
+        
+        new_customers_this_month = 0
+        for customer in customers_data:
+            created_at = customer.get('created_at', '')
+            if created_at and created_at >= current_month_str:
+                new_customers_this_month += 1
+
+        # === FINANCIAL METRICS ===
+        # Simplified financial calculations
+        monthly_income = sum(
+            float(sale.get('total_amount', 0)) 
+            for sale in sales_data 
+            if sale.get('created_at', '').startswith(current_month_str[:7])
+        )
+        
+        # Estimated monthly expenses (simplified as 70% of income)
+        monthly_expenses = monthly_income * 0.7
+        monthly_profit = monthly_income - monthly_expenses
+
+        # === RECENT ACTIVITY ===
+        # Get recent sales (last 5)
+        recent_sales_data = sorted(
+            sales_data, 
+            key=lambda x: x.get('created_at', ''), 
+            reverse=True
+        )[:5]
+
+        return jsonify({
+            'success': True,
+            'inventory': {
+                'total_items': total_items,
+                'total_stock': total_stock,
+                'inventory_value': float(inventory_value),
+                'low_stock_count': low_stock_count,
+                'low_stock_items': low_stock_items,
+                'category_breakdown': category_breakdown
+            },
+            'sales': {
+                'total_sales': total_sales,
+                'total_revenue': float(total_revenue),
+                'today_sales': float(today_sales),
+                'today_sales_count': today_sales_count,
+                'top_selling_items': top_selling_items
+            },
+            'customers': {
+                'total_customers': total_customers,
+                'new_customers_this_month': new_customers_this_month
+            },
+            'financial': {
+                'monthly_income': float(monthly_income),
+                'monthly_expenses': float(monthly_expenses),
+                'monthly_profit': float(monthly_profit)
+            },
+            'recent_activity': {
+                'recent_sales': recent_sales_data
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500tem.get('buying_price')
         )
 
         # Low stock items analysis
@@ -2180,7 +2348,7 @@ def get_dashboard_summary():
 
         # === SALES METRICS ===
         # Get sales from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
         total_sales = len(sales_data)
 
         # Calculate revenue (completed sales only)
@@ -2364,7 +2532,7 @@ def get_monthly_financial_summary():
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Get sales data from Firebase
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
 
         # Get monthly data for the past 12 months
         monthly_data = {}
@@ -2468,8 +2636,6 @@ def create_installment_sale():
                 customer_type='retail',
                 user_id=user_id
             )
-            db.session.add(customer)
-            db.session.flush()
             customer_id = customer.id
         elif customer_id:
             customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
@@ -2509,8 +2675,6 @@ def create_installment_sale():
             installment_months=duration_months,
             monthly_payment=monthly_payment
         )
-        db.session.add(sale)
-        db.session.flush()
 
         # Create sale item
         sale_item = SaleItem(
@@ -2520,7 +2684,6 @@ def create_installment_sale():
             unit_price=total_amount / quantity,
             subtotal=total_amount
         )
-        db.session.add(sale_item)
 
         # Update stock
         item.stock_quantity -= quantity
@@ -2538,8 +2701,6 @@ def create_installment_sale():
             status='active',
             user_id=user_id
         )
-        db.session.add(installment_sale)
-        db.session.flush()
 
         # Create down payment record if applicable
         if down_payment > 0:
@@ -2551,9 +2712,7 @@ def create_installment_sale():
                 status='completed',
                 user_id=user_id
             )
-            db.session.add(payment)
 
-        db.session.commit()
 
         return jsonify({
             'success': True,
@@ -2562,7 +2721,6 @@ def create_installment_sale():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating installment sale: {str(e)}")
         return jsonify({'error': f'Failed to create installment sale: {str(e)}'}), 500
 
@@ -2696,14 +2854,11 @@ def update_settings():
                     value=str(value),
                     user_id=user_id
                 )
-                db.session.add(setting)
 
-        db.session.commit()
 
         return jsonify({'success': True, 'message': 'Settings updated successfully'})
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
