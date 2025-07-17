@@ -1,4 +1,3 @@
-
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import os
@@ -9,9 +8,11 @@ logger = logging.getLogger(__name__)
 
 class FirebaseConfig:
     def __init__(self):
-        self.db = None
-        self.app = None
         self.initialized = False
+        self.app = None
+        self.db = None
+        self.auth = None
+        self._api_key = None
 
     def initialize_firebase(self):
         """Initialize Firebase app and Firestore database"""
@@ -43,10 +44,10 @@ class FirebaseConfig:
                 # Initialize Firebase Admin SDK if not already initialized
                 self.app = firebase_admin.initialize_app(cred)
                 logger.info("Firebase Admin SDK initialized")
-            
+
             # Initialize Firestore
             self.db = firestore.client()
-            
+
             self.initialized = True
             logger.info("✅ Firebase initialized successfully")
             return True
@@ -66,6 +67,16 @@ class FirebaseConfig:
         if not self.initialized:
             self.initialize_firebase()
         return auth
+    @property
+    def api_key(self):
+        """Get Firebase API key for REST API calls"""
+        # Use the API key from your Firebase config
+        return "AIzaSyBc8dD1OwzxWJrf-bAxowOtYj-OHZr2epo"
+    
+    @api_key.setter
+    def api_key(self, value):
+        """Set Firebase API key"""
+        self._api_key = value
 
 # Global Firebase instance
 firebase_config = FirebaseConfig()
