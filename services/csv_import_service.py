@@ -18,8 +18,8 @@ class CSVImportService:
     ]
     VALID_SALES_TYPES = ['retail', 'wholesale', 'both']
 
-    def __init__(self, db_session, item_model, user_id=None):
-        self.db = db_session
+    def __init__(self, firebase_adapter, item_model, user_id=None):
+        self.firebase_adapter = firebase_adapter
         self.Item = item_model
         self.user_id = user_id
 
@@ -96,15 +96,15 @@ class CSVImportService:
             return {"error": header_error}
 
         # Process rows
-        processor = CSVRowProcessor(self.db, self.Item, self.user_id)
+        processor = CSVRowProcessor(self.firebase_adapter, self.Item, self.user_id)
         return processor.process_rows(csv_reader)
 
 
 class CSVRowProcessor:
     """Handles processing of individual CSV rows"""
 
-    def __init__(self, db_session, item_model, user_id=None):
-        self.db = db_session
+    def __init__(self, firebase_adapter, item_model, user_id=None):
+        self.firebase_adapter = firebase_adapter
         self.Item = item_model
         self.user_id = user_id
 
@@ -131,35 +131,22 @@ class CSVRowProcessor:
                     continue
 
                 # Create item from row
-                item = self._create_item_from_row(row, row_number, errors)
-                if item:
-                    self.db.add(item)
+                item_data = self._create_item_from_row(row, row_number, errors)
+                if item_data:
+                    # Create item in Firebase
+                    self.firebase_adapter.create_item(item_data, self.user_id)
                     imported_count += 1
 
             except Exception as e:
                 errors.append(f"Row {row_number}: Unexpected error - {str(e)}")
                 continue
 
-        # Commit changes
-        try:
-            if imported_count > 0:
-                self.db.commit()
-                logger.info(f"Bulk import completed: {imported_count} items imported from {row_number} rows")
-            else:
-                self.db.rollback()
-                if not errors:
-                    errors.append("No valid data found to import")
-        except Exception as e:
-            # Firebase doesn't use database transactions like PostgreSQL
-            # No rollback needed for Firebase operations
-            logger.error(f"CSV import failed: {str(e)}")
-            return {
-                "success": False,
-                "error": f"Import failed: {str(e)}",
-                "imported_count": 0,
-                "total_rows": 0,
-                "errors": [f"System error: {str(e)}"]
-            }
+        # Firebase doesn't need explicit commit - data is saved immediately
+        if imported_count > 0:
+            logger.info(f"Bulk import completed: {imported_count} items imported from {row_number} rows")
+        else:
+            if not errors:
+                errors.append("No valid data found to import")
 
         return {
             "success": imported_count > 0,
@@ -212,25 +199,24 @@ class CSVRowProcessor:
         # Ensure SKU uniqueness
         sku = self._ensure_unique_sku(sku, row_number, errors)
 
-        # Create new item
+        # Create new item data dictionary for Firebase
         try:
-            new_item = self.Item(
-                name=name,
-                sku=sku,
-                description=description,
-                category=category,
-                stock_quantity=quantity,
-                minimum_stock=max(1, quantity // 10),  # Set minimum stock to 10% of initial quantity
-                buying_price=buying_price,
-                retail_price=selling_price_retail,
-                wholesale_price=selling_price_wholesale,
-                sales_type=sales_type,
-                user_id=self.user_id,
-                is_active=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            return new_item
+            item_data = {
+                'name': name,
+                'sku': sku,
+                'description': description,
+                'category': category,
+                'stock_quantity': quantity,
+                'minimum_stock': max(1, quantity // 10),  # Set minimum stock to 10% of initial quantity
+                'buying_price': buying_price,
+                'retail_price': selling_price_retail,
+                'wholesale_price': selling_price_wholesale,
+                'sales_type': sales_type,
+                'is_active': True,
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            return item_data
         except Exception as e:
             errors.append(f"Row {row_number}: Failed to create item - {str(e)}")
             return None
@@ -240,7 +226,8 @@ class CSVRowProcessor:
         original_sku = sku
         counter = 1
 
-        while self.Item.query.filter_by(sku=sku, user_id=self.user_id).first():
+        # Check if item exists in Firebase using get_item_by_sku
+        while self.firebase_adapter.get_item_by_sku(sku, self.user_id):
             sku = f"{original_sku}-{counter}"
             counter += 1
 

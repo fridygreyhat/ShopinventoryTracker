@@ -267,6 +267,38 @@ class FirebaseAdapter:
         """Delete item using Firebase service"""
         return self.service.delete_item(item_id, user_id)
 
+    def get_item_by_id(self, item_id, user_id):
+        """Get a specific item by ID"""
+        try:
+            item_doc = self.service.db.collection('items').document(item_id).get()
+
+            if item_doc.exists:
+                item_data = item_doc.to_dict()
+                if item_data.get('user_id') == user_id:
+                    return item_data
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting item by ID: {str(e)}")
+            return None
+
+    def get_item_by_sku(self, sku, user_id):
+        """Get a specific item by SKU"""
+        try:
+            query = (self.service.db.collection('items')
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
+                    .limit(1))
+
+            docs = list(query.stream())
+            if docs:
+                return docs[0].to_dict()
+
+            return None
+        except Exception as e:
+            logger.error(f"Error getting item by SKU: {str(e)}")
+            return None
+
     # Sale operations
     def create_sale(self, sale_data, user_id):
         """Create sale using Firebase service"""

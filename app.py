@@ -939,7 +939,6 @@ def update_item(item_id):
         return jsonify(updated_item)
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
 
@@ -1065,7 +1064,6 @@ def batch_update_inventory():
                 errors.append(f"Error updating item {item_id}: {str(e)}")
 
         if updated_items:
-            db.session.commit()
             logger.info(f"Batch updated {len(updated_items)} items for user {current_user_id}")
 
         return jsonify({
@@ -1476,8 +1474,6 @@ def create_sale():
                 address=sale_data.get('customer_address'),
                 user_id=user_id
             )
-            db.session.add(customer)
-            db.session.flush()
 
         # Calculate total amount
         total_amount = 0
@@ -1527,8 +1523,6 @@ def create_sale():
             remaining_amount = total_amount - sale.down_payment
             sale.monthly_payment = remaining_amount / sale.installment_months if sale.installment_months > 0 else 0
 
-        db.session.add(sale)
-        db.session.flush()
 
         # Create sale items and update stock
         for item_data in sale_items_data:
@@ -1539,7 +1533,6 @@ def create_sale():
                 unit_price=item_data['unit_price'],
                 subtotal=item_data['subtotal']
             )
-            db.session.add(sale_item)
 
             # Update stock
             item_data['item'].stock_quantity -= item_data['quantity']
@@ -1559,8 +1552,6 @@ def create_sale():
                 monthly_payment=sale.monthly_payment,
                 user_id=user_id
             )
-            db.session.add(installment_sale)
-            db.session.flush()
 
             # Create initial payment record for down payment if any
             if sale.down_payment > 0:
@@ -1572,9 +1563,7 @@ def create_sale():
                     status='completed',
                     user_id=user_id
                 )
-                db.session.add(payment)
 
-        db.session.commit()
 
         logger.info(f"Sale created: {sale.sale_number} for user {user_id}")
 
@@ -1590,7 +1579,6 @@ def create_sale():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating sale: {str(e)}")
         return jsonify({"error": f"Failed to create sale: {str(e)}"}), 500
 
@@ -1656,8 +1644,6 @@ def create_customer():
             user_id=user_id
         )
 
-        db.session.add(customer)
-        db.session.commit()
 
         logger.info(f"Customer created: {customer.name} (ID: {customer.id}) by user {user_id}")
 
@@ -1673,7 +1659,6 @@ def create_customer():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating customer: {str(e)}")
         return jsonify({"error": f"Failed to create customer: {str(e)}"}), 500
 
@@ -1787,8 +1772,6 @@ def create_installment():
             user_id=user_id
         )
 
-        db.session.add(installment)
-        db.session.commit()
 
         logger.info(f"Installment created for sale {sale_id} by user {user_id}")
 
@@ -1805,7 +1788,6 @@ def create_installment():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating installment: {str(e)}")
         return jsonify({"error": f"Failed to create installment: {str(e)}"}), 500
 
@@ -1912,8 +1894,6 @@ def create_category():
             user_id=user_id
         )
 
-        db.session.add(category)
-        db.session.commit()
 
         logger.info(f"Category created: {category.name} (ID: {category.id}) by user {user_id}")
 
@@ -1926,7 +1906,6 @@ def create_category():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating category: {str(e)}")
         return jsonify({"error": f"Failed to create category: {str(e)}"}), 500
 
@@ -1966,7 +1945,6 @@ def update_category(category_id):
         if 'parent_id' in category_data:
             category.parent_id = category_data['parent_id']
 
-        db.session.commit()
 
         logger.info(f"Category updated: {category.name} (ID: {category.id}) by user {user_id}")
 
@@ -1979,7 +1957,6 @@ def update_category(category_id):
         })
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating category: {str(e)}")
         return jsonify({"error": f"Failed to update category: {str(e)}"}), 500
 
@@ -2010,14 +1987,12 @@ def delete_category(category_id):
 
         # Delete the category
         db.session.delete(category)
-        db.session.commit()
 
         logger.info(f"Category deleted: {category.name} (ID: {category.id}) by user {user_id}")
 
         return jsonify({"success": True, "message": f"Category '{category.name}' deleted successfully"})
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error deleting category: {str(e)}")
         return jsonify({"error": f"Failed to delete category: {str(e)}"}), 500
 
@@ -2095,8 +2070,6 @@ def create_subcategory(category_id):
             user_id=user_id
         )
 
-        db.session.add(subcategory)
-        db.session.commit()
 
         logger.info(f"Subcategory created: {subcategory.name} (ID: {subcategory.id}) under category {parent_category.name} by user {user_id}")
 
@@ -2113,7 +2086,6 @@ def create_subcategory(category_id):
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating subcategory: {str(e)}")
         return jsonify({"error": f"Failed to create subcategory: {str(e)}"}), 500
 
@@ -2452,8 +2424,6 @@ def create_installment_sale():
                 customer_type='retail',
                 user_id=user_id
             )
-            db.session.add(customer)
-            db.session.flush()
             customer_id = customer.id
         elif customer_id:
             customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
@@ -2493,8 +2463,6 @@ def create_installment_sale():
             installment_months=duration_months,
             monthly_payment=monthly_payment
         )
-        db.session.add(sale)
-        db.session.flush()
 
         # Create sale item
         sale_item = SaleItem(
@@ -2504,7 +2472,6 @@ def create_installment_sale():
             unit_price=total_amount / quantity,
             subtotal=total_amount
         )
-        db.session.add(sale_item)
 
         # Update stock
         item.stock_quantity -= quantity
@@ -2522,8 +2489,6 @@ def create_installment_sale():
             status='active',
             user_id=user_id
         )
-        db.session.add(installment_sale)
-        db.session.flush()
 
         # Create down payment record if applicable
         if down_payment > 0:
@@ -2535,9 +2500,7 @@ def create_installment_sale():
                 status='completed',
                 user_id=user_id
             )
-            db.session.add(payment)
 
-        db.session.commit()
 
         return jsonify({
             'success': True,
@@ -2546,7 +2509,6 @@ def create_installment_sale():
         }), 201
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error creating installment sale: {str(e)}")
         return jsonify({'error': f'Failed to create installment sale: {str(e)}'}), 500
 
@@ -2680,14 +2642,11 @@ def update_settings():
                     value=str(value),
                     user_id=user_id
                 )
-                db.session.add(setting)
 
-        db.session.commit()
 
         return jsonify({'success': True, 'message': 'Settings updated successfully'})
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
