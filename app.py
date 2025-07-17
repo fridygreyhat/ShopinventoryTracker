@@ -158,45 +158,54 @@ def api_login():
         if not user_data.get('is_active', True):
             return jsonify({'error': 'Account is inactive'}), 401
 
-        # For Firebase auth, we'll use a simple verification since Firebase handles password verification
-        # In a real-world scenario, you'd use Firebase Auth REST API or Firebase Admin SDK with custom tokens
+        # Use Firebase Auth REST API for password verification
         try:
-            from firebase_admin import auth
+            import requests
             
-            # Verify user exists in Firebase Auth (this doesn't verify password, just existence)
-            auth_user = auth.get_user_by_email(email)
+            # Firebase Auth REST API endpoint for password verification
+            firebase_auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_config.api_key}"
             
-            # Since we can't directly verify passwords with Firebase Admin SDK in this context,
-            # we'll accept the login if the user exists in both Auth and Firestore
-            # In production, you'd use Firebase Auth REST API or Firebase client SDK
+            auth_payload = {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            }
             
-            # Update last login
-            firebase_adapter.service.update_user_last_login(user_data['id'])
+            response = requests.post(firebase_auth_url, json=auth_payload)
             
-            # Create session
-            session.clear()
-            session['user_id'] = user_data['id']
-            session['user_email'] = user_data['email']
-            session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-            session.permanent = True
-
-            logger.info(f"User {email} logged in successfully (ID: {user_data['id']})")
-
-            return jsonify({
-                'success': True,
-                'message': 'Login successful',
-                'user': {
-                    'id': user_data['id'],
-                    'email': user_data['email'],
-                    'username': user_data.get('username', ''),
-                    'first_name': user_data.get('first_name', ''),
-                    'last_name': user_data.get('last_name', '')
-                }
-            }), 200
+            if response.status_code == 200:
+                auth_result = response.json()
+                user_id = auth_result.get('localId')
                 
-        except auth.UserNotFoundError:
-            logger.warning(f"Failed login attempt for email: {email} - user not found in Firebase Auth")
-            return jsonify({'error': 'Invalid email or password'}), 401
+                # Update last login
+                firebase_adapter.service.update_user_last_login(user_data['id'])
+                
+                # Create session
+                session.clear()
+                session['user_id'] = user_data['id']
+                session['user_email'] = user_data['email']
+                session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                session.permanent = True
+
+                logger.info(f"User {email} logged in successfully (ID: {user_data['id']})")
+
+                return jsonify({
+                    'success': True,
+                    'message': 'Login successful',
+                    'user': {
+                        'id': user_data['id'],
+                        'email': user_data['email'],
+                        'username': user_data.get('username', ''),
+                        'first_name': user_data.get('first_name', ''),
+                        'last_name': user_data.get('last_name', '')
+                    }
+                }), 200
+            else:
+                auth_error = response.json()
+                error_message = auth_error.get('error', {}).get('message', 'Invalid credentials')
+                logger.warning(f"Failed login attempt for email: {email} - {error_message}")
+                return jsonify({'error': 'Invalid email or password'}), 401
+                
         except Exception as firebase_error:
             logger.error(f"Firebase authentication error: {str(firebase_error)}")
             return jsonify({'error': 'Authentication service error'}), 500

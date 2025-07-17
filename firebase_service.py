@@ -3,6 +3,7 @@ from firebase_config import get_firestore_db, get_firebase_auth
 from firebase_models import *
 from google.cloud.firestore import Query
 import logging
+import uuid
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -120,8 +121,9 @@ class FirebaseService:
             items = []
             
             for doc in docs:
-                item = FirebaseItem(doc.to_dict(), doc.id)
-                items.append(item)
+                item_data = doc.to_dict()
+                item_data['id'] = doc.id
+                items.append(item_data)
             
             return items
 
@@ -210,8 +212,9 @@ class FirebaseService:
             sales = []
             
             for doc in docs:
-                sale = FirebaseSale(doc.to_dict(), doc.id)
-                sales.append(sale)
+                sale_data = doc.to_dict()
+                sale_data['id'] = doc.id
+                sales.append(sale_data)
             
             return sales
 
@@ -223,21 +226,17 @@ class FirebaseService:
     def create_customer(self, customer_data, user_id):
         """Create a new customer"""
         try:
-            customer = FirebaseCustomer()
-            
-            # Set customer properties
-            for key, value in customer_data.items():
-                if hasattr(customer, key):
-                    setattr(customer, key, value)
-            
-            customer.user_id = user_id
-            customer.id = str(uuid.uuid4())
+            customer_id = str(uuid.uuid4())
+            customer_data['user_id'] = user_id
+            customer_data['id'] = customer_id
+            customer_data['created_at'] = datetime.utcnow().isoformat()
+            customer_data['updated_at'] = datetime.utcnow().isoformat()
 
             # Save to Firestore
-            self.db.collection('customers').document(customer.id).set(customer.to_dict())
+            self.db.collection('customers').document(customer_id).set(customer_data)
             
-            logger.info(f"Customer created: {customer.name}")
-            return customer
+            logger.info(f"Customer created: {customer_data.get('name')}")
+            return customer_data
 
         except Exception as e:
             logger.error(f"Error creating customer: {str(e)}")
@@ -250,8 +249,9 @@ class FirebaseService:
             customers = []
             
             for doc in docs:
-                customer = FirebaseCustomer(doc.to_dict(), doc.id)
-                customers.append(customer)
+                customer_data = doc.to_dict()
+                customer_data['id'] = doc.id
+                customers.append(customer_data)
             
             return customers
 
