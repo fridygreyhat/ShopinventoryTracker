@@ -47,6 +47,23 @@ class FirebaseAdapter:
         except Exception as e:
             logger.error(f"Error getting user: {str(e)}")
             return None
+
+    def get_user_by_email(self, email):
+        """Get user by email from Firestore"""
+        try:
+            users_ref = self.service.db.collection('users')
+            query = users_ref.where('email', '==', email).limit(1)
+            docs = query.stream()
+            
+            for doc in docs:
+                user_data = doc.to_dict()
+                user_data['id'] = doc.id
+                return user_data
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by email: {str(e)}")
+            return None
     
     # Item operations
     def create_item(self, item_data, user_id):

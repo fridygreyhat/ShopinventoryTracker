@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import uuid
 import json
@@ -22,7 +23,9 @@ from functools import wraps
 
 
 
-# Import database configuration
+# Import Firebase configuration
+from firebase_config import firebase_config
+from firebase_adapter import firebase_adapter
 from extensions import configure_database
 
 # Set up logging
@@ -50,8 +53,10 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure database (PostgreSQL only)
-configure_database(app)
+# Configure database (Firebase only)
+if not configure_database(app, use_firebase=True):
+    logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
+    sys.exit(1)
 
 
 
@@ -67,8 +72,7 @@ def inject_user():
     def get_current_user():
         user_id = session.get('user_id')
         if user_id:
-            from models import User
-            return User.query.get(user_id)
+            return firebase_adapter.get_user_by_id(user_id)
         return None
     return dict(get_current_user=get_current_user)
 
@@ -78,249 +82,40 @@ def debug():
     print(f"Session: {session}")
     print(f"User ID in session: {user_id}")
     if user_id:
-        from models import User
-        user = User.query.get(user_id)
+        user = firebase_adapter.get_user_by_id(user_id)
         print(f"Current user: {user}")
         print(f"Is authenticated: {user is not None}")
     return "Check console"
 
 def init_database():
-    """Initialize PostgreSQL database tables and default data"""
-    with app.app_context():
-        try:
-            # Import all models to ensure they're registered
-            from models import (User, Item, Setting, Sale, SaleItem, FinancialTransaction, 
-                Category, Customer, OnDemandProduct, StockMovement, ChartOfAccounts,
-                Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentSale, InstallmentPayment
-            )
-
-            # Test database connection first
-            try:
-                db.session.execute(db.text('SELECT 1'))
-                db.session.commit()
-                logger.info("Database connection test successful")
-            except Exception as conn_error:
-                logger.error(f"Database connection failed: {str(conn_error)}")
-                return False
-
-            # Create all tables
-            db.create_all()
-            logger.info("Database tables created successfully")
-
-            # Helper function to check if column exists
-            def column_exists(table_name, column_name):
-                try:
-                    # PostgreSQL query to check if column exists - using parameterized query
-                    result = db.session.execute(
-                        db.text("""
-                            SELECT column_name 
-                            FROM information_schema.columns 
-                            WHERE table_name = :table_name 
-                            AND column_name = :column_name
-                        """), 
-                        {"table_name": table_name, "column_name": column_name}
-                    )
-                    return result.fetchone() is not None
-                except Exception as e:
-                    logger.error(f"Error checking column existence: {str(e)}")
-                    return False
-
-            # Helper function to add column safely
-            def add_column_safely(table_name, column_name, column_definition, default_value=None):
-                try:
-                    if not column_exists(table_name, column_name):
-                        logger.info(f"Adding {column_name} column to {table_name} table")
-
-                        # Use parameterized query for ALTER TABLE
-                        alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}"
-                        db.session.execute(db.text(alter_sql))
-
-                        if default_value:
-                            update_sql = f"UPDATE {table_name} SET {column_name} = :default_value"
-                            db.session.execute(db.text(update_sql), {"default_value": default_value})
-
-                        db.session.commit()
-                        logger.info(f"Successfully added {column_name} column to {table_name}")
-                        return True
-                    else:
-                        logger.info(f"{column_name} column already exists in {table_name}")
-                        return False
-                except Exception as e:
-                    logger.error(f"Error adding {column_name} column to {table_name}: {str(e)}")
-                    db.session.rollback()
-                    return False
-
-            # Add missing columns if they don't exist
-            def add_missing_columns():
-                try:
-                    # Add columns to user table
-                    add_column_safely('user', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
-                    add_column_safely('user', 'phone', 'VARCHAR(20)')
-
-                    # Add columns to item table
-                    add_column_safely('item', 'subcategory', 'VARCHAR(100)')
-                    add_column_safely('item', 'unit_type', "VARCHAR(20) DEFAULT 'quantity'", 'quantity')
-                    add_column_safely('item', 'sell_by', "VARCHAR(20) DEFAULT 'quantity'", 'quantity')
-                    add_column_safely('item', 'category_id', 'INTEGER')
-                    add_column_safely('item', 'user_id', 'INTEGER')
-                    add_column_safely('item', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
-                    add_column_safely('item', 'stock_quantity', 'INTEGER DEFAULT 0', 0)
-                    add_column_safely('item', 'minimum_stock', 'INTEGER DEFAULT 0', 0)
-                    add_column_safely('item', 'retail_price', 'FLOAT DEFAULT 0', 0)
-                    add_column_safely('item', 'wholesale_price', 'FLOAT DEFAULT 0', 0)
-
-                    # Add columns to sale table
-                    add_column_safely('sale', 'user_id', 'INTEGER')
-                    add_column_safely('sale', 'customer_id', 'INTEGER')
-                    add_column_safely('sale', 'total_amount', 'FLOAT DEFAULT 0', 0)
-                    add_column_safely('sale', 'payment_type', "VARCHAR(20) DEFAULT 'cash'", 'cash')
-                    add_column_safely('sale', 'payment_status', "VARCHAR(20) DEFAULT 'completed'", 'completed')
-                    add_column_safely('sale', 'sale_number', 'VARCHAR(50)')
-                    add_column_safely('sale', 'is_installment', 'BOOLEAN DEFAULT FALSE', False)
-                    add_column_safely('sale', 'down_payment', 'FLOAT DEFAULT 0', 0)
-                    add_column_safely('sale', 'installment_months', 'INTEGER DEFAULT 0', 0)
-                    add_column_safely('sale', 'monthly_payment', 'FLOAT DEFAULT 0', 0)
-
-                    # Add columns to supplier table
-                    add_column_safely('supplier', 'is_active', 'BOOLEAN DEFAULT TRUE', True)
-                    add_column_safely('supplier', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-
-                    # Add columns to purchase_order table
-                    add_column_safely('purchase_order', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-
-                    # Add columns to installment_plan table
-                    add_column_safely('installment_plan', 'payments_made', 'INTEGER DEFAULT 0', 0)
-                    add_column_safely('installment_plan', 'next_due_date', 'DATE')
-                    add_column_safely('installment_plan', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-
-                    # Add columns to chart_of_accounts table
-                    add_column_safely('chart_of_accounts', 'parent_account_id', 'INTEGER')
-                    add_column_safely('chart_of_accounts', 'balance', 'FLOAT DEFAULT 0', 0)
-
-                    # Add columns to journal table
-                    add_column_safely('journal', 'journal_number', 'VARCHAR(50)')
-                    add_column_safely('journal', 'total_debit', 'FLOAT DEFAULT 0', 0)
-                    add_column_safely('journal', 'total_credit', 'FLOAT DEFAULT 0', 0)
-
-                    # Check if Customer table exists, if not create it
-                    check_and_create_customer_table()
-
-                    # Add columns to financial_transaction table
-                    add_column_safely('financial_transaction', 'user_id', 'INTEGER')
-
-                except Exception as e:
-                    logger.error(f"Error adding missing columns: {str(e)}")
-                    db.session.rollback()
-
-            def check_and_create_customer_table():
-                """Check if Customer table exists and create if not"""
-                try:
-                    result = db.session.execute(db.text("""
-                        SELECT table_name 
-                        FROM information_schema.tables 
-                        WHERE table_name = :table_name 
-                        AND table_schema = current_schema()
-                    """), {"table_name": "customer"})
-
-                    if not result.fetchone():
-                        # Create Customer table
-                        db.session.execute(db.text("""
-                            CREATE TABLE customer (
-                                id SERIAL PRIMARY KEY,
-                                name VARCHAR(100) NOT NULL,
-                                email VARCHAR(120),
-                                phone VARCHAR(20),
-                                address TEXT,
-                                customer_type VARCHAR(20) DEFAULT 'retail',
-                                credit_limit FLOAT DEFAULT 0.0,
-                                loyalty_points INTEGER DEFAULT 0,
-                                preferred_payment_method VARCHAR(50),
-                                user_id INTEGER NOT NULL,
-                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                        """))
-                        db.session.commit()
-                        logger.info("Customer table created successfully")
-                    else:
-                        logger.info("Customer table already exists")
-
-                except Exception as e:
-                    logger.error(f"Error checking/creating Customer table: {str(e)}")
-                    db.session.rollback()
-
-            # Initialize default settings
-            def initialize_default_settings():
-                """Initialize default application settings"""
-                try:
-                    default_settings = [
-                        {
-                            'key': 'sms_notifications_enabled',
-                            'value': 'false',
-                            'description': 'Enable SMS notifications for low stock alerts',
-                            'category': 'notifications'
-                        },
-                        {
-                            'key': 'notification_phone',
-                            'value': '',
-                            'description': 'Phone number to receive SMS notifications (include country code)',
-                            'category': 'notifications'
-                        },
-                        {
-                            'key': 'low_stock_threshold',
-                            'value': '10',
-                            'description': 'Quantity threshold for low stock alerts',
-                            'category': 'notifications'
-                        },
-                        {
-                            'key': 'email_notifications_enabled',
-                            'value': 'false',
-                            'description': 'Enable email notifications for low stock alerts',
-                            'category': 'notifications'
-                        },
-                        {
-                            'key': 'notification_email',
-                            'value': '',
-                            'description': 'Email address to receive notifications',
-                            'category': 'notifications'
-                        },
-                        {
-                            'key': 'sender_email',
-                            'value': 'inventory@yourbusiness.com',
-                            'description': 'Email address to send notifications from',
-                            'category': 'notifications'
-                        }
-                    ]
-
-                    for setting_data in default_settings:
-                        existing_setting = Setting.query.filter_by(key=setting_data['key']).first()
-                        if not existing_setting:
-                            new_setting = Setting(
-                                key=setting_data['key'],
-                                value=setting_data['value'],
-                                description=setting_data['description'],
-                                category=setting_data['category']
-                            )
-                            db.session.add(new_setting)
-
-                    db.session.commit()
-                    logger.info("Default settings initialized successfully")
-
-                except Exception as e:
-                    logger.warning(f"Could not initialize default settings: {str(e)}")
-                    db.session.rollback()
-
-            # Execute initialization steps
-            add_missing_columns()
-            initialize_default_settings()
-
-            logger.info("Database initialization completed successfully")
+    """Initialize Firebase database collections and default data"""
+    try:
+        # Check if Firebase is configured
+        if not firebase_config.initialized:
+            logger.info("Firebase initialization skipped - using Firebase for data management")
             return True
+        
+        logger.info("🔥 Firebase database system initialized successfully")
+        return True
 
-        except Exception as e:
-            logger.error(f"Database initialization error: {str(e)}")
-            db.session.rollback()
-            return False
+    except Exception as e:
+        logger.error(f"Firebase initialization error: {str(e)}")
+        return False
+
+# Helper function to check if column exists (for backward compatibility)
+def column_exists(table_name, column_name):
+    """Check if a column exists in a table (Firebase doesn't need this)"""
+    return True  # Firebase doesn't use SQL columns
+
+# Helper function to add column safely (for backward compatibility)
+def add_column_safely(table_name, column_name, column_definition, default_value=None):
+    """Add column safely (Firebase doesn't need this)"""
+    return True  # Firebase doesn't use SQL columns
+
+# Add missing columns if they don't exist (for backward compatibility)
+def add_missing_columns():
+    """Add missing columns (Firebase doesn't need this)"""
+    return True  # Firebase doesn't use SQL columns
 
 
 # Auth API Routes
@@ -339,27 +134,53 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Use PostgreSQL authentication
-        from models import User
-        user = User.query.filter_by(email=email, is_active=True).first()
-        
-        if user and user.check_password(password):
-            session.clear()
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
-            session.permanent = True
+        # Check if Firebase is configured
+        if not firebase_config.initialized:
+            if not firebase_config.initialize_firebase():
+                return jsonify({'error': 'Firebase authentication service not available'}), 500
+
+        # Use Firebase authentication
+        try:
+            from firebase_admin import auth
+            # Verify user exists in Firebase Auth
+            user = auth.get_user_by_email(email)
             
-            logger.info(f"User {email} logged in successfully (ID: {user.id})")
+            # Get user data from Firestore
+            user_data = firebase_adapter.get_user_by_id(user.uid)
             
-            return jsonify({
-                'success': True,
-                'message': 'Login successful',
-                'user': user.to_dict()
-            }), 200
-        else:
-            logger.warning(f"Failed login attempt for email: {email}")
+            if user_data and user_data.get('is_active', True):
+                # Update last login
+                firebase_adapter.service.update_user_last_login(user.uid)
+                
+                # Create session
+                session.clear()
+                session['user_id'] = user.uid
+                session['user_email'] = user_data['email']
+                session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                session.permanent = True
+
+                logger.info(f"User {email} logged in successfully from Firebase (ID: {user.uid})")
+
+                return jsonify({
+                    'success': True,
+                    'message': 'Login successful - authenticated from Firebase',
+                    'user': {
+                        'id': user.uid,
+                        'email': user_data['email'],
+                        'username': user_data.get('username', ''),
+                        'first_name': user_data.get('first_name', ''),
+                        'last_name': user_data.get('last_name', '')
+                    }
+                }), 200
+            else:
+                return jsonify({'error': 'User account not found or inactive'}), 401
+                
+        except auth.UserNotFoundError:
+            logger.warning(f"Failed login attempt for email: {email} - user not found in Firebase")
             return jsonify({'error': 'Invalid email or password'}), 401
+        except Exception as firebase_error:
+            logger.error(f"Firebase authentication error: {str(firebase_error)}")
+            return jsonify({'error': 'Authentication service error'}), 500
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
@@ -408,73 +229,56 @@ def api_register():
         if len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
-        # Check if user already exists in PostgreSQL
-        from models import User
-        existing_user = User.query.filter_by(email=email).first()
+        # Check if user already exists in Firebase
+        existing_user = firebase_adapter.get_user_by_email(email)
         if existing_user:
             return jsonify({'error': 'Email already registered'}), 400
 
-        # Check if username already exists
-        existing_username = User.query.filter_by(username=username).first()
-        if existing_username:
-            return jsonify({'error': 'Username already taken'}), 400
+        # Create new user in Firebase
+        user_data = {
+            'username': username,
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'phone': phone if phone else None,
+            'shop_name': shop_name if shop_name else None,
+            'product_categories': product_categories if product_categories else None,
+            'is_active': True,
+            'is_admin': False,
+            'email_verified': False,
+            'created_at': datetime.utcnow().isoformat()
+        }
 
-        # Create new user in PostgreSQL
-        new_user = User(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            phone=phone if phone else None,
-            shop_name=shop_name if shop_name else None,
-            product_categories=product_categories if product_categories else None,
-            is_active=True,
-            is_admin=False,
-            email_verified=False,
-            created_at=datetime.utcnow()
-        )
-
-        # Set password hash using secure method
-        new_user.set_password(password)
-
-        # Verify password was set correctly
-        if not new_user.password_hash:
-            return jsonify({'error': 'Failed to set password'}), 500
-
-        # Save to PostgreSQL database
-        db.session.add(new_user)
-        db.session.flush()  # Get the user ID without committing
-
-        # Verify user was created in PostgreSQL
-        if not new_user.id:
-            return jsonify({'error': 'Failed to create user in PostgreSQL'}), 500
+        # Create user in Firebase
+        new_user = firebase_adapter.create_user(user_data)
+        
+        if not new_user:
+            return jsonify({'error': 'Failed to create user in Firebase'}), 500
 
         # Create session for the new user
         session.clear()  # Clear any existing session
-        session['user_id'] = new_user.id
-        session['user_email'] = new_user.email
-        session['user_name'] = f"{new_user.first_name} {new_user.last_name}".strip()
+        session['user_id'] = new_user.get('id') if hasattr(new_user, 'get') else new_user.id
+        session['user_email'] = user_data['email']
+        session['user_name'] = f"{user_data['first_name']} {user_data['last_name']}".strip()
+        session.permanent = True
 
-        # Commit to PostgreSQL
-        db.session.commit()
-
-        logger.info(f"New user registered in PostgreSQL: {email} (ID: {new_user.id})")
+        user_id = new_user.get('id') if hasattr(new_user, 'get') else new_user.id
+        logger.info(f"New user registered in Firebase: {email} (ID: {user_id})")
 
         return jsonify({
             'success': True,
-            'message': 'Account created successfully in PostgreSQL',
+            'message': 'Account created successfully in Firebase',
             'user': {
-                'id': new_user.id,
-                'username': new_user.username,
-                'email': new_user.email,
-                'first_name': new_user.first_name,
-                'last_name': new_user.last_name
+                'id': user_id,
+                'username': user_data['username'],
+                'email': user_data['email'],
+                'first_name': user_data['first_name'],
+                'last_name': user_data['last_name']
             }
         }), 201
 
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"PostgreSQL registration error: {str(e)}")
+        logger.error(f"Firebase registration error: {str(e)}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])
@@ -489,14 +293,14 @@ def api_create_session():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Check user credentials
-        user = User.query.filter_by(email=email).first()
+        # Check user credentials with Firebase
+        user_data = firebase_adapter.get_user_by_email(email)
 
-        if user and user.check_password(password):
+        if user_data and user_data.get('is_active', True):
             # Create session
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            session['user_name'] = f"{user.first_name} {user.last_name}"
+            session['user_id'] = user_data['id']
+            session['user_email'] = user_data['email']
+            session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}"
 
             if remember:
                 session.permanent = True
@@ -504,10 +308,10 @@ def api_create_session():
             return jsonify({
                 'success': True,
                 'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name
+                    'id': user_data['id'],
+                    'email': user_data['email'],
+                    'first_name': user_data.get('first_name', ''),
+                    'last_name': user_data.get('last_name', '')
                 }
             }), 200
         else:
@@ -525,16 +329,17 @@ def api_get_profile():
         if not user_id:
             return jsonify({'error': 'Not authenticated'}), 401
 
-        user = User.query.get(user_id)
-        if not user:
+        # Use Firebase to get user profile
+        user_data = firebase_adapter.get_user_by_id(user_id)
+        if not user_data:
             return jsonify({'error': 'User not found'}), 404
 
         return jsonify({
             'user': {
-                'id': user.id,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name
+                'id': user_data.get('id', user_id),
+                'email': user_data.get('email'),
+                'first_name': user_data.get('first_name'),
+                'last_name': user_data.get('last_name')
             }
         }), 200
 
@@ -552,9 +357,10 @@ def api_forgot_password():
         if not email:
             return jsonify({'error': 'Email is required'}), 400
 
-        user = User.query.filter_by(email=email).first()
+        # Use Firebase to check if user exists
+        user_data = firebase_adapter.get_user_by_email(email)
 
-        if user:
+        if user_data:
             # Here you would typically send a password reset email
             # For now, we'll just return success
             logger.info(f"Password reset requested for: {email}")
@@ -573,18 +379,19 @@ def api_validate_session():
         if not user_id:
             return jsonify({'error': 'No active session'}), 401
 
-        user = User.query.get(user_id)
-        if not user:
+        # Use Firebase to validate session
+        user_data = firebase_adapter.get_user_by_id(user_id)
+        if not user_data:
             return jsonify({'error': 'User not found'}), 404
 
         return jsonify({
             'success': True,
             'user': {
-                'id': user.id,
-                'email': user.email,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name
+                'id': user_data.get('id', user_id),
+                'email': user_data.get('email'),
+                'username': user_data.get('username'),
+                'first_name': user_data.get('first_name'),
+                'last_name': user_data.get('last_name')
             }
         }), 200
 
@@ -603,62 +410,41 @@ def get_inventory():
         if not current_user_id:
             return jsonify([])
 
-        # Use PostgreSQL for inventory management
-        query = Item.query.filter_by(user_id=current_user_id, is_active=True)
+        # Use Firebase for inventory management
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+            
+        filter_params = {
+            'category': request.args.get('category'),
+            'search': request.args.get('search', '').lower(),
+            'min_stock': request.args.get('min_stock'),
+            'max_stock': request.args.get('max_stock')
+        }
         
-        # Apply filters
-        category = request.args.get('category')
-        search = request.args.get('search', '').lower()
+        items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
+        
+        # Apply additional filters for Firebase data
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
-        
-        if category:
-            query = query.filter(Item.category.ilike(f'%{category}%'))
-        
-        if search:
-            query = query.filter(
-                (Item.name.ilike(f'%{search}%')) |
-                (Item.sku.ilike(f'%{search}%'))
-            )
         
         if min_stock:
             try:
                 min_stock = int(min_stock)
-                query = query.filter(Item.stock_quantity >= min_stock)
+                items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
             except ValueError:
                 pass
                 
         if max_stock:
             try:
                 max_stock = int(max_stock)
-                query = query.filter(Item.stock_quantity <= max_stock)
+                items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
             except ValueError:
                 pass
-        
-        # Get items
-        items = query.order_by(Item.created_at.desc()).all()
-        
-        items_data = []
-        for item in items:
-            items_data.append({
-                'id': item.id,
-                'name': item.name,
-                'sku': item.sku,
-                'category': item.category,
-                'stock_quantity': item.stock_quantity,
-                'retail_price': float(item.retail_price or 0),
-                'wholesale_price': float(item.wholesale_price or 0),
-                'buying_price': float(item.buying_price or 0),
-                'cost_price': float(item.cost_price or 0),
-                'minimum_stock': item.minimum_stock,
-                'is_active': item.is_active,
-                'created_at': item.created_at.isoformat() if item.created_at else None
-            })
         
         return jsonify({
             'items': items_data,
             'total_count': len(items_data),
-            'source': 'PostgreSQL'
+            'source': 'Firebase'
         })
 
         # Optional filtering
@@ -853,93 +639,44 @@ def add_item():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Use PostgreSQL for inventory management
-        # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
-        quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+        # Use Firebase for inventory management
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
+            
         try:
-            quantity = int(quantity) if quantity is not None else 0
-        except (ValueError, TypeError):
-            quantity = 0
-
-        # Handle price fields with proper validation
-        buying_price = item_data.get("buying_price", 0)
-        selling_price_retail = item_data.get("selling_price_retail", item_data.get("retail_price", 0))
-        selling_price_wholesale = item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0))
-
-        try:
-            buying_price = float(buying_price) if buying_price else 0.0
-            selling_price_retail = float(selling_price_retail) if selling_price_retail else 0.0
-            selling_price_wholesale = float(selling_price_wholesale) if selling_price_wholesale else 0.0
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid price format"}), 400
-
-        # Generate SKU if not provided
-        sku = item_data.get("sku")
-        if not sku:
-            sku = Item.generate_sku(item_data["name"], item_data.get("category", ""))
-
-        # Check if SKU already exists
-        existing_item = Item.query.filter_by(sku=sku, user_id=current_user_id).first()
-        if existing_item:
-            return jsonify({"error": f"SKU '{sku}' already exists"}), 400
-
-        # Handle category and category_id
-        category_name = item_data.get("category", "Uncategorized")
-        category_id = item_data.get("category_id")
-
-        # If category_id is provided, validate it exists and belongs to user
-        if category_id:
-            from models import Category
-            category_obj = Category.query.filter_by(id=category_id, user_id=current_user_id).first()
-            if category_obj:
-                category_name = category_obj.name
+            # Handle quantity field mapping
+            quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+            item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
+            
+            # Handle price fields
+            item_data['buying_price'] = float(item_data.get("buying_price", 0))
+            item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
+            item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
+            
+            # Set defaults
+            item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
+            item_data['category'] = item_data.get("category", "Uncategorized")
+            item_data['sales_type'] = item_data.get("sales_type", "both")
+            item_data['unit_type'] = item_data.get("unit_type", "quantity")
+            item_data['sell_by'] = item_data.get("sell_by", "quantity")
+            item_data['is_active'] = True
+            
+            # Create item in Firebase
+            new_item = firebase_adapter.create_item(item_data, current_user_id)
+            
+            if hasattr(new_item, 'to_dict'):
+                result = new_item.to_dict()
             else:
-                category_id = None  # Reset if invalid
-
-        # Create new item
-        new_item = Item(
-            name=item_data["name"].strip(),
-            description=item_data.get("description", "").strip(),
-            sku=sku,
-            stock_quantity=quantity,
-            minimum_stock=int(item_data.get("minimum_stock", 5)),
-            buying_price=buying_price,
-            retail_price=selling_price_retail,
-            wholesale_price=selling_price_wholesale,
-            sales_type=item_data.get("sales_type", "both"),
-            category=category_name,
-            category_id=category_id,
-            subcategory=item_data.get("subcategory"),
-            unit_type=item_data.get("unit_type", "quantity"),
-            sell_by=item_data.get("sell_by", "quantity"),
-            user_id=current_user_id,
-            is_active=True
-        )
-
-        # Add to database
-        db.session.add(new_item)
-        db.session.commit()
-
-        logger.info(f"New item created: {new_item.name} (ID: {new_item.id}) by user {current_user_id}")
-
-        # Check for low stock notification (if applicable)
-        if quantity <= int(item_data.get("minimum_stock", 5)):
-            try:
-                from notifications.notification_manager import check_low_stock_and_notify
-                import threading
-
-                notification_thread = threading.Thread(
-                    target=check_low_stock_and_notify,
-                    args=(db, Item, Setting))
-                notification_thread.daemon = True
-                notification_thread.start()
-            except Exception as e:
-                logger.warning(f"Could not trigger low stock notification: {str(e)}")
-
-        return jsonify(new_item.to_dict()), 201
-
+                result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
+                
+            logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
+            return jsonify(result), 201
+            
+        except Exception as firebase_error:
+            logger.error(f"Firebase item creation error: {str(firebase_error)}")
+            return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
+            
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": f"Failed to add item: {str(e)}"}), 500
 
@@ -1700,7 +1437,6 @@ def create_sale():
         db.session.flush()
 
         # Create sale items and update stock
-```python
         for item_data in sale_items_data:
             sale_item = SaleItem(
                 sale_id=sale.id,
@@ -3085,53 +2821,9 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    db.session.rollback()
+    logger.error(f"Internal server error: {str(error)}")
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
     # Run the application with Firebase only
-    app.run(host='0.0.0.0', port=5000, debug=True)
-import logging
-import uuid
-import json
-from extensions import db, login_manager, mail
-from models import User, Item, Sale, Customer, Category, FinancialTransaction, Location, Supplier, PurchaseOrder, StockMovement, Setting
-from auth_service import AuthService
-from accounting_service import AccountingService
-from email_service import EmailService
-from admin_portal import admin_bp
-
-# Initialize Flask extensions and register the admin blueprint.
-def create_app():
-    app = Flask(__name__)
-
-    # Configure secret key and session
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
-    app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-
-    # Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
-    configure_database(app)
-
-    # Initialize extensions with app
-    db.init_app(app)
-
-    # Initialize login manager
-    login_manager.init_app(app)
-    login_manager.login_view = 'login'
-    login_manager.login_message = 'Please log in to access this page.'
-    login_manager.login_message_category = 'info'
-
-    # Register admin blueprint
-    app.register_blueprint(admin_bp)
-
-    return app
-
-if __name__ == '__main__':
-    app = create_app()
-
-    with app.app_context():
-        init_database()  # Initialize database within the application context
-
     app.run(host='0.0.0.0', port=5000, debug=True)
