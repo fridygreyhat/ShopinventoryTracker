@@ -2326,8 +2326,7 @@ def get_dashboard_summary():
 
     except Exception as e:
         logger.error(f"Error getting dashboard summary: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500tem.get('buying_price')
-        )
+        return jsonify({'success': False, 'error': str(e)}), 500
 
         # Low stock items analysis
         low_stock_items = []
