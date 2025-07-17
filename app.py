@@ -1076,7 +1076,6 @@ def batch_update_inventory():
         })
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Error in batch update: {str(e)}")
         return jsonify({"error": f"Batch update failed: {str(e)}"}), 500
 
@@ -1100,8 +1099,8 @@ def bulk_import_inventory():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Initialize import service with user_id
-        import_service = CSVImportService(db.session, Item, current_user_id)
+        # Initialize import service with Firebase adapter
+        import_service = CSVImportService(firebase_adapter, None, current_user_id)
 
         # Process the import
         result = import_service.process_csv_import(file)
@@ -1116,7 +1115,6 @@ def bulk_import_inventory():
             return jsonify(result), 400
 
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Bulk import failed: {str(e)}")
         return jsonify({
             "success": False,
@@ -1817,50 +1815,31 @@ def create_installment():
 def get_categories():
     """API endpoint to get all categories with hierarchical structure"""
     try:
-        from models import Category
-
         user_id = session.get('user_id')
-        all_categories = Category.query.filter_by(user_id=user_id).order_by(Category.name).all()
+        # Use Firebase adapter to get categories
+        all_categories = firebase_adapter.service.get_categories_by_user(user_id)
 
-        # Separate parent categories and subcategories
-        parent_categories = [cat for cat in all_categories if cat.parent_id is None]
-        subcategories_dict = {}
-
-        # Group subcategories by parent_id
-        for cat in all_categories:
-            if cat.parent_id is not None:
-                if cat.parent_id not in subcategories_dict:
-                    subcategories_dict[cat.parent_id] = []
-                subcategories_dict[cat.parent_id].append(cat)
-
+        # Convert Firebase category objects to dictionaries
         categories_data = []
-        for category in parent_categories:
-            category_dict = {
-                'id': category.id,
-                'name': category.name,
-                'description': category.description,
-                'parent_id': category.parent_id,
-                'is_active': category.is_active,
-                'item_count': category.get_item_count(),
-                'total_item_count': category.get_total_item_count(),
-                'created_at': category.created_at.isoformat() if category.created_at else None,
+        for category in all_categories:
+            # Handle both FirebaseCategory objects and dictionaries
+            if hasattr(category, 'to_dict'):
+                category_dict = category.to_dict()
+            else:
+                category_dict = category
+            
+            # Ensure required fields exist
+            category_dict.update({
+                'id': category_dict.get('id', ''),
+                'name': category_dict.get('name', ''),
+                'description': category_dict.get('description', ''),
+                'parent_id': category_dict.get('parent_id', None),
+                'is_active': category_dict.get('is_active', True),
+                'item_count': 0,  # TODO: Calculate actual item count
+                'total_item_count': 0,  # TODO: Calculate actual total item count
+                'created_at': category_dict.get('created_at', ''),
                 'subcategories': []
-            }
-
-            # Add subcategories if they exist
-            if category.id in subcategories_dict:
-                for subcategory in subcategories_dict[category.id]:
-                    subcategory_dict = {
-                        'id': subcategory.id,
-                        'name': subcategory.name,
-                        'description': subcategory.description,
-                        'parent_id': subcategory.parent_id,
-                        'is_active': subcategory.is_active,
-                        'item_count': subcategory.get_item_count(),
-                        'total_item_count': subcategory.get_total_item_count(),
-                        'created_at': subcategory.created_at.isoformat() if subcategory.created_at else None
-                    }
-                    category_dict['subcategories'].append(subcategory_dict)
+            })
 
             categories_data.append(category_dict)
 
@@ -1870,24 +1849,29 @@ def get_categories():
         logger.error(f"Error getting categories: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/categories/<int:category_id>', methods=['GET'])
+@app.route('/api/categories/<string:category_id>', methods=['GET'])
 @login_required
 def get_category(category_id):
     """API endpoint to get a specific category"""
     try:
-        from models import Category
         user_id = session.get('user_id')
-        category = Category.query.filter_by(id=category_id, user_id=user_id).first()
+        category = firebase_adapter.service.get_category_by_id(category_id, user_id)
 
         if not category:
             return jsonify({'error': 'Category not found'}), 404
 
+        # Handle both FirebaseCategory objects and dictionaries
+        if hasattr(category, 'to_dict'):
+            category_dict = category.to_dict()
+        else:
+            category_dict = category
+
         return jsonify({
-            'id': category.id,
-            'name': category.name,
-            'description': category.description,
-            'parent_id': category.parent_id,
-            'created_at': category.created_at.isoformat() if category.created_at else None
+            'id': category_dict.get('id', ''),
+            'name': category_dict.get('name', ''),
+            'description': category_dict.get('description', ''),
+            'parent_id': category_dict.get('parent_id', None),
+            'created_at': category_dict.get('created_at', '')
         })
     except Exception as e:
         logger.error(f"Error getting category: {str(e)}")
