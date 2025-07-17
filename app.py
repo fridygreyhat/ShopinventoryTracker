@@ -5,18 +5,12 @@ import uuid
 import json
 from datetime import datetime, timedelta, date
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import func, or_, and_
 from werkzeug.middleware.proxy_fix import ProxyFix
 import io
 import csv
 import requests
 from flask_mail import Mail
 from dotenv import load_dotenv
-from flask_login import LoginManager, UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_migrate import Migrate
 from functools import wraps
 
 
@@ -1103,25 +1097,26 @@ def api_stock_reports():
     try:
         report_type = request.args.get('type', 'stock-available')
         threshold = request.args.get('threshold', 10, type=int)
+        user_id = session.get('user_id')
 
         if report_type == 'stock-available':
-            items = Item.query.filter_by(user_id=session['user_id']).all()
+            items = firebase_adapter.get_items_by_user(user_id)
 
             total_items = len(items)
-            total_stock = sum(item.stock_quantity for item in items)
-            low_stock_items = [item for item in items if item.stock_quantity <= threshold]
-            out_of_stock_items = [item for item in items if item.stock_quantity == 0]
+            total_stock = sum(item.get('stock_quantity', 0) for item in items)
+            low_stock_items = [item for item in items if item.get('stock_quantity', 0) <= threshold]
+            out_of_stock_items = [item for item in items if item.get('stock_quantity', 0) == 0]
 
             items_data = []
             for item in items:
                 items_data.append({
-                    'id': item.id,
-                    'name': item.name,
-                    'sku': item.sku,
-                    'category': item.category.name if item.category else None,
-                    'stock_quantity': item.stock_quantity,
-                    'minimum_stock': item.minimum_stock or 0,
-                    'price': float(item.retail_price or 0)
+                    'id': item.get('id'),
+                    'name': item.get('name'),
+                    'sku': item.get('sku'),
+                    'category': item.get('category'),
+                    'stock_quantity': item.get('stock_quantity', 0),
+                    'minimum_stock': item.get('minimum_stock', 0),
+                    'price': float(item.get('retail_price', 0))
                 })
 
             return jsonify({
@@ -1134,51 +1129,17 @@ def api_stock_reports():
             })
 
         elif report_type == 'stock-transactions':
-            # Get stock movements
-            movements = StockMovement.query.filter_by(user_id=session['user_id']).order_by(
-                StockMovement.created_at.desc()
-            ).limit(100).all()
-
-            transactions_data = []
-            for movement in movements:
-                transactions_data.append({
-                    'date': movement.created_at.isoformat(),
-                    'item_name': movement.item.name,
-                    'type': movement.movement_type,
-                    'quantity': movement.quantity,
-                    'reason': movement.reason,
-                    'reference': movement.reference_number
-                })
-
+            # Firebase doesn't have stock movements yet - return empty for now
             return jsonify({
                 'success': True,
-                'transactions': transactions_data
+                'transactions': []
             })
 
         elif report_type == 'stock-issues':
-            # Get stock issues (expired, broken, stolen)
-            issues = StockMovement.query.filter_by(
-                user_id=session['user_id'],
-                movement_type='out'
-            ).filter(
-                StockMovement.reason.in_(['expired', 'broken', 'stolen'])
-            ).order_by(StockMovement.created_at.desc()).all()
-
-            issues_data = []
-            for issue in issues:
-                value_lost = issue.quantity * (issue.item.buying_price or 0)
-                issues_data.append({
-                    'date': issue.created_at.isoformat(),
-                    'item_name': issue.item.name,
-                    'type': issue.reason,
-                    'quantity': issue.quantity,
-                    'value_lost': float(value_lost),
-                    'notes': issue.notes
-                })
-
+            # Firebase doesn't have stock issues yet - return empty for now
             return jsonify({
                 'success': True,
-                'issues': issues_data
+                'issues': []
             })
 
     except Exception as e:
@@ -1193,6 +1154,7 @@ def api_accounting_reports():
         period = request.args.get('period', 'month')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
+        user_id = session.get('user_id')
 
         # Calculate date range
         if period == 'month':
@@ -1214,28 +1176,23 @@ def api_accounting_reports():
             end = datetime.now()
 
         if report_type == 'profit-loss' or report_type == 'income-statement':
-            # Calculate revenue from sales
-            total_revenue = db.session.query(func.sum(Sale.total_amount)).filter(
-                Sale.user_id == session['user_id'],
-                Sale.created_at >= start,
-                Sale.created_at <= end,
-                Sale.payment_status == 'completed'
-            ).scalar() or 0
+            # Calculate revenue from Firebase sales
+            sales_data = firebase_adapter.get_sales_by_user(user_id)
+            total_revenue = sum(
+                float(sale.get('total_amount', 0))
+                for sale in sales_data
+                if sale.get('payment_status') == 'completed'
+            )
 
-            # Calculate expenses
-            total_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-                FinancialTransaction.user_id == session['user_id'],
-                FinancialTransaction.transaction_type == 'expense',
-                FinancialTransaction.created_at >= start,
-                FinancialTransaction.created_at <= end
-            ).scalar() or 0
+            # Expenses - placeholder for now (Firebase doesn't have financial transactions yet)
+            total_expenses = 0
 
             net_profit = total_revenue - total_expenses
             profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
 
             breakdown = [
                 {'account': 'Sales Revenue', 'amount': float(total_revenue), 'percentage': 100.0},
-                {'account': 'Operating Expenses', 'amount': float(total_expenses), 'percentage': (total_expenses / total_revenue * 100) if total_revenue > 0 else 0},
+                {'account': 'Operating Expenses', 'amount': float(total_expenses), 'percentage': 0},
                 {'account': 'Net Profit', 'amount': float(net_profit), 'percentage': profit_margin}
             ]
 
@@ -1249,12 +1206,14 @@ def api_accounting_reports():
             })
 
         elif report_type == 'balance-sheet':
-            # Simplified balance sheet
-            inventory_value = db.session.query(func.sum(Item.stock_quantity * Item.buying_price)).filter(
-                Item.user_id == session['user_id']
-            ).scalar() or 0
+            # Calculate inventory value from Firebase
+            items = firebase_adapter.get_items_by_user(user_id)
+            inventory_value = sum(
+                item.get('stock_quantity', 0) * item.get('buying_price', 0)
+                for item in items
+            )
 
-            cash_balance = 50000  # Placeholder - you'd get this from a cash account
+            cash_balance = 50000  # Placeholder
 
             items = [
                 {'type': 'Assets', 'account': 'Inventory', 'amount': float(inventory_value)},
@@ -1268,25 +1227,10 @@ def api_accounting_reports():
             })
 
         elif report_type == 'expenses':
-            expenses = FinancialTransaction.query.filter(
-                FinancialTransaction.user_id == session['user_id'],
-                FinancialTransaction.transaction_type == 'expense',
-                FinancialTransaction.created_at >= start,
-                FinancialTransaction.created_at <= end
-            ).order_by(FinancialTransaction.created_at.desc()).all()
-
-            items = []
-            for expense in expenses:
-                items.append({
-                    'date': expense.created_at.isoformat(),
-                    'category': expense.category,
-                    'description': expense.description,
-                    'amount': float(expense.amount)
-                })
-
+            # Firebase doesn't have financial transactions yet - return empty
             return jsonify({
                 'success': True,
-                'items': items
+                'items': []
             })
 
     except Exception as e:
@@ -2276,59 +2220,13 @@ def get_dashboard_summary():
 def get_financial_transactions():
     """API endpoint to get financial transactions with date filtering"""
     try:
-        from models import FinancialTransaction
-        from datetime import datetime
-
         user_id = session.get('user_id')
 
-        # Get date parameters
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        transaction_type = request.args.get('type')  # 'income', 'expense', or None for all
-
-        # Build query
-        query = FinancialTransaction.query.filter_by(user_id=user_id)
-
-        # Apply date filters
-        if start_date:
-            try:
-                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
-                query = query.filter(FinancialTransaction.created_at >= start_date_obj)
-            except ValueError:
-                pass
-
-        if end_date:
-            try:
-                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-                query = query.filter(FinancialTransaction.created_at <= end_date_obj)
-            except ValueError:
-                pass
-
-        # Apply transaction type filter
-        if transaction_type:
-            query = query.filter(FinancialTransaction.transaction_type == transaction_type)
-
-        # Execute query
-        transactions = query.order_by(FinancialTransaction.created_at.desc()).all()
-
-        # Format response
-        transactions_data = []
-        for transaction in transactions:
-            transactions_data.append({
-                'id': transaction.id,
-                'date': transaction.created_at.strftime('%Y-%m-%d'),
-                'description': transaction.description,
-                'amount': float(transaction.amount),
-                'transaction_type': transaction.transaction_type,
-                'category': transaction.category,                'payment_method': transaction.payment_method,
-                'reference_id': transaction.reference_id,
-                'notes': transaction.notes
-            })
-
+        # Firebase doesn't have financial transactions yet - return empty for now
         return jsonify({
             'success': True,
-            'transactions': transactions_data,
-            'total_count': len(transactions_data)
+            'transactions': [],
+            'total_count': 0
         })
 
     except Exception as e:
@@ -2344,7 +2242,9 @@ def get_monthly_financial_summary():
 
         user_id = session.get('user_id')
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        next_month = (current_month + timedelta(days=32)).replace(day=1)
+
+        # Get sales data from Firebase
+        sales_data = firebase_adapter.get_sales_by_user(user_id)
 
         # Get monthly data for the past 12 months
         monthly_data = {}
@@ -2352,21 +2252,21 @@ def get_monthly_financial_summary():
             month_start = (current_month - timedelta(days=30*i)).replace(day=1)
             month_end = (month_start + timedelta(days=32)).replace(day=1)
 
-            # Get sales for this month
-            monthly_sales = db.session.query(func.sum(Sale.total_amount)).filter(
-                Sale.user_id == user_id,
-                Sale.payment_status == 'completed',
-                Sale.created_at >= month_start,
-                Sale.created_at < month_end
-            ).scalar() or 0
+            # Calculate monthly sales from Firebase
+            monthly_sales = 0
+            for sale in sales_data:
+                if sale.get('payment_status') == 'completed':
+                    sale_date_str = sale.get('created_at')
+                    if sale_date_str:
+                        try:
+                            sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                            if month_start <= sale_date < month_end:
+                                monthly_sales += float(sale.get('total_amount', 0))
+                        except:
+                            continue
 
-            # Get expenses for this month
-            monthly_expenses = db.session.query(func.sum(FinancialTransaction.amount)).filter(
-                FinancialTransaction.user_id == user_id,
-                FinancialTransaction.transaction_type == 'expense',
-                FinancialTransaction.created_at >= month_start,
-                FinancialTransaction.created_at < month_end
-            ).scalar() or 0
+            # Expenses are not implemented in Firebase yet
+            monthly_expenses = 0
 
             monthly_data[month_start.month] = {
                 'income': float(monthly_sales),

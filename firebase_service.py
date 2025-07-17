@@ -203,7 +203,7 @@ class FirebaseService:
     def get_sales_by_user(self, user_id, limit=None):
         """Get all sales for a user"""
         try:
-            query = self.db.collection('sales').where('user_id', '==', user_id).order_by('created_at', direction=Query.DESCENDING)
+            query = self.db.collection('sales').where('user_id', '==', user_id)
             
             if limit:
                 query = query.limit(limit)
@@ -215,6 +215,9 @@ class FirebaseService:
                 sale_data = doc.to_dict()
                 sale_data['id'] = doc.id
                 sales.append(sale_data)
+            
+            # Sort in Python instead of Firestore to avoid index requirement
+            sales.sort(key=lambda x: x.get('created_at', ''), reverse=True)
             
             return sales
 
