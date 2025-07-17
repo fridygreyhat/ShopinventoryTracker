@@ -304,12 +304,16 @@ class FirebaseService:
             logger.error(f"Error creating sale: {str(e)}")
             raise
 
-    def get_sales_by_user(self, user_id):
+    def get_sales_by_user(self, user_id, limit=None):
         """Get all sales for a user"""
         try:
-            docs = (self.db.collection('sales')
-                   .where('user_id', '==', user_id)
-                   .stream())
+            query = (self.db.collection('sales')
+                    .where('user_id', '==', user_id))
+            
+            if limit:
+                query = query.limit(limit)
+                
+            docs = query.stream()
             sales = []
             
             for doc in docs:

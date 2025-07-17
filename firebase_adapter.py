@@ -47,22 +47,7 @@ class FirebaseAdapter:
             logger.error(f"Error getting user by ID {user_id}: {str(e)}")
             return None
 
-    def get_sales_by_user(self, user_id):
-        """Get all sales for a user"""
-        try:
-            sales_ref = self.service.db.collection('sales').where('user_id', '==', user_id)
-            sales_docs = sales_ref.stream()
 
-            sales_data = []
-            for doc in sales_docs:
-                sale_data = doc.to_dict()
-                sale_data['id'] = doc.id
-                sales_data.append(sale_data)
-
-            return sales_data
-        except Exception as e:
-            logger.error(f"Error getting sales for user {user_id}: {str(e)}")
-            return []
 
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""

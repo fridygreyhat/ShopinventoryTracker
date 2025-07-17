@@ -1289,7 +1289,7 @@ def api_accounting_reports():
 
         if report_type == 'profit-loss' or report_type == 'income-statement':
             # Calculate revenue from Firebase sales
-            sales_data = firebase_adapter.get_sales_by_user(user_id)
+            sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
             total_revenue = sum(
                 float(sale.get('total_amount', 0))
                 for sale in sales_data
