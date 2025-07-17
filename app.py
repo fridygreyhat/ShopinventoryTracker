@@ -2810,6 +2810,262 @@ def debug_routes():
         })
     return jsonify(routes)
 
+@app.route('/debug/firebase-users')
+def debug_firebase_users():
+    """Debug endpoint to analyze Firebase users"""
+    try:
+        # Get all users
+        users = firebase_adapter.get_all_users()
+        
+        # Get user statistics
+        stats = firebase_adapter.get_user_stats()
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(users),
+            'users': users,
+            'statistics': stats
+        })
+    except Exception as e:
+        logger.error(f"Error analyzing Firebase users: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/firebase-status')
+def debug_firebase_status():
+    """Debug endpoint to check Firebase configuration and API status"""
+    try:
+        status = {
+            'firebase_initialized': firebase_config.initialized,
+            'project_id': None,
+            'firestore_enabled': False,
+            'auth_enabled': False,
+            'database_exists': False,
+            'error_message': None,
+            'setup_instructions': []
+        }
+        
+        if firebase_config.initialized:
+            try:
+                # Get project ID
+                import firebase_admin
+                app_info = firebase_admin.get_app()
+                status['project_id'] = app_info.project_id
+                
+                # Test Firestore
+                test_ref = firebase_adapter.service.db.collection('test')
+                test_ref.limit(1).get()
+                status['firestore_enabled'] = True
+                status['database_exists'] = True
+                
+                # Test Auth
+                from firebase_admin import auth
+                auth.list_users(max_results=1)
+                status['auth_enabled'] = True
+                
+            except Exception as e:
+                status['error_message'] = str(e)
+                if "SERVICE_DISABLED" in str(e):
+                    status['firestore_enabled'] = False
+                    status['setup_instructions'].append("Enable Cloud Firestore API in Google Cloud Console")
+                elif "does not exist" in str(e):
+                    status['database_exists'] = False
+                    status['setup_instructions'].append("Create Firestore database in Firebase Console")
+                    status['setup_instructions'].append(f"Visit: https://console.cloud.google.com/datastore/setup?project={status['project_id']}")
+        
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error checking Firebase status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/firebase-collections')
+def debug_firebase_collections():
+    """Debug endpoint to analyze Firebase collections and data structure"""
+    try:
+        collections_info = {
+            'project_id': 'inventory-management-75a65',
+            'collections': []
+        }
+        
+        # Check common collections
+        collection_names = ['users', 'items', 'sales', 'customers', 'categories', 'transactions']
+        
+        for collection_name in collection_names:
+            try:
+                collection_ref = firebase_adapter.service.db.collection(collection_name)
+                docs = collection_ref.limit(5).stream()
+                doc_count = 0
+                sample_docs = []
+                
+                for doc in docs:
+                    doc_count += 1
+                    doc_data = doc.to_dict()
+                    sample_docs.append({
+                        'id': doc.id,
+                        'fields': list(doc_data.keys()),
+                        'sample_data': {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v 
+                                       for k, v in doc_data.items()}
+                    })
+                
+                collections_info['collections'].append({
+                    'name': collection_name,
+                    'exists': doc_count > 0,
+                    'document_count': doc_count,
+                    'sample_documents': sample_docs
+                })
+            except Exception as e:
+                collections_info['collections'].append({
+                    'name': collection_name,
+                    'exists': False,
+                    'error': str(e)
+                })
+        
+        return jsonify(collections_info)
+    except Exception as e:
+        logger.error(f"Error analyzing collections: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/create-sample-data')
+def debug_create_sample_data():
+    """Debug endpoint to create sample data for analysis"""
+    try:
+        # Get current user
+        existing_user = firebase_adapter.get_user_by_email('test@example.com')
+        if not existing_user:
+            return jsonify({
+                'success': False,
+                'error': 'Test user not found. Create user first.'
+            })
+        
+        user_id = existing_user['id']
+        results = {'created': [], 'errors': []}
+        
+        # Create sample items
+        sample_items = [
+            {
+                'name': 'Coca Cola 500ml',
+                'sku': 'COKE500',
+                'category': 'Beverages',
+                'buying_price': 0.50,
+                'selling_price': 1.00,
+                'stock_quantity': 100,
+                'description': 'Refreshing cola drink'
+            },
+            {
+                'name': 'Laptop HP EliteBook',
+                'sku': 'HP-ELITE-001',
+                'category': 'Electronics',
+                'buying_price': 800.00,
+                'selling_price': 1200.00,
+                'stock_quantity': 5,
+                'description': 'Professional laptop'
+            }
+        ]
+        
+        for item_data in sample_items:
+            try:
+                item = firebase_adapter.create_item(item_data, user_id)
+                results['created'].append(f"Item: {item_data['name']}")
+            except Exception as e:
+                results['errors'].append(f"Item {item_data['name']}: {str(e)}")
+        
+        # Create sample customer
+        customer_data = {
+            'name': 'John Doe',
+            'email': 'john.doe@example.com',
+            'phone': '+1234567891',
+            'address': '123 Main St, City, State'
+        }
+        
+        try:
+            customer = firebase_adapter.create_customer(customer_data, user_id)
+            results['created'].append(f"Customer: {customer_data['name']}")
+        except Exception as e:
+            results['errors'].append(f"Customer {customer_data['name']}: {str(e)}")
+        
+        # Create sample category
+        category_data = {
+            'name': 'Electronics',
+            'description': 'Electronic devices and accessories'
+        }
+        
+        try:
+            category = firebase_adapter.create_category(category_data, user_id)
+            results['created'].append(f"Category: {category_data['name']}")
+        except Exception as e:
+            results['errors'].append(f"Category {category_data['name']}: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'user_id': user_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating sample data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/database-summary')
+def debug_database_summary():
+    """Debug endpoint to provide complete database analysis summary"""
+    try:
+        # Get Firebase status
+        status_response = debug_firebase_status()
+        status_data = status_response.get_json()
+        
+        # Get user data
+        users_response = debug_firebase_users()
+        users_data = users_response.get_json()
+        
+        # Get collections data
+        collections_response = debug_firebase_collections()
+        collections_data = collections_response.get_json()
+        
+        summary = {
+            'firebase_status': status_data,
+            'user_analysis': {
+                'total_users': users_data.get('total_users', 0),
+                'users': users_data.get('users', []),
+                'statistics': users_data.get('statistics')
+            },
+            'database_structure': {
+                'project_id': collections_data.get('project_id'),
+                'collections': collections_data.get('collections', [])
+            },
+            'recommendations': []
+        }
+        
+        # Add recommendations based on analysis
+        if summary['user_analysis']['total_users'] == 0:
+            summary['recommendations'].append("No users found. Consider creating test users for development.")
+        
+        empty_collections = [col for col in summary['database_structure']['collections'] if not col.get('exists')]
+        if empty_collections:
+            summary['recommendations'].append(f"Empty collections: {', '.join([col['name'] for col in empty_collections])}")
+        
+        if summary['firebase_status'].get('firestore_enabled') and summary['firebase_status'].get('auth_enabled'):
+            summary['recommendations'].append("Firebase is fully configured and ready for production use.")
+        
+        return jsonify(summary)
+        
+    except Exception as e:
+        logger.error(f"Error creating database summary: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
