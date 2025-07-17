@@ -56,7 +56,7 @@ if not configure_database(app):
     logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
     logger.error("Please add your Firebase service account JSON to the FIREBASE_CREDENTIALS environment variable")
     sys.exit(1)
-    
+
 # Disable SQLAlchemy to prevent PostgreSQL connection attempts
 app.config['SQLALCHEMY_DATABASE_URI'] = None
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -79,6 +79,120 @@ def inject_user():
         return None
     return dict(get_current_user=get_current_user)
 
+# Web routes
+@app.route('/')
+def index():
+    """Main index route - redirect to login if not authenticated, otherwise dashboard"""
+    user_id = session.get('user_id')
+    if user_id:
+        # User is logged in, redirect to dashboard
+        return redirect(url_for('dashboard'))
+    else:
+        # User is not logged in, redirect to login
+        return redirect(url_for('login'))
+
+@app.route('/login')
+def login():
+    """Login page"""
+    # If user is already logged in, redirect to dashboard
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/register')
+def register():
+    """Registration page"""
+    # If user is already logged in, redirect to dashboard
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+    return render_template('register.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Main dashboard page"""
+    return render_template('dashboard.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales management page"""
+    return render_template('sales.html')
+
+@app.route('/customers')
+@login_required
+def customers():
+    """Customer management page"""
+    return render_template('customers.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
+@app.route('/account')
+@login_required
+def account():
+    """Account settings page"""
+    return render_template('account.html')
+
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
+@app.route('/finance')
+@login_required
+def finance():
+    """Finance management page"""
+    return render_template('finance.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting management page"""
+    return render_template('accounting.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments management page"""
+    return render_template('installments.html')
+
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand services page"""
+    return render_template('on_demand.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout route"""
+    session.clear()
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/debug')
 def debug():
     user_id = session.get('user_id')
@@ -97,7 +211,7 @@ def init_database():
         if not firebase_config.initialized:
             logger.info("Firebase initialization skipped - using Firebase for data management")
             return True
-        
+
         logger.info("🔥 Firebase database system initialized successfully")
         return True
 
@@ -144,27 +258,27 @@ def api_login():
 
         # Get user from Firestore first to verify account exists and is active
         user_data = firebase_adapter.get_user_by_email(email)
-        
+
         if not user_data:
             logger.warning(f"Failed login attempt for email: {email} - user not found")
             return jsonify({'error': 'Invalid email or password'}), 401
-            
+
         if not user_data.get('is_active', True):
             return jsonify({'error': 'Account is inactive'}), 401
 
         # Use Firebase Admin SDK for password verification
         try:
             from firebase_admin import auth
-            
+
             # For development, we'll use a simpler approach
             # In production, you should use proper Firebase Auth REST API
-            
+
             # For now, let's authenticate by checking if user exists and is active
             # This is a temporary solution - in production you'd verify the password properly
-            
+
             # Update last login
             firebase_adapter.service.update_user_last_login(user_data['id'])
-            
+
             # Create session
             session.clear()
             session['user_id'] = user_data['id']
@@ -185,7 +299,7 @@ def api_login():
                     'last_name': user_data.get('last_name', '')
                 }
             }), 200
-                
+
         except Exception as firebase_error:
             logger.error(f"Firebase authentication error: {str(firebase_error)}")
             return jsonify({'error': 'Authentication service error'}), 500
@@ -249,7 +363,7 @@ def api_register():
         # Create new user in Firebase Auth and Firestore
         try:
             from firebase_admin import auth
-            
+
             # Create user in Firebase Auth
             auth_user = auth.create_user(
                 email=email,
@@ -440,34 +554,34 @@ def get_inventory():
         # Use Firebase for inventory management
         if not firebase_config.initialized:
             return jsonify({'error': 'Firebase not configured'}), 500
-            
+
         filter_params = {
             'category': request.args.get('category'),
             'search': request.args.get('search', '').lower(),
             'min_stock': request.args.get('min_stock'),
             'max_stock': request.args.get('max_stock')
         }
-        
+
         items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
-        
+
         # Apply additional filters for Firebase data
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
-        
+
         if min_stock:
             try:
                 min_stock = int(min_stock)
                 items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
             except ValueError:
                 pass
-                
+
         if max_stock:
             try:
                 max_stock = int(max_stock)
                 items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
             except ValueError:
                 pass
-        
+
         return jsonify({
             'items': items_data,
             'total_count': len(items_data),
@@ -674,17 +788,17 @@ def add_item():
         # Use Firebase for inventory management
         if not firebase_config.initialized:
             return jsonify({"error": "Firebase not configured"}), 500
-            
+
         try:
             # Handle quantity field mapping
             quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
             item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
-            
+
             # Handle price fields
             item_data['buying_price'] = float(item_data.get("buying_price", 0))
             item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
             item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
-            
+
             # Set defaults
             item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
             item_data['category'] = item_data.get("category", "Uncategorized")
@@ -692,22 +806,22 @@ def add_item():
             item_data['unit_type'] = item_data.get("unit_type", "quantity")
             item_data['sell_by'] = item_data.get("sell_by", "quantity")
             item_data['is_active'] = True
-            
+
             # Create item in Firebase
             new_item = firebase_adapter.create_item(item_data, current_user_id)
-            
+
             if hasattr(new_item, 'to_dict'):
                 result = new_item.to_dict()
             else:
                 result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
-                
+
             logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
             return jsonify(result), 201
-            
+
         except Exception as firebase_error:
             logger.error(f"Firebase item creation error: {str(firebase_error)}")
             return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
-            
+
     except Exception as e:
         logger.error(f"Error adding item: {str(e)}")
         return jsonify({"error": f"Failed to add item: {str(e)}"}), 500
@@ -809,8 +923,8 @@ def update_item(item_id):
 
         # Update item using Firebase
         firebase_adapter.update_item(item_id, updates, current_user_id)
-        
-        # Get updated item
+
+        #        # Get updated item
         updated_item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
         if updated_item_doc.exists:
             updated_item = updated_item_doc.to_dict()
@@ -833,7 +947,7 @@ def verify_database_systems():
     """Verify that database systems are working properly"""
     firebase_ready = False
     postgresql_ready = False
-    
+
     # Check Firebase
     try:
         if firebase_config.initialize_firebase():
@@ -843,7 +957,7 @@ def verify_database_systems():
             logger.warning("⚠️ Firebase database not configured")
     except Exception as e:
         logger.error(f"❌ Firebase initialization error: {str(e)}")
-    
+
     # Check PostgreSQL as fallback
     try:
         from models import User
@@ -852,7 +966,7 @@ def verify_database_systems():
         logger.info(f"✅ PostgreSQL fallback ready - {user_count} users in database")
     except Exception as e:
         logger.error(f"❌ PostgreSQL fallback error: {str(e)}")
-    
+
     if firebase_ready:
         logger.info("🔥 Firebase is the primary database")
         return "firebase"
@@ -2091,7 +2205,7 @@ def get_dashboard_summary():
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = sale_date_str
-                    
+
                     if today <= sale_date < tomorrow:
                         today_sales_count += 1
                         if sale.get('payment_status') == 'completed':
@@ -2115,7 +2229,7 @@ def get_dashboard_summary():
                         created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
                     else:
                         created_at = created_at_str
-                    
+
                     if created_at >= current_month:
                         new_customers_this_month += 1
                 except:
@@ -2134,7 +2248,7 @@ def get_dashboard_summary():
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = sale_date_str
-                    
+
                     if current_month <= sale_date < next_month:
                         monthly_income += float(sale.get('total_amount', 0))
                 except:
@@ -2593,439 +2707,7 @@ def update_settings():
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Web Routes (Pages)
-@app.route('/')
-def index():
-    """Home page route"""
-    return render_template('cover.html')
 
-@app.route('/login')
-def login():
-    """Login page route"""
-    return render_template('login.html')
-
-@app.route('/register')
-def register():
-    """Registration page route"""
-    return render_template('register.html')
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    """Dashboard page route"""
-    return render_template('dashboard.html')
-
-@app.route('/inventory')
-@login_required
-def inventory():
-    """Inventory page route"""
-    return render_template('inventory.html')
-
-@app.route('/inventory/add')
-@login_required
-def add_item_page():
-    """Add item page route"""
-    return render_template('inventory.html')
-
-# For backward compatibility
-@app.route('/add-item')
-@login_required
-def add_item_redirect():
-    """Redirect to inventory page for adding items"""
-    return redirect(url_for('inventory'))
-
-@app.route('/sales')
-@login_required
-def sales():
-    """Sales page route"""
-    return render_template('sales.html')
-
-@app.route('/sales/new')
-@login_required
-def new_sale():
-    """New sale page route"""
-    return render_template('sales.html')
-
-@app.route('/customers')
-@login_required
-def customers():
-    """Customers page route"""
-    # Check if template exists, fallback to placeholder
-    try:
-        return render_template('customers.html')
-    except:
-        return render_template('dashboard.html')  # Fallback
-
-@app.route('/installments')
-@login_required
-def installments():
-    """Installments page route"""
-    return render_template('installments.html')
-
-@app.route('/categories')
-@login_required
-def categories():
-    """Categories page route"""
-    return render_template('categories.html')
-
-@app.route('/reports')
-@login_required
-def reports():
-    """Reports page route"""
-    return render_template('reports.html')
-
-@app.route('/settings')
-@login_required
-def settings():
-    """Settings page route"""
-    return render_template('settings.html')
-
-@app.route('/account')
-@login_required
-def account():
-    """User account management page"""
-    return render_template('account.html')
-
-@app.route('/margin')
-@login_required
-def margin():
-    """Margin analysis page"""
-    return render_template('margin.html')
-
-@app.route('/finance')
-@login_required
-def finance():
-    """Finance management page"""
-    return render_template('finance.html')
-
-@app.route('/on_demand')
-@login_required
-def on_demand():
-    """On-demand products page"""
-    return render_template('on_demand.html')
-
-@app.route('/admin_users')
-@login_required
-def admin_users():
-    """Admin users management page"""
-    user_id = session.get('user_id')
-    from models import User
-    if not user_id:
-        return redirect(url_for('login'))
-
-    user = User.query.get(user_id)
-    if not user or not user.is_admin:
-        flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    return render_template('admin_users.html')
-
-@app.route('/accounting')
-@login_required
-def accounting():
-    """Accounting dashboard page"""
-    return render_template('accounting.html')
-
-@app.route('/analytics')
-@login_required
-def analytics():
-    """Analytics dashboard route"""
-    return render_template('analytics_dashboard.html')
-
-@app.route('/performance')
-@login_required
-def performance():
-    """Performance dashboard route"""
-    return render_template('performance_dashboard.html')
-
-@app.route('/api/auth/logout', methods=['POST'])
-def api_logout():
-    """API endpoint for user logout"""
-    try:
-        user_id = session.get('user_id')
-        session.clear()
-        logger.info(f"User logged out: {user_id}")
-        return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
-    except Exception as e:
-        logger.error(f"Logout error: {str(e)}")
-        return jsonify({'error': 'Logout failed'}), 500
-
-@app.route('/logout')
-def logout():
-    """Logout route"""
-    session.clear()
-    return redirect(url_for('index'))
-
-# Debug route to help identify routing issues
-@app.route('/debug/routes')
-def debug_routes():
-    """Debug endpoint to list all available routes"""
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
-            'rule': str(rule)
-        })
-    return jsonify(routes)
-
-@app.route('/debug/firebase-users')
-def debug_firebase_users():
-    """Debug endpoint to analyze Firebase users"""
-    try:
-        # Get all users
-        users = firebase_adapter.get_all_users()
-        
-        # Get user statistics
-        stats = firebase_adapter.get_user_stats()
-        
-        return jsonify({
-            'success': True,
-            'total_users': len(users),
-            'users': users,
-            'statistics': stats
-        })
-    except Exception as e:
-        logger.error(f"Error analyzing Firebase users: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/firebase-status')
-def debug_firebase_status():
-    """Debug endpoint to check Firebase configuration and API status"""
-    try:
-        status = {
-            'firebase_initialized': firebase_config.initialized,
-            'project_id': None,
-            'firestore_enabled': False,
-            'auth_enabled': False,
-            'database_exists': False,
-            'error_message': None,
-            'setup_instructions': []
-        }
-        
-        if firebase_config.initialized:
-            try:
-                # Get project ID
-                import firebase_admin
-                app_info = firebase_admin.get_app()
-                status['project_id'] = app_info.project_id
-                
-                # Test Firestore
-                test_ref = firebase_adapter.service.db.collection('test')
-                test_ref.limit(1).get()
-                status['firestore_enabled'] = True
-                status['database_exists'] = True
-                
-                # Test Auth
-                from firebase_admin import auth
-                auth.list_users(max_results=1)
-                status['auth_enabled'] = True
-                
-            except Exception as e:
-                status['error_message'] = str(e)
-                if "SERVICE_DISABLED" in str(e):
-                    status['firestore_enabled'] = False
-                    status['setup_instructions'].append("Enable Cloud Firestore API in Google Cloud Console")
-                elif "does not exist" in str(e):
-                    status['database_exists'] = False
-                    status['setup_instructions'].append("Create Firestore database in Firebase Console")
-                    status['setup_instructions'].append(f"Visit: https://console.cloud.google.com/datastore/setup?project={status['project_id']}")
-        
-        return jsonify(status)
-    except Exception as e:
-        logger.error(f"Error checking Firebase status: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/firebase-collections')
-def debug_firebase_collections():
-    """Debug endpoint to analyze Firebase collections and data structure"""
-    try:
-        collections_info = {
-            'project_id': 'inventory-management-75a65',
-            'collections': []
-        }
-        
-        # Check common collections
-        collection_names = ['users', 'items', 'sales', 'customers', 'categories', 'transactions']
-        
-        for collection_name in collection_names:
-            try:
-                collection_ref = firebase_adapter.service.db.collection(collection_name)
-                docs = collection_ref.limit(5).stream()
-                doc_count = 0
-                sample_docs = []
-                
-                for doc in docs:
-                    doc_count += 1
-                    doc_data = doc.to_dict()
-                    sample_docs.append({
-                        'id': doc.id,
-                        'fields': list(doc_data.keys()),
-                        'sample_data': {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v 
-                                       for k, v in doc_data.items()}
-                    })
-                
-                collections_info['collections'].append({
-                    'name': collection_name,
-                    'exists': doc_count > 0,
-                    'document_count': doc_count,
-                    'sample_documents': sample_docs
-                })
-            except Exception as e:
-                collections_info['collections'].append({
-                    'name': collection_name,
-                    'exists': False,
-                    'error': str(e)
-                })
-        
-        return jsonify(collections_info)
-    except Exception as e:
-        logger.error(f"Error analyzing collections: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/create-sample-data')
-def debug_create_sample_data():
-    """Debug endpoint to create sample data for analysis"""
-    try:
-        # Get current user
-        existing_user = firebase_adapter.get_user_by_email('test@example.com')
-        if not existing_user:
-            return jsonify({
-                'success': False,
-                'error': 'Test user not found. Create user first.'
-            })
-        
-        user_id = existing_user['id']
-        results = {'created': [], 'errors': []}
-        
-        # Create sample items
-        sample_items = [
-            {
-                'name': 'Coca Cola 500ml',
-                'sku': 'COKE500',
-                'category': 'Beverages',
-                'buying_price': 0.50,
-                'selling_price': 1.00,
-                'stock_quantity': 100,
-                'description': 'Refreshing cola drink'
-            },
-            {
-                'name': 'Laptop HP EliteBook',
-                'sku': 'HP-ELITE-001',
-                'category': 'Electronics',
-                'buying_price': 800.00,
-                'selling_price': 1200.00,
-                'stock_quantity': 5,
-                'description': 'Professional laptop'
-            }
-        ]
-        
-        for item_data in sample_items:
-            try:
-                item = firebase_adapter.create_item(item_data, user_id)
-                results['created'].append(f"Item: {item_data['name']}")
-            except Exception as e:
-                results['errors'].append(f"Item {item_data['name']}: {str(e)}")
-        
-        # Create sample customer
-        customer_data = {
-            'name': 'John Doe',
-            'email': 'john.doe@example.com',
-            'phone': '+1234567891',
-            'address': '123 Main St, City, State'
-        }
-        
-        try:
-            customer = firebase_adapter.create_customer(customer_data, user_id)
-            results['created'].append(f"Customer: {customer_data['name']}")
-        except Exception as e:
-            results['errors'].append(f"Customer {customer_data['name']}: {str(e)}")
-        
-        # Create sample category
-        category_data = {
-            'name': 'Electronics',
-            'description': 'Electronic devices and accessories'
-        }
-        
-        try:
-            category = firebase_adapter.create_category(category_data, user_id)
-            results['created'].append(f"Category: {category_data['name']}")
-        except Exception as e:
-            results['errors'].append(f"Category {category_data['name']}: {str(e)}")
-        
-        return jsonify({
-            'success': True,
-            'results': results,
-            'user_id': user_id
-        })
-        
-    except Exception as e:
-        logger.error(f"Error creating sample data: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/database-summary')
-def debug_database_summary():
-    """Debug endpoint to provide complete database analysis summary"""
-    try:
-        # Get Firebase status
-        status_response = debug_firebase_status()
-        status_data = status_response.get_json()
-        
-        # Get user data
-        users_response = debug_firebase_users()
-        users_data = users_response.get_json()
-        
-        # Get collections data
-        collections_response = debug_firebase_collections()
-        collections_data = collections_response.get_json()
-        
-        summary = {
-            'firebase_status': status_data,
-            'user_analysis': {
-                'total_users': users_data.get('total_users', 0),
-                'users': users_data.get('users', []),
-                'statistics': users_data.get('statistics')
-            },
-            'database_structure': {
-                'project_id': collections_data.get('project_id'),
-                'collections': collections_data.get('collections', [])
-            },
-            'recommendations': []
-        }
-        
-        # Add recommendations based on analysis
-        if summary['user_analysis']['total_users'] == 0:
-            summary['recommendations'].append("No users found. Consider creating test users for development.")
-        
-        empty_collections = [col for col in summary['database_structure']['collections'] if not col.get('exists')]
-        if empty_collections:
-            summary['recommendations'].append(f"Empty collections: {', '.join([col['name'] for col in empty_collections])}")
-        
-        if summary['firebase_status'].get('firestore_enabled') and summary['firebase_status'].get('auth_enabled'):
-            summary['recommendations'].append("Firebase is fully configured and ready for production use.")
-        
-        return jsonify(summary)
-        
-    except Exception as e:
-        logger.error(f"Error creating database summary: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
     # Log the requested URL for debugging

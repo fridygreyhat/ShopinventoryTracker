@@ -37,7 +37,6 @@ class FirebaseAdapter:
     def get_user_by_id(self, user_id):
         """Get user by ID from Firebase"""
         try:
-            # Get user document from Firestore
             user_doc = self.service.db.collection('users').document(user_id).get()
             if user_doc.exists:
                 user_data = user_doc.to_dict()
@@ -45,8 +44,94 @@ class FirebaseAdapter:
                 return user_data
             return None
         except Exception as e:
-            logger.error(f"Error getting user by ID: {str(e)}")
+            logger.error(f"Error getting user by ID {user_id}: {str(e)}")
             return None
+
+    def get_sales_by_user(self, user_id):
+        """Get all sales for a user"""
+        try:
+            sales_ref = self.service.db.collection('sales').where('user_id', '==', user_id)
+            sales_docs = sales_ref.stream()
+
+            sales_data = []
+            for doc in sales_docs:
+                sale_data = doc.to_dict()
+                sale_data['id'] = doc.id
+                sales_data.append(sale_data)
+
+            return sales_data
+        except Exception as e:
+            logger.error(f"Error getting sales for user {user_id}: {str(e)}")
+            return []
+
+    def get_customers_by_user(self, user_id):
+        """Get all customers for a user"""
+        try:
+            customers_ref = self.service.db.collection('customers').where('user_id', '==', user_id)
+            customers_docs = customers_ref.stream()
+
+            customers_data = []
+            for doc in customers_docs:
+                customer_data = doc.to_dict()
+                customer_data['id'] = doc.id
+                customers_data.append(customer_data)
+
+            return customers_data
+        except Exception as e:
+            logger.error(f"Error getting customers for user {user_id}: {str(e)}")
+            return []
+
+    def create_customer(self, customer_data, user_id):
+        """Create a new customer"""
+        try:
+            customer_data['user_id'] = user_id
+            customer_data['created_at'] = datetime.utcnow().isoformat()
+            customer_data['updated_at'] = datetime.utcnow().isoformat()
+
+            doc_ref = self.service.db.collection('customers').add(customer_data)
+            customer_data['id'] = doc_ref[1].id
+            return customer_data
+        except Exception as e:
+            logger.error(f"Error creating customer: {str(e)}")
+            raise e
+
+    def create_category(self, category_data, user_id):
+        """Create a new category"""
+        try:
+            category_data['user_id'] = user_id
+            category_data['created_at'] = datetime.utcnow().isoformat()
+            category_data['updated_at'] = datetime.utcnow().isoformat()
+            category_data['is_active'] = True
+
+            doc_ref = self.service.db.collection('categories').add(category_data)
+            category_data['id'] = doc_ref[1].id
+            return category_data
+        except Exception as e:
+            logger.error(f"Error creating category: {str(e)}")
+            raise e
+
+    def delete_item(self, item_id, user_id):
+        """Soft delete an item"""
+        try:
+            # Verify item belongs to user
+            item_doc = self.service.db.collection('items').document(item_id).get()
+            if not item_doc.exists:
+                raise Exception("Item not found")
+
+            item_data = item_doc.to_dict()
+            if item_data.get('user_id') != user_id:
+                raise Exception("Unauthorized access to item")
+
+            # Soft delete by marking as inactive
+            self.service.db.collection('items').document(item_id).update({
+                'is_active': False,
+                'updated_at': datetime.utcnow().isoformat()
+            })
+
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting item {item_id}: {str(e)}")
+            raise e
 
     def get_user_by_email(self, email):
         """Get user by email from Firebase"""
@@ -156,7 +241,9 @@ class FirebaseAdapter:
     def get_items_by_user(self, user_id, **kwargs):
         """Get items with filtering support"""
         try:
-            query = self.service.db.collection('items').where('user_id', '==', user_id).where('is_active', '==', True)
+            query = (self.service.db.collection('items')
+                    .where(filter=('user_id', '==', user_id))
+                    .where(filter=('is_active', '==', True)))
 
             # Apply filters
             category = kwargs.get('category')
