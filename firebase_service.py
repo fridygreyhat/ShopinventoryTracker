@@ -113,8 +113,8 @@ class FirebaseService:
         try:
             # Use filter keyword argument to avoid deprecation warning
             query = (self.db.collection('items')
-                    .where(filter=('user_id', '==', user_id))
-                    .where(filter=('is_active', '==', True)))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             if limit:
                 query = query.limit(limit)
@@ -206,7 +206,7 @@ class FirebaseService:
         """Get all sales for a user"""
         try:
             # Use filter keyword argument to avoid deprecation warning
-            query = self.db.collection('sales').where(filter=('user_id', '==', user_id))
+            query = self.db.collection('sales').where('user_id', '==', user_id)
 
             if limit:
                 query = query.limit(limit)
@@ -251,7 +251,7 @@ class FirebaseService:
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
         try:
-            docs = self.db.collection('customers').where(filter=('user_id', '==', user_id)).stream()
+            docs = self.db.collection('customers').where('user_id', '==', user_id).stream()
             customers = []
 
             for doc in docs:
@@ -293,8 +293,8 @@ class FirebaseService:
         """Get all categories for a user"""
         try:
             docs = (self.db.collection('categories')
-                   .where(filter=('user_id', '==', user_id))
-                   .where(filter=('is_active', '==', True))
+                   .where('user_id', '==', user_id)
+                   .where('is_active', '==', True)
                    .stream())
             categories = []
 
@@ -425,8 +425,8 @@ class FirebaseService:
         try:
             # Use filter keyword argument to avoid deprecation warning
             query = (self.db.collection('items')
-                    .where(filter=('user_id', '==', user_id))
-                    .where(filter=('is_active', '==', True)))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             if limit:
                 query = query.limit(limit)
@@ -518,7 +518,7 @@ class FirebaseService:
         """Get all sales for a user"""
         try:
             # Use filter keyword argument to avoid deprecation warning
-            query = self.db.collection('sales').where(filter=('user_id', '==', user_id))
+            query = self.db.collection('sales').where('user_id', '==', user_id)
 
             if limit:
                 query = query.limit(limit)
@@ -563,7 +563,7 @@ class FirebaseService:
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
         try:
-            docs = self.db.collection('customers').where(filter=('user_id', '==', user_id)).stream()
+            docs = self.db.collection('customers').where('user_id', '==', user_id).stream()
             customers = []
 
             for doc in docs:
@@ -605,8 +605,8 @@ class FirebaseService:
         """Get all categories for a user"""
         try:
             docs = (self.db.collection('categories')
-                   .where(filter=('user_id', '==', user_id))
-                   .where(filter=('is_active', '==', True))
+                   .where('user_id', '==', user_id)
+                   .where('is_active', '==', True)
                    .stream())
             categories = []
 
@@ -737,8 +737,8 @@ class FirebaseService:
         try:
             # Use filter keyword argument to avoid deprecation warning
             query = (self.db.collection('items')
-                    .where(filter=('user_id', '==', user_id))
-                    .where(filter=('is_active', '==', True)))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             if limit:
                 query = query.limit(limit)
@@ -830,7 +830,7 @@ class FirebaseService:
         """Get all sales for a user"""
         try:
             # Use filter keyword argument to avoid deprecation warning
-            query = self.db.collection('sales').where(filter=('user_id', '==', user_id))
+            query = self.db.collection('sales').where('user_id', '==', user_id)
 
             if limit:
                 query = query.limit(limit)
@@ -875,7 +875,7 @@ class FirebaseService:
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
         try:
-            docs = self.db.collection('customers').where(filter=('user_id', '==', user_id)).stream()
+            docs = self.db.collection('customers').where('user_id', '==', user_id).stream()
             customers = []
 
             for doc in docs:
@@ -917,8 +917,8 @@ class FirebaseService:
         """Get all categories for a user"""
         try:
             docs = (self.db.collection('categories')
-                   .where(filter=('user_id', '==', user_id))
-                   .where(filter=('is_active', '==', True))
+                   .where('user_id', '==', user_id)
+                   .where('is_active', '==', True)
                    .stream())
             categories = []
 
