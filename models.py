@@ -253,6 +253,27 @@ class Sale(db.Model):
     customer = db.relationship('Customer', backref='sales', lazy=True)
     user = db.relationship('User', backref='sales', lazy=True)
 
+    def __init__(self, **kwargs):
+        super(Sale, self).__init__(**kwargs)
+        if not self.invoice_number:
+            self.invoice_number = self.generate_invoice_number()
+        if not self.sale_number:
+            self.sale_number = self.generate_sale_number()
+
+    @staticmethod
+    def generate_sale_number():
+        """Generate a unique sale number"""
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        return f"SALE-{timestamp}"
+
+    @staticmethod
+    def generate_invoice_number():
+        """Generate a unique invoice number"""
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        return f"INV-{timestamp}"
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -282,16 +303,11 @@ class SaleItem(db.Model):
     quantity = db.Column(db.Float, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     unit_cost = db.Column(db.Float, default=0.0)
-    total_price = db.Column(db.Float, nullable=False)
+    subtotal = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationships
     item = db.relationship('Item', backref='sale_items', lazy=True)
-    
-    # Constraints
-    __table_args__ = (
-        db.UniqueConstraint('sale_id', 'item_id', name='unique_sale_item'),
-    )
     
     def to_dict(self):
         return {
@@ -301,12 +317,10 @@ class SaleItem(db.Model):
             'quantity': self.quantity,
             'unit_price': self.unit_price,
             'unit_cost': self.unit_cost,
-            'total_price': self.total_price,
+            'subtotal': self.subtotal,
             'item_name': self.item.name if self.item else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
-
-# Redundant relationship definition removed - already defined in Sale model
 
 class FinancialTransaction(db.Model):
     __tablename__ = 'financial_transaction'

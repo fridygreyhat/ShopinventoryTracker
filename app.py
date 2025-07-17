@@ -48,8 +48,11 @@ def login_required(f):
 # Create Flask app
 app = Flask(__name__)
 
-# Configure secret key
+# Configure secret key and session
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 # Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
 configure_database(app)
@@ -108,14 +111,18 @@ def init_database():
                 Journal, Supplier, PurchaseOrder, UserTwoFactor, Employee, InstallmentSale, InstallmentPayment
             )
 
+            # Test database connection first
+            try:
+                db.session.execute(db.text('SELECT 1'))
+                db.session.commit()
+                logger.info("Database connection test successful")
+            except Exception as conn_error:
+                logger.error(f"Database connection failed: {str(conn_error)}")
+                return False
+
             # Create all tables
             db.create_all()
             logger.info("Database tables created successfully")
-
-            # Test database connection
-            db.session.execute(db.text('SELECT 1'))
-            db.session.commit()
-            logger.info("Database connection test successful")
 
             # Helper function to check if column exists
             def column_exists(table_name, column_name):
@@ -363,6 +370,7 @@ def api_login():
                 session['user_id'] = user.id
                 session['user_email'] = user.email
                 session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                session.permanent = True
 
                 # Commit changes to PostgreSQL
                 db.session.commit()
