@@ -30,6 +30,9 @@ os.environ.pop('DATABASE_URL', None)  # Remove any PostgreSQL URL
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Disable any PostgreSQL/SQLAlchemy initialization
+os.environ['USE_FIREBASE'] = 'true'
+
 # Custom login_required decorator for session-based authentication
 def login_required(f):
     """Custom login required decorator that works with session-based authentication"""
@@ -57,9 +60,10 @@ if not configure_database(app):
     logger.error("Please add your Firebase service account JSON to the FIREBASE_CREDENTIALS environment variable")
     sys.exit(1)
 
-# Disable SQLAlchemy to prevent PostgreSQL connection attempts
+# Completely disable SQLAlchemy to prevent PostgreSQL connection attempts
 app.config['SQLALCHEMY_DATABASE_URI'] = None
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
 
 
 
@@ -68,6 +72,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # PostgreSQL models disabled - using Firebase only
 # All user management now handled through Firebase
 print("📊 Using Firebase for all data operations")
+
+# Ensure no database initialization
+try:
+    from extensions import db
+    # Don't initialize db with app to prevent PostgreSQL connections
+    print("⚠️ SQLAlchemy extensions loaded but not initialized")
+except ImportError:
+    print("✅ No SQLAlchemy extensions loaded")
 
 
 @app.context_processor
