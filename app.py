@@ -22,12 +22,8 @@ from functools import wraps
 
 
 
-# Import Firebase components
+# Import database configuration
 from extensions import configure_database
-
-# Import Firebase components
-from firebase_adapter import firebase_adapter
-from firebase_config import firebase_config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -54,10 +50,8 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure database (Firebase only)
-if not configure_database(app, use_firebase=True):
-    logger.error("❌ Firebase configuration failed. Please check your FIREBASE_CREDENTIALS environment variable.")
-    sys.exit(1)
+# Configure database (PostgreSQL only)
+configure_database(app)
 
 
 
@@ -332,7 +326,7 @@ def init_database():
 # Auth API Routes
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    """API endpoint for user login - authenticates against Firebase"""
+    """API endpoint for user login - authenticates against PostgreSQL"""
     try:
         data = request.get_json()
 
@@ -345,69 +339,27 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Check if Firebase is configured
-        if not firebase_config.initialized:
-            if not firebase_config.initialize_firebase():
-                # Fallback to PostgreSQL if Firebase not available
-                logger.warning("Firebase not available, falling back to PostgreSQL")
-                from models import User
-                user = User.query.filter_by(email=email, is_active=True).first()
-                if user and user.check_password(password):
-                    session.clear()
-                    session['user_id'] = user.id
-                    session['user_email'] = user.email
-                    session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
-                    session.permanent = True
-                    return jsonify({
-                        'success': True,
-                        'message': 'Login successful - PostgreSQL fallback',
-                        'user': user.to_dict()
-                    }), 200
-                else:
-                    return jsonify({'error': 'Invalid email or password'}), 401
-
-        # Use Firebase authentication
-        try:
-            from firebase_admin import auth
-            # Verify user exists in Firebase Auth
-            user = auth.get_user_by_email(email)
+        # Use PostgreSQL authentication
+        from models import User
+        user = User.query.filter_by(email=email, is_active=True).first()
+        
+        if user and user.check_password(password):
+            session.clear()
+            session['user_id'] = user.id
+            session['user_email'] = user.email
+            session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+            session.permanent = True
             
-            # Get user data from Firestore
-            user_data = firebase_adapter.get_user_by_id(user.uid)
+            logger.info(f"User {email} logged in successfully (ID: {user.id})")
             
-            if user_data and user_data.get('is_active', True):
-                # Update last login
-                firebase_adapter.service.update_user_last_login(user.uid)
-                
-                # Create session
-                session.clear()
-                session['user_id'] = user.uid
-                session['user_email'] = user_data['email']
-                session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-                session.permanent = True
-
-                logger.info(f"User {email} logged in successfully from Firebase (ID: {user.uid})")
-
-                return jsonify({
-                    'success': True,
-                    'message': 'Login successful - authenticated from Firebase',
-                    'user': {
-                        'id': user.uid,
-                        'email': user_data['email'],
-                        'username': user_data.get('username', ''),
-                        'first_name': user_data.get('first_name', ''),
-                        'last_name': user_data.get('last_name', '')
-                    }
-                }), 200
-            else:
-                return jsonify({'error': 'User account not found or inactive'}), 401
-                
-        except auth.UserNotFoundError:
-            logger.warning(f"Failed login attempt for email: {email} - user not found in Firebase")
+            return jsonify({
+                'success': True,
+                'message': 'Login successful',
+                'user': user.to_dict()
+            }), 200
+        else:
+            logger.warning(f"Failed login attempt for email: {email}")
             return jsonify({'error': 'Invalid email or password'}), 401
-        except Exception as firebase_error:
-            logger.error(f"Firebase authentication error: {str(firebase_error)}")
-            return jsonify({'error': 'Authentication service error'}), 500
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
@@ -651,41 +603,62 @@ def get_inventory():
         if not current_user_id:
             return jsonify([])
 
-        # Use Firebase only
-        if not firebase_config.initialized:
-            return jsonify({'error': 'Firebase not configured'}), 500
-            
-        filter_params = {
-            'category': request.args.get('category'),
-            'search': request.args.get('search', '').lower(),
-            'min_stock': request.args.get('min_stock'),
-            'max_stock': request.args.get('max_stock')
-        }
+        # Use PostgreSQL for inventory management
+        query = Item.query.filter_by(user_id=current_user_id, is_active=True)
         
-        items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
-        
-        # Apply additional filters for Firebase data
+        # Apply filters
+        category = request.args.get('category')
+        search = request.args.get('search', '').lower()
         min_stock = request.args.get('min_stock')
         max_stock = request.args.get('max_stock')
+        
+        if category:
+            query = query.filter(Item.category.ilike(f'%{category}%'))
+        
+        if search:
+            query = query.filter(
+                (Item.name.ilike(f'%{search}%')) |
+                (Item.sku.ilike(f'%{search}%'))
+            )
         
         if min_stock:
             try:
                 min_stock = int(min_stock)
-                items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
+                query = query.filter(Item.stock_quantity >= min_stock)
             except ValueError:
                 pass
                 
         if max_stock:
             try:
                 max_stock = int(max_stock)
-                items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
+                query = query.filter(Item.stock_quantity <= max_stock)
             except ValueError:
                 pass
+        
+        # Get items
+        items = query.order_by(Item.created_at.desc()).all()
+        
+        items_data = []
+        for item in items:
+            items_data.append({
+                'id': item.id,
+                'name': item.name,
+                'sku': item.sku,
+                'category': item.category,
+                'stock_quantity': item.stock_quantity,
+                'retail_price': float(item.retail_price or 0),
+                'wholesale_price': float(item.wholesale_price or 0),
+                'buying_price': float(item.buying_price or 0),
+                'cost_price': float(item.cost_price or 0),
+                'minimum_stock': item.minimum_stock,
+                'is_active': item.is_active,
+                'created_at': item.created_at.isoformat() if item.created_at else None
+            })
         
         return jsonify({
             'items': items_data,
             'total_count': len(items_data),
-            'source': 'Firebase'
+            'source': 'PostgreSQL'
         })
 
         # Optional filtering
@@ -880,43 +853,7 @@ def add_item():
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
 
-        # Use Firebase only
-        if not firebase_config.initialized:
-            return jsonify({"error": "Firebase not configured"}), 500
-            
-        try:
-            # Handle quantity field mapping
-            quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
-            item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
-            
-            # Handle price fields
-            item_data['buying_price'] = float(item_data.get("buying_price", 0))
-            item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
-            item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
-            
-            # Set defaults
-            item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
-            item_data['category'] = item_data.get("category", "Uncategorized")
-            item_data['sales_type'] = item_data.get("sales_type", "both")
-            item_data['unit_type'] = item_data.get("unit_type", "quantity")
-            item_data['sell_by'] = item_data.get("sell_by", "quantity")
-            item_data['is_active'] = True
-            
-            # Create item in Firebase
-            new_item = firebase_adapter.create_item(item_data, current_user_id)
-            
-            if hasattr(new_item, 'to_dict'):
-                result = new_item.to_dict()
-            else:
-                result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
-                
-            logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
-            return jsonify(result), 201
-            
-        except Exception as firebase_error:
-            logger.error(f"Firebase item creation error: {str(firebase_error)}")
-            return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
-
+        # Use PostgreSQL for inventory management
         # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
         quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
         try:
