@@ -2842,7 +2842,9 @@ def debug_firebase_status():
             'project_id': None,
             'firestore_enabled': False,
             'auth_enabled': False,
-            'error_message': None
+            'database_exists': False,
+            'error_message': None,
+            'setup_instructions': []
         }
         
         if firebase_config.initialized:
@@ -2856,6 +2858,7 @@ def debug_firebase_status():
                 test_ref = firebase_adapter.service.db.collection('test')
                 test_ref.limit(1).get()
                 status['firestore_enabled'] = True
+                status['database_exists'] = True
                 
                 # Test Auth
                 from firebase_admin import auth
@@ -2866,11 +2869,75 @@ def debug_firebase_status():
                 status['error_message'] = str(e)
                 if "SERVICE_DISABLED" in str(e):
                     status['firestore_enabled'] = False
-                    status['error_message'] = "Cloud Firestore API is disabled. Enable it in Google Cloud Console."
+                    status['setup_instructions'].append("Enable Cloud Firestore API in Google Cloud Console")
+                elif "does not exist" in str(e):
+                    status['database_exists'] = False
+                    status['setup_instructions'].append("Create Firestore database in Firebase Console")
+                    status['setup_instructions'].append(f"Visit: https://console.cloud.google.com/datastore/setup?project={status['project_id']}")
         
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error checking Firebase status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/firebase-setup')
+def debug_firebase_setup():
+    """Debug endpoint to provide Firebase setup instructions"""
+    try:
+        import firebase_admin
+        app_info = firebase_admin.get_app()
+        project_id = app_info.project_id
+        
+        setup_guide = {
+            'project_id': project_id,
+            'current_status': 'Database not configured',
+            'required_steps': [
+                {
+                    'step': 1,
+                    'title': 'Create Firestore Database',
+                    'description': 'Set up Cloud Firestore database for your project',
+                    'url': f'https://console.firebase.google.com/project/{project_id}/firestore',
+                    'instructions': [
+                        'Go to Firebase Console > Firestore Database',
+                        'Click "Create database"',
+                        'Choose "Start in test mode" (for development)',
+                        'Select a location (choose closest to your users)',
+                        'Click "Enable"'
+                    ]
+                },
+                {
+                    'step': 2,
+                    'title': 'Enable Authentication',
+                    'description': 'Set up Firebase Authentication',
+                    'url': f'https://console.firebase.google.com/project/{project_id}/authentication',
+                    'instructions': [
+                        'Go to Firebase Console > Authentication',
+                        'Click "Get started"',
+                        'Go to "Sign-in method" tab',
+                        'Enable "Email/Password" provider',
+                        'Click "Save"'
+                    ]
+                },
+                {
+                    'step': 3,
+                    'title': 'Verify Setup',
+                    'description': 'Test the configuration',
+                    'url': f'http://localhost:5000/debug/firebase-status',
+                    'instructions': [
+                        'Wait 2-3 minutes after setup',
+                        'Check /debug/firebase-status endpoint',
+                        'Verify both firestore_enabled and auth_enabled are true'
+                    ]
+                }
+            ]
+        }
+        
+        return jsonify(setup_guide)
+    except Exception as e:
+        logger.error(f"Error getting setup instructions: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
