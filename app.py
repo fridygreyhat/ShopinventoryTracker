@@ -204,6 +204,196 @@ def debug():
         print(f"Is authenticated: {user is not None}")
     return "Check console"
 
+@app.route('/debug/test-dashboard')
+def test_dashboard():
+    """Test dashboard API by simulating a logged-in user"""
+    try:
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+        
+        # Get the first user from Firebase (our test user)
+        users_ref = firebase_adapter.service.db.collection('users')
+        users = users_ref.limit(1).stream()
+        
+        test_user = None
+        for user in users:
+            test_user = user.to_dict()
+            test_user['id'] = user.id
+            break
+        
+        if not test_user:
+            return jsonify({'error': 'No test user found. Run /debug/create-sample-data first'}), 404
+        
+        # Set session to simulate login
+        session['user_id'] = test_user['id']
+        session['user_email'] = test_user['email']
+        session['user_name'] = test_user.get('name', test_user.get('full_name', 'Test User'))
+        
+        # Now test the dashboard summary
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user_id'] = test_user['id']
+                sess['user_email'] = test_user['email']
+                sess['user_name'] = test_user.get('name', test_user.get('full_name', 'Test User'))
+            
+            response = client.get('/api/dashboard/summary')
+            dashboard_data = response.get_json()
+        
+        return jsonify({
+            'success': True,
+            'test_user': test_user,
+            'dashboard_data': dashboard_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing dashboard: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/create-sample-data')
+def create_sample_data():
+    """Create sample data for testing dashboard"""
+    try:
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+        
+        # Create a test user
+        test_user_data = {
+            'email': 'test@example.com',
+            'name': 'Test User',
+            'full_name': 'Test User',
+            'password_hash': 'hashed_password_123',
+            'is_admin': False,
+            'created_at': datetime.now().isoformat(),
+            'is_active': True
+        }
+        
+        # Create user
+        user_ref = firebase_adapter.service.db.collection('users').add(test_user_data)
+        user_id = user_ref[1].id
+        
+        # Create sample items
+        sample_items = [
+            {
+                'name': 'Test Product 1',
+                'sku': 'TEST001',
+                'description': 'Test product for dashboard',
+                'category': 'Electronics',
+                'stock_quantity': 50,
+                'minimum_stock': 10,
+                'buying_price': 25.0,
+                'retail_price': 40.0,
+                'wholesale_price': 35.0,
+                'sales_type': 'retail',
+                'is_active': True,
+                'user_id': user_id,
+                'created_at': datetime.now().isoformat()
+            },
+            {
+                'name': 'Test Product 2',
+                'sku': 'TEST002',
+                'description': 'Low stock test product',
+                'category': 'Clothing',
+                'stock_quantity': 3,
+                'minimum_stock': 5,
+                'buying_price': 15.0,
+                'retail_price': 25.0,
+                'wholesale_price': 20.0,
+                'sales_type': 'retail',
+                'is_active': True,
+                'user_id': user_id,
+                'created_at': datetime.now().isoformat()
+            }
+        ]
+        
+        # Add items to Firebase
+        for item in sample_items:
+            firebase_adapter.service.db.collection('items').add(item)
+        
+        # Create sample customer
+        customer_data = {
+            'name': 'Test Customer',
+            'email': 'customer@test.com',
+            'phone': '123-456-7890',
+            'address': '123 Test Street',
+            'customer_type': 'regular',
+            'credit_limit': 1000.0,
+            'loyalty_points': 0,
+            'user_id': user_id,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        customer_ref = firebase_adapter.service.db.collection('customers').add(customer_data)
+        customer_id = customer_ref[1].id
+        
+        # Create sample sale
+        sale_data = {
+            'sale_number': f'SALE-{datetime.now().strftime("%Y%m%d%H%M%S")}',
+            'customer_id': customer_id,
+            'customer_name': 'Test Customer',
+            'total_amount': 65.0,
+            'payment_type': 'cash',
+            'payment_status': 'completed',
+            'is_installment': False,
+            'user_id': user_id,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        firebase_adapter.service.db.collection('sales').add(sale_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Sample data created successfully',
+            'user_id': user_id,
+            'items_created': len(sample_items),
+            'customers_created': 1,
+            'sales_created': 1
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating sample data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/login-test-user')
+def login_test_user():
+    """Log in the test user to test the dashboard"""
+    try:
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+        
+        # Get the first user from Firebase (our test user)
+        users_ref = firebase_adapter.service.db.collection('users')
+        users = users_ref.limit(1).stream()
+        
+        test_user = None
+        for user in users:
+            test_user = user.to_dict()
+            test_user['id'] = user.id
+            break
+        
+        if not test_user:
+            return jsonify({'error': 'No test user found. Run /debug/create-sample-data first'}), 404
+        
+        # Log in the test user
+        session['user_id'] = test_user['id']
+        session['user_email'] = test_user['email']
+        session['user_name'] = test_user.get('name', test_user.get('full_name', 'Test User'))
+        session['is_admin'] = test_user.get('is_admin', False)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test user logged in successfully',
+            'user': {
+                'id': test_user['id'],
+                'email': test_user['email'],
+                'name': test_user.get('name', test_user.get('full_name', 'Test User'))
+            },
+            'redirect_url': '/dashboard'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error logging in test user: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def init_database():
     """Initialize Firebase database collections and default data"""
     try:
