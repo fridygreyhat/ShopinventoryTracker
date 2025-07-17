@@ -21,7 +21,7 @@ class FirebaseService:
             # Create user in Firebase Auth
             auth_user = self.auth.create_user(
                 email=user_data['email'],
-                password=user_data['password'],
+                password=user_data.get('password', 'temp_password'),
                 display_name=f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
             )
 
@@ -34,7 +34,11 @@ class FirebaseService:
             user.last_name = user_data.get('last_name', '')
             user.phone = user_data.get('phone', '')
             user.shop_name = user_data.get('shop_name', '')
+            user.product_categories = user_data.get('product_categories', '')
             user.is_admin = user_data.get('is_admin', False)
+            user.is_active = user_data.get('is_active', True)
+            user.email_verified = user_data.get('email_verified', False)
+            user.created_at = user_data.get('created_at', datetime.utcnow().isoformat())
 
             # Save to Firestore
             self.db.collection('users').document(auth_user.uid).set(user.to_dict())

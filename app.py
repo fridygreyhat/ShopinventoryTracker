@@ -198,7 +198,7 @@ def api_login():
 @app.route('/api/auth/register', methods=['POST'])
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    """API endpoint for user registration - stores users in PostgreSQL"""
+    """API endpoint for user registration - stores users in Firebase"""
     try:
         data = request.get_json()
 
@@ -238,56 +238,73 @@ def api_register():
         if len(username) < 3:
             return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
+        # Check if Firebase is configured
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase authentication service not available'}), 500
+
         # Check if user already exists in Firebase
         existing_user = firebase_adapter.get_user_by_email(email)
         if existing_user:
             return jsonify({'error': 'Email already registered'}), 400
 
-        # Create new user in Firebase
-        user_data = {
-            'username': username,
-            'email': email,
-            'first_name': first_name,
-            'last_name': last_name,
-            'phone': phone if phone else None,
-            'shop_name': shop_name if shop_name else None,
-            'product_categories': product_categories if product_categories else None,
-            'is_active': True,
-            'is_admin': False,
-            'email_verified': False,
-            'created_at': datetime.utcnow().isoformat()
-        }
+        # Create new user in Firebase Auth and Firestore
+        try:
+            from firebase_admin import auth
+            
+            # Create user in Firebase Auth
+            auth_user = auth.create_user(
+                email=email,
+                password=password,
+                display_name=f"{first_name} {last_name}".strip()
+            )
 
-        # Create user in Firebase
-        new_user = firebase_adapter.create_user(user_data)
-        
-        if not new_user:
-            return jsonify({'error': 'Failed to create user in Firebase'}), 500
-
-        # Create session for the new user
-        session.clear()  # Clear any existing session
-        session['user_id'] = new_user.get('id') if hasattr(new_user, 'get') else new_user.id
-        session['user_email'] = user_data['email']
-        session['user_name'] = f"{user_data['first_name']} {user_data['last_name']}".strip()
-        session.permanent = True
-
-        user_id = new_user.get('id') if hasattr(new_user, 'get') else new_user.id
-        logger.info(f"New user registered in Firebase: {email} (ID: {user_id})")
-
-        return jsonify({
-            'success': True,
-            'message': 'Account created successfully in Firebase',
-            'user': {
-                'id': user_id,
-                'username': user_data['username'],
-                'email': user_data['email'],
-                'first_name': user_data['first_name'],
-                'last_name': user_data['last_name']
+            # Create user document in Firestore
+            user_data = {
+                'username': username,
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'phone': phone if phone else None,
+                'shop_name': shop_name if shop_name else None,
+                'product_categories': product_categories if product_categories else None,
+                'is_active': True,
+                'is_admin': False,
+                'email_verified': False,
+                'created_at': datetime.utcnow().isoformat()
             }
-        }), 201
+
+            # Save user to Firestore
+            firebase_adapter.service.db.collection('users').document(auth_user.uid).set(user_data)
+
+            # Create session for the new user
+            session.clear()  # Clear any existing session
+            session['user_id'] = auth_user.uid
+            session['user_email'] = email
+            session['user_name'] = f"{first_name} {last_name}".strip()
+            session.permanent = True
+
+            logger.info(f"New user registered in Firebase: {email} (ID: {auth_user.uid})")
+
+            return jsonify({
+                'success': True,
+                'message': 'Account created successfully',
+                'user': {
+                    'id': auth_user.uid,
+                    'username': username,
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name
+                }
+            }), 201
+
+        except auth.EmailAlreadyExistsError:
+            return jsonify({'error': 'Email already registered'}), 400
+        except Exception as firebase_error:
+            logger.error(f"Firebase user creation error: {str(firebase_error)}")
+            return jsonify({'error': 'Failed to create account. Please try again.'}), 500
 
     except Exception as e:
-        logger.error(f"Firebase registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])

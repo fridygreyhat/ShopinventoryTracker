@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from google.cloud.firestore import DocumentReference
 import uuid
@@ -8,12 +7,12 @@ logger = logging.getLogger(__name__)
 
 class FirebaseModel:
     """Base class for Firebase models"""
-    
+
     def __init__(self, data=None, doc_id=None):
         self.id = doc_id
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
-        
+
         if data:
             self.from_dict(data)
 
@@ -34,8 +33,7 @@ class FirebaseModel:
             setattr(self, key, value)
 
 class FirebaseUser(FirebaseModel):
-    """Firebase User model"""
-    
+    """Firebase user model"""
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.username = ""
@@ -62,9 +60,27 @@ class FirebaseUser(FirebaseModel):
         # This method is kept for compatibility
         return True
 
+    def to_dict(self):
+        """Convert to dictionary for Firestore"""
+        return {
+            'username': self.username,
+            'email': self.email,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'phone': self.phone,
+            'shop_name': self.shop_name,
+            'product_categories': self.product_categories,
+            'is_admin': self.is_admin,
+            'is_active': self.is_active,
+            'email_verified': self.email_verified,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'last_login': self.last_login
+        }
+
 class FirebaseItem(FirebaseModel):
     """Firebase Item model"""
-    
+
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.name = ""
@@ -95,7 +111,7 @@ class FirebaseItem(FirebaseModel):
 
 class FirebaseSale(FirebaseModel):
     """Firebase Sale model"""
-    
+
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.invoice_number = ""
@@ -137,7 +153,7 @@ class FirebaseSale(FirebaseModel):
 
 class FirebaseCustomer(FirebaseModel):
     """Firebase Customer model"""
-    
+
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.name = ""
@@ -152,7 +168,7 @@ class FirebaseCustomer(FirebaseModel):
 
 class FirebaseCategory(FirebaseModel):
     """Firebase Category model"""
-    
+
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.name = ""
@@ -164,7 +180,7 @@ class FirebaseCategory(FirebaseModel):
 
 class FirebaseFinancialTransaction(FirebaseModel):
     """Firebase Financial Transaction model"""
-    
+
     def __init__(self, data=None, doc_id=None):
         super().__init__(data, doc_id)
         self.date = datetime.utcnow().date()
