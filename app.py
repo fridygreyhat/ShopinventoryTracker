@@ -149,6 +149,42 @@ def account():
     """Account settings page"""
     return render_template('account.html')
 
+@app.route('/categories')
+@login_required
+def categories():
+    """Categories management page"""
+    return render_template('categories.html')
+
+@app.route('/finance')
+@login_required
+def finance():
+    """Finance management page"""
+    return render_template('finance.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    """Accounting management page"""
+    return render_template('accounting.html')
+
+@app.route('/installments')
+@login_required
+def installments():
+    """Installments management page"""
+    return render_template('installments.html')
+
+@app.route('/margin')
+@login_required
+def margin():
+    """Margin analysis page"""
+    return render_template('margin.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    """On-demand services page"""
+    return render_template('on_demand.html')
+
 @app.route('/logout')
 @login_required
 def logout():
