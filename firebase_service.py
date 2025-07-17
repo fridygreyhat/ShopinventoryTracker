@@ -73,11 +73,12 @@ class FirebaseService:
         """Update user's last login timestamp"""
         try:
             self.db.collection('users').document(user_id).update({
-                'last_login': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
+                'last_login': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
             })
+            logger.info(f"Updated last login for user: {user_id}")
         except Exception as e:
-            logger.error(f"Error updating last login: {str(e)}")
+            logger.error(f"Error updating last login for user {user_id}: {str(e)}")
 
     # Item operations
     def create_item(self, item_data, user_id):

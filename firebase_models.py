@@ -73,9 +73,9 @@ class FirebaseUser(FirebaseModel):
             'is_admin': self.is_admin,
             'is_active': self.is_active,
             'email_verified': self.email_verified,
-            'created_at': self.created_at,
-            'updated_at': self.updated_at,
-            'last_login': self.last_login
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
+            'last_login': self.last_login.isoformat() if isinstance(self.last_login, datetime) and self.last_login else self.last_login
         }
 
 class FirebaseItem(FirebaseModel):
