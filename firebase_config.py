@@ -24,6 +24,7 @@ class FirebaseConfig:
             firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
             if not firebase_creds:
                 logger.error("FIREBASE_CREDENTIALS environment variable not found")
+                logger.error("Please add your Firebase service account JSON to FIREBASE_CREDENTIALS environment variable")
                 return False
 
             # Parse the credentials JSON
@@ -34,8 +35,14 @@ class FirebaseConfig:
                 logger.error(f"Invalid Firebase credentials JSON: {e}")
                 return False
 
-            # Initialize Firebase Admin SDK
-            self.app = firebase_admin.initialize_app(cred)
+            # Check if Firebase is already initialized
+            try:
+                firebase_admin.get_app()
+                logger.info("Firebase app already initialized")
+            except ValueError:
+                # Initialize Firebase Admin SDK if not already initialized
+                self.app = firebase_admin.initialize_app(cred)
+                logger.info("Firebase Admin SDK initialized")
             
             # Initialize Firestore
             self.db = firestore.client()

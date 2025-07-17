@@ -8,8 +8,8 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 
 # Database configuration options
-def configure_database(app, use_firebase=False):
-    """Configure database - PostgreSQL or Firebase"""
+def configure_database(app, use_firebase=True):
+    """Configure database - Firebase or PostgreSQL fallback"""
     
     if use_firebase:
         return configure_firebase(app)

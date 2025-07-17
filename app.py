@@ -25,9 +25,13 @@ from functools import wraps
 # Import db from extensions to avoid circular imports
 from extensions import db, configure_database
 
-# Import models to ensure they're available
+# Import models to ensure they're available (for PostgreSQL fallback)
 from models import Item, Sale, SaleItem, StockMovement, User, Setting, Customer, FinancialTransaction, InstallmentSale, InstallmentPayment
 from datetime import timedelta
+
+# Import Firebase components
+from firebase_adapter import firebase_adapter
+from firebase_config import firebase_config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -54,8 +58,8 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure Firebase as primary database
-configure_database(app, use_firebase=True)
+# Configure database (Firebase as default)
+configure_database(app)
 
 
 
@@ -343,7 +347,7 @@ def init_database():
 # Auth API Routes
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    """API endpoint for user login - authenticates against PostgreSQL"""
+    """API endpoint for user login - authenticates against Firebase"""
     try:
         data = request.get_json()
 
@@ -356,48 +360,72 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password are required'}), 400
 
-        # Check user credentials in PostgreSQL
-        from models import User
-        user = User.query.filter_by(email=email, is_active=True).first()
+        # Check if Firebase is configured
+        if not firebase_config.initialized:
+            if not firebase_config.initialize_firebase():
+                # Fallback to PostgreSQL if Firebase not available
+                logger.warning("Firebase not available, falling back to PostgreSQL")
+                from models import User
+                user = User.query.filter_by(email=email, is_active=True).first()
+                if user and user.check_password(password):
+                    session.clear()
+                    session['user_id'] = user.id
+                    session['user_email'] = user.email
+                    session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                    session.permanent = True
+                    return jsonify({
+                        'success': True,
+                        'message': 'Login successful - PostgreSQL fallback',
+                        'user': user.to_dict()
+                    }), 200
+                else:
+                    return jsonify({'error': 'Invalid email or password'}), 401
 
-        if user and user.check_password(password):
-            try:
-                # Update last login in PostgreSQL
-                user.last_login = datetime.utcnow()
-
+        # Use Firebase authentication
+        try:
+            from firebase_admin import auth
+            # Verify user exists in Firebase Auth
+            user = auth.get_user_by_email(email)
+            
+            # Get user data from Firestore
+            user_data = firebase_adapter.get_user_by_id(user.uid)
+            
+            if user_data and user_data.get('is_active', True):
+                # Update last login
+                firebase_adapter.service.update_user_last_login(user.uid)
+                
                 # Create session
-                session.clear()  # Clear any existing session data
-                session['user_id'] = user.id
-                session['user_email'] = user.email
-                session['user_name'] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                session.clear()
+                session['user_id'] = user.uid
+                session['user_email'] = user_data['email']
+                session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
                 session.permanent = True
 
-                # Commit changes to PostgreSQL
-                db.session.commit()
-                logger.info(f"User {email} logged in successfully from PostgreSQL (ID: {user.id})")
+                logger.info(f"User {email} logged in successfully from Firebase (ID: {user.uid})")
 
                 return jsonify({
                     'success': True,
-                    'message': 'Login successful - authenticated from PostgreSQL',
+                    'message': 'Login successful - authenticated from Firebase',
                     'user': {
-                        'id': user.id,
-                        'email': user.email,
-                        'username': user.username,
-                        'first_name': user.first_name,
-                        'last_name': user.last_name
+                        'id': user.uid,
+                        'email': user_data['email'],
+                        'username': user_data.get('username', ''),
+                        'first_name': user_data.get('first_name', ''),
+                        'last_name': user_data.get('last_name', '')
                     }
                 }), 200
-            except Exception as session_error:
-                logger.error(f"Session creation error: {str(session_error)}")
-                db.session.rollback()
-                return jsonify({'error': 'Login failed during session creation'}), 500
-        else:
-            logger.warning(f"Failed login attempt for email: {email} - user not found in PostgreSQL or invalid password")
+            else:
+                return jsonify({'error': 'User account not found or inactive'}), 401
+                
+        except auth.UserNotFoundError:
+            logger.warning(f"Failed login attempt for email: {email} - user not found in Firebase")
             return jsonify({'error': 'Invalid email or password'}), 401
+        except Exception as firebase_error:
+            logger.error(f"Firebase authentication error: {str(firebase_error)}")
+            return jsonify({'error': 'Authentication service error'}), 500
 
     except Exception as e:
-        logger.error(f"PostgreSQL login error: {str(e)}")
-        db.session.rollback()
+        logger.error(f"Login error: {str(e)}")
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -633,15 +661,50 @@ def api_validate_session():
 def get_inventory():
     """Get all inventory items with optional filtering and enhanced category support"""
     try:
-        from models import Item, Category
-
         # Get current user ID
         current_user_id = session.get('user_id')
         if not current_user_id:
             return jsonify([])
 
-        # Start query filtered by user only
-        query = Item.query.filter(Item.user_id == current_user_id, Item.is_active == True)
+        # Check if Firebase is configured, otherwise fallback to PostgreSQL
+        if firebase_config.initialized:
+            # Use Firebase
+            filter_params = {
+                'category': request.args.get('category'),
+                'search': request.args.get('search', '').lower(),
+                'min_stock': request.args.get('min_stock'),
+                'max_stock': request.args.get('max_stock')
+            }
+            
+            items_data = firebase_adapter.get_items_by_user(current_user_id, **filter_params)
+            
+            # Apply additional filters for Firebase data
+            min_stock = request.args.get('min_stock')
+            max_stock = request.args.get('max_stock')
+            
+            if min_stock:
+                try:
+                    min_stock = int(min_stock)
+                    items_data = [item for item in items_data if item.get('stock_quantity', 0) >= min_stock]
+                except ValueError:
+                    pass
+                    
+            if max_stock:
+                try:
+                    max_stock = int(max_stock)
+                    items_data = [item for item in items_data if item.get('stock_quantity', 0) <= max_stock]
+                except ValueError:
+                    pass
+            
+            return jsonify({
+                'items': items_data,
+                'total_count': len(items_data),
+                'source': 'Firebase'
+            })
+        else:
+            # Fallback to PostgreSQL
+            from models import Item, Category
+            query = Item.query.filter(Item.user_id == current_user_id, Item.is_active == True)
 
         # Optional filtering
         category = request.args.get('category')
@@ -822,8 +885,6 @@ def get_shop_details():
 def add_item():
     """API endpoint to add a new inventory item"""
     try:
-        from models import Item
-
         item_data = request.get_json()
         if not item_data:
             return jsonify({"error": "No data provided"}), 400
@@ -836,6 +897,45 @@ def add_item():
         current_user_id = session.get('user_id')
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
+
+        # Check if Firebase is configured
+        if firebase_config.initialized:
+            # Use Firebase
+            try:
+                # Handle quantity field mapping
+                quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+                item_data['stock_quantity'] = int(quantity) if quantity is not None else 0
+                
+                # Handle price fields
+                item_data['buying_price'] = float(item_data.get("buying_price", 0))
+                item_data['retail_price'] = float(item_data.get("selling_price_retail", item_data.get("retail_price", 0)))
+                item_data['wholesale_price'] = float(item_data.get("selling_price_wholesale", item_data.get("wholesale_price", 0)))
+                
+                # Set defaults
+                item_data['minimum_stock'] = int(item_data.get("minimum_stock", 5))
+                item_data['category'] = item_data.get("category", "Uncategorized")
+                item_data['sales_type'] = item_data.get("sales_type", "both")
+                item_data['unit_type'] = item_data.get("unit_type", "quantity")
+                item_data['sell_by'] = item_data.get("sell_by", "quantity")
+                item_data['is_active'] = True
+                
+                # Create item in Firebase
+                new_item = firebase_adapter.create_item(item_data, current_user_id)
+                
+                if hasattr(new_item, 'to_dict'):
+                    result = new_item.to_dict()
+                else:
+                    result = new_item.__dict__ if hasattr(new_item, '__dict__') else item_data
+                    
+                logger.info(f"New item created in Firebase: {item_data['name']} by user {current_user_id}")
+                return jsonify(result), 201
+                
+            except Exception as firebase_error:
+                logger.error(f"Firebase item creation error: {str(firebase_error)}")
+                return jsonify({"error": f"Failed to create item in Firebase: {str(firebase_error)}"}), 500
+        else:
+            # Fallback to PostgreSQL
+            from models import Item
 
         # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
         quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
@@ -1058,24 +1158,47 @@ def update_item(item_id):
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
 
-def verify_postgresql_auth():
-    """Verify that PostgreSQL authentication is working properly"""
+def verify_database_systems():
+    """Verify that database systems are working properly"""
+    firebase_ready = False
+    postgresql_ready = False
+    
+    # Check Firebase
     try:
-        # Test database connection
+        if firebase_config.initialize_firebase():
+            firebase_ready = True
+            logger.info("✅ Firebase database ready")
+        else:
+            logger.warning("⚠️ Firebase database not configured")
+    except Exception as e:
+        logger.error(f"❌ Firebase initialization error: {str(e)}")
+    
+    # Check PostgreSQL as fallback
+    try:
         from models import User
         user_count = User.query.count()
-        logger.info(f"✅ PostgreSQL authentication ready - {user_count} users in database")
-        return True
+        postgresql_ready = True
+        logger.info(f"✅ PostgreSQL fallback ready - {user_count} users in database")
     except Exception as e:
-        logger.error(f"❌ PostgreSQL authentication error: {str(e)}")
-        return False
-
-# Verify PostgreSQL authentication on startup
-with app.app_context():
-    if verify_postgresql_auth():
-        logger.info("🔐 PostgreSQL authentication system initialized successfully")
+        logger.error(f"❌ PostgreSQL fallback error: {str(e)}")
+    
+    if firebase_ready:
+        logger.info("🔥 Firebase is the primary database")
+        return "firebase"
+    elif postgresql_ready:
+        logger.info("🐘 PostgreSQL is being used as fallback")
+        return "postgresql"
     else:
-        logger.warning("⚠️ PostgreSQL authentication system may have issues")
+        logger.error("❌ No database system available")
+        return None
+
+# Verify database systems on startup
+with app.app_context():
+    db_system = verify_database_systems()
+    if db_system:
+        logger.info(f"🔐 Database system initialized successfully: {db_system}")
+    else:
+        logger.error("⚠️ No database system available - application may not work properly")
 
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
