@@ -64,6 +64,67 @@ class FirebaseAdapter:
         except Exception as e:
             logger.error(f"Error getting user by email: {str(e)}")
             return None
+
+    def get_all_users(self):
+        """Get all users from Firestore for analysis"""
+        try:
+            users_ref = self.service.db.collection('users')
+            docs = users_ref.stream()
+            
+            users = []
+            for doc in docs:
+                user_data = doc.to_dict()
+                user_data['id'] = doc.id
+                users.append(user_data)
+            
+            return users
+        except Exception as e:
+            logger.error(f"Error getting all users: {str(e)}")
+            return []
+
+    def get_user_stats(self):
+        """Get user statistics from Firestore"""
+        try:
+            users_ref = self.service.db.collection('users')
+            docs = users_ref.stream()
+            
+            stats = {
+                'total_users': 0,
+                'active_users': 0,
+                'admin_users': 0,
+                'verified_users': 0,
+                'users_by_creation_date': {},
+                'users_by_shop_name': {}
+            }
+            
+            for doc in docs:
+                user_data = doc.to_dict()
+                stats['total_users'] += 1
+                
+                if user_data.get('is_active', True):
+                    stats['active_users'] += 1
+                
+                if user_data.get('is_admin', False):
+                    stats['admin_users'] += 1
+                
+                if user_data.get('email_verified', False):
+                    stats['verified_users'] += 1
+                
+                # Group by creation date
+                created_at = user_data.get('created_at', '')
+                if created_at:
+                    date_key = created_at.split('T')[0] if 'T' in created_at else created_at
+                    stats['users_by_creation_date'][date_key] = stats['users_by_creation_date'].get(date_key, 0) + 1
+                
+                # Group by shop name
+                shop_name = user_data.get('shop_name', 'No Shop')
+                if shop_name:
+                    stats['users_by_shop_name'][shop_name] = stats['users_by_shop_name'].get(shop_name, 0) + 1
+            
+            return stats
+        except Exception as e:
+            logger.error(f"Error getting user stats: {str(e)}")
+            return None
     
     # Item operations
     def create_item(self, item_data, user_id):

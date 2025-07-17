@@ -2810,6 +2810,72 @@ def debug_routes():
         })
     return jsonify(routes)
 
+@app.route('/debug/firebase-users')
+def debug_firebase_users():
+    """Debug endpoint to analyze Firebase users"""
+    try:
+        # Get all users
+        users = firebase_adapter.get_all_users()
+        
+        # Get user statistics
+        stats = firebase_adapter.get_user_stats()
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(users),
+            'users': users,
+            'statistics': stats
+        })
+    except Exception as e:
+        logger.error(f"Error analyzing Firebase users: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/firebase-status')
+def debug_firebase_status():
+    """Debug endpoint to check Firebase configuration and API status"""
+    try:
+        status = {
+            'firebase_initialized': firebase_config.initialized,
+            'project_id': None,
+            'firestore_enabled': False,
+            'auth_enabled': False,
+            'error_message': None
+        }
+        
+        if firebase_config.initialized:
+            try:
+                # Get project ID
+                import firebase_admin
+                app_info = firebase_admin.get_app()
+                status['project_id'] = app_info.project_id
+                
+                # Test Firestore
+                test_ref = firebase_adapter.service.db.collection('test')
+                test_ref.limit(1).get()
+                status['firestore_enabled'] = True
+                
+                # Test Auth
+                from firebase_admin import auth
+                auth.list_users(max_results=1)
+                status['auth_enabled'] = True
+                
+            except Exception as e:
+                status['error_message'] = str(e)
+                if "SERVICE_DISABLED" in str(e):
+                    status['firestore_enabled'] = False
+                    status['error_message'] = "Cloud Firestore API is disabled. Enable it in Google Cloud Console."
+        
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error checking Firebase status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
