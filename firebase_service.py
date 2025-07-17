@@ -121,8 +121,8 @@ class FirebaseService:
         """Get all items for a user"""
         try:
             query = (self.db.collection('items')
-                    .where('user_id', '==', user_id)
-                    .where('is_active', '==', True))
+                    .filter('user_id', '==', user_id)
+                    .filter('is_active', '==', True))
 
             docs = query.stream()
             items = []
@@ -230,9 +230,9 @@ class FirebaseService:
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
         try:
+            # Simple query without ordering to avoid index requirements
             docs = (self.db.collection('customers')
                    .where('user_id', '==', user_id)
-                   .order_by('created_at', direction='DESCENDING')
                    .stream())
             customers = []
 
@@ -241,6 +241,8 @@ class FirebaseService:
                 customer_data['id'] = doc.id
                 customers.append(customer_data)
 
+            # Sort in Python instead of Firestore to avoid index requirement
+            customers.sort(key=lambda x: x.get('created_at', ''), reverse=True)
             return customers
 
         except Exception as e:
@@ -341,8 +343,8 @@ class FirebaseService:
         """Get all categories for a user"""
         try:
             docs = (self.db.collection('categories')
-                   .where('user_id', '==', user_id)
-                   .where('is_active', '==', True)
+                   .filter('user_id', '==', user_id)
+                   .filter('is_active', '==', True)
                    .stream())
             categories = []
 
@@ -400,9 +402,8 @@ class FirebaseService:
     def get_sales_by_user(self, user_id, limit=None):
         """Get all sales for a user"""
         try:
-            query = (self.db.collection('sales')
-                    .where('user_id', '==', user_id)
-                    .order_by('created_at', direction='DESCENDING'))
+            # Simple query without ordering to avoid index requirements
+            query = self.db.collection('sales').filter('user_id', '==', user_id)
 
             if limit:
                 query = query.limit(limit)
@@ -415,6 +416,8 @@ class FirebaseService:
                 sale_data['id'] = doc.id
                 sales.append(sale_data)
 
+            # Sort in Python instead of Firestore to avoid index requirement
+            sales.sort(key=lambda x: x.get('created_at', ''), reverse=True)
             return sales
 
         except Exception as e:

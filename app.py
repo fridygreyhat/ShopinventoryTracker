@@ -204,6 +204,36 @@ def debug():
         print(f"Is authenticated: {user is not None}")
     return "Check console"
 
+@app.route('/debug/firebase-status')
+def debug_firebase_status():
+    """Debug route to check Firebase status"""
+    try:
+        status = {
+            'firebase_initialized': firebase_config.initialized,
+            'auth_enabled': bool(firebase_config.auth),
+            'database_exists': bool(firebase_config.db),
+            'firestore_enabled': True if firebase_config.db else False,
+            'project_id': getattr(firebase_config, 'project_id', 'unknown'),
+            'error_message': None,
+            'setup_instructions': []
+        }
+        
+        if not firebase_config.initialized:
+            status['error_message'] = 'Firebase not initialized'
+            status['setup_instructions'] = [
+                'Add FIREBASE_CREDENTIALS to environment variables',
+                'Ensure service account JSON is valid',
+                'Check Firebase project configuration'
+            ]
+            
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'firebase_initialized': False,
+            'error_message': str(e),
+            'setup_instructions': ['Check Firebase configuration']
+        }), 500
+
 def init_database():
     """Initialize Firebase database collections and default data"""
     try:

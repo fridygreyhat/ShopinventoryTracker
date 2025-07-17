@@ -228,13 +228,13 @@ class FirebaseAdapter:
         """Get items with filtering support"""
         try:
             query = (self.service.db.collection('items')
-                    .where('user_id', '==', user_id)
-                    .where('is_active', '==', True))
+                    .filter('user_id', '==', user_id)
+                    .filter('is_active', '==', True))
 
             # Apply filters
             category = kwargs.get('category')
             if category:
-                query = query.where('category', '==', category)
+                query = query.filter('category', '==', category)
 
             # Get documents
             docs = query.stream()
@@ -287,8 +287,8 @@ class FirebaseAdapter:
         """Get a specific item by SKU"""
         try:
             query = (self.service.db.collection('items')
-                    .where('sku', '==', sku)
-                    .where('user_id', '==', user_id)
+                    .filter('sku', '==', sku)
+                    .filter('user_id', '==', user_id)
                     .limit(1))
 
             docs = list(query.stream())
@@ -304,8 +304,8 @@ class FirebaseAdapter:
         """Check if an item with given SKU exists for user"""
         try:
             query = (self.service.db.collection('items')
-                    .where('sku', '==', sku)
-                    .where('user_id', '==', user_id)
+                    .filter('sku', '==', sku)
+                    .filter('user_id', '==', user_id)
                     .limit(1))
 
             docs = list(query.stream())
@@ -380,8 +380,21 @@ class FirebaseAdapter:
 
     def get_customers_by_user(self, user_id):
         """Get customers using Firebase service"""
-        customers = self.service.get_customers_by_user(user_id)
-        return [customer.to_dict() if hasattr(customer, 'to_dict') else customer.__dict__ for customer in customers]
+        try:
+            customers = self.service.get_customers_by_user(user_id)
+            # Handle both dict and object formats
+            formatted_customers = []
+            for customer in customers:
+                if hasattr(customer, 'to_dict'):
+                    formatted_customers.append(customer.to_dict())
+                elif isinstance(customer, dict):
+                    formatted_customers.append(customer)
+                else:
+                    formatted_customers.append(customer.__dict__ if hasattr(customer, '__dict__') else {})
+            return formatted_customers
+        except Exception as e:
+            logger.error(f"Error getting customers for user {user_id}: {str(e)}")
+            return []
 
     def get_customer_by_id(self, customer_id, user_id):
         """Get a specific customer by ID"""
