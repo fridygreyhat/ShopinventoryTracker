@@ -310,10 +310,7 @@ class FirebaseService:
 
 # Global Firebase service instance
 firebase_service = FirebaseService()
-```
 
-```tool_code
-from firebase_config import get_firestore_db, get_firebase_auth
 from firebase_models import *
 from google.cloud.firestore import Query
 import logging
@@ -625,9 +622,7 @@ class FirebaseService:
 
 # Global Firebase service instance
 firebase_service = FirebaseService()
-```
 
-```tool_code
 from firebase_config import get_firestore_db, get_firebase_auth
 from firebase_models import *
 from google.cloud.firestore import Query
@@ -939,4 +934,3 @@ class FirebaseService:
 
 # Global Firebase service instance
 firebase_service = FirebaseService()
-```

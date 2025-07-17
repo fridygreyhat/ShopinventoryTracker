@@ -79,6 +79,84 @@ def inject_user():
         return None
     return dict(get_current_user=get_current_user)
 
+# Web routes
+@app.route('/')
+def index():
+    """Main index route - redirect to login if not authenticated, otherwise dashboard"""
+    user_id = session.get('user_id')
+    if user_id:
+        # User is logged in, redirect to dashboard
+        return redirect(url_for('dashboard'))
+    else:
+        # User is not logged in, redirect to login
+        return redirect(url_for('login'))
+
+@app.route('/login')
+def login():
+    """Login page"""
+    # If user is already logged in, redirect to dashboard
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/register')
+def register():
+    """Registration page"""
+    # If user is already logged in, redirect to dashboard
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+    return render_template('register.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Main dashboard page"""
+    return render_template('dashboard.html')
+
+@app.route('/inventory')
+@login_required
+def inventory():
+    """Inventory management page"""
+    return render_template('inventory.html')
+
+@app.route('/sales')
+@login_required
+def sales():
+    """Sales management page"""
+    return render_template('sales.html')
+
+@app.route('/customers')
+@login_required
+def customers():
+    """Customer management page"""
+    return render_template('customers.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    """Reports page"""
+    return render_template('reports.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """Settings page"""
+    return render_template('settings.html')
+
+@app.route('/account')
+@login_required
+def account():
+    """Account settings page"""
+    return render_template('account.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout route"""
+    session.clear()
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/debug')
 def debug():
     user_id = session.get('user_id')
@@ -2593,738 +2671,7 @@ def update_settings():
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Missing API endpoints that frontend is trying to access
-@app.route('/api/installment-sales', methods=['GET'])
-@login_required
-def get_installment_sales():
-    """API endpoint to get all installment sales"""
-    try:
-        from models import InstallmentSale
 
-        user_id = session.get('user_id')
-        installment_sales = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
-
-        sales_data = []
-        for sale in installment_sales:
-            sales_data.append({
-                'id': sale.id,
-                'sale_number': sale.sale.sale_number if sale.sale else f"INST-{sale.id}",
-                'customer_name': sale.customer.name if sale.customer else 'Unknown Customer',
-                'total_amount': float(sale.total_amount),
-                'down_payment': float(sale.down_payment or 0),
-                'remaining_amount': float(sale.remaining_amount),
-                'monthly_payment': float(sale.monthly_payment),
-                'duration_months': sale.duration_months,
-                'status': sale.status,
-                'created_at': sale.created_at.isoformat()
-            })
-
-        return jsonify({'success': True, 'installment_sales': sales_data})
-
-    except Exception as e:
-        logger.error(f"Error getting installment sales: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/installment-sales', methods=['POST'])
-@login_required
-def create_installment_sale():
-    """API endpoint to create a new installment sale"""
-    try:
-        from models import InstallmentSale, InstallmentPayment, Customer, Item, Sale, SaleItem
-
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-
-        user_id = session.get('user_id')
-
-        # Handle customer creation or selection
-        customer_id = data.get('customer_id')
-        customer_data = data.get('customer_data')
-
-        if customer_data and not customer_id:
-            # Create new customer
-            customer = Customer(
-                name=customer_data['name'],
-                phone=customer_data.get('phone'),
-                email=customer_data.get('email'),
-                address=customer_data.get('address'),
-                national_id=customer_data.get('national_id'),
-                customer_type='retail',
-                user_id=user_id
-            )
-            db.session.add(customer)
-            db.session.flush()
-            customer_id = customer.id
-        elif customer_id:
-            customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
-            if not customer:
-                return jsonify({'error': 'Customer not found'}), 404
-        else:
-            return jsonify({'error': 'Customer information is required'}), 400
-
-        # Get item details
-        item_id = data.get('item_id')
-        quantity = int(data.get('quantity', 1))
-
-        item = Item.query.filter_by(id=item_id, user_id=user_id).first()
-        if not item:
-            return jsonify({'error': 'Item not found'}), 404
-
-        if item.stock_quantity < quantity:
-            return jsonify({'error': 'Insufficient stock'}), 400
-
-        # Calculate amounts
-        total_amount = float(data.get('total_amount'))
-        down_payment = float(data.get('down_payment', 0))
-        duration_months = int(data.get('number_of_installments', 1))
-        remaining_amount = total_amount - down_payment
-        monthly_payment = remaining_amount / duration_months if duration_months > 0 else 0
-
-        # Create sale record first
-        sale = Sale(
-            user_id=user_id,
-            customer_id=customer_id,
-            total_amount=total_amount,
-            payment_type='installment',
-            payment_status='pending',
-            is_installment=True,
-            sale_number=Sale.generate_sale_number(),
-            down_payment=down_payment,
-            installment_months=duration_months,
-            monthly_payment=monthly_payment
-        )
-        db.session.add(sale)
-        db.session.flush()
-
-        # Create sale item
-        sale_item = SaleItem(
-            sale_id=sale.id,
-            item_id=item.id,
-            quantity=quantity,
-            unit_price=total_amount / quantity,
-            subtotal=total_amount
-        )
-        db.session.add(sale_item)
-
-        # Update stock
-        item.stock_quantity -= quantity
-
-        # Create installment plan
-        installment_sale = InstallmentSale(
-            sale_id=sale.id,
-            customer_id=customer_id,
-            total_amount=total_amount,
-            down_payment=down_payment,
-            remaining_amount=remaining_amount,
-            payment_frequency='monthly',
-            duration_months=duration_months,
-            monthly_payment=monthly_payment,
-            status='active',
-            user_id=user_id
-        )
-        db.session.add(installment_sale)
-        db.session.flush()
-
-        # Create down payment record if applicable
-        if down_payment > 0:
-            payment = InstallmentPayment(
-                installment_sale_id=installment_sale.id,
-                amount=down_payment,
-                payment_date=datetime.utcnow(),
-                payment_method='cash',
-                status='completed',
-                user_id=user_id
-            )
-            db.session.add(payment)
-
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'sale_number': sale.sale_number,
-            'installment_sale_id': installment_sale.id
-        }), 201
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating installment sale: {str(e)}")
-        return jsonify({'error': f'Failed to create installment sale: {str(e)}'}), 500
-
-@app.route('/api/suppliers', methods=['GET'])
-@login_required
-def get_suppliers():
-    """API endpoint to get all suppliers"""
-    try:
-        from models import Supplier
-
-        user_id = session.get('user_id')
-        suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).order_by(Supplier.name).all()
-
-        suppliers_data = []
-        for supplier in suppliers:
-            suppliers_data.append({
-                'id': supplier.id,
-                'name': supplier.name,
-                'contact_person': supplier.contact_person,
-                'email': supplier.email,
-                'phone': supplier.phone,
-                'address': supplier.address,
-                'payment_terms': supplier.payment_terms,
-                'created_at': supplier.created_at.isoformat() if supplier.created_at else None
-            })
-
-        return jsonify({'success': True, 'suppliers': suppliers_data})
-
-    except Exception as e:
-        logger.error(f"Error getting suppliers: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/purchase-orders', methods=['GET'])
-@login_required
-def get_purchase_orders():
-    """API endpoint to get all purchase orders"""
-    try:
-        from models import PurchaseOrder
-
-        user_id = session.get('user_id')
-        orders = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
-
-        orders_data = []
-        for order in orders:
-            orders_data.append({
-                'id': order.id,
-                'order_number': order.order_number,
-                'supplier_name': order.supplier.name if order.supplier else 'Unknown',
-                'total_amount': float(order.total_amount),
-                'status': order.status,
-                'order_date': order.order_date.isoformat() if order.order_date else None,
-                'expected_delivery': order.expected_delivery_date.isoformat() if order.expected_delivery_date else None
-            })
-
-        return jsonify({'success': True, 'purchase_orders': orders_data})
-
-    except Exception as e:
-        logger.error(f"Error getting purchase orders: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/stock-movements', methods=['GET'])
-@login_required
-def get_stock_movements():
-    """API endpoint to get stock movements"""
-    try:
-        from models import StockMovement
-
-        user_id = session.get('user_id')
-        movements = StockMovement.query.filter_by(user_id=user_id).order_by(StockMovement.created_at.desc()).limit(100).all()
-
-        movements_data = []
-        for movement in movements:
-            movements_data.append({
-                'id': movement.id,
-                'item_name': movement.item.name if movement.item else 'Unknown Item',
-                'movement_type': movement.movement_type,
-                'quantity': movement.quantity,
-                'reason': movement.reason,
-                'reference_number': movement.reference_number,
-                'notes': movement.notes,
-                'created_at': movement.created_at.isoformat()
-            })
-
-        return jsonify({'success': True, 'stock_movements': movements_data})
-
-    except Exception as e:
-        logger.error(f"Error getting stock movements: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/settings', methods=['GET'])
-@login_required
-def get_settings():
-    """API endpoint to get user settings"""
-    try:
-        from models import Setting
-
-        user_id = session.get('user_id')
-        settings = Setting.query.filter_by(user_id=user_id).all()
-
-        settings_data = {}
-        for setting in settings:
-            settings_data[setting.key] = {
-                'value': setting.value,
-                'description': setting.description,
-                'category': setting.category
-            }
-
-        return jsonify({'success': True, 'settings': settings_data})
-
-    except Exception as e:
-        logger.error(f"Error getting settings: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/settings', methods=['POST'])
-@login_required
-def update_settings():
-    """API endpoint to update user settings"""
-    try:
-        from models import Setting
-
-        data = request.get_json()
-        user_id = session.get('user_id')
-
-        for key, value in data.items():
-            setting = Setting.query.filter_by(key=key, user_id=user_id).first()
-            if setting:
-                setting.value = str(value)
-            else:
-                setting = Setting(
-                    key=key,
-                    value=str(value),
-                    user_id=user_id
-                )
-                db.session.add(setting)
-
-        db.session.commit()
-
-        return jsonify({'success': True, 'message': 'Settings updated successfully'})
-
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating settings: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-# Web Routes (Pages)
-@app.route('/')
-def index():
-    """Home page route"""
-    return render_template('cover.html')
-
-@app.route('/login')
-def login():
-    """Login page route"""
-    return render_template('login.html')
-
-@app.route('/register')
-def register():
-    """Registration page route"""
-    return render_template('register.html')
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    """Dashboard page route"""
-    return render_template('dashboard.html')
-
-@app.route('/inventory')
-@login_required
-def inventory():
-    """Inventory page route"""
-    return render_template('inventory.html')
-
-@app.route('/inventory/add')
-@login_required
-def add_item_page():
-    """Add item page route"""
-    return render_template('inventory.html')
-
-# For backward compatibility
-@app.route('/add-item')
-@login_required
-def add_item_redirect():
-    """Redirect to inventory page for adding items"""
-    return redirect(url_for('inventory'))
-
-@app.route('/sales')
-@login_required
-def sales():
-    """Sales page route"""
-    return render_template('sales.html')
-
-@app.route('/sales/new')
-@login_required
-def new_sale():
-    """New sale page route"""
-    return render_template('sales.html')
-
-@app.route('/customers')
-@login_required
-def customers():
-    """Customers page route"""
-    # Check if template exists, fallback to placeholder
-    try:
-        return render_template('customers.html')
-    except:
-        return render_template('dashboard.html')  # Fallback
-
-@app.route('/installments')
-@login_required
-def installments():
-    """Installments page route"""
-    return render_template('installments.html')
-
-@app.route('/categories')
-@login_required
-def categories():
-    """Categories page route"""
-    return render_template('categories.html')
-
-@app.route('/reports')
-@login_required
-def reports():
-    """Reports page route"""
-    return render_template('reports.html')
-
-@app.route('/settings')
-@login_required
-def settings():
-    """Settings page route"""
-    return render_template('settings.html')
-
-@app.route('/account')
-@login_required
-def account():
-    """User account management page"""
-    return render_template('account.html')
-
-@app.route('/margin')
-@login_required
-def margin():
-    """Margin analysis page"""
-    return render_template('margin.html')
-
-@app.route('/finance')
-@login_required
-def finance():
-    """Finance management page"""
-    return render_template('finance.html')
-
-@app.route('/on_demand')
-@login_required
-def on_demand():
-    """On-demand products page"""
-    return render_template('on_demand.html')
-
-@app.route('/admin_users')
-@login_required
-def admin_users():
-    """Admin users management page"""
-    user_id = session.get('user_id')
-    from models import User
-    if not user_id:
-        return redirect(url_for('login'))
-
-    user = User.query.get(user_id)
-    if not user or not user.is_admin:
-        flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    return render_template('admin_users.html')
-
-@app.route('/accounting')
-@login_required
-def accounting():
-    """Accounting dashboard page"""
-    return render_template('accounting.html')
-
-@app.route('/analytics')
-@login_required
-def analytics():
-    """Analytics dashboard route"""
-    return render_template('analytics_dashboard.html')
-
-@app.route('/performance')
-@login_required
-def performance():
-    """Performance dashboard route"""
-    return render_template('performance_dashboard.html')
-
-@app.route('/api/auth/logout', methods=['POST'])
-def api_logout():
-    """API endpoint for user logout"""
-    try:
-        user_id = session.get('user_id')
-        session.clear()
-        logger.info(f"User logged out: {user_id}")
-        return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
-    except Exception as e:
-        logger.error(f"Logout error: {str(e)}")
-        return jsonify({'error': 'Logout failed'}), 500
-
-@app.route('/logout')
-def logout():
-    """Logout route"""
-    session.clear()
-    return redirect(url_for('index'))
-
-# Debug route to help identify routing issues
-@app.route('/debug/routes')
-def debug_routes():
-    """Debug endpoint to list all available routes"""
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
-            'rule': str(rule)
-        })
-    return jsonify(routes)
-
-@app.route('/debug/firebase-users')
-def debug_firebase_users():
-    """Debug endpoint to analyze Firebase users"""
-    try:
-        # Get all users
-        users = firebase_adapter.get_all_users()
-
-        # Get user statistics
-        stats = firebase_adapter.get_user_stats()
-
-        return jsonify({
-            'success': True,
-            'total_users': len(users),
-            'users': users,
-            'statistics': stats
-        })
-    except Exception as e:
-        logger.error(f"Error analyzing Firebase users: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/firebase-status')
-def debug_firebase_status():
-    """Debug endpoint to check Firebase configuration and API status"""
-    try:
-        status = {
-            'firebase_initialized': firebase_config.initialized,
-            'project_id': None,
-            'firestore_enabled': False,
-            'auth_enabled': False,
-            'database_exists': False,
-            'error_message': None,
-            'setup_instructions': []
-        }
-
-        if firebase_config.initialized:
-            try:
-                # Get project ID
-                import firebase_admin
-                app_info = firebase_admin.get_app()
-                status['project_id'] = app_info.project_id
-
-                # Test Firestore
-                test_ref = firebase_adapter.service.db.collection('test')
-                test_ref.limit(1).get()
-                status['firestore_enabled'] = True
-                status['database_exists'] = True
-
-                # Test Auth
-                from firebase_admin import auth
-                auth.list_users(max_results=1)
-                status['auth_enabled'] = True
-
-            except Exception as e:
-                status['error_message'] = str(e)
-                if "SERVICE_DISABLED" in str(e):
-                    status['firestore_enabled'] = False
-                    status['setup_instructions'].append("Enable Cloud Firestore API in Google Cloud Console")
-                elif "does not exist" in str(e):
-                    status['database_exists'] = False
-                    status['setup_instructions'].append("Create Firestore database in Firebase Console")
-                    status['setup_instructions'].append(f"Visit: https://console.cloud.google.com/datastore/setup?project={status['project_id']}")
-
-        return jsonify(status)
-    except Exception as e:
-        logger.error(f"Error checking Firebase status: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/firebase-collections')
-def debug_firebase_collections():
-    """Debug endpoint to analyze Firebase collections and data structure"""
-    try:
-        collections_info = {
-            'project_id': 'inventory-management-75a65',
-            'collections': []
-        }
-
-        # Check common collections
-        collection_names = ['users', 'items', 'sales', 'customers', 'categories', 'transactions']
-
-        for collection_name in collection_names:
-            try:
-                collection_ref = firebase_adapter.service.db.collection(collection_name)
-                docs = collection_ref.limit(5).stream()
-                doc_count = 0
-                sample_docs = []
-
-                for doc in docs:
-                    doc_count += 1
-                    doc_data = doc.to_dict()
-                    sample_docs.append({
-                        'id': doc.id,
-                        'fields': list(doc_data.keys()),
-                        'sample_data': {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v 
-                                       for k, v in doc_data.items()}
-                    })
-
-                collections_info['collections'].append({
-                    'name': collection_name,
-                    'exists': doc_count > 0,
-                    'document_count': doc_count,
-                    'sample_documents': sample_docs
-                })
-            except Exception as e:
-                collections_info['collections'].append({
-                    'name': collection_name,
-                    'exists': False,
-                    'error': str(e)
-                })
-
-        return jsonify(collections_info)
-    except Exception as e:
-        logger.error(f"Error analyzing collections: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/create-sample-data')
-def debug_create_sample_data():
-    """Debug endpoint to create sample data for analysis"""
-    try:
-        # Get current user
-        existing_user = firebase_adapter.get_user_by_email('test@example.com')
-        if not existing_user:
-            return jsonify({
-                'success': False,
-                'error': 'Test user not found. Create user first.'
-            })
-
-        user_id = existing_user['id']
-        results = {'created': [], 'errors': []}
-
-        # Create sample items
-        sample_items = [
-            {
-                'name': 'Coca Cola 500ml',
-                'sku': 'COKE500',
-                'category': 'Beverages',
-                'buying_price': 0.50,
-                'selling_price': 1.00,
-                'stock_quantity': 100,
-                'description': 'Refreshing cola drink'
-            },
-            {
-                'name': 'Laptop HP EliteBook',
-                'sku': 'HP-ELITE-001',
-                'category': 'Electronics',
-                'buying_price': 800.00,
-                'selling_price': 1200.00,
-                'stock_quantity': 5,
-                'description': 'Professional laptop'
-            },
-        ]
-
-        for item_data in sample_items:
-            try:
-                item = firebase_adapter.create_item(item_data, user_id)
-                results['created'].append(f"Item: {item_data['name']}")
-            except Exception as e:
-                results['errors'].append(f"Item {item_data['name']}: {str(e)}")
-
-        # Create sample customer
-        customer_data = {
-            'name': 'John Doe',
-            'email': 'john.doe@example.com',
-            'phone': '+1234567891',
-            'address': '123 Main St, City, State'
-        }
-
-        try:
-            customer = firebase_adapter.create_customer(customer_data, user_id)
-            results['created'].append(f"Customer: {customer_data['name']}")
-        except Exception as e:
-            results['errors'].append(f"Customer {customer_data['name']}: {str(e)}")
-
-        # Create sample category
-        category_data = {
-            'name': 'Electronics',
-            'description': 'Electronic devices and accessories'
-        }
-
-        try:
-            category = firebase_adapter.create_category(category_data, user_id)
-            results['created'].append(f"Category: {category_data['name']}")
-        except Exception as e:
-            results['errors'].append(f"Category {category_data['name']}: {str(e)}")
-
-        return jsonify({
-            'success': True,
-            'results': results,
-            'user_id': user_id
-        })
-
-    except Exception as e:
-        logger.error(f"Error creating sample data: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/debug/database-summary')
-def debug_database_summary():
-    """Debug endpoint to provide complete database analysis summary"""
-    try:
-        # Get Firebase status
-        status_response = debug_firebase_status()
-        status_data = status_response.get_json()
-
-        # Get user data
-        users_response = debug_firebase_users()
-        users_data = users_response.get_json()
-
-        # Get collections data
-        collections_response = debug_firebase_collections()
-        collections_data = collections_response.get_json()
-
-        summary = {
-            'firebase_status': status_data,
-            'user_analysis': {
-                'total_users': users_data.get('total_users', 0),
-                'users': users_data.get('users', []),
-                'statistics': users_data.get('statistics')
-            },
-            'database_structure': {
-                'project_id': collections_data.get('project_id'),
-                'collections': collections_data.get('collections', [])
-            },
-            'recommendations': []
-        }
-
-        # Add recommendations based on analysis
-        if summary['user_analysis']['total_users'] == 0:
-            summary['recommendations'].append("No users found. Consider creating test users for development.")
-
-        empty_collections = [col for col in summary['database_structure']['collections'] if not col.get('exists')]
-        if empty_collections:
-            summary['recommendations'].append(f"Empty collections: {', '.join([col['name'] for col in empty_collections])}")
-
-        if summary['firebase_status'].get('firestore_enabled') and summary['firebase_status'].get('auth_enabled'):
-            summary['recommendations'].append("Firebase is fully configured and ready for production use.")
-
-        return jsonify(summary)
-
-    except Exception as e:
-        logger.error(f"Error creating database summary: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
     # Log the requested URL for debugging
