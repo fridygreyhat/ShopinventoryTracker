@@ -2241,6 +2241,12 @@ def get_monthly_financial_summary():
         from datetime import datetime, timedelta
 
         user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not configured'}), 500
+
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Get sales data from Firebase
