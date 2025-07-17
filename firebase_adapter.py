@@ -228,13 +228,13 @@ class FirebaseAdapter:
         """Get items with filtering support"""
         try:
             query = (self.service.db.collection('items')
-                    .filter('user_id', '==', user_id)
-                    .filter('is_active', '==', True))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             # Apply filters
             category = kwargs.get('category')
             if category:
-                query = query.filter('category', '==', category)
+                query = query.where('category', '==', category)
 
             # Get documents
             docs = query.stream()
@@ -287,13 +287,15 @@ class FirebaseAdapter:
         """Get a specific item by SKU"""
         try:
             query = (self.service.db.collection('items')
-                    .filter('sku', '==', sku)
-                    .filter('user_id', '==', user_id)
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
                     .limit(1))
 
             docs = list(query.stream())
             if docs:
-                return docs[0].to_dict()
+                item_data = docs[0].to_dict()
+                item_data['id'] = docs[0].id
+                return item_data
 
             return None
         except Exception as e:
@@ -304,8 +306,8 @@ class FirebaseAdapter:
         """Check if an item with given SKU exists for user"""
         try:
             query = (self.service.db.collection('items')
-                    .filter('sku', '==', sku)
-                    .filter('user_id', '==', user_id)
+                    .where('sku', '==', sku)
+                    .where('user_id', '==', user_id)
                     .limit(1))
 
             docs = list(query.stream())

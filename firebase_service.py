@@ -121,8 +121,8 @@ class FirebaseService:
         """Get all items for a user"""
         try:
             query = (self.db.collection('items')
-                    .filter('user_id', '==', user_id)
-                    .filter('is_active', '==', True))
+                    .where('user_id', '==', user_id)
+                    .where('is_active', '==', True))
 
             docs = query.stream()
             items = []
@@ -343,8 +343,8 @@ class FirebaseService:
         """Get all categories for a user"""
         try:
             docs = (self.db.collection('categories')
-                   .filter('user_id', '==', user_id)
-                   .filter('is_active', '==', True)
+                   .where('user_id', '==', user_id)
+                   .where('is_active', '==', True)
                    .stream())
             categories = []
 
@@ -403,7 +403,7 @@ class FirebaseService:
         """Get all sales for a user"""
         try:
             # Simple query without ordering to avoid index requirements
-            query = self.db.collection('sales').filter('user_id', '==', user_id)
+            query = self.db.collection('sales').where('user_id', '==', user_id)
 
             if limit:
                 query = query.limit(limit)

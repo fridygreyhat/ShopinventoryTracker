@@ -2174,7 +2174,159 @@ def get_dashboard_summary():
         inventory_value = sum(
             item.get('stock_quantity', 0) * item.get('buying_price', 0) 
             for item in items_data 
-            if item.get('buying_price')
+            if item.get('buying_price') and item.get('stock_quantity')
+        )
+
+        # Category breakdown
+        category_breakdown = {}
+        for item in items_data:
+            category = item.get('category', 'Uncategorized')
+            if category not in category_breakdown:
+                category_breakdown[category] = {
+                    'category': category,
+                    'item_count': 0,
+                    'total_stock': 0,
+                    'total_value': 0
+                }
+            category_breakdown[category]['item_count'] += 1
+            category_breakdown[category]['total_stock'] += item.get('stock_quantity', 0)
+            category_breakdown[category]['total_value'] += (
+                item.get('stock_quantity', 0) * item.get('buying_price', 0)
+            )
+
+        # Convert to list
+        category_breakdown = list(category_breakdown.values())
+
+        # Low stock items analysis
+        low_stock_items = []
+        low_stock_count = 0
+        for item in items_data:
+            stock_qty = item.get('stock_quantity', 0)
+            min_stock = item.get('minimum_stock', 5)
+            if stock_qty <= min_stock:
+                low_stock_count += 1
+                if len(low_stock_items) < 10:
+                    low_stock_items.append({
+                        'id': item.get('id'),
+                        'name': item.get('name'),
+                        'current_stock': stock_qty,
+                        'minimum_stock': min_stock,
+                        'category': item.get('category')
+                    })
+
+        # === SALES METRICS ===
+        # Get sales from Firebase
+        sales_data = firebase_adapter.get_sales_by_user(user_id, limit=None)
+        total_sales = len(sales_data)
+
+        # Calculate revenue (completed sales only)
+        total_revenue = sum(
+            float(sale.get('total_amount', 0)) 
+            for sale in sales_data 
+            if sale.get('payment_status') == 'completed'
+        )
+
+        # Today's sales
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_str = today.isoformat()
+        
+        today_sales = 0
+        today_sales_count = 0
+        for sale in sales_data:
+            sale_date = sale.get('created_at', '')
+            if sale_date and sale_date.startswith(today_str[:10]):
+                today_sales += float(sale.get('total_amount', 0))
+                today_sales_count += 1
+
+        # Top selling items (simplified)
+        top_selling_items = []
+        item_sales = {}
+        for sale in sales_data:
+            sale_items = sale.get('sale_items', [])
+            if isinstance(sale_items, list):
+                for item in sale_items:
+                    item_name = item.get('item_name', item.get('name', 'Unknown'))
+                    quantity = int(item.get('quantity', 0))
+                    if item_name in item_sales:
+                        item_sales[item_name] += quantity
+                    else:
+                        item_sales[item_name] = quantity
+
+        # Sort and get top 5
+        sorted_items = sorted(item_sales.items(), key=lambda x: x[1], reverse=True)
+        top_selling_items = [
+            {'name': name, 'quantity_sold': qty} 
+            for name, qty in sorted_items[:5]
+        ]
+
+        # === CUSTOMER METRICS ===
+        customers_data = firebase_adapter.get_customers_by_user(user_id)
+        total_customers = len(customers_data)
+
+        # New customers this month
+        current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_month_str = current_month.isoformat()
+        
+        new_customers_this_month = 0
+        for customer in customers_data:
+            created_at = customer.get('created_at', '')
+            if created_at and created_at >= current_month_str:
+                new_customers_this_month += 1
+
+        # === FINANCIAL METRICS ===
+        # Simplified financial calculations
+        monthly_income = sum(
+            float(sale.get('total_amount', 0)) 
+            for sale in sales_data 
+            if sale.get('created_at', '').startswith(current_month_str[:7])
+        )
+        
+        # Estimated monthly expenses (simplified as 70% of income)
+        monthly_expenses = monthly_income * 0.7
+        monthly_profit = monthly_income - monthly_expenses
+
+        # === RECENT ACTIVITY ===
+        # Get recent sales (last 5)
+        recent_sales_data = sorted(
+            sales_data, 
+            key=lambda x: x.get('created_at', ''), 
+            reverse=True
+        )[:5]
+
+        return jsonify({
+            'success': True,
+            'inventory': {
+                'total_items': total_items,
+                'total_stock': total_stock,
+                'inventory_value': float(inventory_value),
+                'low_stock_count': low_stock_count,
+                'low_stock_items': low_stock_items,
+                'category_breakdown': category_breakdown
+            },
+            'sales': {
+                'total_sales': total_sales,
+                'total_revenue': float(total_revenue),
+                'today_sales': float(today_sales),
+                'today_sales_count': today_sales_count,
+                'top_selling_items': top_selling_items
+            },
+            'customers': {
+                'total_customers': total_customers,
+                'new_customers_this_month': new_customers_this_month
+            },
+            'financial': {
+                'monthly_income': float(monthly_income),
+                'monthly_expenses': float(monthly_expenses),
+                'monthly_profit': float(monthly_profit)
+            },
+            'recent_activity': {
+                'recent_sales': recent_sales_data
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting dashboard summary: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500tem.get('buying_price')
         )
 
         # Low stock items analysis
