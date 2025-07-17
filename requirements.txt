@@ -26,3 +26,7 @@ numpy
 psycopg2-binary
 pandas
 flask-migrate
+firebase-admin
+sift-stack-py
+firebase-admin
+sift-stack-py

@@ -54,8 +54,8 @@ app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
-configure_database(app)
+# Configure Firebase as primary database
+configure_database(app, use_firebase=True)
 
 
 
