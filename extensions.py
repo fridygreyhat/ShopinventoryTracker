@@ -7,9 +7,44 @@ import os
 db = SQLAlchemy()
 login_manager = LoginManager()
 
-# Ensure PostgreSQL configuration
-def configure_database(app):
-    """Configure database to use PostgreSQL exclusively"""
+# Database configuration options
+def configure_database(app, use_firebase=False):
+    """Configure database - PostgreSQL or Firebase"""
+    
+    if use_firebase:
+        return configure_firebase(app)
+    else:
+        return configure_postgresql(app)
+
+def configure_firebase(app):
+    """Configure Firebase as primary database"""
+    try:
+        from firebase_config import firebase_config
+        
+        # Check for Firebase credentials
+        firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
+        if not firebase_creds:
+            print("❌ ERROR: FIREBASE_CREDENTIALS not found!")
+            print("Please add your Firebase service account JSON to environment variables:")
+            print("1. Go to Firebase Console > Project Settings > Service Accounts")
+            print("2. Generate new private key")
+            print("3. Copy the JSON content to FIREBASE_CREDENTIALS environment variable")
+            raise Exception("Firebase credentials are required")
+
+        # Initialize Firebase
+        if firebase_config.initialize_firebase():
+            print("✅ Configured Firebase as primary database")
+            app.config['USE_FIREBASE'] = True
+            return True
+        else:
+            raise Exception("Failed to initialize Firebase")
+
+    except Exception as e:
+        print(f"❌ Error configuring Firebase: {str(e)}")
+        return False
+
+def configure_postgresql(app):
+    """Configure PostgreSQL database"""
 
     # Check for PostgreSQL configuration
     postgres_url = os.environ.get('DATABASE_URL')
@@ -36,6 +71,7 @@ def configure_database(app):
             }
         }
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        app.config['USE_FIREBASE'] = False
         print("✅ Configured PostgreSQL database for authentication")
         return True
     except Exception as e:
