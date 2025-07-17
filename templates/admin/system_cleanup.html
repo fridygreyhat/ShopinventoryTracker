@@ -1,0 +1,93 @@
+
+{% extends "layout.html" %}
+
+{% block title %}System Cleanup{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">System Cleanup & Maintenance</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="metric">
+                                <h6>Active Sessions</h6>
+                                <span class="badge bg-info">{{ active_sessions }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric">
+                                <h6>Failed Logins</h6>
+                                <span class="badge bg-warning">{{ failed_logins }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric">
+                                <h6>Last Cleanup</h6>
+                                <span class="text-muted">{{ last_cleanup }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleanup Actions -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Individual Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="d-grid gap-2">
+                        <button type="submit" name="action" value="clear_sessions" class="btn btn-outline-primary">
+                            <i class="fas fa-broom me-2"></i>Clear Expired Sessions
+                        </button>
+                        <button type="submit" name="action" value="clear_logs" class="btn btn-outline-info">
+                            <i class="fas fa-file-alt me-2"></i>Clear Old Logs
+                        </button>
+                        <button type="submit" name="action" value="reset_failed_logins" class="btn btn-outline-warning">
+                            <i class="fas fa-unlock me-2"></i>Reset Failed Logins
+                        </button>
+                        <button type="submit" name="action" value="optimize_database" class="btn btn-outline-success">
+                            <i class="fas fa-database me-2"></i>Optimize Database
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Full Cleanup</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Perform all cleanup operations at once.</p>
+                    <form method="POST">
+                        <button type="submit" name="action" value="full_cleanup" 
+                                class="btn btn-danger w-100"
+                                onclick="return confirm('Are you sure you want to perform a full system cleanup?')">
+                            <i class="fas fa-tools me-2"></i>Full System Cleanup
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -59,6 +59,16 @@ class User(UserMixin, db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
     
+    def get_permissions(self):
+        """Get user permissions as a list"""
+        if hasattr(self, 'permissions') and self.permissions:
+            try:
+                import json
+                return json.loads(self.permissions)
+            except:
+                return []
+        return []
+
     def __repr__(self):
         return f'<User {self.username}>'
 

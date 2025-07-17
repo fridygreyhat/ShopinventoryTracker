@@ -839,6 +839,7 @@ def add_item():
 
         # Handle quantity field mapping (support both 'quantity' and 'stock_quantity')
         quantity = item_data.get('quantity', item_data.get('stock_quantity', 0))
+        ```python
         try:
             quantity = int(quantity) if quantity is not None else 0
         except (ValueError, TypeError):
@@ -1660,6 +1661,7 @@ def create_sale():
         db.session.flush()
 
         # Create sale items and update stock
+```python
         for item_data in sale_items_data:
             sale_item = SaleItem(
                 sale_id=sale.id,
@@ -2493,6 +2495,7 @@ def get_financial_transactions():
         # Execute query
         transactions = query.order_by(FinancialTransaction.created_at.desc()).all()
 
+        #```python
         # Format response
         transactions_data = []
         for transaction in transactions:
@@ -3056,3 +3059,44 @@ if __name__ == '__main__':
 import logging
 import uuid
 import json
+from extensions import db, login_manager, mail
+from models import User, Item, Sale, Customer, Category, FinancialTransaction, Location, Supplier, PurchaseOrder, StockMovement, Setting
+from auth_service import AuthService
+from accounting_service import AccountingService
+from email_service import EmailService
+from admin_portal import admin_bp
+
+# Initialize Flask extensions and register the admin blueprint.
+def create_app():
+    app = Flask(__name__)
+
+    # Configure secret key and session
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+
+    # Configure PostgreSQL database (ONLY PostgreSQL - No Firebase)
+    configure_database(app)
+
+    # Initialize extensions with app
+    db.init_app(app)
+
+    # Initialize login manager
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+
+    # Register admin blueprint
+    app.register_blueprint(admin_bp)
+
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+
+    with app.app_context():
+        init_database()  # Initialize database within the application context
+
+    app.run(host='0.0.0.0', port=5000, debug=True)
