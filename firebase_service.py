@@ -1,6 +1,5 @@
-from firebase_config import get_firestore_db, get_firebase_auth
-from firebase_models import *
-from google.cloud.firestore import Query
+from firebase_config import firebase_config
+from firebase_models import UserModel, ItemModel, SaleModel, CustomerModel, CategoryModel
 import logging
 import uuid
 from datetime import datetime
@@ -11,8 +10,8 @@ class FirebaseService:
     """Service layer for Firebase operations"""
 
     def __init__(self):
-        self.db = get_firestore_db()
-        self.auth = get_firebase_auth()
+        self.db = firebase_config.db
+        self.auth = firebase_config.auth
 
     # User operations
     def create_user(self, user_data):
@@ -25,26 +24,32 @@ class FirebaseService:
                 display_name=f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
             )
 
-            # Create user document in Firestore
-            user = FirebaseUser()
-            user.id = auth_user.uid
-            user.username = user_data.get('username', '')
-            user.email = user_data['email']
-            user.first_name = user_data.get('first_name', '')
-            user.last_name = user_data.get('last_name', '')
-            user.phone = user_data.get('phone', '')
-            user.shop_name = user_data.get('shop_name', '')
-            user.product_categories = user_data.get('product_categories', '')
-            user.is_admin = user_data.get('is_admin', False)
-            user.is_active = user_data.get('is_active', True)
-            user.email_verified = user_data.get('email_verified', False)
-            user.created_at = user_data.get('created_at', datetime.utcnow().isoformat())
+            # Create user document in Firestore using UserModel
+            user_doc_data = UserModel.create_user_data(
+                email=user_data['email'],
+                first_name=user_data.get('first_name', ''),
+                last_name=user_data.get('last_name', ''),
+                username=user_data.get('username', user_data['email'].split('@')[0]),
+                phone=user_data.get('phone', ''),
+                is_admin=user_data.get('is_admin', False),
+                is_active=user_data.get('is_active', True),
+                created_at=datetime.utcnow().isoformat()
+            )
+            
+            # Add shop-specific fields
+            user_doc_data.update({
+                'shop_name': user_data.get('shop_name', ''),
+                'product_categories': user_data.get('product_categories', ''),
+                'email_verified': user_data.get('email_verified', False)
+            })
 
             # Save to Firestore
-            self.db.collection('users').document(auth_user.uid).set(user.to_dict())
+            self.db.collection('users').document(auth_user.uid).set(user_doc_data)
 
-            logger.info(f"User created successfully: {user.email}")
-            return user
+            logger.info(f"User created successfully: {user_data['email']}")
+            # Return user data with ID
+            user_doc_data['id'] = auth_user.uid
+            return user_doc_data
 
         except Exception as e:
             logger.error(f"Error creating user: {str(e)}")
@@ -60,8 +65,9 @@ class FirebaseService:
             user_doc = self.db.collection('users').document(auth_user.uid).get()
 
             if user_doc.exists:
-                user = FirebaseUser(user_doc.to_dict(), auth_user.uid)
-                return user
+                user_data = user_doc.to_dict()
+                user_data['id'] = auth_user.uid
+                return user_data
 
             return None
 
@@ -75,8 +81,9 @@ class FirebaseService:
             user_doc = self.db.collection('users').document(user_id).get()
 
             if user_doc.exists:
-                user = FirebaseUser(user_doc.to_dict(), user_id)
-                return user
+                user_data = user_doc.to_dict()
+                user_data['id'] = user_id
+                return user_data
 
             return None
         except Exception as e:
@@ -97,21 +104,21 @@ class FirebaseService:
     def create_item(self, item_data, user_id):
         """Create a new item"""
         try:
-            item = FirebaseItem()
-
-            # Set item properties
-            for key, value in item_data.items():
-                if hasattr(item, key):
-                    setattr(item, key, value)
-
-            item.user_id = user_id
-            item.id = str(uuid.uuid4())
+            # Create item data using ItemModel
+            item_doc_data = ItemModel.create_item_data(
+                name=item_data['name'],
+                user_id=user_id,
+                **item_data
+            )
+            
+            item_id = str(uuid.uuid4())
+            item_doc_data['id'] = item_id
 
             # Save to Firestore
-            self.db.collection('items').document(item.id).set(item.to_dict())
+            self.db.collection('items').document(item_id).set(item_doc_data)
 
-            logger.info(f"Item created: {item.name}")
-            return item
+            logger.info(f"Item created: {item_data['name']}")
+            return item_doc_data
 
         except Exception as e:
             logger.error(f"Error creating item: {str(e)}")
@@ -128,8 +135,9 @@ class FirebaseService:
             items = []
 
             for doc in docs:
-                item = FirebaseItem(doc.to_dict(), doc.id)
-                items.append(item)
+                item_data = doc.to_dict()
+                item_data['id'] = doc.id
+                items.append(item_data)
 
             return items
 
@@ -145,7 +153,7 @@ class FirebaseService:
             if item_doc.exists:
                 item_data = item_doc.to_dict()
                 if item_data.get('user_id') == user_id:
-                    item = FirebaseItem(item_data, item_id)
+                    item_data['id'] = item_id
                     return item
 
             return None
