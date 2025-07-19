@@ -414,6 +414,141 @@ def create_sale():
         logger.error(f"Create sale error: {str(e)}")
         return jsonify({'error': 'Failed to create sale'}), 500
 
+# === CATEGORIES API ===
+
+@app.route('/api/categories', methods=['GET'])
+@login_required
+def get_categories():
+    try:
+        user_id = session.get('user_id')
+        categories = firebase_adapter.get_categories_by_user(user_id)
+        
+        # Transform categories to match expected frontend format
+        formatted_categories = []
+        category_map = {}
+        
+        # First pass: create category map and identify parents
+        for category in categories:
+            if isinstance(category, dict):
+                cat_data = category
+            else:
+                cat_data = category.to_dict() if hasattr(category, 'to_dict') else category.__dict__
+            
+            cat_data['subcategories'] = []
+            category_map[cat_data.get('id')] = cat_data
+            
+            # If no parent_id, it's a main category
+            if not cat_data.get('parent_id'):
+                formatted_categories.append(cat_data)
+        
+        # Second pass: attach subcategories to their parents
+        for category in categories:
+            if isinstance(category, dict):
+                cat_data = category
+            else:
+                cat_data = category.to_dict() if hasattr(category, 'to_dict') else category.__dict__
+            
+            parent_id = cat_data.get('parent_id')
+            if parent_id and parent_id in category_map:
+                category_map[parent_id]['subcategories'].append(cat_data)
+        
+        return jsonify(formatted_categories)
+    except Exception as e:
+        logger.error(f"Get categories error: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve categories'}), 500
+
+@app.route('/api/categories', methods=['POST'])
+@login_required
+def create_category():
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        if not data.get('name'):
+            return jsonify({'error': 'Category name is required'}), 400
+        
+        category_data = CategoryModel.create_category_data(
+            name=data['name'],
+            user_id=user_id,
+            description=data.get('description', ''),
+            parent_id=data.get('parent_id'),
+            icon=data.get('icon', 'fas fa-folder'),
+            color=data.get('color', '#007bff'),
+            is_active=True
+        )
+        
+        category_id = firebase_adapter.create_category(category_data, user_id)
+        if category_id:
+            return jsonify({'success': True, 'category_id': category_id, 'message': 'Category created successfully'})
+        else:
+            return jsonify({'error': 'Failed to create category'}), 500
+            
+    except Exception as e:
+        logger.error(f"Create category error: {str(e)}")
+        return jsonify({'error': 'Failed to create category'}), 500
+
+@app.route('/api/categories/<category_id>', methods=['PUT'])
+@login_required
+def update_category(category_id):
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        # Update category in Firebase
+        success = firebase_adapter.service.update_category(category_id, data, user_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Category updated successfully'})
+        else:
+            return jsonify({'error': 'Failed to update category'}), 500
+            
+    except Exception as e:
+        logger.error(f"Update category error: {str(e)}")
+        return jsonify({'error': 'Failed to update category'}), 500
+
+@app.route('/api/categories/<category_id>', methods=['DELETE'])
+@login_required
+def delete_category(category_id):
+    try:
+        user_id = session.get('user_id')
+        success = firebase_adapter.service.delete_category(category_id, user_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Category deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete category'}), 500
+            
+    except Exception as e:
+        logger.error(f"Delete category error: {str(e)}")
+        return jsonify({'error': 'Failed to delete category'}), 500
+
+@app.route('/api/categories/<category_id>/subcategories', methods=['POST'])
+@login_required
+def create_subcategory(category_id):
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        if not data.get('name'):
+            return jsonify({'error': 'Subcategory name is required'}), 400
+        
+        # Create subcategory with parent_id set
+        subcategory_data = CategoryModel.create_category_data(
+            name=data['name'],
+            user_id=user_id,
+            description=data.get('description', ''),
+            parent_id=category_id,
+            is_active=True
+        )
+        
+        subcategory_id = firebase_adapter.create_category(subcategory_data, user_id)
+        if subcategory_id:
+            return jsonify({'success': True, 'subcategory_id': subcategory_id, 'message': 'Subcategory created successfully'})
+        else:
+            return jsonify({'error': 'Failed to create subcategory'}), 500
+            
+    except Exception as e:
+        logger.error(f"Create subcategory error: {str(e)}")
+        return jsonify({'error': 'Failed to create subcategory'}), 500
+
 # === CUSTOMERS API ===
 
 @app.route('/api/customers', methods=['GET'])

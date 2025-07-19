@@ -449,12 +449,93 @@ class FirebaseAdapter:
     # Category operations
     def create_category(self, category_data, user_id):
         """Create category using Firebase service"""
-        return self.service.create_category(category_data, user_id)
+        try:
+            category_data['user_id'] = user_id
+            category_data['created_at'] = datetime.utcnow().isoformat()
+            category_data['updated_at'] = datetime.utcnow().isoformat()
+            category_data['is_active'] = True
+
+            doc_ref = self.service.db.collection('categories').add(category_data)
+            category_data['id'] = doc_ref[1].id
+            return doc_ref[1].id
+        except Exception as e:
+            logger.error(f"Error creating category: {str(e)}")
+            return None
 
     def get_categories_by_user(self, user_id):
         """Get categories using Firebase service"""
-        categories = self.service.get_categories_by_user(user_id)
-        return [category.to_dict() if hasattr(category, 'to_dict') else category.__dict__ for category in categories]
+        try:
+            categories_ref = self.service.db.collection('categories').where('user_id', '==', user_id).where('is_active', '==', True)
+            categories_docs = categories_ref.stream()
+
+            categories = []
+            for doc in categories_docs:
+                category_data = doc.to_dict()
+                category_data['id'] = doc.id
+                # Add item count placeholder
+                category_data['item_count'] = 0
+                category_data['total_item_count'] = 0
+                categories.append(category_data)
+
+            return categories
+        except Exception as e:
+            logger.error(f"Error getting categories for user {user_id}: {str(e)}")
+            return []
+
+    def update_category(self, category_id, updates, user_id):
+        """Update a category"""
+        try:
+            category_ref = self.service.db.collection('categories').document(category_id)
+            category_doc = category_ref.get()
+            
+            if category_doc.exists:
+                category_data = category_doc.to_dict()
+                if category_data.get('user_id') == user_id:
+                    updates['updated_at'] = datetime.utcnow().isoformat()
+                    category_ref.update(updates)
+                    logger.info(f"Category updated: {category_id}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating category: {str(e)}")
+            return False
+
+    def delete_category(self, category_id, user_id):
+        """Soft delete a category"""
+        try:
+            category_ref = self.service.db.collection('categories').document(category_id)
+            category_doc = category_ref.get()
+            
+            if category_doc.exists:
+                category_data = category_doc.to_dict()
+                if category_data.get('user_id') == user_id:
+                    # Soft delete by marking as inactive
+                    category_ref.update({
+                        'is_active': False,
+                        'updated_at': datetime.utcnow().isoformat()
+                    })
+                    logger.info(f"Category deleted: {category_id}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting category: {str(e)}")
+            return False
+
+    def get_category_by_id(self, category_id, user_id):
+        """Get a specific category by ID"""
+        try:
+            category_doc = self.service.db.collection('categories').document(category_id).get()
+            
+            if category_doc.exists:
+                category_data = category_doc.to_dict()
+                if category_data.get('user_id') == user_id:
+                    category_data['id'] = category_id
+                    return category_data
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error getting category by ID: {str(e)}")
+            return None
 
 # Global Firebase adapter instance
 firebase_adapter = FirebaseAdapter()

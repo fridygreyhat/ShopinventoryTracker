@@ -375,6 +375,56 @@ class FirebaseService:
             logger.error(f"Error getting category by ID: {str(e)}")
             return None
 
+    def update_category(self, category_id, updates, user_id):
+        """Update a category"""
+        try:
+            category_ref = self.db.collection('categories').document(category_id)
+            category_doc = category_ref.get()
+
+            if category_doc.exists:
+                category_data = category_doc.to_dict()
+                if category_data.get('user_id') == user_id:
+                    updates['updated_at'] = datetime.utcnow().isoformat()
+                    category_ref.update(updates)
+                    logger.info(f"Category updated: {category_id}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating category: {str(e)}")
+            return False
+
+    def delete_category(self, category_id, user_id):
+        """Soft delete a category"""
+        try:
+            category_ref = self.db.collection('categories').document(category_id)
+            category_doc = category_ref.get()
+
+            if category_doc.exists:
+                category_data = category_doc.to_dict()
+                if category_data.get('user_id') == user_id:
+                    # Also delete subcategories
+                    subcategories_ref = self.db.collection('categories').where('parent_id', '==', category_id)
+                    subcategories = subcategories_ref.stream()
+
+                    for subcategory in subcategories:
+                        subcategory.reference.update({
+                            'is_active': False,
+                            'updated_at': datetime.utcnow().isoformat()
+                        })
+
+                    # Soft delete the main category
+                    category_ref.update({
+                        'is_active': False,
+                        'updated_at': datetime.utcnow().isoformat()
+                    })
+
+                    logger.info(f"Category deleted: {category_id}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting category: {str(e)}")
+            return False
+
     # Sales operations
     def create_sale(self, sale_data, user_id):
         """Create a new sale"""
