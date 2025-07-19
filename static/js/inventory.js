@@ -184,6 +184,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add batch operations functionality
     initializeBatchOperations();
+    
+    // Firebase test button
+    const testFirebaseBtn = document.getElementById('testFirebaseBtn');
+    if (testFirebaseBtn) {
+        testFirebaseBtn.addEventListener('click', testFirebaseConnection);
+    }
 
     // Unit type change handler
     document.getElementById('itemUnitType').addEventListener('change', function() {
@@ -214,8 +220,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Functions
     function loadInventory() {
+        console.log('🔄 Loading inventory...');
+        
         const includeAnalytics = document.getElementById('includeAnalytics')?.checked || false;
         const url = includeAnalytics ? '/api/inventory?include_analytics=true' : '/api/inventory?format=simple';
+        
+        // Show loading state
+        inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading inventory...</td></tr>';
         
         fetch(url, {
             credentials: 'same-origin',
@@ -224,22 +235,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
             .then(response => {
-                if (response.status === 401 || response.status === 302) {
+                console.log(`📡 Inventory API response: ${response.status}`);
+                
+                if (response.status === 401) {
+                    console.log('🔒 Authentication required - redirecting to login');
                     window.location.href = '/login';
                     return;
                 }
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                
+                if (response.status === 302) {
+                    console.log('🔄 Redirect response - following redirect');
+                    window.location.href = '/login';
+                    return;
                 }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 return response.json();
             })
             .then(data => {
-                if (!data) return; // Handle authentication redirect case
+                if (!data) {
+                    console.log('⚠️ No data received from server');
+                    return;
+                }
+                
+                console.log('📦 Inventory data received:', data);
                 
                 // Handle both simple format and enhanced format
                 const items = Array.isArray(data) ? data : (data.items || []);
                 
                 if (items && items.length > 0) {
+                    console.log(`✅ Displaying ${items.length} inventory items`);
                     displayInventory(items);
                     noItemsMessage.classList.add('d-none');
                     
@@ -253,13 +281,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayInventoryAnalytics(data.analytics);
                     }
                 } else {
+                    console.log('📝 No inventory items found');
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No inventory items found</td></tr>';
                     noItemsMessage.classList.remove('d-none');
                 }
             })
             .catch(error => {
-                console.error('Error loading inventory:', error);
-                inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
+                console.error('❌ Error loading inventory:', error);
+                
+                // Show detailed error message
+                let errorMessage = 'Error loading inventory. ';
+                if (error.message.includes('401')) {
+                    errorMessage += 'Please log in again.';
+                } else if (error.message.includes('500')) {
+                    errorMessage += 'Server error - Firebase may not be configured properly.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Network connection issue. Please check your connection.';
+                } else {
+                    errorMessage += `${error.message}`;
+                }
+                
+                inventoryTable.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                            <br><small>Check the browser console for more details.</small>
+                        </td>
+                    </tr>
+                `;
             });
     }
 
@@ -949,6 +998,45 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             alert('Failed to update item: ' + error.message);
+        });
+    }
+
+    function testFirebaseConnection() {
+        console.log('🧪 Testing Firebase connection...');
+        
+        const originalText = testFirebaseBtn.innerHTML;
+        testFirebaseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+        testFirebaseBtn.disabled = true;
+        
+        fetch('/api/firebase-test', {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🧪 Firebase test results:', data);
+            
+            let message = 'Firebase Test Results:\n';
+            message += `✅ Initialized: ${data.firebase_initialized}\n`;
+            message += `✅ Database: ${data.database_accessible}\n`;
+            message += `✅ User Auth: ${data.user_authenticated}\n`;
+            message += `✅ Firestore: ${data.firestore_query}\n`;
+            
+            if (data.error) {
+                message += `❌ Error: ${data.error}`;
+            }
+            
+            alert(message);
+        })
+        .catch(error => {
+            console.error('❌ Firebase test failed:', error);
+            alert(`Firebase test failed: ${error.message}`);
+        })
+        .finally(() => {
+            testFirebaseBtn.innerHTML = originalText;
+            testFirebaseBtn.disabled = false;
         });
     }
 

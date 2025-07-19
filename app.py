@@ -298,6 +298,38 @@ def debug_registration_test():
             'firebase_initialized': False
         }), 500
 
+@app.route('/api/firebase-test')
+@login_required 
+def api_firebase_test():
+    """Quick Firebase connectivity test for frontend"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not authenticated'}), 401
+            
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not initialized', 'initialized': False}), 500
+            
+        # Test basic Firebase operations
+        test_results = {
+            'firebase_initialized': firebase_config.initialized,
+            'database_accessible': bool(firebase_config.db),
+            'user_authenticated': bool(user_id),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Try a simple Firestore query
+        try:
+            firebase_config.db.collection('users').document(user_id).get()
+            test_results['firestore_query'] = 'success'
+        except Exception as e:
+            test_results['firestore_query'] = f'failed: {str(e)}'
+            
+        return jsonify(test_results)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'initialized': False}), 500
+
 @app.route('/debug/firebase-status')
 def debug_firebase_status():
     """Debug route to check Firebase status"""
@@ -753,11 +785,21 @@ def get_inventory():
         # Get current user ID
         current_user_id = session.get('user_id')
         if not current_user_id:
-            return jsonify([])
+            logger.error("No user_id in session for inventory request")
+            return jsonify({'error': 'User not authenticated', 'code': 'NO_USER_ID'}), 401
 
         # Use Firebase for inventory management
         if not firebase_config.initialized:
-            return jsonify({'error': 'Firebase not configured'}), 500
+            logger.error("Firebase not initialized for inventory request")
+            if not firebase_config.initialize_firebase():
+                return jsonify({'error': 'Firebase initialization failed', 'code': 'FIREBASE_INIT_FAILED'}), 500
+
+        # Verify Firebase database is accessible
+        if not firebase_config.db:
+            logger.error("Firebase database not accessible")
+            return jsonify({'error': 'Firebase database not accessible', 'code': 'FIREBASE_DB_ERROR'}), 500
+
+        logger.info(f"Loading inventory for user {current_user_id}")
 
         filter_params = {
             'category': request.args.get('category'),
@@ -786,23 +828,15 @@ def get_inventory():
             except ValueError:
                 pass
 
+        logger.info(f"Successfully loaded {len(items_data)} items for user {current_user_id}")
+
         return jsonify({
             'items': items_data,
             'total_count': len(items_data),
-            'source': 'Firebase'
+            'source': 'Firebase',
+            'user_id': current_user_id,
+            'success': True
         })
-
-        # Optional filtering
-        category = request.args.get('category')
-        subcategory = request.args.get('subcategory')
-        search_term = request.args.get('search', '').lower()
-        min_stock = request.args.get('min_stock')
-        max_stock = request.args.get('max_stock')
-        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
-
-        # Include inactive items if requested (for admin purposes)
-        if include_inactive:
-            query = Item.query.filter(Item.user_id == current_user_id)
 
         # Apply category filter (support both category name and subcategory)
         if category:
@@ -933,8 +967,16 @@ def get_inventory():
         return jsonify(response_data)
 
     except Exception as e:
-        logger.error(f"Error getting inventory: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting inventory for user {current_user_id if 'current_user_id' in locals() else 'unknown'}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f'Failed to load inventory: {str(e)}',
+            'code': 'INVENTORY_LOAD_ERROR',
+            'user_id': current_user_id if 'current_user_id' in locals() else None,
+            'success': False
+        }), 500
 
 @app.route('/api/shop/details', methods=['GET'])
 @login_required
