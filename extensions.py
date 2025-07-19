@@ -1,10 +1,8 @@
-# extensions.py
-from flask_sqlalchemy import SQLAlchemy
+# extensions.py - Firebase-only configuration
 from flask_login import LoginManager
 import os
 
-# Initialize extensions
-db = SQLAlchemy()
+# Firebase-only extensions
 login_manager = LoginManager()
 
 # Database configuration options

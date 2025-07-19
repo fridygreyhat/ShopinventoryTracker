@@ -1,5 +1,5 @@
 from firebase_service import firebase_service
-from firebase_models import FirebaseUser, FirebaseItem, FirebaseSale, FirebaseCustomer, FirebaseCategory
+from firebase_models import UserModel, ItemModel, SaleModel, CustomerModel, CategoryModel
 from datetime import datetime
 import logging
 import uuid

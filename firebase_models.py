@@ -1,205 +1,161 @@
+# Firebase Models - Data structure definitions for Firebase collections
+"""
+Firebase Collections Structure:
+
+1. users: User account information
+2. items: Inventory/product items  
+3. sales: Sales transactions
+4. customers: Customer information
+5. categories: Product categories
+6. financial_transactions: Financial records
+"""
+
 from datetime import datetime
-from google.cloud.firestore import DocumentReference
-import uuid
+from typing import Dict, List, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
 
 class FirebaseModel:
-    """Base class for Firebase models"""
-
-    def __init__(self, data=None, doc_id=None):
-        self.id = doc_id
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
-
-        if data:
-            self.from_dict(data)
-
-    def to_dict(self):
-        """Convert model to dictionary for Firebase storage"""
-        data = {}
-        for key, value in self.__dict__.items():
-            if not key.startswith('_'):
-                if isinstance(value, datetime):
-                    data[key] = value
-                else:
-                    data[key] = value
-        return data
-
-    def from_dict(self, data):
-        """Load model from Firebase document data"""
+    """Base class for Firebase document models"""
+    
+    @staticmethod
+    def validate_required_fields(data: Dict, required_fields: List[str]) -> bool:
+        """Validate that all required fields are present"""
+        return all(field in data and data[field] is not None for field in required_fields)
+    
+    @staticmethod
+    def sanitize_data(data: Dict) -> Dict:
+        """Remove None values and ensure proper data types"""
+        cleaned = {}
         for key, value in data.items():
-            setattr(self, key, value)
+            if value is not None:
+                cleaned[key] = value
+        return cleaned
 
-class FirebaseUser(FirebaseModel):
-    """Firebase user model"""
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.username = ""
-        self.email = ""
-        self.first_name = ""
-        self.last_name = ""
-        self.phone = ""
-        self.shop_name = ""
-        self.product_categories = ""
-        self.is_active = True
-        self.is_admin = False
-        self.email_verified = False
-        self.last_login = None
-
-    def set_password(self, password):
-        """Set password using Firebase Auth"""
-        # Firebase Auth handles password hashing automatically
-        # This will be handled during user creation
-        pass
-
-    def check_password(self, password):
-        """Check password using Firebase Auth"""
-        # Password verification is handled by Firebase Auth
-        # This method is kept for compatibility
-        return True
-
-    def to_dict(self):
-        """Convert to dictionary for Firestore"""
-        return {
-            'username': self.username,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'phone': self.phone,
-            'shop_name': self.shop_name,
-            'product_categories': self.product_categories,
-            'is_admin': self.is_admin,
-            'is_active': self.is_active,
-            'email_verified': self.email_verified,
-            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
-            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
-            'last_login': self.last_login.isoformat() if isinstance(self.last_login, datetime) and self.last_login else self.last_login
+class UserModel(FirebaseModel):
+    """User model for Firebase"""
+    
+    REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
+    OPTIONAL_FIELDS = ['username', 'phone', 'is_admin', 'is_active', 'last_login', 'created_at']
+    
+    @classmethod
+    def create_user_data(cls, email: str, first_name: str, last_name: str, **kwargs) -> Dict:
+        """Create user data dictionary for Firebase"""
+        user_data = {
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'username': kwargs.get('username', email.split('@')[0]),
+            'phone': kwargs.get('phone', ''),
+            'is_admin': kwargs.get('is_admin', False),
+            'is_active': kwargs.get('is_active', True),
+            'created_at': kwargs.get('created_at', datetime.utcnow().isoformat()),
+            'last_login': None
         }
+        return cls.sanitize_data(user_data)
 
-class FirebaseItem(FirebaseModel):
-    """Firebase Item model"""
+class ItemModel(FirebaseModel):
+    """Inventory item model for Firebase"""
+    
+    REQUIRED_FIELDS = ['name', 'user_id']
+    OPTIONAL_FIELDS = ['description', 'category', 'stock_quantity', 'minimum_stock', 
+                      'buying_price', 'retail_price', 'wholesale_price', 'sku', 
+                      'barcode', 'is_active', 'created_at', 'updated_at']
+    
+    @classmethod
+    def create_item_data(cls, name: str, user_id: str, **kwargs) -> Dict:
+        """Create item data dictionary for Firebase"""
+        item_data = {
+            'name': name,
+            'user_id': user_id,
+            'description': kwargs.get('description', ''),
+            'category': kwargs.get('category', 'General'),
+            'stock_quantity': int(kwargs.get('stock_quantity', 0)),
+            'minimum_stock': int(kwargs.get('minimum_stock', 0)),
+            'buying_price': float(kwargs.get('buying_price', 0.0)),
+            'retail_price': float(kwargs.get('retail_price', 0.0)),
+            'wholesale_price': float(kwargs.get('wholesale_price', 0.0)),
+            'sku': kwargs.get('sku', ''),
+            'barcode': kwargs.get('barcode', ''),
+            'is_active': kwargs.get('is_active', True),
+            'created_at': kwargs.get('created_at', datetime.utcnow().isoformat()),
+            'updated_at': datetime.utcnow().isoformat()
+        }
+        return cls.sanitize_data(item_data)
 
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.name = ""
-        self.description = ""
-        self.sku = ""
-        self.stock_quantity = 0
-        self.minimum_stock = 0
-        self.buying_price = 0.0
-        self.retail_price = 0.0
-        self.wholesale_price = 0.0
-        self.sales_type = "both"
-        self.category = "Uncategorized"
-        self.subcategory = ""
-        self.unit_type = "quantity"
-        self.sell_by = "quantity"
-        self.category_id = None
-        self.user_id = ""
-        self.is_active = True
+class SaleModel(FirebaseModel):
+    """Sales transaction model for Firebase"""
+    
+    REQUIRED_FIELDS = ['user_id', 'total_amount', 'sale_items']
+    OPTIONAL_FIELDS = ['sale_number', 'customer_id', 'customer_name', 'payment_type',
+                      'payment_status', 'is_installment', 'down_payment', 'installment_months',
+                      'monthly_payment', 'notes', 'created_at']
+    
+    @classmethod
+    def create_sale_data(cls, user_id: str, total_amount: float, sale_items: List[Dict], **kwargs) -> Dict:
+        """Create sale data dictionary for Firebase"""
+        sale_data = {
+            'user_id': user_id,
+            'total_amount': float(total_amount),
+            'sale_items': sale_items,
+            'sale_number': kwargs.get('sale_number', ''),
+            'customer_id': kwargs.get('customer_id'),
+            'customer_name': kwargs.get('customer_name', 'Walk-in Customer'),
+            'payment_type': kwargs.get('payment_type', 'cash'),
+            'payment_status': kwargs.get('payment_status', 'completed'),
+            'is_installment': kwargs.get('is_installment', False),
+            'down_payment': float(kwargs.get('down_payment', 0.0)),
+            'installment_months': int(kwargs.get('installment_months', 0)),
+            'monthly_payment': float(kwargs.get('monthly_payment', 0.0)),
+            'notes': kwargs.get('notes', ''),
+            'created_at': kwargs.get('created_at', datetime.utcnow().isoformat())
+        }
+        return cls.sanitize_data(sale_data)
 
-    def to_dict(self):
-        """Convert to dictionary for Firestore"""
-        data = {}
-        for key, value in self.__dict__.items():
-            if not key.startswith('_'):
-                if isinstance(value, datetime):
-                    data[key] = value.isoformat() if value else None
-                else:
-                    data[key] = value
-        return data
+class CustomerModel(FirebaseModel):
+    """Customer model for Firebase"""
+    
+    REQUIRED_FIELDS = ['name', 'user_id']
+    OPTIONAL_FIELDS = ['email', 'phone', 'address', 'city', 'state', 'postal_code',
+                      'notes', 'total_purchases', 'loyalty_points', 'is_active', 'created_at']
+    
+    @classmethod
+    def create_customer_data(cls, name: str, user_id: str, **kwargs) -> Dict:
+        """Create customer data dictionary for Firebase"""
+        customer_data = {
+            'name': name,
+            'user_id': user_id,
+            'email': kwargs.get('email', ''),
+            'phone': kwargs.get('phone', ''),
+            'address': kwargs.get('address', ''),
+            'city': kwargs.get('city', ''),
+            'state': kwargs.get('state', ''),
+            'postal_code': kwargs.get('postal_code', ''),
+            'notes': kwargs.get('notes', ''),
+            'total_purchases': float(kwargs.get('total_purchases', 0.0)),
+            'loyalty_points': int(kwargs.get('loyalty_points', 0)),
+            'is_active': kwargs.get('is_active', True),
+            'created_at': kwargs.get('created_at', datetime.utcnow().isoformat())
+        }
+        return cls.sanitize_data(customer_data)
 
-    @staticmethod
-    def generate_sku(name, category=""):
-        """Generate a unique SKU"""
-        import string
-        import random
-        base = f"{category[:3].upper()}{name[:3].upper()}"
-        random_part = ''.join(random.choices(string.digits, k=4))
-        return f"{base}-{random_part}"
-
-class FirebaseSale(FirebaseModel):
-    """Firebase Sale model"""
-
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.invoice_number = ""
-        self.sale_number = ""
-        self.customer_name = ""
-        self.customer_phone = ""
-        self.customer_id = None
-        self.sale_type = "retail"
-        self.subtotal = 0.0
-        self.discount_type = "none"
-        self.discount_value = 0.0
-        self.discount_amount = 0.0
-        self.total_amount = 0.0
-        self.payment_method = "cash"
-        self.payment_type = "cash"
-        self.payment_status = "completed"
-        self.payment_details = ""
-        self.payment_amount = 0.0
-        self.change_amount = 0.0
-        self.is_installment = False
-        self.down_payment = 0.0
-        self.installment_months = 0
-        self.monthly_payment = 0.0
-        self.notes = ""
-        self.user_id = ""
-        self.sale_items = []
-
-    @staticmethod
-    def generate_sale_number():
-        """Generate a unique sale number"""
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        return f"SALE-{timestamp}"
-
-    @staticmethod
-    def generate_invoice_number():
-        """Generate a unique invoice number"""
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        return f"INV-{timestamp}"
-
-class FirebaseCustomer(FirebaseModel):
-    """Firebase Customer model"""
-
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.name = ""
-        self.email = ""
-        self.phone = ""
-        self.address = ""
-        self.customer_type = "retail"
-        self.credit_limit = 0.0
-        self.loyalty_points = 0
-        self.preferred_payment_method = ""
-        self.user_id = ""
-
-class FirebaseCategory(FirebaseModel):
-    """Firebase Category model"""
-
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.name = ""
-        self.description = ""
-        self.parent_id = None
-        self.sort_order = 0
-        self.user_id = ""
-        self.is_active = True
-
-class FirebaseFinancialTransaction(FirebaseModel):
-    """Firebase Financial Transaction model"""
-
-    def __init__(self, data=None, doc_id=None):
-        super().__init__(data, doc_id)
-        self.date = datetime.utcnow().date()
-        self.description = ""
-        self.amount = 0.0
-        self.transaction_type = ""
-        self.category = ""
-        self.reference_id = ""
-        self.payment_method = ""
-        self.notes = ""
-        self.user_id = ""
+class CategoryModel(FirebaseModel):
+    """Product category model for Firebase"""
+    
+    REQUIRED_FIELDS = ['name', 'user_id']
+    OPTIONAL_FIELDS = ['description', 'parent_id', 'sort_order', 'is_active', 'created_at']
+    
+    @classmethod
+    def create_category_data(cls, name: str, user_id: str, **kwargs) -> Dict:
+        """Create category data dictionary for Firebase"""
+        category_data = {
+            'name': name,
+            'user_id': user_id,
+            'description': kwargs.get('description', ''),
+            'parent_id': kwargs.get('parent_id'),
+            'sort_order': int(kwargs.get('sort_order', 0)),
+            'is_active': kwargs.get('is_active', True),
+            'created_at': kwargs.get('created_at', datetime.utcnow().isoformat())
+        }
+        return cls.sanitize_data(category_data)
