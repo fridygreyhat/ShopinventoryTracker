@@ -1672,8 +1672,7 @@ def api_accounting_reports():
             start = datetime.strptime(start_date, '%Y-%m-%d')
             end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         else:
-            start = datetime.now().replace```python
-(day=1, hour=0, minute=0, second=0, microsecond=0)
+            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             end = datetime.now()
 
         if report_type == 'profit-loss' or report_type == 'income-statement':
@@ -2481,8 +2480,7 @@ def get_dashboard_summary():
         if not user_id:
             return jsonify({'error': 'User not authenticated'}), 401
 
-        if```python
-not firebase_config.initialized:
+        if not firebase_config.initialized:
             return jsonify({'error': 'Firebase not configured'}), 500
 
         # === INVENTORY METRICS ===
