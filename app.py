@@ -223,28 +223,47 @@ def debug_firebase_status():
         # Get project ID from Firebase credentials
         project_id = 'unknown'
         try:
-            import os
-            import json
             firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
             if firebase_creds:
                 cred_dict = json.loads(firebase_creds)
                 project_id = cred_dict.get('project_id', 'unknown')
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error extracting project ID: {str(e)}")
 
-        # Check auth status
+        # Check auth status more thoroughly
         auth_enabled = False
         try:
-            auth_instance = firebase_config.get_auth()
-            auth_enabled = bool(auth_instance)
-        except:
-            pass
+            if firebase_config.initialized:
+                # Import Firebase Admin Auth
+                from firebase_admin import auth
+                # Try to get the auth module - if successful, auth is enabled
+                auth_module = firebase_config.get_auth()
+                if auth_module:
+                    auth_enabled = True
+                    logger.info("Firebase Auth is properly initialized")
+        except Exception as e:
+            logger.error(f"Error checking auth status: {str(e)}")
+
+        # Enhanced database check
+        database_exists = False
+        firestore_enabled = False
+        if firebase_config.db:
+            try:
+                # Test database connectivity by trying to access collections
+                collections = firebase_config.db.collections()
+                database_exists = True
+                firestore_enabled = True
+                logger.info("Firestore database is accessible")
+            except Exception as e:
+                logger.error(f"Firestore access error: {str(e)}")
+                database_exists = bool(firebase_config.db)
+                firestore_enabled = bool(firebase_config.db)
 
         status = {
             'firebase_initialized': firebase_config.initialized,
             'auth_enabled': auth_enabled,
-            'database_exists': bool(firebase_config.db),
-            'firestore_enabled': True if firebase_config.db else False,
+            'database_exists': database_exists,
+            'firestore_enabled': firestore_enabled,
             'project_id': project_id,
             'error_message': None,
             'setup_instructions': []
