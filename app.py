@@ -260,6 +260,44 @@ def debug_firebase_test():
     except Exception as e:
         return jsonify({'error': str(e), 'results': results}), 500
 
+@app.route('/debug/registration-test')
+def debug_registration_test():
+    """Debug endpoint to test registration components"""
+    try:
+        status = {
+            'firebase_initialized': firebase_config.initialized,
+            'firebase_db_available': firebase_config.db is not None,
+            'auth_module_available': False,
+            'test_results': {}
+        }
+        
+        # Test Firebase Auth module
+        try:
+            from firebase_admin import auth
+            status['auth_module_available'] = True
+            status['test_results']['auth_import'] = 'success'
+        except Exception as e:
+            status['test_results']['auth_import'] = f'failed: {str(e)}'
+        
+        # Test Firestore connection
+        try:
+            if firebase_config.db:
+                # Try to access a collection
+                test_collection = firebase_config.db.collection('_test_connection')
+                status['test_results']['firestore_connection'] = 'success'
+            else:
+                status['test_results']['firestore_connection'] = 'failed: db is None'
+        except Exception as e:
+            status['test_results']['firestore_connection'] = f'failed: {str(e)}'
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'firebase_initialized': False
+        }), 500
+
 @app.route('/debug/firebase-status')
 def debug_firebase_status():
     """Debug route to check Firebase status"""
@@ -452,8 +490,10 @@ def api_register():
     """API endpoint for user registration - stores users in Firebase"""
     try:
         data = request.get_json()
+        logger.info(f"Registration attempt with data: {data}")
 
         if not data:
+            logger.error("No data provided in registration request")
             return jsonify({'error': 'No data provided'}), 400
 
         email = data.get('email', '').strip().lower()
@@ -465,42 +505,61 @@ def api_register():
         phone = data.get('phone', '').strip()
         product_categories = data.get('product_categories', '')
 
+        logger.info(f"Processing registration for email: {email}")
+
         # Validate required fields
         if not email:
+            logger.error("Email is missing")
             return jsonify({'error': 'Email is required'}), 400
         if not password:
+            logger.error("Password is missing")
             return jsonify({'error': 'Password is required'}), 400
         if not username:
+            logger.error("Username is missing")
             return jsonify({'error': 'Username is required'}), 400
         if not first_name:
+            logger.error("First name is missing")
             return jsonify({'error': 'First name is required'}), 400
         if not last_name:
+            logger.error("Last name is missing")
             return jsonify({'error': 'Last name is required'}), 400
 
         # Validate email format
         import re
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_pattern, email):
+            logger.error(f"Invalid email format: {email}")
             return jsonify({'error': 'Invalid email format'}), 400
 
         if len(password) < 6:
+            logger.error("Password too short")
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
 
         if len(username) < 3:
+            logger.error("Username too short")
             return jsonify({'error': 'Username must be at least 3 characters long'}), 400
 
         # Check if Firebase is configured
         if not firebase_config.initialized:
-            return jsonify({'error': 'Firebase authentication service not available'}), 500
+            logger.error("Firebase not initialized")
+            if not firebase_config.initialize_firebase():
+                return jsonify({'error': 'Firebase authentication service not available'}), 500
 
-        # Check if user already exists in Firestore (not Firebase Auth)
-        existing_user = firebase_adapter.get_user_by_email(email)
-        if existing_user:
-            return jsonify({'error': 'Email already registered'}), 400
+        logger.info("Firebase is properly initialized")
+
+        # Check if user already exists in Firestore first
+        try:
+            existing_user = firebase_adapter.get_user_by_email(email)
+            if existing_user:
+                logger.warning(f"User already exists: {email}")
+                return jsonify({'error': 'Email already registered'}), 400
+        except Exception as check_error:
+            logger.warning(f"Could not check existing user: {str(check_error)}")
 
         # Create new user in Firebase Auth and Firestore
         try:
             from firebase_admin import auth
+            logger.info("Creating user in Firebase Auth")
 
             # Create user in Firebase Auth
             auth_user = auth.create_user(
@@ -508,6 +567,8 @@ def api_register():
                 password=password,
                 display_name=f"{first_name} {last_name}".strip()
             )
+
+            logger.info(f"Firebase Auth user created with UID: {auth_user.uid}")
 
             # Create user document in Firestore
             user_data = {
@@ -525,8 +586,10 @@ def api_register():
                 'updated_at': datetime.utcnow().isoformat()
             }
 
+            logger.info("Saving user data to Firestore")
             # Save user to Firestore
-            firebase_adapter.service.db.collection('users').document(auth_user.uid).set(user_data)
+            firebase_config.db.collection('users').document(auth_user.uid).set(user_data)
+            logger.info("User data saved to Firestore successfully")
 
             # Create session for the new user (auto-login)
             session.clear()  # Clear any existing session
@@ -551,13 +614,16 @@ def api_register():
             }), 201
 
         except auth.EmailAlreadyExistsError:
+            logger.error(f"Email already exists in Firebase Auth: {email}")
             return jsonify({'error': 'Email already registered'}), 400
         except Exception as firebase_error:
             logger.error(f"Firebase user creation error: {str(firebase_error)}")
-            return jsonify({'error': 'Failed to create account. Please try again.'}), 500
+            return jsonify({'error': f'Registration failed: {str(firebase_error)}'}), 500
 
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/session', methods=['POST'])

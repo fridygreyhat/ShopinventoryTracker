@@ -127,38 +127,22 @@ class FirebaseAdapter:
                 logger.error("Firebase not initialized")
                 return None
                 
-            # First, get user from Firebase Auth
+            # First, try to get user from Firebase Auth
             from firebase_admin import auth
             try:
                 auth_user = auth.get_user_by_email(email)
+                logger.debug(f"Found user in Firebase Auth: {email}")
 
                 # Then get user document from Firestore
                 user_doc = self.service.db.collection('users').document(auth_user.uid).get()
                 if user_doc.exists:
                     user_data = user_doc.to_dict()
                     user_data['id'] = auth_user.uid
+                    logger.debug(f"Found user in Firestore: {email}")
                     return user_data
                 else:
-                    # If user exists in Auth but not in Firestore, create the document
-                    user_data = {
-                        'id': auth_user.uid,
-                        'email': auth_user.email,
-                        'username': auth_user.display_name or '',
-                        'first_name': '',
-                        'last_name': '',
-                        'phone': '',
-                        'shop_name': '',
-                        'is_active': True,
-                        'is_admin': False,
-                        'created_at': datetime.now().isoformat(),
-                        'updated_at': datetime.now().isoformat()
-                    }
-                    try:
-                        self.service.db.collection('users').document(auth_user.uid).set(user_data)
-                        logger.info(f"Created Firestore document for existing auth user: {email}")
-                    except Exception as firestore_error:
-                        logger.error(f"Failed to create Firestore document: {firestore_error}")
-                    return user_data
+                    logger.debug(f"User exists in Auth but not in Firestore: {email}")
+                    return None
 
             except auth.UserNotFoundError:
                 logger.debug(f"User not found in Firebase Auth: {email}")
