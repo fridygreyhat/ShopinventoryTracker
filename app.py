@@ -24,6 +24,7 @@ from extensions import configure_database
 
 # Prevent any SQLAlchemy/PostgreSQL imports
 import os
+# Completely disable PostgreSQL/SQLAlchemy
 os.environ.pop('DATABASE_URL', None)  # Remove any PostgreSQL URL
 
 # Set up logging
@@ -53,6 +54,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+
+# Completely disable SQLAlchemy configurations
+app.config.pop('SQLALCHEMY_DATABASE_URI', None)  # Remove SQLAlchemy config
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configure Firebase as the only database
 if not configure_database(app):
@@ -1075,43 +1080,22 @@ def update_item(item_id):
         logger.error(f"Error updating item: {str(e)}")
         return jsonify({"error": f"Failed to update item: {str(e)}"}), 500
 
-def verify_database_systems():
-    """Verify that database systems are working properly"""
-    firebase_ready = False
-    postgresql_ready = False
-
-    # Check Firebase
+def verify_firebase_system():
+    """Verify that Firebase system is working properly"""
     try:
         if firebase_config.initialize_firebase():
-            firebase_ready = True
             logger.info("✅ Firebase database ready")
+            return True
         else:
             logger.warning("⚠️ Firebase database not configured")
+            return False
     except Exception as e:
         logger.error(f"❌ Firebase initialization error: {str(e)}")
-
-    # Check PostgreSQL as fallback
-    try:
-        from models import User
-        user_count = User.query.count()
-        postgresql_ready = True
-        logger.info(f"✅ PostgreSQL fallback ready - {user_count} users in database")
-    except Exception as e:
-        logger.error(f"❌ PostgreSQL fallback error: {str(e)}")
-
-    if firebase_ready:
-        logger.info("🔥 Firebase is the primary database")
-        return "firebase"
-    elif postgresql_ready:
-        logger.info("🐘 PostgreSQL is being used as fallback")
-        return "postgresql"
-    else:
-        logger.error("❌ No database system available")
-        return None
+        return False
 
 # Verify Firebase system on startup
 with app.app_context():
-    if firebase_config.initialized:
+    if verify_firebase_system():
         logger.info("🔥 Firebase database system initialized successfully")
     else:
         logger.error("❌ Firebase database system not available - application cannot start")
@@ -1154,10 +1138,8 @@ def delete_item(item_id):
 @app.route('/api/inventory/batch-update', methods=['PUT'])
 @login_required
 def batch_update_inventory():
-    """API endpoint for batch updating inventory items"""
+    """API endpoint for batch updating inventory items using Firebase"""
     try:
-        from models import Item
-
         batch_data = request.get_json()
         if not batch_data or 'items' not in batch_data:
             return jsonify({"error": "No items provided for batch update"}), 400
@@ -1165,6 +1147,9 @@ def batch_update_inventory():
         current_user_id = session.get('user_id')
         if not current_user_id:
             return jsonify({"error": "User not authenticated"}), 401
+
+        if not firebase_config.initialized:
+            return jsonify({"error": "Firebase not configured"}), 500
 
         updated_items = []
         errors = []
@@ -1176,19 +1161,26 @@ def batch_update_inventory():
                     errors.append("Item ID is required for batch update")
                     continue
 
-                item = Item.query.filter_by(id=item_id, user_id=current_user_id).first()
-                if not item:
+                # Get item from Firebase
+                item_doc = firebase_adapter.service.db.collection('items').document(item_id).get()
+                if not item_doc.exists:
                     errors.append(f"Item with ID {item_id} not found")
                     continue
 
+                item_data = item_doc.to_dict()
+                if item_data.get('user_id') != current_user_id:
+                    errors.append(f"Unauthorized access to item {item_id}")
+                    continue
+
                 # Update allowed fields
+                updates = {}
                 allowed_fields = ['stock_quantity', 'minimum_stock', 'retail_price', 'wholesale_price', 'buying_price']
                 for field in allowed_fields:
                     if field in item_update:
                         if field in ['stock_quantity', 'minimum_stock']:
-                            setattr(item, field, int(item_update[field]))
+                            updates[field] = int(item_update[field])
                         else:
-                            setattr(item, field, float(item_update[field]))
+                            updates[field] = float(item_update[field])
 
                 item.updated_at = datetime.utcnow()
                 updated_items.append(item.to_dict())
@@ -1280,7 +1272,7 @@ def get_csv_template():
 @app.route('/api/inventory/categories', methods=['GET'])
 def get_inventory_categories():
     """API endpoint to get all unique inventory categories"""
-    from models import Item
+    # Firebase replaces SQLAlchemy models
     from sqlalchemy import func
 
     # Query distinct categories
@@ -1293,7 +1285,7 @@ def get_inventory_categories():
 @app.route('/api/products', methods=['GET'])
 def get_products():
     """API endpoint to get all products (alias for inventory)"""
-    from models import Item
+    # Firebase replaces SQLAlchemy models
 
     # Start query
     query = Item.query
@@ -1838,7 +1830,7 @@ def create_customer():
 def get_customer(customer_id):
     """API endpoint to get a specific customer"""
     try:
-        from models import Customer
+        # Firebase replaces SQLAlchemy models
         user_id = session.get('user_id')
         customer = Customer.query.filter_by(id=customer_id, user_id=user_id).first()
 
@@ -1866,7 +1858,7 @@ def get_customer(customer_id):
 def get_installments():
     """API endpoint to get all installment sales"""
     try:
-        from models import InstallmentSale
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         installments = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
@@ -1898,7 +1890,7 @@ def get_installments():
 def create_installment():
     """API endpoint to create a new installment sale"""
     try:
-        from models import InstallmentSale, Sale, Customer
+        # Firebase replaces SQLAlchemy models
 
         installment_data = request.get_json()
         if not installment_data:
@@ -2077,7 +2069,7 @@ def create_category():
 def update_category(category_id):
     """API endpoint to update an existing category"""
     try:
-        from models import Category
+        # Firebase replaces SQLAlchemy models
 
         category_data = request.get_json()
         if not category_data:
@@ -2128,7 +2120,7 @@ def update_category(category_id):
 def delete_category(category_id):
     """API endpoint to delete a category"""
     try:
-        from models import Category
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         category = Category.query.filter_by(id=category_id, user_id=user_id).first()
@@ -2137,7 +2129,7 @@ def delete_category(category_id):
             return jsonify({"error": "Category not found"}), 404
 
         # Check if there are items associated with the category
-        from models import Item
+        # Firebase replaces SQLAlchemy models
         items_in_category = Item.query.filter_by(category_id=category_id, user_id=user_id).count()
 
         if items_in_category > 0:
@@ -2164,7 +2156,7 @@ def delete_category(category_id):
 def get_subcategories(category_id):
     """API endpoint to get subcategories of a category"""
     try:
-        from models import Category
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         parent_category = Category.query.filter_by(id=category_id, user_id=user_id).first()
@@ -2197,7 +2189,7 @@ def get_subcategories(category_id):
 def create_subcategory(category_id):
     """API endpoint to create a subcategory"""
     try:
-        from models import Category
+        # Firebase replaces SQLAlchemy models
 
         subcategory_data = request.get_json()
         if not subcategory_data:
@@ -2684,7 +2676,7 @@ def get_monthly_financial_summary():
 def get_installment_sales():
     """API endpoint to get all installment sales"""
     try:
-        from models import InstallmentSale
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         installment_sales = InstallmentSale.query.filter_by(user_id=user_id).order_by(InstallmentSale.created_at.desc()).all()
@@ -2715,7 +2707,7 @@ def get_installment_sales():
 def create_installment_sale():
     """API endpoint to create a new installment sale"""
     try:
-        from models import InstallmentSale, InstallmentPayment, Customer, Item, Sale, SaleItem
+        # Firebase replaces SQLAlchemy models
 
         data = request.get_json()
         if not data:
@@ -2831,7 +2823,7 @@ def create_installment_sale():
 def get_suppliers():
     """API endpoint to get all suppliers"""
     try:
-        from models import Supplier
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         suppliers = Supplier.query.filter_by(user_id=user_id, is_active=True).order_by(Supplier.name).all()
@@ -2860,7 +2852,7 @@ def get_suppliers():
 def get_purchase_orders():
     """API endpoint to get all purchase orders"""
     try:
-        from models import PurchaseOrder
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         orders = PurchaseOrder.query.filter_by(user_id=user_id).order_by(PurchaseOrder.created_at.desc()).all()
@@ -2888,7 +2880,7 @@ def get_purchase_orders():
 def get_stock_movements():
     """API endpoint to get stock movements"""
     try:
-        from models import StockMovement
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         movements = StockMovement.query.filter_by(user_id=user_id).order_by(StockMovement.created_at.desc()).limit(100).all()
@@ -2917,7 +2909,7 @@ def get_stock_movements():
 def get_settings():
     """API endpoint to get user settings"""
     try:
-        from models import Setting
+        # Firebase replaces SQLAlchemy models
 
         user_id = session.get('user_id')
         settings = Setting.query.filter_by(user_id=user_id).all()
@@ -2941,7 +2933,7 @@ def get_settings():
 def update_settings():
     """API endpoint to update user settings"""
     try:
-        from models import Setting
+        # Firebase replaces SQLAlchemy models
 
         data = request.get_json()
         user_id = session.get('user_id')
