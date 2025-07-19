@@ -332,21 +332,29 @@ def api_firebase_test():
 
 @app.route('/debug/firebase-status')
 def debug_firebase_status():
-    """Debug route to check Firebase status"""
+    """Debug route to check Firebase status with comprehensive diagnostics"""
     try:
         # Get project ID from Firebase credentials
         project_id = 'unknown'
+        credentials_status = 'missing'
         try:
             firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
             if firebase_creds:
                 cred_dict = json.loads(firebase_creds)
                 project_id = cred_dict.get('project_id', 'unknown')
+                credentials_status = 'valid'
+            else:
+                credentials_status = 'missing'
+        except json.JSONDecodeError:
+            credentials_status = 'invalid_json'
         except Exception as e:
+            credentials_status = f'error: {str(e)}'
             logger.error(f"Error extracting project ID: {str(e)}")
 
         # Check auth status more thoroughly
         auth_enabled = False
         auth_error = None
+        auth_test_result = 'not_tested'
         try:
             if firebase_config.initialized:
                 # Try to get the auth module - if successful, auth is enabled
@@ -356,34 +364,73 @@ def debug_firebase_status():
                     try:
                         # This will fail safely if auth isn't working
                         auth_module.get_user('test_non_existent_user')
-                    except auth_module.UserNotFoundError:
-                        # This is expected - means auth is working
-                        auth_enabled = True
-                        logger.info("Firebase Auth is properly initialized and functional")
+                        auth_test_result = 'unexpected_success'
                     except Exception as auth_test_error:
-                        auth_error = f"Auth test failed: {str(auth_test_error)}"
-                        logger.warning(f"Firebase Auth loaded but test failed: {auth_test_error}")
+                        if 'not found' in str(auth_test_error).lower() or 'UserNotFoundError' in str(auth_test_error):
+                            # This is expected - means auth is working
+                            auth_enabled = True
+                            auth_test_result = 'working_correctly'
+                            logger.info("Firebase Auth is properly initialized and functional")
+                        else:
+                            auth_error = f"Auth test failed: {str(auth_test_error)}"
+                            auth_test_result = 'test_failed'
+                            logger.warning(f"Firebase Auth loaded but test failed: {auth_test_error}")
                 else:
                     auth_error = "Auth module not available"
+                    auth_test_result = 'module_unavailable'
                     logger.warning("Firebase Auth module not available")
         except Exception as e:
             auth_error = str(e)
+            auth_test_result = 'exception_occurred'
             logger.error(f"Error checking auth status: {str(e)}")
 
         # Enhanced database check
         database_exists = False
         firestore_enabled = False
-        if firebase_config.db:
-            try:
+        db_test_result = 'not_tested'
+        collection_count = 0
+        try:
+            if firebase_config.db:
                 # Test database connectivity by trying to access collections
-                collections = firebase_config.db.collections()
+                collections = list(firebase_config.db.collections())
+                collection_count = len(collections)
                 database_exists = True
                 firestore_enabled = True
-                logger.info("Firestore database is accessible")
-            except Exception as e:
-                logger.error(f"Firestore access error: {str(e)}")
-                database_exists = bool(firebase_config.db)
-                firestore_enabled = bool(firebase_config.db)
+                db_test_result = 'accessible'
+                logger.info(f"Firestore database is accessible with {collection_count} collections")
+            else:
+                db_test_result = 'db_instance_none'
+        except Exception as e:
+            logger.error(f"Firestore access error: {str(e)}")
+            database_exists = bool(firebase_config.db)
+            firestore_enabled = bool(firebase_config.db)
+            db_test_result = f'error: {str(e)}'
+
+        # Check user session if available
+        session_status = 'no_session'
+        current_user_id = session.get('user_id')
+        if current_user_id:
+            session_status = 'active'
+            try:
+                # Try to get current user data
+                user_data = firebase_adapter.get_user_by_id(current_user_id)
+                if user_data:
+                    session_status = 'valid_user'
+                else:
+                    session_status = 'invalid_user'
+            except:
+                session_status = 'user_check_failed'
+
+        # Network connectivity check (basic)
+        network_status = 'unknown'
+        try:
+            import requests
+            response = requests.get('https://firebase.googleapis.com', timeout=5)
+            network_status = 'connected' if response.status_code < 500 else 'service_issues'
+        except requests.exceptions.RequestException:
+            network_status = 'connection_failed'
+        except:
+            network_status = 'test_failed'
 
         status = {
             'firebase_initialized': firebase_config.initialized,
@@ -391,11 +438,20 @@ def debug_firebase_status():
             'database_exists': database_exists,
             'firestore_enabled': firestore_enabled,
             'project_id': project_id,
+            'credentials_status': credentials_status,
+            'auth_test_result': auth_test_result,
+            'db_test_result': db_test_result,
+            'collection_count': collection_count,
+            'session_status': session_status,
+            'current_user_id': current_user_id if current_user_id else None,
+            'network_status': network_status,
             'error_message': auth_error if not auth_enabled and auth_error else None,
             'auth_error': auth_error,
-            'setup_instructions': []
+            'setup_instructions': [],
+            'recommendations': []
         }
         
+        # Add specific recommendations based on status
         if not firebase_config.initialized:
             status['error_message'] = 'Firebase not initialized'
             status['setup_instructions'] = [
@@ -403,13 +459,30 @@ def debug_firebase_status():
                 'Ensure service account JSON is valid',
                 'Check Firebase project configuration'
             ]
+        
+        if credentials_status == 'missing':
+            status['recommendations'].append('Add FIREBASE_CREDENTIALS environment variable')
+        elif credentials_status == 'invalid_json':
+            status['recommendations'].append('Fix FIREBASE_CREDENTIALS JSON format')
+            
+        if session_status == 'no_session':
+            status['recommendations'].append('User needs to log in')
+        elif session_status == 'invalid_user':
+            status['recommendations'].append('User session expired - needs to log in again')
+            
+        if network_status == 'connection_failed':
+            status['recommendations'].append('Check network connectivity to Firebase services')
+            
+        if auth_test_result == 'test_failed':
+            status['recommendations'].append('Firebase Auth may have permission issues')
             
         return jsonify(status)
     except Exception as e:
         return jsonify({
             'firebase_initialized': False,
             'error_message': str(e),
-            'setup_instructions': ['Check Firebase configuration']
+            'setup_instructions': ['Check Firebase configuration'],
+            'exception_details': str(e)
         }), 500
 
 def init_database():
@@ -750,31 +823,70 @@ def api_forgot_password():
 
 @app.route('/api/auth/validate-session', methods=['GET'])
 def api_validate_session():
-    """API endpoint to validate current session"""
+    """API endpoint to validate current session with auto-renewal"""
     try:
         user_id = session.get('user_id')
         if not user_id:
-            return jsonify({'error': 'No active session'}), 401
+            return jsonify({
+                'valid': False,
+                'error': 'No active session',
+                'action_required': 'login'
+            }), 401
+
+        # Check Firebase connectivity first
+        if not firebase_config.initialized:
+            return jsonify({
+                'valid': False,
+                'error': 'Firebase not initialized',
+                'action_required': 'system_check'
+            }), 500
 
         # Use Firebase to validate session
-        user_data = firebase_adapter.get_user_by_id(user_id)
-        if not user_data:
-            return jsonify({'error': 'User not found'}), 404
+        try:
+            user_data = firebase_adapter.get_user_by_id(user_id)
+            if not user_data:
+                # Clear invalid session
+                session.clear()
+                return jsonify({
+                    'valid': False,
+                    'error': 'User not found - session cleared',
+                    'action_required': 'login'
+                }), 404
 
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': user_data.get('id', user_id),
-                'email': user_data.get('email'),
-                'username': user_data.get('username'),
-                'first_name': user_data.get('first_name'),
-                'last_name': user_data.get('last_name')
-            }
-        }), 200
+            # Refresh session data
+            session['user_email'] = user_data.get('email')
+            session['user_name'] = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+            session.permanent = True
+
+            return jsonify({
+                'valid': True,
+                'user': {
+                    'id': user_data.get('id', user_id),
+                    'email': user_data.get('email'),
+                    'username': user_data.get('username'),
+                    'first_name': user_data.get('first_name'),
+                    'last_name': user_data.get('last_name')
+                },
+                'session_refreshed': True
+            }), 200
+
+        except Exception as firebase_error:
+            logger.error(f"Firebase error during session validation: {str(firebase_error)}")
+            return jsonify({
+                'valid': False,
+                'error': 'Firebase connectivity issue',
+                'action_required': 'retry_or_login',
+                'details': str(firebase_error)
+            }), 500
 
     except Exception as e:
         logger.error(f"Session validation error: {str(e)}")
-        return jsonify({'error': 'Session validation failed'}), 500
+        return jsonify({
+            'valid': False,
+            'error': 'Session validation failed',
+            'action_required': 'login',
+            'details': str(e)
+        }), 500
 
 # API Routes
 @app.route('/api/inventory', methods=['GET'])
