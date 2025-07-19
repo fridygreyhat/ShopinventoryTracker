@@ -490,8 +490,9 @@ class FirebaseAdapter:
             category_data['is_active'] = True
 
             doc_ref = self.service.db.collection('categories').add(category_data)
-            category_data['id'] = doc_ref[1].id
-            return doc_ref[1].id
+            category_id = doc_ref[1].id
+            logger.info(f"Category created with ID: {category_id}")
+            return category_id
         except Exception as e:
             logger.error(f"Error creating category: {str(e)}")
             return None

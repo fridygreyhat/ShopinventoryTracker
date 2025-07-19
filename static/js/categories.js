@@ -477,12 +477,17 @@ function editCategory(categoryId) {
  * Add a subcategory to a category
  */
 function addSubcategory(categoryId) {
-    // Set the parent category ID
-    document.getElementById('parentCategoryId').value = categoryId;
-
-    // Clear the form
+    console.log('Adding subcategory to category:', categoryId);
+    
+    // Clear the form first
     document.getElementById('subcategoryForm').reset();
     document.getElementById('subcategoryId').value = '';
+    
+    // Set the parent category ID
+    document.getElementById('parentCategoryId').value = categoryId;
+    
+    // Update modal title
+    document.getElementById('subcategoryModalLabel').textContent = 'Add Subcategory';
 
     // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('subcategoryModal'));
@@ -496,9 +501,19 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
     const subcategoryId = document.getElementById('subcategoryId').value;
     const parentCategoryId = document.getElementById('parentCategoryId').value;
     const formData = {
-        name: document.getElementById('subcategoryName').value,
-        description: document.getElementById('subcategoryDescription').value
+        name: document.getElementById('subcategoryName').value.trim(),
+        description: document.getElementById('subcategoryDescription').value.trim()
     };
+
+    if (!formData.name) {
+        showAlert('Subcategory name is required', 'danger');
+        return;
+    }
+
+    if (!parentCategoryId && !subcategoryId) {
+        showAlert('Parent category is required for new subcategories', 'danger');
+        return;
+    }
 
     try {
         let response;
@@ -515,6 +530,7 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
             });
         } else {
             // Create new subcategory
+            console.log('Creating subcategory under parent:', parentCategoryId, formData);
             response = await fetch(`/api/categories/${parentCategoryId}/subcategories`, {
                 method: 'POST',
                 headers: {
@@ -527,10 +543,12 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Subcategory save error:', errorData);
             throw new Error(errorData.error || 'Failed to save subcategory');
         }
 
         const result = await response.json();
+        console.log('Subcategory save result:', result);
 
         if (result.success) {
             // Close modal

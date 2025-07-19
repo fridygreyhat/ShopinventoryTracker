@@ -530,17 +530,25 @@ def create_subcategory(category_id):
         if not data.get('name'):
             return jsonify({'error': 'Subcategory name is required'}), 400
         
+        # Verify parent category exists and belongs to user
+        parent_category = firebase_adapter.get_category_by_id(category_id, user_id)
+        if not parent_category:
+            return jsonify({'error': 'Parent category not found'}), 404
+        
         # Create subcategory with parent_id set
-        subcategory_data = CategoryModel.create_category_data(
-            name=data['name'],
-            user_id=user_id,
-            description=data.get('description', ''),
-            parent_id=category_id,
-            is_active=True
-        )
+        subcategory_data = {
+            'name': data['name'],
+            'description': data.get('description', ''),
+            'parent_id': category_id,
+            'user_id': user_id,
+            'is_active': True,
+            'created_at': datetime.utcnow().isoformat(),
+            'updated_at': datetime.utcnow().isoformat()
+        }
         
         subcategory_id = firebase_adapter.create_category(subcategory_data, user_id)
         if subcategory_id:
+            logger.info(f"Subcategory created: {subcategory_id} under parent: {category_id}")
             return jsonify({'success': True, 'subcategory_id': subcategory_id, 'message': 'Subcategory created successfully'})
         else:
             return jsonify({'error': 'Failed to create subcategory'}), 500
