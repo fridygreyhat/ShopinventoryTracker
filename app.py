@@ -549,6 +549,38 @@ def create_subcategory(category_id):
         logger.error(f"Create subcategory error: {str(e)}")
         return jsonify({'error': 'Failed to create subcategory'}), 500
 
+@app.route('/api/subcategories/<subcategory_id>', methods=['PUT'])
+@login_required
+def update_subcategory(subcategory_id):
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        success = firebase_adapter.update_category(subcategory_id, data, user_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Subcategory updated successfully'})
+        else:
+            return jsonify({'error': 'Failed to update subcategory'}), 500
+            
+    except Exception as e:
+        logger.error(f"Update subcategory error: {str(e)}")
+        return jsonify({'error': 'Failed to update subcategory'}), 500
+
+@app.route('/api/subcategories/<subcategory_id>', methods=['DELETE'])
+@login_required
+def delete_subcategory(subcategory_id):
+    try:
+        user_id = session.get('user_id')
+        success = firebase_adapter.delete_category(subcategory_id, user_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Subcategory deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete subcategory'}), 500
+            
+    except Exception as e:
+        logger.error(f"Delete subcategory error: {str(e)}")
+        return jsonify({'error': 'Failed to delete subcategory'}), 500
+
 # === CUSTOMERS API ===
 
 @app.route('/api/customers', methods=['GET'])

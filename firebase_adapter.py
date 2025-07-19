@@ -497,7 +497,7 @@ class FirebaseAdapter:
             return None
 
     def get_categories_by_user(self, user_id):
-        """Get categories using Firebase service"""
+        """Get categories using Firebase service with proper subcategory structure"""
         try:
             # Ensure Firebase service is properly initialized
             if not self.service.db:
@@ -507,16 +507,31 @@ class FirebaseAdapter:
             categories_ref = self.service.db.collection('categories').where('user_id', '==', user_id).where('is_active', '==', True)
             categories_docs = categories_ref.stream()
 
-            categories = []
+            all_categories = []
+            category_map = {}
+            
+            # First pass: collect all categories
             for doc in categories_docs:
                 category_data = doc.to_dict()
                 category_data['id'] = doc.id
-                # Add item count placeholder
                 category_data['item_count'] = 0
                 category_data['total_item_count'] = 0
-                categories.append(category_data)
+                category_data['subcategories'] = []
+                all_categories.append(category_data)
+                category_map[doc.id] = category_data
 
-            return categories
+            # Second pass: organize parent-child relationships
+            main_categories = []
+            for category in all_categories:
+                parent_id = category.get('parent_id')
+                if parent_id and parent_id in category_map:
+                    # This is a subcategory
+                    category_map[parent_id]['subcategories'].append(category)
+                elif not parent_id:
+                    # This is a main category
+                    main_categories.append(category)
+
+            return main_categories
         except Exception as e:
             logger.error(f"Error getting categories for user {user_id}: {str(e)}")
             return []
@@ -524,17 +539,7 @@ class FirebaseAdapter:
     def update_category(self, category_id, updates, user_id):
         """Update a category"""
         try:
-            category_ref = self.service.db.collection('categories').document(category_id)
-            category_doc = category_ref.get()
-            
-            if category_doc.exists:
-                category_data = category_doc.to_dict()
-                if category_data.get('user_id') == user_id:
-                    updates['updated_at'] = datetime.utcnow().isoformat()
-                    category_ref.update(updates)
-                    logger.info(f"Category updated: {category_id}")
-                    return True
-            return False
+            return self.service.update_category(category_id, updates, user_id)
         except Exception as e:
             logger.error(f"Error updating category: {str(e)}")
             return False
@@ -542,20 +547,7 @@ class FirebaseAdapter:
     def delete_category(self, category_id, user_id):
         """Soft delete a category"""
         try:
-            category_ref = self.service.db.collection('categories').document(category_id)
-            category_doc = category_ref.get()
-            
-            if category_doc.exists:
-                category_data = category_doc.to_dict()
-                if category_data.get('user_id') == user_id:
-                    # Soft delete by marking as inactive
-                    category_ref.update({
-                        'is_active': False,
-                        'updated_at': datetime.utcnow().isoformat()
-                    })
-                    logger.info(f"Category deleted: {category_id}")
-                    return True
-            return False
+            return self.service.delete_category(category_id, user_id)
         except Exception as e:
             logger.error(f"Error deleting category: {str(e)}")
             return False

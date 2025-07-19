@@ -505,11 +505,12 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
 
         if (subcategoryId) {
             // Update existing subcategory
-            response = await fetch(`/api/categories/${subcategoryId}`, {
+            response = await fetch(`/api/subcategories/${subcategoryId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify(formData)
             });
         } else {
@@ -519,13 +520,19 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify(formData)
             });
         }
 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to save subcategory');
+        }
+
         const result = await response.json();
 
-        if (result.success || response.ok) {
+        if (result.success) {
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('subcategoryModal'));
             modal.hide();
@@ -540,7 +547,7 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
         }
     } catch (error) {
         console.error('Error saving subcategory:', error);
-        showAlert('An error occurred while saving the subcategory', 'danger');
+        showAlert(error.message, 'danger');
     }
 });
 
@@ -640,8 +647,9 @@ async function deleteSubcategory(subcategoryId) {
     }
 
     try {
-        const response = await fetch(`/api/categories/${subcategoryId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/api/subcategories/${subcategoryId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
 
         if (!response.ok) {
@@ -649,7 +657,8 @@ async function deleteSubcategory(subcategoryId) {
             throw new Error(error.error || 'Failed to delete subcategory');
         }
 
-        showAlert(`Subcategory "${subcategoryName}" deleted successfully`, 'success');
+        const result = await response.json();
+        showAlert(result.message || `Subcategory "${subcategoryName}" deleted successfully`, 'success');
         loadCategories();
 
     } catch (error) {
