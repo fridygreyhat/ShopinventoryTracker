@@ -220,12 +220,32 @@ def debug():
 def debug_firebase_status():
     """Debug route to check Firebase status"""
     try:
+        # Get project ID from Firebase credentials
+        project_id = 'unknown'
+        try:
+            import os
+            import json
+            firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
+            if firebase_creds:
+                cred_dict = json.loads(firebase_creds)
+                project_id = cred_dict.get('project_id', 'unknown')
+        except:
+            pass
+
+        # Check auth status
+        auth_enabled = False
+        try:
+            auth_instance = firebase_config.get_auth()
+            auth_enabled = bool(auth_instance)
+        except:
+            pass
+
         status = {
             'firebase_initialized': firebase_config.initialized,
-            'auth_enabled': bool(firebase_config.auth),
+            'auth_enabled': auth_enabled,
             'database_exists': bool(firebase_config.db),
             'firestore_enabled': True if firebase_config.db else False,
-            'project_id': getattr(firebase_config, 'project_id', 'unknown'),
+            'project_id': project_id,
             'error_message': None,
             'setup_instructions': []
         }

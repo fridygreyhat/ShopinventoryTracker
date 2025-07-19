@@ -66,6 +66,7 @@ class FirebaseConfig:
         """Get Firebase Auth instance"""
         if not self.initialized:
             self.initialize_firebase()
+        from firebase_admin import auth
         return auth
     @property
     def api_key(self):
