@@ -338,6 +338,14 @@ def api_firebase_test():
 def debug_firebase_status():
     """Debug route to check Firebase status with comprehensive diagnostics"""
     try:
+        # Force a fresh Firebase status check
+        firebase_config.initialized = False
+        firebase_config.db = None
+        firebase_config.auth = None
+        
+        # Re-initialize Firebase
+        init_success = firebase_config.initialize_firebase()
+        
         # Get project ID from Firebase credentials
         project_id = 'unknown'
         credentials_status = 'missing'
@@ -355,12 +363,18 @@ def debug_firebase_status():
             credentials_status = f'error: {str(e)}'
             logger.error(f"Error extracting project ID: {str(e)}")
 
+        # Check Firebase Admin initialization
+        firebase_admin_initialized = init_success and firebase_config.initialized
+        
+        # Check Firestore database availability
+        firestore_db_available = firebase_config.db is not None
+        
         # Check auth status more thoroughly
         auth_enabled = False
         auth_error = None
         auth_test_result = 'not_tested'
         try:
-            if firebase_config.initialized:
+            if firebase_admin_initialized:
                 # Try to get the auth module - if successful, auth is enabled
                 auth_module = firebase_config.get_auth()
                 if auth_module:
@@ -394,61 +408,44 @@ def debug_firebase_status():
         db_test_result = 'not_tested'
         collection_count = 0
         try:
-            if firebase_config.db:
+            if firestore_db_available and firebase_config.db:
                 # Test database connectivity by trying to access collections
-                collections = list(firebase_config.db.collections())
-                collection_count = len(collections)
-                database_exists = True
-                firestore_enabled = True
-                db_test_result = 'accessible'
-                logger.info(f"Firestore database is accessible with {collection_count} collections")
+                try:
+                    collections = list(firebase_config.db.collections())
+                    collection_count = len(collections)
+                    database_exists = True
+                    firestore_enabled = True
+                    db_test_result = 'accessible'
+                    logger.info(f"Firestore database is accessible with {collection_count} collections")
+                except Exception as collections_error:
+                    # Try a simpler test
+                    firebase_config.db.collection('_test').document('test').get()
+                    database_exists = True
+                    firestore_enabled = True
+                    db_test_result = 'accessible_limited'
+                    logger.info("Firestore database is accessible (limited test)")
             else:
                 db_test_result = 'db_instance_none'
+                logger.error("Firestore database instance is None")
         except Exception as e:
             logger.error(f"Firestore access error: {str(e)}")
-            database_exists = bool(firebase_config.db)
-            firestore_enabled = bool(firebase_config.db)
+            database_exists = False
+            firestore_enabled = False
             db_test_result = f'error: {str(e)}'
-
-        # Check user session if available
-        session_status = 'no_session'
-        current_user_id = session.get('user_id')
-        if current_user_id:
-            session_status = 'active'
-            try:
-                # Try to get current user data
-                user_data = firebase_adapter.get_user_by_id(current_user_id)
-                if user_data:
-                    session_status = 'valid_user'
-                else:
-                    session_status = 'invalid_user'
-            except:
-                session_status = 'user_check_failed'
-
-        # Network connectivity check (basic)
-        network_status = 'unknown'
-        try:
-            import requests
-            response = requests.get('https://firebase.googleapis.com', timeout=5)
-            network_status = 'connected' if response.status_code < 500 else 'service_issues'
-        except requests.exceptions.RequestException:
-            network_status = 'connection_failed'
-        except:
-            network_status = 'test_failed'
 
         status = {
             'firebase_initialized': firebase_config.initialized,
+            'firebase_admin_initialized': firebase_admin_initialized,
+            'firestore_db_available': firestore_db_available,
             'auth_enabled': auth_enabled,
             'database_exists': database_exists,
             'firestore_enabled': firestore_enabled,
             'project_id': project_id,
             'credentials_status': credentials_status,
+            'initialization_success': init_success,
             'auth_test_result': auth_test_result,
             'db_test_result': db_test_result,
             'collection_count': collection_count,
-            'session_status': session_status,
-            'current_user_id': current_user_id if current_user_id else None,
-            'network_status': network_status,
             'error_message': auth_error if not auth_enabled and auth_error else None,
             'auth_error': auth_error,
             'setup_instructions': [],
@@ -456,26 +453,22 @@ def debug_firebase_status():
         }
 
         # Add specific recommendations based on status
-        if not firebase_config.initialized:
-            status['error_message'] = 'Firebase not initialized'
+        if not firebase_admin_initialized:
+            status['error_message'] = 'Firebase Admin not initialized'
             status['setup_instructions'] = [
-                'Add FIREBASE_CREDENTIALS to environment variables',
-                'Ensure service account JSON is valid',
+                'Check FIREBASE_CREDENTIALS environment variable',
+                'Verify service account JSON is valid',
+                'Restart the application',
                 'Check Firebase project configuration'
             ]
+
+        if not firestore_db_available:
+            status['recommendations'].append('Firestore database instance not available - check credentials')
 
         if credentials_status == 'missing':
             status['recommendations'].append('Add FIREBASE_CREDENTIALS environment variable')
         elif credentials_status == 'invalid_json':
             status['recommendations'].append('Fix FIREBASE_CREDENTIALS JSON format')
-
-        if session_status == 'no_session':
-            status['recommendations'].append('User needs to log in')
-        elif session_status == 'invalid_user':
-            status['recommendations'].append('User session expired - needs to log in again')
-
-        if network_status == 'connection_failed':
-            status['recommendations'].append('Check network connectivity to Firebase services')
 
         if auth_test_result == 'test_failed':
             status['recommendations'].append('Firebase Auth may have permission issues')
@@ -484,8 +477,10 @@ def debug_firebase_status():
     except Exception as e:
         return jsonify({
             'firebase_initialized': False,
+            'firebase_admin_initialized': False,
+            'firestore_db_available': False,
             'error_message': str(e),
-            'setup_instructions': ['Check Firebase configuration'],
+            'setup_instructions': ['Check Firebase configuration and restart application'],
             'exception_details': str(e)
         }), 500
 
@@ -1307,14 +1302,41 @@ def update_item(item_id):
 def verify_firebase_system():
     """Verify that Firebase system is working properly"""
     try:
+        # Force re-initialization
+        firebase_config.initialized = False
+        firebase_config.db = None
+        firebase_config.auth = None
+        
         if firebase_config.initialize_firebase():
-            logger.info("✅ Firebase database ready")
+            # Additional validation checks
+            if firebase_config.db is None:
+                logger.error("❌ Firebase database is None after initialization")
+                return False
+                
+            # Test database connectivity
+            try:
+                firebase_config.db.collection('_test').document('connectivity').get()
+                logger.info("✅ Firebase database connectivity verified")
+            except Exception as db_test_error:
+                logger.error(f"❌ Firebase database connectivity test failed: {str(db_test_error)}")
+                return False
+                
+            # Test auth availability
+            auth_instance = firebase_config.get_auth()
+            if auth_instance:
+                logger.info("✅ Firebase Auth verified")
+            else:
+                logger.warning("⚠️ Firebase Auth not available")
+                
+            logger.info("✅ Firebase system fully verified and ready")
             return True
         else:
-            logger.warning("⚠️ Firebase database not configured")
+            logger.error("❌ Firebase initialization failed")
             return False
     except Exception as e:
-        logger.error(f"❌ Firebase initialization error: {str(e)}")
+        logger.error(f"❌ Firebase verification error: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return False
 
 # Verify Firebase system on startup
