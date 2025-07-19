@@ -10,6 +10,9 @@ class FirebaseService:
     """Service layer for Firebase operations"""
 
     def __init__(self):
+        # Ensure Firebase is initialized before accessing db and auth
+        if not firebase_config.initialized:
+            firebase_config.initialize_firebase()
         self.db = firebase_config.db
         self.auth = firebase_config.auth
 
@@ -327,21 +330,21 @@ class FirebaseService:
     def create_category(self, category_data, user_id):
         """Create a new category"""
         try:
-            category = FirebaseCategory()
-
-            # Set category properties
-            for key, value in category_data.items():
-                if hasattr(category, key):
-                    setattr(category, key, value)
-
-            category.user_id = user_id
-            category.id = str(uuid.uuid4())
+            # Create category data using CategoryModel
+            category_doc_data = CategoryModel.create_category_data(
+                name=category_data['name'],
+                user_id=user_id,
+                **category_data
+            )
+            
+            category_id = str(uuid.uuid4())
+            category_doc_data['id'] = category_id
 
             # Save to Firestore
-            self.db.collection('categories').document(category.id).set(category.to_dict())
+            self.db.collection('categories').document(category_id).set(category_doc_data)
 
-            logger.info(f"Category created: {category.name}")
-            return category
+            logger.info(f"Category created: {category_data['name']}")
+            return category_doc_data
 
         except Exception as e:
             logger.error(f"Error creating category: {str(e)}")
@@ -357,8 +360,9 @@ class FirebaseService:
             categories = []
 
             for doc in docs:
-                category = FirebaseCategory(doc.to_dict(), doc.id)
-                categories.append(category)
+                category_data = doc.to_dict()
+                category_data['id'] = doc.id
+                categories.append(category_data)
 
             return categories
 
@@ -375,8 +379,8 @@ class FirebaseService:
                 category_data = category_doc.to_dict()
                 # Verify the category belongs to the user
                 if category_data.get('user_id') == user_id:
-                    category = FirebaseCategory(category_data, category_id)
-                    return category
+                    category_data['id'] = category_id
+                    return category_data
 
             return None
         except Exception as e:

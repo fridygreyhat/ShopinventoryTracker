@@ -10,6 +10,8 @@ class FirebaseAdapter:
     """Adapter to make Firebase operations compatible with existing API structure"""
 
     def __init__(self):
+        # Import firebase_service here to avoid circular imports
+        from firebase_service import firebase_service
         self.service = firebase_service
 
     # User operations
@@ -38,6 +40,11 @@ class FirebaseAdapter:
     def get_user_by_id(self, user_id):
         """Get user by ID from Firebase"""
         try:
+            # Ensure Firebase service is properly initialized
+            if not self.service.db:
+                logger.error("Firebase database not available")
+                return None
+                
             user_doc = self.service.db.collection('users').document(user_id).get()
             if user_doc.exists:
                 user_data = user_doc.to_dict()
@@ -50,9 +57,36 @@ class FirebaseAdapter:
 
 
 
+    def get_items_by_user(self, user_id):
+        """Get items using Firebase service"""
+        try:
+            # Ensure Firebase service is properly initialized
+            if not self.service.db:
+                logger.error("Firebase database not available")
+                return []
+                
+            items_ref = self.service.db.collection('items').where('user_id', '==', user_id).where('is_active', '==', True)
+            items_docs = items_ref.stream()
+
+            items = []
+            for doc in items_docs:
+                item_data = doc.to_dict()
+                item_data['id'] = doc.id
+                items.append(item_data)
+
+            return items
+        except Exception as e:
+            logger.error(f"Error getting items: {str(e)}")
+            return []
+
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
         try:
+            # Ensure Firebase service is properly initialized
+            if not self.service.db:
+                logger.error("Firebase database not available")
+                return []
+                
             customers_ref = self.service.db.collection('customers').where('user_id', '==', user_id)
             customers_docs = customers_ref.stream()
 
@@ -465,6 +499,11 @@ class FirebaseAdapter:
     def get_categories_by_user(self, user_id):
         """Get categories using Firebase service"""
         try:
+            # Ensure Firebase service is properly initialized
+            if not self.service.db:
+                logger.error("Firebase database not available")
+                return []
+                
             categories_ref = self.service.db.collection('categories').where('user_id', '==', user_id).where('is_active', '==', True)
             categories_docs = categories_ref.stream()
 
