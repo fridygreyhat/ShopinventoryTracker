@@ -370,7 +370,41 @@ class FirebaseAdapter:
         """Get sales using Firebase service"""
         sales = self.service.get_sales_by_user(user_id, limit)
         # Convert to dict format for API compatibility
-        return [sale.to_dict() if hasattr(sale, 'to_dict') else sale.__dict__ for sale in sales]
+        return [sale.to_dict() if hasattr(sale, 'to_dict') else sale for sale in sales]
+
+    def get_sale_by_id(self, sale_id, user_id):
+        """Get a specific sale by ID"""
+        try:
+            sale_doc = self.service.db.collection('sales').document(sale_id).get()
+            
+            if sale_doc.exists:
+                sale_data = sale_doc.to_dict()
+                if sale_data.get('user_id') == user_id:
+                    sale_data['id'] = sale_id
+                    return sale_data
+                    
+            return None
+        except Exception as e:
+            logger.error(f"Error getting sale by ID: {str(e)}")
+            return None
+
+    def update_sale(self, sale_id, updates, user_id):
+        """Update a sale"""
+        try:
+            sale_ref = self.service.db.collection('sales').document(sale_id)
+            sale_doc = sale_ref.get()
+            
+            if sale_doc.exists:
+                sale_data = sale_doc.to_dict()
+                if sale_data.get('user_id') == user_id:
+                    updates['updated_at'] = datetime.now().isoformat()
+                    sale_ref.update(updates)
+                    logger.info(f"Sale updated: {sale_id}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating sale: {str(e)}")
+            return False
 
     # Customer operations
     def create_customer(self, customer_data, user_id):
