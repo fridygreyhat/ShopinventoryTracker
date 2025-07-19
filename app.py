@@ -14,6 +14,10 @@ from dotenv import load_dotenv
 from functools import wraps
 
 
+# Firebase administration imports
+from firebase_admin_panel import firebase_admin_bp
+from firebase_settings import firebase_settings, get_firebase_web_config
+from firebase_api_manager import firebase_api_manager
 
 
 
@@ -229,10 +233,10 @@ def debug_firebase_test():
             'firebase_initialized': firebase_config.initialized,
             'tests': {}
         }
-        
+
         if not firebase_config.initialized:
             return jsonify({'error': 'Firebase not initialized', 'results': results}), 500
-            
+
         # Test Firestore connectivity
         try:
             test_doc = firebase_config.db.collection('_test').document('connectivity_test')
@@ -241,7 +245,7 @@ def debug_firebase_test():
             results['tests']['firestore'] = 'success'
         except Exception as e:
             results['tests']['firestore'] = f'failed: {str(e)}'
-            
+
         # Test Auth connectivity
         try:
             auth = firebase_config.get_auth()
@@ -254,9 +258,9 @@ def debug_firebase_test():
                 results['tests']['auth'] = 'success'
             else:
                 results['tests']['auth'] = f'failed: {str(e)}'
-                
+
         return jsonify(results)
-        
+
     except Exception as e:
         return jsonify({'error': str(e), 'results': results}), 500
 
@@ -270,7 +274,7 @@ def debug_registration_test():
             'auth_module_available': False,
             'test_results': {}
         }
-        
+
         # Test Firebase Auth module
         try:
             from firebase_admin import auth
@@ -278,7 +282,7 @@ def debug_registration_test():
             status['test_results']['auth_import'] = 'success'
         except Exception as e:
             status['test_results']['auth_import'] = f'failed: {str(e)}'
-        
+
         # Test Firestore connection
         try:
             if firebase_config.db:
@@ -289,9 +293,9 @@ def debug_registration_test():
                 status['test_results']['firestore_connection'] = 'failed: db is None'
         except Exception as e:
             status['test_results']['firestore_connection'] = f'failed: {str(e)}'
-        
+
         return jsonify(status)
-        
+
     except Exception as e:
         return jsonify({
             'error': str(e),
@@ -306,10 +310,10 @@ def api_firebase_test():
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'error': 'Not authenticated'}), 401
-            
+
         if not firebase_config.initialized:
             return jsonify({'error': 'Firebase not initialized', 'initialized': False}), 500
-            
+
         # Test basic Firebase operations
         test_results = {
             'firebase_initialized': firebase_config.initialized,
@@ -317,16 +321,16 @@ def api_firebase_test():
             'user_authenticated': bool(user_id),
             'timestamp': datetime.now().isoformat()
         }
-        
+
         # Try a simple Firestore query
         try:
             firebase_config.db.collection('users').document(user_id).get()
             test_results['firestore_query'] = 'success'
         except Exception as e:
             test_results['firestore_query'] = f'failed: {str(e)}'
-            
+
         return jsonify(test_results)
-        
+
     except Exception as e:
         return jsonify({'error': str(e), 'initialized': False}), 500
 
@@ -450,7 +454,7 @@ def debug_firebase_status():
             'setup_instructions': [],
             'recommendations': []
         }
-        
+
         # Add specific recommendations based on status
         if not firebase_config.initialized:
             status['error_message'] = 'Firebase not initialized'
@@ -459,23 +463,23 @@ def debug_firebase_status():
                 'Ensure service account JSON is valid',
                 'Check Firebase project configuration'
             ]
-        
+
         if credentials_status == 'missing':
             status['recommendations'].append('Add FIREBASE_CREDENTIALS environment variable')
         elif credentials_status == 'invalid_json':
             status['recommendations'].append('Fix FIREBASE_CREDENTIALS JSON format')
-            
+
         if session_status == 'no_session':
             status['recommendations'].append('User needs to log in')
         elif session_status == 'invalid_user':
             status['recommendations'].append('User session expired - needs to log in again')
-            
+
         if network_status == 'connection_failed':
             status['recommendations'].append('Check network connectivity to Firebase services')
-            
+
         if auth_test_result == 'test_failed':
             status['recommendations'].append('Firebase Auth may have permission issues')
-            
+
         return jsonify(status)
     except Exception as e:
         return jsonify({
@@ -1082,7 +1086,7 @@ def get_inventory():
         logger.error(f"Error getting inventory for user {current_user_id if 'current_user_id' in locals() else 'unknown'}: {str(e)}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        
+
         return jsonify({
             'error': f'Failed to load inventory: {str(e)}',
             'code': 'INVENTORY_LOAD_ERROR',
@@ -1668,7 +1672,8 @@ def api_accounting_reports():
             start = datetime.strptime(start_date, '%Y-%m-%d')
             end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         else:
-            start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            start = datetime.now().replace```python
+(day=1, hour=0, minute=0, second=0, microsecond=0)
             end = datetime.now()
 
         if report_type == 'profit-loss' or report_type == 'income-statement':
@@ -1920,7 +1925,7 @@ def create_sale():
             installment_months = int(sale_data.get('installment_months', 1))
             remaining_amount = total_amount - down_payment
             monthly_payment = remaining_amount / installment_months if installment_months > 0 else 0
-            
+
             sale_data_for_firebase.update({
                 'down_payment': down_payment,
                 'installment_months': installment_months,
@@ -2191,7 +2196,7 @@ def get_categories():
                 category_dict = category.to_dict()
             else:
                 category_dict = category
-            
+
             # Ensure required fields exist
             category_dict.update({
                 'id': category_dict.get('id', ''),
@@ -2476,7 +2481,8 @@ def get_dashboard_summary():
         if not user_id:
             return jsonify({'error': 'User not authenticated'}), 401
 
-        if not firebase_config.initialized:
+        if```python
+not firebase_config.initialized:
             return jsonify({'error': 'Firebase not configured'}), 500
 
         # === INVENTORY METRICS ===
@@ -2544,7 +2550,7 @@ def get_dashboard_summary():
         # Today's sales
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_str = today.isoformat()
-        
+
         today_sales = 0
         today_sales_count = 0
         for sale in sales_data:
@@ -2581,7 +2587,7 @@ def get_dashboard_summary():
         # New customers this month
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         current_month_str = current_month.isoformat()
-        
+
         new_customers_this_month = 0
         for customer in customers_data:
             created_at = customer.get('created_at', '')
@@ -2595,7 +2601,7 @@ def get_dashboard_summary():
             for sale in sales_data 
             if sale.get('created_at', '').startswith(current_month_str[:7])
         )
-        
+
         # Estimated monthly expenses (simplified as 70% of income)
         monthly_expenses = monthly_income * 0.7
         monthly_profit = monthly_income - monthly_expenses
@@ -3176,6 +3182,18 @@ def update_settings():
         logger.error(f"Error updating settings: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Firebase configuration routes
+@app.route("/firebase/config")
+def firebase_config_route():
+    """Route to display Firebase web configuration"""
+    config = get_firebase_web_config()
+    return render_template("firebase_config.html", config=config)
+
+@app.route("/firebase/api")
+def firebase_api_route():
+    """Route to manage Firebase API keys and services"""
+    api_status = firebase_api_manager.get_api_status()
+    return render_template("firebase_api.html", api_status=api_status)
 
 @app.errorhandler(404)
 def not_found_error(error):
@@ -3191,5 +3209,7 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 if __name__ == '__main__':
+    # Register Firebase admin blueprint
+    app.register_blueprint(firebase_admin_bp)
     # Run the application with Firebase only
     app.run(host='0.0.0.0', port=5000, debug=True)
