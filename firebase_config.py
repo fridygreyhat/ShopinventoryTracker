@@ -76,21 +76,28 @@ class FirebaseConfig:
     def get_auth(self):
         """Get Firebase Auth instance"""
         if not self.initialized:
-            self.initialize_firebase()
+            if not self.initialize_firebase():
+                return None
         
         try:
             from firebase_admin import auth
-            # Verify auth is accessible by checking if we can access the auth module
-            if hasattr(auth, 'get_user'):
-                return auth
-            else:
-                logger.error("Firebase Auth module loaded but methods not accessible")
+            # Test auth functionality by attempting to get the auth module
+            # This ensures auth is properly initialized
+            try:
+                # Try to access a basic auth function to verify it's working
+                if hasattr(auth, 'get_user') and hasattr(auth, 'create_user'):
+                    return auth
+                else:
+                    logger.error("Firebase Auth module loaded but required methods not accessible")
+                    return None
+            except Exception as auth_test_error:
+                logger.error(f"Firebase Auth functionality test failed: {str(auth_test_error)}")
                 return None
         except ImportError as e:
-            logger.error(f"Failed to import Firebase Auth: {str(e)}")
+            logger.error(f"Failed to import Firebase Auth module: {str(e)}")
             return None
         except Exception as e:
-            logger.error(f"Error getting Firebase Auth instance: {str(e)}")
+            logger.error(f"Unexpected error getting Firebase Auth instance: {str(e)}")
             return None
     @property
     def api_key(self):

@@ -122,6 +122,11 @@ class FirebaseAdapter:
     def get_user_by_email(self, email):
         """Get user by email from Firebase"""
         try:
+            # Ensure Firebase is initialized
+            if not self.service.db:
+                logger.error("Firebase not initialized")
+                return None
+                
             # First, get user from Firebase Auth
             from firebase_admin import auth
             try:
@@ -145,17 +150,25 @@ class FirebaseAdapter:
                         'shop_name': '',
                         'is_active': True,
                         'is_admin': False,
-                        'created_at': auth_user.user_metadata.creation_timestamp,
-                        'updated_at': auth_user.user_metadata.last_sign_in_timestamp
+                        'created_at': datetime.now().isoformat(),
+                        'updated_at': datetime.now().isoformat()
                     }
-                    self.service.db.collection('users').document(auth_user.uid).set(user_data)
+                    try:
+                        self.service.db.collection('users').document(auth_user.uid).set(user_data)
+                        logger.info(f"Created Firestore document for existing auth user: {email}")
+                    except Exception as firestore_error:
+                        logger.error(f"Failed to create Firestore document: {firestore_error}")
                     return user_data
 
             except auth.UserNotFoundError:
+                logger.debug(f"User not found in Firebase Auth: {email}")
+                return None
+            except Exception as auth_error:
+                logger.error(f"Firebase Auth error for {email}: {str(auth_error)}")
                 return None
 
         except Exception as e:
-            logger.error(f"Error getting user by email: {str(e)}")
+            logger.error(f"Unexpected error getting user by email {email}: {str(e)}")
             return None
 
     def get_all_users(self):

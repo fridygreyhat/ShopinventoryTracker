@@ -216,6 +216,45 @@ def debug():
         print(f"Is authenticated: {user is not None}")
     return "Check console"
 
+@app.route('/debug/firebase-test')
+def debug_firebase_test():
+    """Test Firebase connectivity and operations"""
+    try:
+        results = {
+            'firebase_initialized': firebase_config.initialized,
+            'tests': {}
+        }
+        
+        if not firebase_config.initialized:
+            return jsonify({'error': 'Firebase not initialized', 'results': results}), 500
+            
+        # Test Firestore connectivity
+        try:
+            test_doc = firebase_config.db.collection('_test').document('connectivity_test')
+            test_doc.set({'timestamp': datetime.now().isoformat(), 'test': True})
+            test_doc.delete()  # Clean up
+            results['tests']['firestore'] = 'success'
+        except Exception as e:
+            results['tests']['firestore'] = f'failed: {str(e)}'
+            
+        # Test Auth connectivity
+        try:
+            auth = firebase_config.get_auth()
+            if auth:
+                # Try to get a non-existent user (should fail gracefully)
+                auth.get_user('non_existent_user_test')
+            results['tests']['auth'] = 'failed: should have thrown UserNotFoundError'
+        except Exception as e:
+            if 'not found' in str(e).lower() or 'UserNotFoundError' in str(e):
+                results['tests']['auth'] = 'success'
+            else:
+                results['tests']['auth'] = f'failed: {str(e)}'
+                
+        return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'results': results}), 500
+
 @app.route('/debug/firebase-status')
 def debug_firebase_status():
     """Debug route to check Firebase status"""
@@ -232,16 +271,28 @@ def debug_firebase_status():
 
         # Check auth status more thoroughly
         auth_enabled = False
+        auth_error = None
         try:
             if firebase_config.initialized:
-                # Import Firebase Admin Auth
-                from firebase_admin import auth
                 # Try to get the auth module - if successful, auth is enabled
                 auth_module = firebase_config.get_auth()
                 if auth_module:
-                    auth_enabled = True
-                    logger.info("Firebase Auth is properly initialized")
+                    # Test auth functionality with a simple operation
+                    try:
+                        # This will fail safely if auth isn't working
+                        auth_module.get_user('test_non_existent_user')
+                    except auth_module.UserNotFoundError:
+                        # This is expected - means auth is working
+                        auth_enabled = True
+                        logger.info("Firebase Auth is properly initialized and functional")
+                    except Exception as auth_test_error:
+                        auth_error = f"Auth test failed: {str(auth_test_error)}"
+                        logger.warning(f"Firebase Auth loaded but test failed: {auth_test_error}")
+                else:
+                    auth_error = "Auth module not available"
+                    logger.warning("Firebase Auth module not available")
         except Exception as e:
+            auth_error = str(e)
             logger.error(f"Error checking auth status: {str(e)}")
 
         # Enhanced database check
@@ -265,7 +316,8 @@ def debug_firebase_status():
             'database_exists': database_exists,
             'firestore_enabled': firestore_enabled,
             'project_id': project_id,
-            'error_message': None,
+            'error_message': auth_error if not auth_enabled and auth_error else None,
+            'auth_error': auth_error,
             'setup_instructions': []
         }
         
