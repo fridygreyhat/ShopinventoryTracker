@@ -227,7 +227,10 @@ def api_login():
             session.permanent = True
             
             # Update last login
-            firebase_adapter.service.update_user_last_login(user['id'])
+            try:
+                firebase_adapter.service.update_user_last_login(user['id'])
+            except Exception as login_update_error:
+                logger.warning(f"Failed to update last login: {str(login_update_error)}")
             
             logger.info(f"Successful login for: {email}")
             return jsonify({

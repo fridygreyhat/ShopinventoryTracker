@@ -3,6 +3,7 @@ from firebase_models import UserModel, ItemModel, SaleModel, CustomerModel, Cate
 from datetime import datetime
 import logging
 import uuid
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -206,27 +207,7 @@ class FirebaseAdapter:
 
 
 
-    def get_items_by_user(self, user_id):
-        """Get items using Firebase service"""
-        try:
-            # Ensure Firebase service is properly initialized
-            if not self.service.db:
-                logger.error("Firebase database not available")
-                return []
-
-            items_ref = self.service.db.collection('items').where('user_id', '==', user_id).where('is_active', '==', True)
-            items_docs = items_ref.stream()
-
-            items = []
-            for doc in items_docs:
-                item_data = doc.to_dict()
-                item_data['id'] = doc.id
-                items.append(item_data)
-
-            return items
-        except Exception as e:
-            logger.error(f"Error getting items: {str(e)}")
-            return []
+    
 
     def get_customers_by_user(self, user_id):
         """Get all customers for a user"""
