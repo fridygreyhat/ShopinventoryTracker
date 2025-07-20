@@ -1,32 +1,43 @@
-# Clean Firebase-Only Business Management System
 import os
-import sys
-import logging
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Import Firebase components
-from firebase_config import firebase_config
-from firebase_adapter import firebase_adapter
-from firebase_models import UserModel, ItemModel, SaleModel, CustomerModel, CategoryModel
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+app.secret_key = os.environ.get("SESSION_SECRET", "your-secret-key-change-in-production")
+
+# Configure PostgreSQL database
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("DATABASE_URL environment variable is not set!")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
 app.config['SESSION_PERMANENT'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
-# Initialize Firebase
-if not firebase_config.initialize_firebase():
-    logger.error("❌ Firebase initialization failed")
-    sys.exit(1)
+# Initialize database
+db.init_app(app)
 
-logger.info("✅ Clean Firebase-only system initialized")
+# Import models after db initialization
+from models import User, Item, Customer, Sale, Category
 
 # Authentication decorator
 def login_required(f):
@@ -39,13 +50,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Context processor
+# Context processor for templates
 @app.context_processor
 def inject_user():
     def get_current_user():
         user_id = session.get('user_id')
         if user_id:
-            return firebase_adapter.get_user_by_id(user_id)
+            return User.query.get(user_id)
         return None
     return dict(get_current_user=get_current_user)
 
@@ -89,6 +100,11 @@ def sales():
 def customers():
     return render_template('customers.html')
 
+@app.route('/categories')
+@login_required
+def categories():
+    return render_template('categories.html')
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -107,25 +123,25 @@ def api_login():
         if not email or not password:
             return jsonify({'error': 'Email and password required'}), 400
         
-        # Authenticate with Firebase
-        user = firebase_adapter.authenticate_user(email, password)
-        if user:
-            session['user_id'] = user['id']
-            session['email'] = user['email']
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password_hash, password):
+            session['user_id'] = user.id
+            session['email'] = user.email
             session.permanent = True
             
             # Update last login
-            firebase_adapter.service.update_user_last_login(user['id'])
+            user.last_login = datetime.utcnow()
+            db.session.commit()
             
             return jsonify({
                 'success': True,
                 'message': 'Login successful',
                 'user': {
-                    'id': user['id'],
-                    'email': user['email'],
-                    'first_name': user.get('first_name', ''),
-                    'last_name': user.get('last_name', ''),
-                    'username': user.get('username', '')
+                    'id': user.id,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'username': user.username
                 }
             })
         else:
@@ -135,88 +151,93 @@ def api_login():
         logger.error(f"Login error: {str(e)}")
         return jsonify({'error': 'Login failed'}), 500
 
+@app.route('/api/auth/register', methods=['POST'])
+def api_register():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        
+        if not all([email, password, first_name, last_name]):
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        # Check if user already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'User already exists'}), 400
+        
+        # Create new user
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(password),
+            first_name=first_name,
+            last_name=last_name,
+            username=data.get('username', email.split('@')[0]),
+            phone=data.get('phone', ''),
+            shop_name=data.get('shop_name', ''),
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Registration successful',
+            'user_id': user.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Registration failed'}), 500
+
 @app.route('/api/auth/logout', methods=['POST'])
 @login_required
 def api_logout():
     session.clear()
     return jsonify({'success': True, 'message': 'Logged out successfully'})
 
-@app.route('/api/auth/register', methods=['POST'])
-def api_register():
-    try:
-        data = request.get_json()
-        required_fields = ['email', 'password', 'first_name', 'last_name']
-        
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Create user with Firebase
-        user_data = UserModel.create_user_data(
-            email=data['email'],
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            username=data.get('username')
-        )
-        
-        user_id = firebase_adapter.create_user(user_data, data['password'])
-        if user_id:
-            return jsonify({
-                'success': True,
-                'message': 'Registration successful',
-                'user_id': user_id
-            })
-        else:
-            return jsonify({'error': 'Registration failed'}), 500
-            
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        return jsonify({'error': 'Registration failed'}), 500
-
 # === DASHBOARD API ===
 
-@app.route('/api/dashboard/summary')
+@app.route('/api/dashboard/summary', methods=['GET'])
 @login_required
-def get_dashboard_summary():
+def dashboard_summary():
     try:
         user_id = session.get('user_id')
         
-        # Get inventory metrics
-        items_data = firebase_adapter.get_items_by_user(user_id)
-        total_items = len(items_data)
-        total_stock = sum(item.get('stock_quantity', 0) for item in items_data)
-        low_stock_items = len([item for item in items_data 
-                             if item.get('stock_quantity', 0) <= item.get('minimum_stock', 0)])
+        # Get counts
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
+        total_customers = Customer.query.filter_by(user_id=user_id, is_active=True).count()
+        total_sales = Sale.query.filter_by(user_id=user_id).count()
+        total_categories = Category.query.filter_by(user_id=user_id, is_active=True).count()
         
-        inventory_value = sum(
-            item.get('stock_quantity', 0) * item.get('buying_price', 0) 
-            for item in items_data
+        # Get low stock items
+        low_stock_items = Item.query.filter(
+            Item.user_id == user_id,
+            Item.is_active == True,
+            Item.stock_quantity <= Item.minimum_stock
+        ).count()
+        
+        # Calculate total inventory value
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        total_inventory_value = sum(
+            (item.stock_quantity or 0) * (item.retail_price or 0) 
+            for item in items
         )
         
-        # Get sales metrics
-        sales_data = firebase_adapter.get_sales_by_user(user_id)
-        total_sales = len(sales_data)
-        total_revenue = sum(float(sale.get('total_amount', 0)) for sale in sales_data)
-        
-        # Get customer count
-        customers_data = firebase_adapter.get_customers_by_user(user_id)
-        total_customers = len(customers_data)
-        
         return jsonify({
-            'inventory': {
+            'success': True,
+            'data': {
                 'total_items': total_items,
-                'total_stock': total_stock,
-                'low_stock_items': low_stock_items,
-                'inventory_value': inventory_value
-            },
-            'sales': {
+                'total_customers': total_customers,
                 'total_sales': total_sales,
-                'total_revenue': total_revenue
-            },
-            'customers': {
-                'total_customers': total_customers
-            },
-            'success': True
+                'total_categories': total_categories,
+                'low_stock_items': low_stock_items,
+                'total_inventory_value': total_inventory_value
+            }
         })
         
     except Exception as e:
@@ -230,8 +251,26 @@ def get_dashboard_summary():
 def get_items():
     try:
         user_id = session.get('user_id')
-        items = firebase_adapter.get_items_by_user(user_id)
-        return jsonify(items)
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        
+        items_data = []
+        for item in items:
+            items_data.append({
+                'id': item.id,
+                'name': item.name,
+                'description': item.description,
+                'category': item.category,
+                'stock_quantity': item.stock_quantity,
+                'minimum_stock': item.minimum_stock,
+                'buying_price': float(item.buying_price or 0),
+                'retail_price': float(item.retail_price or 0),
+                'wholesale_price': float(item.wholesale_price or 0),
+                'sku': item.sku,
+                'barcode': item.barcode,
+                'created_at': item.created_at.isoformat() if item.created_at else None
+            })
+        
+        return jsonify(items_data)
     except Exception as e:
         logger.error(f"Get items error: {str(e)}")
         return jsonify({'error': 'Failed to retrieve items'}), 500
@@ -246,57 +285,35 @@ def create_item():
         if not data.get('name'):
             return jsonify({'error': 'Item name is required'}), 400
         
-        # Ensure user_id is not None
-        if not user_id:
-            return jsonify({'error': 'User authentication required'}), 401
-            
-        item_data = ItemModel.create_item_data(
+        item = Item(
             name=data['name'],
-            user_id=str(user_id),
-            **data
+            description=data.get('description', ''),
+            category=data.get('category', 'General'),
+            stock_quantity=int(data.get('stock_quantity', 0)),
+            minimum_stock=int(data.get('minimum_stock', 0)),
+            buying_price=float(data.get('buying_price', 0)),
+            retail_price=float(data.get('retail_price', 0)),
+            wholesale_price=float(data.get('wholesale_price', 0)),
+            sku=data.get('sku', ''),
+            barcode=data.get('barcode', ''),
+            user_id=user_id,
+            is_active=True,
+            created_at=datetime.utcnow()
         )
         
-        item_id = firebase_adapter.create_item(item_data, str(user_id))
-        if item_id:
-            return jsonify({'success': True, 'item_id': item_id, 'message': 'Item created successfully'})
-        else:
-            return jsonify({'error': 'Failed to create item'}), 500
+        db.session.add(item)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'item_id': item.id, 
+            'message': 'Item created successfully'
+        })
             
     except Exception as e:
         logger.error(f"Create item error: {str(e)}")
+        db.session.rollback()
         return jsonify({'error': 'Failed to create item'}), 500
-
-@app.route('/api/items/<item_id>', methods=['PUT'])
-@login_required
-def update_item(item_id):
-    try:
-        user_id = session.get('user_id')
-        data = request.get_json()
-        
-        success = firebase_adapter.update_item(item_id, data, user_id)
-        if success:
-            return jsonify({'success': True, 'message': 'Item updated successfully'})
-        else:
-            return jsonify({'error': 'Failed to update item'}), 500
-            
-    except Exception as e:
-        logger.error(f"Update item error: {str(e)}")
-        return jsonify({'error': 'Failed to update item'}), 500
-
-@app.route('/api/items/<item_id>', methods=['DELETE'])
-@login_required
-def delete_item(item_id):
-    try:
-        user_id = session.get('user_id')
-        success = firebase_adapter.delete_item(item_id, user_id)
-        if success:
-            return jsonify({'success': True, 'message': 'Item deleted successfully'})
-        else:
-            return jsonify({'error': 'Failed to delete item'}), 500
-            
-    except Exception as e:
-        logger.error(f"Delete item error: {str(e)}")
-        return jsonify({'error': 'Failed to delete item'}), 500
 
 # === SALES API ===
 
@@ -305,42 +322,24 @@ def delete_item(item_id):
 def get_sales():
     try:
         user_id = session.get('user_id')
-        sales = firebase_adapter.get_sales_by_user(user_id)
-        return jsonify(sales)
+        sales = Sale.query.filter_by(user_id=user_id).order_by(Sale.created_at.desc()).all()
+        
+        sales_data = []
+        for sale in sales:
+            sales_data.append({
+                'id': sale.id,
+                'sale_number': sale.sale_number,
+                'total_amount': float(sale.total_amount or 0),
+                'customer_name': sale.customer_name,
+                'payment_method': sale.payment_method,
+                'created_at': sale.created_at.isoformat() if sale.created_at else None,
+                'notes': sale.notes
+            })
+        
+        return jsonify(sales_data)
     except Exception as e:
         logger.error(f"Get sales error: {str(e)}")
         return jsonify({'error': 'Failed to retrieve sales'}), 500
-
-@app.route('/api/sales', methods=['POST'])
-@login_required
-def create_sale():
-    try:
-        user_id = session.get('user_id')
-        data = request.get_json()
-        
-        if not data.get('sale_items') or not data.get('total_amount'):
-            return jsonify({'error': 'Sale items and total amount are required'}), 400
-        
-        # Ensure user_id is not None
-        if not user_id:
-            return jsonify({'error': 'User authentication required'}), 401
-            
-        sale_data = SaleModel.create_sale_data(
-            user_id=str(user_id),
-            total_amount=data['total_amount'],
-            sale_items=data['sale_items'],
-            **data
-        )
-        
-        sale_id = firebase_adapter.create_sale(sale_data, str(user_id))
-        if sale_id:
-            return jsonify({'success': True, 'sale_id': sale_id, 'message': 'Sale created successfully'})
-        else:
-            return jsonify({'error': 'Failed to create sale'}), 500
-            
-    except Exception as e:
-        logger.error(f"Create sale error: {str(e)}")
-        return jsonify({'error': 'Failed to create sale'}), 500
 
 # === CUSTOMERS API ===
 
@@ -349,87 +348,93 @@ def create_sale():
 def get_customers():
     try:
         user_id = session.get('user_id')
-        customers = firebase_adapter.get_customers_by_user(user_id)
-        return jsonify(customers)
+        customers = Customer.query.filter_by(user_id=user_id, is_active=True).all()
+        
+        customers_data = []
+        for customer in customers:
+            customers_data.append({
+                'id': customer.id,
+                'name': customer.name,
+                'email': customer.email,
+                'phone': customer.phone,
+                'address': customer.address,
+                'city': customer.city,
+                'state': customer.state,
+                'postal_code': customer.postal_code,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            })
+        
+        return jsonify(customers_data)
     except Exception as e:
         logger.error(f"Get customers error: {str(e)}")
         return jsonify({'error': 'Failed to retrieve customers'}), 500
 
-@app.route('/api/customers', methods=['POST'])
+# === CATEGORIES API ===
+
+@app.route('/api/categories', methods=['GET'])
 @login_required
-def create_customer():
+def get_categories():
     try:
         user_id = session.get('user_id')
-        data = request.get_json()
+        categories = Category.query.filter_by(user_id=user_id, is_active=True).all()
         
-        if not data.get('name'):
-            return jsonify({'error': 'Customer name is required'}), 400
+        # Transform categories to match expected frontend format
+        formatted_categories = []
+        category_map = {}
         
-        # Ensure user_id is not None
-        if not user_id:
-            return jsonify({'error': 'User authentication required'}), 401
+        # First pass: create category map and identify parents
+        for category in categories:
+            cat_data = {
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'parent_id': category.parent_id,
+                'sort_order': category.sort_order,
+                'subcategories': []
+            }
+            category_map[category.id] = cat_data
             
-        customer_data = CustomerModel.create_customer_data(
-            name=data['name'],
-            user_id=str(user_id),
-            **data
-        )
+            # If no parent_id, it's a main category
+            if not category.parent_id:
+                formatted_categories.append(cat_data)
         
-        customer_id = firebase_adapter.create_customer(customer_data, str(user_id))
-        if customer_id:
-            return jsonify({'success': True, 'customer_id': customer_id, 'message': 'Customer created successfully'})
-        else:
-            return jsonify({'error': 'Failed to create customer'}), 500
-            
+        # Second pass: attach subcategories to their parents
+        for category in categories:
+            if category.parent_id and category.parent_id in category_map:
+                cat_data = {
+                    'id': category.id,
+                    'name': category.name,
+                    'description': category.description,
+                    'parent_id': category.parent_id,
+                    'sort_order': category.sort_order
+                }
+                category_map[category.parent_id]['subcategories'].append(cat_data)
+        
+        return jsonify(formatted_categories)
     except Exception as e:
-        logger.error(f"Create customer error: {str(e)}")
-        return jsonify({'error': 'Failed to create customer'}), 500
+        logger.error(f"Get categories error: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve categories'}), 500
 
-# === DEBUG ROUTES ===
+# === ERROR HANDLERS ===
 
-@app.route('/debug/firebase-status')
-def debug_firebase_status():
-    try:
-        status = {
-            'firebase_initialized': firebase_config.initialized,
-            'project_id': firebase_config.db.project if firebase_config.db else None,
-            'collections_accessible': False,
-            'auth_working': False,
-            'user_session': session.get('user_id') is not None
-        }
-        
-        # Test database access
-        try:
-            if firebase_config.db:
-                collections = list(firebase_config.db.collections())
-                status['collections_accessible'] = True
-                status['collection_count'] = len(collections)
-            else:
-                status['db_error'] = 'Database not initialized'
-        except Exception as e:
-            status['db_error'] = str(e)
-        
-        # Test auth
-        try:
-            from firebase_admin import auth
-            test_user = firebase_adapter.get_user_by_id(session.get('user_id', 'test'))
-            status['auth_working'] = True
-        except Exception as e:
-            status['auth_error'] = str(e)
-        
-        return jsonify(status)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Error handlers
 @app.errorhandler(404)
 def not_found(error):
     return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def internal_error(error):
+    db.session.rollback()
     return render_template('500.html'), 500
+
+# Initialize database tables
+with app.app_context():
+    try:
+        db.create_all()
+        logger.info("✅ Database tables created successfully")
+    except Exception as e:
+        logger.error(f"❌ Error creating database tables: {str(e)}")
+
+logger.info("✅ Flask application initialized with PostgreSQL")
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
