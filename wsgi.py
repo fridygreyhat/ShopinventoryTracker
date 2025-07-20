@@ -16,19 +16,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 try:
-    # Import the Flask app and initialize database
-    from app import app, init_database
+    # Import the Flask app
+    from app import app
     
-    # Initialize database on startup
-    with app.app_context():
-        try:
-            success = init_database()
-            if success:
-                logger.info("✅ Database initialized successfully for WSGI")
-            else:
-                logger.error("❌ Database initialization failed")
-        except Exception as e:
-            logger.error(f"❌ Database initialization error: {str(e)}")
+    logger.info("✅ Flask app imported successfully for WSGI")
     
     # Make app available for WSGI server
     application = app
