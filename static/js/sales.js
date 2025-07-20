@@ -972,8 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         margin-top: 30px;
                         border-top: 1px solid #ddd;
                         padding-top: 20px;
-                        font-size```text
-: 0.9em;
+                        font-size: 0.9em;
                     }
                     @media print {
                         body {
@@ -1815,7 +1814,7 @@ function showInstallmentCustomerModal() {
     // Update summary
     updateInstallmentSummary();
 
-    // Show modal
+        // Show modal
     const modal = new bootstrap.Modal(document.getElementById('installmentCustomerModal'));
     modal.show();
 }
@@ -2037,18 +2036,18 @@ function initializeCompletedTransactions() {
 function handleCompletedTransactionNavigation() {
     // Check if we need to show completed transactions based on URL hash
     const hash = window.location.hash;
-    
+
     if (hash === '#completed-transactions' || 
         hash === '#completed-transactions-today' || 
         hash === '#completed-transactions-week' || 
         hash === '#completed-transactions-month') {
-        
+
         // Switch to completed transactions tab
         const completedTab = document.getElementById('completed-tab');
         if (completedTab) {
             completedTab.click();
         }
-        
+
         // Apply appropriate filters based on hash
         switch(hash) {
             case '#completed-transactions-today':
@@ -2061,7 +2060,7 @@ function handleCompletedTransactionNavigation() {
                 setMonthFilter();
                 break;
         }
-        
+
         // Load transactions with filters
         setTimeout(() => {
             loadCompletedTransactions();
@@ -2079,7 +2078,7 @@ function setWeekFilter() {
     const today = new Date();
     const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
     const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 6));
-    
+
     document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
     document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
 }
@@ -2088,7 +2087,7 @@ function setMonthFilter() {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
+
     document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
     document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
 }
@@ -2384,3 +2383,32 @@ function printTransactionReceipt(saleNumber) {
 window.loadCompletedTransactions = loadCompletedTransactions;
 window.viewTransactionDetails = viewTransactionDetails;
 window.printTransactionReceipt = printTransactionReceipt;
+
+function loadSales() {
+    fetch('/api/sales?per_page=50', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.sales) {
+            displaySales(data.sales);
+        } else {
+            console.error('Sales data failed:', data.error);
+            displaySales([]);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading sales:', error);
+        displaySales([]);
+        showAlert('Error loading sales data: ' + error.message, 'danger');
+    });
+}

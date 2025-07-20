@@ -233,56 +233,28 @@ function loadDashboardSummary() {
         }
     })
     .then(response => {
-        if (response.status === 401 || response.status === 302) {
-            // Redirect to login if not authenticated
-            window.location.href = '/login';
-            return;
-        }
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
-        if (!data) return; // Handle authentication redirect case
-        
         if (data.success) {
-            // Update dashboard with organized data
-            updateInventoryMetrics(data.inventory);
-            updateSalesMetrics(data.sales);
-            updateCustomerMetrics(data.customers);
-            updateFinancialMetrics(data.financial);
-            updateRecentActivity(data.recent_activity);
+            updateInventoryMetrics(data.inventory || {});
+            updateSalesMetrics(data.sales || {});
+            updateCustomerMetrics(data.customers || {});
         } else {
-            throw new Error(data.error || 'Failed to load dashboard summary');
+            console.error('Dashboard summary failed:', data.error);
+            updateInventoryMetrics({});
+            updateSalesMetrics({});
+            updateCustomerMetrics({});
         }
     })
     .catch(error => {
         console.error('Error loading dashboard summary:', error);
-        // Set default values to prevent UI breakage
-        updateInventoryMetrics({
-            total_items: 0,
-            total_stock: 0,
-            low_stock_count: 0,
-            inventory_value: 0,
-            category_breakdown: []
-        });
-        updateSalesMetrics({
-            total_sales: 0,
-            total_revenue: 0,
-            today_sales: 0,
-            today_sales_count: 0,
-            top_selling_items: []
-        });
-        updateCustomerMetrics({
-            total_customers: 0,
-            new_customers_this_month: 0
-        });
-        updateFinancialMetrics({
-            monthly_income: 0,
-            monthly_expenses: 0,
-            monthly_profit: 0
-        });
+        updateInventoryMetrics({});
+        updateSalesMetrics({});
+        updateCustomerMetrics({});
     });
 }
 
@@ -576,7 +548,7 @@ function updateLowStockTable(items) {
     items.forEach(item => {
         const stockStatus = item.current_stock <= 0 ? 'Out of Stock' : 'Low Stock';
         const statusClass = item.current_stock <= 0 ? 'danger' : 'warning';
-        
+
         html += `
             <tr>
                 <td>

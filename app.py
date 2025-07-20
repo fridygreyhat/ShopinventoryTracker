@@ -740,18 +740,43 @@ def delete_customer(customer_id):
 def get_sales():
     try:
         user_id = session.get('user_id')
-        sales = Sale.query.filter_by(user_id=user_id, is_active=True).all()
-
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        sales_query = Sale.query.filter_by(user_id=user_id, is_active=True)
+        sales_paginated = sales_query.paginate(page=page, per_page=per_page, error_out=False)
+        
         sales_data = []
-        for sale in sales:
+        for sale in sales_paginated.items:
+            # Get sale items
+            sale_items = []
+            for sale_item in sale.sale_items:
+                sale_items.append({
+                    'item_name': sale_item.item.name,
+                    'quantity': sale_item.quantity,
+                    'unit_price': float(sale_item.unit_price),
+                    'total_price': float(sale_item.total_price)
+                })
+            
             sales_data.append({
                 'id': sale.id,
-                'total_amount': sale.total_amount,
+                'total_amount': float(sale.total_amount),
                 'customer_name': sale.customer_name,
                 'payment_type': sale.payment_type,
-                'created_at': sale.created_at.isoformat()
+                'created_at': sale.created_at.isoformat(),
+                'items': sale_items
             })
-        return jsonify(sales_data)
+
+        return jsonify({
+            'success': True,
+            'sales': sales_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': sales_paginated.total,
+                'pages': sales_paginated.pages
+            }
+        })
     except Exception as e:
         logger.error(f"Get sales error: {str(e)}")
         return jsonify({'error': 'Failed to retrieve sales'}), 500
@@ -786,10 +811,12 @@ def create_sale():
              item = Item.query.get(item_id)
              if item:
                   sale_item = SaleItem(
+                       id = str(uuid.uuid4()),
                        sale_id = sale.id,
                        item_id = item.id,
                        quantity = quantity,
-                       price = item.retail_price
+                       unit_price = item.retail_price,
+                       total_price = quantity * item.retail_price
                   )
                   db.session.add(sale_item)
                   item.stock_quantity -= quantity
@@ -804,6 +831,20 @@ def create_sale():
         return jsonify({'error': 'Failed to create sale'}), 500
 
 # === DEBUG ROUTES ===
+
+@app.route('/api/init-db', methods=['POST'])
+@login_required
+def init_db_endpoint():
+    """Initialize database tables - for development only"""
+    try:
+        success = init_database()
+        if success:
+            return jsonify({'success': True, 'message': 'Database initialized successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Database initialization failed'}), 500
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # === DEBUG AUTHENTICATION ===
 

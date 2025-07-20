@@ -50,15 +50,15 @@ function loadCategories() {
             }
             return response.json();
         })
-        .then(categoriesData => {
-            console.log('Categories loaded:', categoriesData);
-            // Store globally for other functions
-            categories = categoriesData || [];
-            displayCategories(categoriesData);
-            updateCategoryStats(categoriesData);
-        })
+        .then(categories => {
+        const categoryData = Array.isArray(categories) ? categories : [];
+        displayCategories(categoryData);
+        hideLoading();
+    })
         .catch(error => {
             console.error('Error loading categories:', error);
+            hideLoading();
+        displayCategories([]);
             showAlert('Failed to load categories: ' + error.message, 'danger');
             // Show error state
             const categoriesTableBody = document.getElementById('categoriesTableBody');
@@ -105,7 +105,7 @@ function displayCategories(categories) {
     }
 
     let html = '';
-    
+
     // First, add all parent categories
     categories.forEach(category => {
         if (!category.parent_id) {
@@ -374,7 +374,7 @@ async function handleCategorySubmit(event) {
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
             // Close modal and reload categories
             const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
@@ -478,14 +478,14 @@ function editCategory(categoryId) {
  */
 function addSubcategory(categoryId) {
     console.log('Adding subcategory to category:', categoryId);
-    
+
     // Clear the form first
     document.getElementById('subcategoryForm').reset();
     document.getElementById('subcategoryId').value = '';
-    
+
     // Set the parent category ID
     document.getElementById('parentCategoryId').value = categoryId;
-    
+
     // Update modal title
     document.getElementById('subcategoryModalLabel').textContent = 'Add Subcategory';
 
@@ -612,7 +612,7 @@ async function deleteCategory(categoryId) {
 
     // Check if category has subcategories
     const hasSubcategories = category.subcategories && category.subcategories.length > 0;
-    
+
     let confirmMessage = `Are you sure you want to delete the category "${category.name}"?`;
     if (hasSubcategories) {
         confirmMessage += `\n\nThis category has ${category.subcategories.length} subcategories. All subcategories will also be deleted.`;

@@ -917,8 +917,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const quantityStr = document.getElementById('editItemQuantity').value.trim();
 
         // Get price fields
-        const buyingPriceStr =```text
-document.getElementById('editItemBuyingPrice').value.trim();
+        const buyingPriceStr = document.getElementById('editItemBuyingPrice').value.trim();
         const sellingPriceRetailStr = document.getElementById('editItemSellingPriceRetail').value.trim();
         const sellingPriceWholesaleStr = document.getElementById('editItemSellingPriceWholesale').value.trim();
 

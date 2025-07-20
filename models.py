@@ -1,6 +1,7 @@
 
 from extensions import db
 from datetime import datetime
+import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
@@ -72,12 +73,17 @@ class Sale(db.Model):
 class SaleItem(db.Model):
     __tablename__ = 'sale_items'
     
-    id = db.Column(db.String(50), primary_key=True)
+    id = db.Column(db.String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     sale_id = db.Column(db.String(50), db.ForeignKey('sales.id'), nullable=False)
     item_id = db.Column(db.String(50), db.ForeignKey('items.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     total_price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Add relationships
+    sale = db.relationship('Sale', backref='sale_items')
+    item = db.relationship('Item', backref='sale_items')
 
 class Category(db.Model):
     __tablename__ = 'categories'
