@@ -15,6 +15,10 @@ class FirebaseService:
             firebase_config.initialize_firebase()
         self.db = firebase_config.db
         self.auth = firebase_config.auth
+    
+    def get_firebase_api_key(self):
+        """Get Firebase API key for REST API authentication"""
+        return firebase_config.api_key
 
     # User operations
     def create_user(self, user_data, password=None):

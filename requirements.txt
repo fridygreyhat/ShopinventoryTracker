@@ -31,3 +31,4 @@ sift-stack-py
 firebase-admin
 sift-stack-py
 firebase-admin
+requests

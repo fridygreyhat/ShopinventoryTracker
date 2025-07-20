@@ -16,47 +16,87 @@ class FirebaseAdapter:
 
     # User operations
     def authenticate_user(self, email, password):
-        """Authenticate user with Firebase Auth"""
+        """Authenticate user with Firebase Auth using REST API for password verification"""
         try:
-            from firebase_admin import auth
+            import requests
+            import json
             
-            # First check if user exists in Firebase Auth
-            try:
-                auth_user = auth.get_user_by_email(email)
-                logger.info(f"Found user in Firebase Auth: {email}")
-            except auth.UserNotFoundError:
-                logger.warning(f"User not found in Firebase Auth: {email}")
-                return None
-            except Exception as auth_error:
-                logger.error(f"Firebase Auth error for {email}: {str(auth_error)}")
+            # Get Firebase API key from config
+            api_key = self.service.get_firebase_api_key()
+            if not api_key:
+                logger.error("Firebase API key not configured for authentication")
                 return None
             
-            # Note: Firebase Admin SDK doesn't support password verification
-            # For production, you should use Firebase Client SDK or REST API
-            # For now, we'll verify user exists and check Firestore document
+            # Firebase REST Auth API endpoint
+            auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
             
-            if auth_user:
-                # Get user document from Firestore
-                user_doc = self.service.db.collection('users').document(auth_user.uid).get()
-                if user_doc.exists:
-                    user_data = user_doc.to_dict()
-                    user_data['id'] = auth_user.uid
-                    
-                    # Check if user is active
-                    if not user_data.get('is_active', True):
-                        logger.warning(f"User account is inactive: {email}")
+            # Prepare authentication payload
+            auth_payload = {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            }
+            
+            # Make authentication request
+            response = requests.post(
+                auth_url,
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(auth_payload),
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                auth_data = response.json()
+                user_uid = auth_data.get('localId')
+                
+                if user_uid:
+                    # Get user document from Firestore
+                    user_doc = self.service.db.collection('users').document(user_uid).get()
+                    if user_doc.exists:
+                        user_data = user_doc.to_dict()
+                        user_data['id'] = user_uid
+                        
+                        # Check if user is active
+                        if not user_data.get('is_active', True):
+                            logger.warning(f"User account is inactive: {email}")
+                            return None
+                        
+                        # Store additional auth info for potential future use
+                        user_data['firebase_token'] = auth_data.get('idToken')
+                        user_data['refresh_token'] = auth_data.get('refreshToken')
+                        
+                        logger.info(f"Authentication successful for: {email}")
+                        return user_data
+                    else:
+                        logger.warning(f"User authenticated but not found in Firestore: {email}")
                         return None
-                    
-                    logger.info(f"Authentication successful for: {email}")
-                    return user_data
                 else:
-                    logger.warning(f"User exists in Auth but not in Firestore: {email}")
+                    logger.error(f"No user ID returned from Firebase Auth for: {email}")
                     return None
-            
+            else:
+                # Parse error response
+                error_data = response.json() if response.content else {}
+                error_message = error_data.get('error', {}).get('message', 'Unknown error')
+                
+                # Log specific error types
+                if 'EMAIL_NOT_FOUND' in error_message:
+                    logger.warning(f"User not found: {email}")
+                elif 'INVALID_PASSWORD' in error_message:
+                    logger.warning(f"Invalid password for user: {email}")
+                elif 'USER_DISABLED' in error_message:
+                    logger.warning(f"User account disabled: {email}")
+                elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_message:
+                    logger.warning(f"Too many failed attempts for user: {email}")
+                else:
+                    logger.error(f"Firebase Auth error for {email}: {error_message}")
+                
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error during authentication for {email}: {str(e)}")
             return None
-            
         except Exception as e:
-            logger.error(f"Authentication error for {email}: {str(e)}")
+            logger.error(f"Unexpected authentication error for {email}: {str(e)}")
             return None
 
     def create_user(self, user_data, password=None):

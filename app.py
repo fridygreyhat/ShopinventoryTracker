@@ -202,9 +202,17 @@ def api_login():
             logger.error("Firebase database not available")
             return jsonify({'error': 'Authentication service unavailable'}), 503
         
-        # Authenticate with Firebase
+        # Rate limiting check (basic implementation)
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        session_key = f"login_attempts_{client_ip}_{email}"
+        
+        # Authenticate with Firebase using proper password verification
         user = firebase_adapter.authenticate_user(email, password)
         if user:
+            # Clear any failed login attempts
+            session.pop(session_key, None)
+            
+            # Set session data
             session['user_id'] = user['id']
             session['email'] = user['email']
             session.permanent = True
@@ -227,15 +235,15 @@ def api_login():
         else:
             logger.warning(f"Authentication failed for: {email}")
             
-            # Check if user exists at all
-            existing_user = firebase_adapter.get_user_by_email(email)
-            if existing_user:
-                return jsonify({'error': 'Invalid password'}), 401
-            else:
-                return jsonify({'error': 'User not found'}), 401
+            # Increment failed login attempts
+            attempts = session.get(session_key, 0) + 1
+            session[session_key] = attempts
+            
+            # Generic error message for security
+            return jsonify({'error': 'Invalid email or password'}), 401
             
     except Exception as e:
-        logger.error(f"Login error for {email}: {str(e)}")
+        logger.error(f"Login error for {email if 'email' in locals() else 'unknown'}: {str(e)}")
         return jsonify({'error': 'Authentication failed. Please try again.'}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
