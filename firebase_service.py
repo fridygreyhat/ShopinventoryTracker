@@ -17,14 +17,20 @@ class FirebaseService:
         self.auth = firebase_config.auth
 
     # User operations
-    def create_user(self, user_data):
+    def create_user(self, user_data, password=None):
         """Create a new user in Firebase"""
         try:
+            # Use provided password or get from user_data
+            user_password = password or user_data.get('password')
+            if not user_password:
+                raise ValueError("Password is required for user creation")
+            
             # Create user in Firebase Auth
             auth_user = self.auth.create_user(
                 email=user_data['email'],
-                password=user_data.get('password', 'temp_password'),
-                display_name=f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                password=user_password,
+                display_name=f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip(),
+                email_verified=False
             )
 
             # Create user document in Firestore using UserModel

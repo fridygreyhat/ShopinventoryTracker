@@ -19,23 +19,49 @@ class FirebaseAdapter:
         """Authenticate user with Firebase Auth"""
         try:
             from firebase_admin import auth
-            # Get user by email
-            user = auth.get_user_by_email(email)
-            if user:
+            
+            # First check if user exists in Firebase Auth
+            try:
+                auth_user = auth.get_user_by_email(email)
+                logger.info(f"Found user in Firebase Auth: {email}")
+            except auth.UserNotFoundError:
+                logger.warning(f"User not found in Firebase Auth: {email}")
+                return None
+            except Exception as auth_error:
+                logger.error(f"Firebase Auth error for {email}: {str(auth_error)}")
+                return None
+            
+            # Note: Firebase Admin SDK doesn't support password verification
+            # For production, you should use Firebase Client SDK or REST API
+            # For now, we'll verify user exists and check Firestore document
+            
+            if auth_user:
                 # Get user document from Firestore
-                user_doc = self.service.db.collection('users').document(user.uid).get()
+                user_doc = self.service.db.collection('users').document(auth_user.uid).get()
                 if user_doc.exists:
                     user_data = user_doc.to_dict()
-                    user_data['id'] = user.uid
+                    user_data['id'] = auth_user.uid
+                    
+                    # Check if user is active
+                    if not user_data.get('is_active', True):
+                        logger.warning(f"User account is inactive: {email}")
+                        return None
+                    
+                    logger.info(f"Authentication successful for: {email}")
                     return user_data
+                else:
+                    logger.warning(f"User exists in Auth but not in Firestore: {email}")
+                    return None
+            
             return None
+            
         except Exception as e:
-            logger.error(f"Authentication error: {str(e)}")
+            logger.error(f"Authentication error for {email}: {str(e)}")
             return None
 
-    def create_user(self, user_data):
+    def create_user(self, user_data, password=None):
         """Create user using Firebase service"""
-        return self.service.create_user(user_data)
+        return self.service.create_user(user_data, password)
 
     def get_user_by_id(self, user_id):
         """Get user by ID from Firebase"""

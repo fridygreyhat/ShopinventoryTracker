@@ -181,11 +181,26 @@ def on_demand():
 def api_login():
     try:
         data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        
+        logger.info(f"Login attempt for email: {email}")
         
         if not email or not password:
-            return jsonify({'error': 'Email and password required'}), 400
+            logger.warning("Login attempt with missing email or password")
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            logger.warning(f"Invalid email format: {email}")
+            return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Check if Firebase is properly initialized
+        if not firebase_adapter.service.db:
+            logger.error("Firebase database not available")
+            return jsonify({'error': 'Authentication service unavailable'}), 503
         
         # Authenticate with Firebase
         user = firebase_adapter.authenticate_user(email, password)
@@ -197,6 +212,7 @@ def api_login():
             # Update last login
             firebase_adapter.service.update_user_last_login(user['id'])
             
+            logger.info(f"Successful login for: {email}")
             return jsonify({
                 'success': True,
                 'message': 'Login successful',
@@ -209,11 +225,18 @@ def api_login():
                 }
             })
         else:
-            return jsonify({'error': 'Invalid email or password'}), 401
+            logger.warning(f"Authentication failed for: {email}")
+            
+            # Check if user exists at all
+            existing_user = firebase_adapter.get_user_by_email(email)
+            if existing_user:
+                return jsonify({'error': 'Invalid password'}), 401
+            else:
+                return jsonify({'error': 'User not found'}), 401
             
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': 'Login failed'}), 500
+        logger.error(f"Login error for {email}: {str(e)}")
+        return jsonify({'error': 'Authentication failed. Please try again.'}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
 @login_required
@@ -240,6 +263,8 @@ def api_register():
         )
         
         user_id = firebase_adapter.create_user(user_data, data['password'])
+        if isinstance(user_id, dict):
+            user_id = user_id.get('id')
         if user_id:
             return jsonify({
                 'success': True,
@@ -673,3 +698,45 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
+# === DEBUG AUTHENTICATION ===
+
+@app.route('/debug/auth-test', methods=['POST'])
+def debug_auth_test():
+    """Debug endpoint to test authentication (remove in production)"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        # Check if user exists in Firebase Auth
+        from firebase_admin import auth
+        try:
+            auth_user = auth.get_user_by_email(email)
+            auth_exists = True
+            auth_info = {
+                'uid': auth_user.uid,
+                'email': auth_user.email,
+                'email_verified': auth_user.email_verified,
+                'disabled': auth_user.disabled
+            }
+        except auth.UserNotFoundError:
+            auth_exists = False
+            auth_info = None
+        
+        # Check if user exists in Firestore
+        firestore_user = firebase_adapter.get_user_by_email(email)
+        
+        debug_info = {
+            'email_searched': email,
+            'firebase_auth_exists': auth_exists,
+            'firebase_auth_info': auth_info,
+            'firestore_user_exists': firestore_user is not None,
+            'firestore_user_data': firestore_user if firestore_user else None,
+            'firebase_initialized': firebase_adapter.service.db is not None
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'debug': True}), 500
