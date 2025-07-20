@@ -10,7 +10,7 @@ deploymentTarget = "gce"
 run = ["sh", "-c", "python.py"]
 
 [workflows]
-runButton = "Start Simple Flask App"
+runButton = "Start PostgreSQL App"
 
 [[workflows.workflow]]
 name = "Project"
@@ -77,6 +77,15 @@ args = "python main.py"
 
 [[workflows.workflow]]
 name = "Start Simple Flask App"
+author = 40995501
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python app.py"
+
+[[workflows.workflow]]
+name = "Start PostgreSQL App"
 author = 40995501
 mode = "sequential"
 
