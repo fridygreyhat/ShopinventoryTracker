@@ -155,17 +155,51 @@ def api_login():
 def api_register():
     try:
         data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-        first_name = data.get('first_name')
-        last_name = data.get('last_name')
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
         
-        if not all([email, password, first_name, last_name]):
-            return jsonify({'error': 'All fields are required'}), 400
+        # Validate required fields
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
+        if not first_name:
+            return jsonify({'error': 'First name is required'}), 400
+        if not last_name:
+            return jsonify({'error': 'Last name is required'}), 400
+            
+        # Validate email format
+        if '@' not in email or '.' not in email:
+            return jsonify({'error': 'Invalid email format'}), 400
+            
+        # Validate password length
+        if len(password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
         
         # Check if user already exists
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'User already exists'}), 400
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': 'User with this email already exists'}), 400
+        
+        # Generate username from email if not provided
+        username = data.get('username', '').strip()
+        if not username:
+            username = email.split('@')[0]
+            # Ensure username is unique
+            counter = 1
+            base_username = username
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+        else:
+            # Check if provided username is unique
+            if User.query.filter_by(username=username).first():
+                return jsonify({'error': 'Username already exists'}), 400
         
         # Create new user
         user = User(
@@ -173,9 +207,9 @@ def api_register():
             password_hash=generate_password_hash(password),
             first_name=first_name,
             last_name=last_name,
-            username=data.get('username', email.split('@')[0]),
-            phone=data.get('phone', ''),
-            shop_name=data.get('shop_name', ''),
+            username=username,
+            phone=data.get('phone', '').strip(),
+            shop_name=data.get('shop_name', '').strip(),
             active=True,
             created_at=datetime.utcnow()
         )
@@ -183,16 +217,18 @@ def api_register():
         db.session.add(user)
         db.session.commit()
         
+        logger.info(f"New user registered: {email}")
+        
         return jsonify({
             'success': True,
-            'message': 'Registration successful',
+            'message': 'Registration successful! You can now log in.',
             'user_id': user.id
         })
         
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
         db.session.rollback()
-        return jsonify({'error': 'Registration failed'}), 500
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
 @login_required
