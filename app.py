@@ -26,7 +26,16 @@ if not firebase_config.initialize_firebase():
     logger.error("❌ Firebase initialization failed")
     sys.exit(1)
 
+# Validate required environment variables
+firebase_api_key = os.environ.get('FIREBASE_API_KEY')
+if not firebase_api_key:
+    logger.error("❌ FIREBASE_API_KEY environment variable not set")
+    logger.error("Please add your Firebase Web API key to FIREBASE_API_KEY environment variable")
+    logger.error("Find it in Firebase Console > Project Settings > Web Apps")
+    sys.exit(1)
+
 logger.info("✅ Clean Firebase-only system initialized")
+logger.info("✅ Firebase API key configured for authentication")
 
 # Authentication decorator
 def login_required(f):

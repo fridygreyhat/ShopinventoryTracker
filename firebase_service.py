@@ -2,6 +2,7 @@ from firebase_config import firebase_config
 from firebase_models import UserModel, ItemModel, SaleModel, CustomerModel, CategoryModel
 import logging
 import uuid
+import requests
 from datetime import datetime
 
 logger = logging.getLogger(__name__)

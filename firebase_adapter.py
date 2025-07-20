@@ -16,92 +16,175 @@ class FirebaseAdapter:
 
     # User operations
     def authenticate_user(self, email, password):
-        """Authenticate user with Firebase Auth using REST API for password verification"""
+        """Authenticate user with email and password using Firebase REST API"""
         try:
-            import requests
-            import json
-            
-            # Get Firebase API key from config
+            # Get Firebase API key
             api_key = self.service.get_firebase_api_key()
             if not api_key:
                 logger.error("Firebase API key not configured for authentication")
                 return None
-            
-            # Firebase REST Auth API endpoint
+
+            # Use Firebase Auth REST API for password verification
             auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
-            
-            # Prepare authentication payload
-            auth_payload = {
+
+            auth_data = {
                 "email": email,
                 "password": password,
                 "returnSecureToken": True
             }
-            
-            # Make authentication request
-            response = requests.post(
-                auth_url,
-                headers={"Content-Type": "application/json"},
-                data=json.dumps(auth_payload),
-                timeout=10
-            )
-            
+
+            # Set timeout and proper headers
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+
+            response = requests.post(auth_url, json=auth_data, headers=headers, timeout=10)
+
             if response.status_code == 200:
-                auth_data = response.json()
-                user_uid = auth_data.get('localId')
-                
-                if user_uid:
-                    # Get user document from Firestore
-                    user_doc = self.service.db.collection('users').document(user_uid).get()
-                    if user_doc.exists:
-                        user_data = user_doc.to_dict()
-                        user_data['id'] = user_uid
-                        
-                        # Check if user is active
-                        if not user_data.get('is_active', True):
-                            logger.warning(f"User account is inactive: {email}")
-                            return None
-                        
-                        # Store additional auth info for potential future use
-                        user_data['firebase_token'] = auth_data.get('idToken')
-                        user_data['refresh_token'] = auth_data.get('refreshToken')
-                        
-                        logger.info(f"Authentication successful for: {email}")
-                        return user_data
-                    else:
-                        logger.warning(f"User authenticated but not found in Firestore: {email}")
-                        return None
+                auth_result = response.json()
+                user_id = auth_result.get('localId')
+                id_token = auth_result.get('idToken')
+                refresh_token = auth_result.get('refreshToken')
+
+                # Verify the user exists in Firestore
+                user_data = self.service.get_user_by_id(user_id)
+                if user_data:
+                    # Add authentication tokens to user data
+                    user_data['id_token'] = id_token
+                    user_data['refresh_token'] = refresh_token
+                    user_data['last_login'] = datetime.utcnow().isoformat()
+
+                    logger.info(f"User authenticated successfully: {email}")
+                    return user_data
                 else:
-                    logger.error(f"No user ID returned from Firebase Auth for: {email}")
+                    logger.warning(f"User authenticated but not found in Firestore: {email}")
                     return None
             else:
-                # Parse error response
-                error_data = response.json() if response.content else {}
-                error_message = error_data.get('error', {}).get('message', 'Unknown error')
-                
-                # Log specific error types
-                if 'EMAIL_NOT_FOUND' in error_message:
-                    logger.warning(f"User not found: {email}")
-                elif 'INVALID_PASSWORD' in error_message:
-                    logger.warning(f"Invalid password for user: {email}")
-                elif 'USER_DISABLED' in error_message:
-                    logger.warning(f"User account disabled: {email}")
-                elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_message:
-                    logger.warning(f"Too many failed attempts for user: {email}")
-                else:
-                    logger.error(f"Firebase Auth error for {email}: {error_message}")
-                
+                # Handle specific Firebase Auth errors
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('error', {}).get('message', 'Authentication failed')
+
+                    # Map Firebase error codes to user-friendly messages
+                    if 'EMAIL_NOT_FOUND' in error_message:
+                        logger.warning(f"Email not found: {email}")
+                    elif 'INVALID_PASSWORD' in error_message:
+                        logger.warning(f"Invalid password for: {email}")
+                    elif 'USER_DISABLED' in error_message:
+                        logger.warning(f"User account disabled: {email}")
+                    elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_message:
+                        logger.warning(f"Too many failed attempts for: {email}")
+                    else:
+                        logger.warning(f"Authentication failed for {email}: {error_message}")
+
+                except Exception:
+                    logger.warning(f"Authentication failed for {email}: HTTP {response.status_code}")
+
                 return None
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Network error during authentication for {email}: {str(e)}")
+
+        except requests.Timeout:
+            logger.error(f"Authentication timeout for {email}")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"Network error during authentication: {str(e)}")
             return None
         except Exception as e:
             logger.error(f"Unexpected authentication error for {email}: {str(e)}")
             return None
 
-    def create_user(self, user_data, password=None):
-        """Create user using Firebase service"""
-        return self.service.create_user(user_data, password)
+    def create_user(self, user_data, password):
+        """Create a new user with Firebase Auth and Firestore using REST API"""
+        try:
+            # Get Firebase API key
+            api_key = self.service.get_firebase_api_key()
+            if not api_key:
+                logger.error("Firebase API key not configured for user creation")
+                return None
+
+            # Validate password strength
+            if len(password) < 6:
+                logger.error("Password must be at least 6 characters long")
+                return None
+
+            # Create user with Firebase Auth REST API
+            auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
+
+            auth_data = {
+                "email": user_data['email'],
+                "password": password,
+                "returnSecureToken": True,
+                "displayName": f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+            }
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+
+            response = requests.post(auth_url, json=auth_data, headers=headers, timeout=10)
+
+            if response.status_code == 200:
+                auth_result = response.json()
+                user_id = auth_result.get('localId')
+
+                # Create user document in Firestore
+                firestore_user_data = UserModel.create_user_data(
+                    email=user_data['email'],
+                    first_name=user_data.get('first_name', ''),
+                    last_name=user_data.get('last_name', ''),
+                    username=user_data.get('username', user_data['email'].split('@')[0]),
+                    phone=user_data.get('phone', ''),
+                    is_admin=user_data.get('is_admin', False),
+                    is_active=True,
+                    created_at=datetime.utcnow().isoformat()
+                )
+
+                # Add additional fields
+                firestore_user_data.update({
+                    'shop_name': user_data.get('shop_name', ''),
+                    'product_categories': user_data.get('product_categories', ''),
+                    'email_verified': False,
+                    'firebase_uid': user_id
+                })
+
+                # Save to Firestore
+                self.service.db.collection('users').document(user_id).set(firestore_user_data)
+
+                # Return user data with ID
+                firestore_user_data['id'] = user_id
+                logger.info(f"User created successfully with REST API: {user_data['email']}")
+                return firestore_user_data
+
+            else:
+                # Handle Firebase Auth errors
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('error', {}).get('message', 'User creation failed')
+
+                    if 'EMAIL_EXISTS' in error_message:
+                        logger.warning(f"Email already exists: {user_data['email']}")
+                    elif 'WEAK_PASSWORD' in error_message:
+                        logger.warning(f"Password is too weak for: {user_data['email']}")
+                    elif 'INVALID_EMAIL' in error_message:
+                        logger.warning(f"Invalid email format: {user_data['email']}")
+                    else:
+                        logger.error(f"User creation failed: {error_message}")
+
+                except Exception:
+                    logger.error(f"User creation failed: HTTP {response.status_code}")
+
+                return None
+
+        except requests.Timeout:
+            logger.error(f"User creation timeout for {user_data.get('email')}")
+            return None
+        except requests.RequestException as e:
+            logger.error(f"Network error during user creation: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating user: {str(e)}")
+            return None
 
     def get_user_by_id(self, user_id):
         """Get user by ID from Firebase"""
@@ -110,7 +193,7 @@ class FirebaseAdapter:
             if not self.service.db:
                 logger.error("Firebase database not available")
                 return None
-                
+
             user_doc = self.service.db.collection('users').document(user_id).get()
             if user_doc.exists:
                 user_data = user_doc.to_dict()
@@ -130,7 +213,7 @@ class FirebaseAdapter:
             if not self.service.db:
                 logger.error("Firebase database not available")
                 return []
-                
+
             items_ref = self.service.db.collection('items').where('user_id', '==', user_id).where('is_active', '==', True)
             items_docs = items_ref.stream()
 
@@ -152,7 +235,7 @@ class FirebaseAdapter:
             if not self.service.db:
                 logger.error("Firebase database not available")
                 return []
-                
+
             customers_ref = self.service.db.collection('customers').where('user_id', '==', user_id)
             customers_docs = customers_ref.stream()
 
@@ -226,7 +309,7 @@ class FirebaseAdapter:
             if not self.service.db:
                 logger.error("Firebase not initialized")
                 return None
-                
+
             # First, try to get user from Firebase Auth
             from firebase_admin import auth
             try:
@@ -446,7 +529,7 @@ class FirebaseAdapter:
         try:
             item_ref = self.service.db.collection('items').document(item_id)
             item_doc = item_ref.get()
-            
+
             if item_doc.exists:
                 item_data = item_doc.to_dict()
                 if item_data.get('user_id') == user_id:
@@ -476,13 +559,13 @@ class FirebaseAdapter:
         """Get a specific sale by ID"""
         try:
             sale_doc = self.service.db.collection('sales').document(sale_id).get()
-            
+
             if sale_doc.exists:
                 sale_data = sale_doc.to_dict()
                 if sale_data.get('user_id') == user_id:
                     sale_data['id'] = sale_id
                     return sale_data
-                    
+
             return None
         except Exception as e:
             logger.error(f"Error getting sale by ID: {str(e)}")
@@ -493,7 +576,7 @@ class FirebaseAdapter:
         try:
             sale_ref = self.service.db.collection('sales').document(sale_id)
             sale_doc = sale_ref.get()
-            
+
             if sale_doc.exists:
                 sale_data = sale_doc.to_dict()
                 if sale_data.get('user_id') == user_id:
@@ -534,13 +617,13 @@ class FirebaseAdapter:
         try:
             customer_ref = self.service.db.collection('customers').document(customer_id)
             customer_doc = customer_ref.get()
-            
+
             if customer_doc.exists:
                 customer_data = customer_doc.to_dict()
                 if customer_data.get('user_id') == user_id:
                     customer_data['id'] = customer_id
                     return customer_data
-                    
+
             return None
         except Exception as e:
             logger.error(f"Error getting customer by ID: {str(e)}")
@@ -570,13 +653,13 @@ class FirebaseAdapter:
             if not self.service.db:
                 logger.error("Firebase database not available")
                 return []
-                
+
             categories_ref = self.service.db.collection('categories').where('user_id', '==', user_id).where('is_active', '==', True)
             categories_docs = categories_ref.stream()
 
             all_categories = []
             category_map = {}
-            
+
             # First pass: collect all categories
             for doc in categories_docs:
                 category_data = doc.to_dict()
@@ -623,13 +706,13 @@ class FirebaseAdapter:
         """Get a specific category by ID"""
         try:
             category_doc = self.service.db.collection('categories').document(category_id).get()
-            
+
             if category_doc.exists:
                 category_data = category_doc.to_dict()
                 if category_data.get('user_id') == user_id:
                     category_data['id'] = category_id
                     return category_data
-                    
+
             return None
         except Exception as e:
             logger.error(f"Error getting category by ID: {str(e)}")
