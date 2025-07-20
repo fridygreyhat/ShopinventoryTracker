@@ -176,7 +176,7 @@ def api_register():
             username=data.get('username', email.split('@')[0]),
             phone=data.get('phone', ''),
             shop_name=data.get('shop_name', ''),
-            is_active=True,
+            active=True,
             created_at=datetime.utcnow()
         )
         
@@ -209,20 +209,20 @@ def dashboard_summary():
         user_id = session.get('user_id')
         
         # Get counts
-        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
-        total_customers = Customer.query.filter_by(user_id=user_id, is_active=True).count()
+        total_items = Item.query.filter_by(user_id=user_id, active=True).count()
+        total_customers = Customer.query.filter_by(user_id=user_id, active=True).count()
         total_sales = Sale.query.filter_by(user_id=user_id).count()
-        total_categories = Category.query.filter_by(user_id=user_id, is_active=True).count()
+        total_categories = Category.query.filter_by(user_id=user_id, active=True).count()
         
         # Get low stock items
         low_stock_items = Item.query.filter(
             Item.user_id == user_id,
-            Item.is_active == True,
+            Item.active == True,
             Item.stock_quantity <= Item.minimum_stock
         ).count()
         
         # Calculate total inventory value
-        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        items = Item.query.filter_by(user_id=user_id, active=True).all()
         total_inventory_value = sum(
             (item.stock_quantity or 0) * (item.retail_price or 0) 
             for item in items
@@ -251,7 +251,7 @@ def dashboard_summary():
 def get_items():
     try:
         user_id = session.get('user_id')
-        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
+        items = Item.query.filter_by(user_id=user_id, active=True).all()
         
         items_data = []
         for item in items:
@@ -297,7 +297,7 @@ def create_item():
             sku=data.get('sku', ''),
             barcode=data.get('barcode', ''),
             user_id=user_id,
-            is_active=True,
+            active=True,
             created_at=datetime.utcnow()
         )
         
@@ -348,7 +348,7 @@ def get_sales():
 def get_customers():
     try:
         user_id = session.get('user_id')
-        customers = Customer.query.filter_by(user_id=user_id, is_active=True).all()
+        customers = Customer.query.filter_by(user_id=user_id, active=True).all()
         
         customers_data = []
         for customer in customers:
@@ -376,7 +376,7 @@ def get_customers():
 def get_categories():
     try:
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id, is_active=True).all()
+        categories = Category.query.filter_by(user_id=user_id, active=True).all()
         
         # Transform categories to match expected frontend format
         formatted_categories = []

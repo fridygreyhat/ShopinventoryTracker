@@ -14,7 +14,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     shop_name = db.Column(db.String(100))
     is_admin = db.Column(db.Boolean, default=False)
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
     email_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
@@ -42,7 +42,7 @@ class Item(db.Model):
     wholesale_price = db.Column(db.Numeric(10, 2))
     sku = db.Column(db.String(50))
     barcode = db.Column(db.String(50))
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -66,7 +66,7 @@ class Customer(db.Model):
     notes = db.Column(db.Text)
     total_purchases = db.Column(db.Numeric(10, 2), default=0)
     loyalty_points = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -87,7 +87,7 @@ class Category(db.Model):
     description = db.Column(db.Text)
     parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     sort_order = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
