@@ -285,20 +285,20 @@ def dashboard_summary():
         user_id = session.get('user_id')
         
         # Get counts
-        total_items = Item.query.filter_by(user_id=user_id, active=True).count()
+        total_items = Item.query.filter_by(user_id=user_id, is_active=True).count()
         total_customers = Customer.query.filter_by(user_id=user_id, active=True).count()
         total_sales = Sale.query.filter_by(user_id=user_id).count()
-        total_categories = Category.query.filter_by(user_id=user_id, active=True).count()
+        total_categories = Category.query.filter_by(is_active=True).count()
         
         # Get low stock items
         low_stock_items = Item.query.filter(
             Item.user_id == user_id,
-            Item.active == True,
+            Item.is_active == True,
             Item.stock_quantity <= Item.minimum_stock
         ).count()
         
         # Calculate total inventory value
-        items = Item.query.filter_by(user_id=user_id, active=True).all()
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
         total_inventory_value = sum(
             (item.stock_quantity or 0) * (item.retail_price or 0) 
             for item in items
@@ -327,7 +327,7 @@ def dashboard_summary():
 def get_items():
     try:
         user_id = session.get('user_id')
-        items = Item.query.filter_by(user_id=user_id, active=True).all()
+        items = Item.query.filter_by(user_id=user_id, is_active=True).all()
         
         items_data = []
         for item in items:
@@ -335,7 +335,7 @@ def get_items():
                 'id': item.id,
                 'name': item.name,
                 'description': item.description,
-                'category': item.category,
+                'category_id': item.category_id,
                 'stock_quantity': item.stock_quantity,
                 'minimum_stock': item.minimum_stock,
                 'buying_price': float(item.buying_price or 0),
@@ -364,7 +364,7 @@ def create_item():
         item = Item(
             name=data['name'],
             description=data.get('description', ''),
-            category=data.get('category', 'General'),
+            category_id=data.get('category_id'),
             stock_quantity=int(data.get('stock_quantity', 0)),
             minimum_stock=int(data.get('minimum_stock', 0)),
             buying_price=float(data.get('buying_price', 0)),
@@ -373,7 +373,7 @@ def create_item():
             sku=data.get('sku', ''),
             barcode=data.get('barcode', ''),
             user_id=user_id,
-            active=True,
+            is_active=True,
             created_at=datetime.utcnow()
         )
         
@@ -452,7 +452,7 @@ def get_customers():
 def get_categories():
     try:
         user_id = session.get('user_id')
-        categories = Category.query.filter_by(user_id=user_id, active=True).all()
+        categories = Category.query.filter_by(is_active=True).all()
         
         # Transform categories to match expected frontend format
         formatted_categories = []

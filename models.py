@@ -23,7 +23,6 @@ class User(db.Model):
     items = db.relationship('Item', backref='user', lazy=True, cascade='all, delete-orphan')
     customers = db.relationship('Customer', backref='user', lazy=True, cascade='all, delete-orphan')
     sales = db.relationship('Sale', backref='user', lazy=True, cascade='all, delete-orphan')
-    categories = db.relationship('Category', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -34,7 +33,7 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50))
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     stock_quantity = db.Column(db.Integer, default=0)
     minimum_stock = db.Column(db.Integer, default=0)
     buying_price = db.Column(db.Numeric(10, 2))
@@ -42,12 +41,15 @@ class Item(db.Model):
     wholesale_price = db.Column(db.Numeric(10, 2))
     sku = db.Column(db.String(50))
     barcode = db.Column(db.String(50))
-    active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Foreign key
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # Relationship to category
+    category = db.relationship('Category', foreign_keys=[category_id], backref='items')
 
     def __repr__(self):
         return f'<Item {self.name}>'
@@ -87,12 +89,9 @@ class Category(db.Model):
     description = db.Column(db.Text)
     parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     sort_order = db.Column(db.Integer, default=0)
-    active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Foreign key
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # Self-referential relationship for parent/child categories
     subcategories = db.relationship('Category', backref=db.backref('parent', remote_side=[id]), lazy=True)
