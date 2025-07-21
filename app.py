@@ -105,6 +105,46 @@ def customers():
 def categories():
     return render_template('categories.html')
 
+@app.route('/installments')
+@login_required
+def installments():
+    return render_template('installments.html')
+
+@app.route('/margin')
+@login_required
+def margin():
+    return render_template('margin.html')
+
+@app.route('/finance')
+@login_required
+def finance():
+    return render_template('finance.html')
+
+@app.route('/accounting')
+@login_required
+def accounting():
+    return render_template('accounting.html')
+
+@app.route('/reports')
+@login_required
+def reports():
+    return render_template('reports.html')
+
+@app.route('/on_demand')
+@login_required
+def on_demand():
+    return render_template('on_demand.html')
+
+@app.route('/admin_users')
+@login_required
+def admin_users():
+    return render_template('admin_users.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    return render_template('settings.html')
+
 @app.route('/logout')
 @login_required
 def logout():
