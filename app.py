@@ -2790,7 +2790,7 @@ def create_installment_sale():
 
 @app.route('/api/installment-sales', methods=['POST'])
 @login_required
-def create_installment_sale():
+def create_installment_sale1():
     """Create new installment sale"""
     try:
         user_id = session.get('user_id')
