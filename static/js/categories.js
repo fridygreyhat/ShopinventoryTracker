@@ -20,15 +20,17 @@ let editingSubcategory = null;
 // Fix categories loading
 function loadCategories() {
     // Show loading state
-    const categoriesContainer = document.getElementById('categoriesContainer');
-    if (categoriesContainer) {
-        categoriesContainer.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading categories...</span>
-                </div>
-                <p class="mt-2 text-muted">Loading categories...</p>
-            </div>
+    const categoriesTableBody = document.getElementById('categoriesTableBody');
+    if (categoriesTableBody) {
+        categoriesTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading categories...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading categories...</p>
+                </td>
+            </tr>
         `;
     }
 
@@ -48,154 +50,147 @@ function loadCategories() {
             }
             return response.json();
         })
-        .then(categoriesData => {
-            console.log('Categories loaded:', categoriesData);
-            // Store globally for other functions
-            categories = categoriesData || [];
-            displayCategories(categoriesData);
-            updateCategoryStats(categoriesData);
-        })
+        .then(categories => {
+        const categoryData = Array.isArray(categories) ? categories : [];
+        displayCategories(categoryData);
+        hideLoading();
+    })
         .catch(error => {
             console.error('Error loading categories:', error);
+            hideLoading();
+        displayCategories([]);
             showAlert('Failed to load categories: ' + error.message, 'danger');
             // Show error state
-            const categoriesContainer = document.getElementById('categoriesContainer');
-            if (categoriesContainer) {
-                categoriesContainer.innerHTML = `
-                    <div class="col-12">
-                        <div class="alert alert-danger text-center">
-                            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                            <h4>Error Loading Categories</h4>
-                            <p>Unable to load categories: ${error.message}</p>
-                            <button class="btn btn-primary" onclick="loadCategories()">
-                                <i class="fas fa-refresh me-2"></i>Try Again
-                            </button>
-                        </div>
-                    </div>
+            const categoriesTableBody = document.getElementById('categoriesTableBody');
+            if (categoriesTableBody) {
+                categoriesTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                                <h4>Error Loading Categories</h4>
+                                <p>Unable to load categories: ${error.message}</p>
+                                <button class="btn btn-primary" onclick="loadCategories()">
+                                    <i class="fas fa-refresh me-2"></i>Try Again
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 `;
             }
         });
 }
 
 function displayCategories(categories) {
-    const categoriesContainer = document.getElementById('categoriesContainer');
-    if (!categoriesContainer) {
-        console.warn('Categories container not found');
+    const categoriesTableBody = document.getElementById('categoriesTableBody');
+    if (!categoriesTableBody) {
+        console.warn('Categories table body not found');
         return;
     }
 
     if (!categories || categories.length === 0) {
-        categoriesContainer.innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-info text-center">
-                    <i class="fas fa-folder-open fa-3x mb-3"></i>
+        categoriesTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <i class="fas fa-folder-open fa-3x mb-3 text-muted"></i>
                     <h4>No categories found</h4>
-                    <p>Create your first category to organize your products</p>
+                    <p class="text-muted">Create your first category to organize your products</p>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
                         <i class="fas fa-plus me-2"></i>Add Category
                     </button>
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
         return;
     }
 
     let html = '';
+
+    // First, add all parent categories
     categories.forEach(category => {
-        const subcategoriesCount = (category.subcategories && Array.isArray(category.subcategories)) ? category.subcategories.length : 0;
-        const directItemCount = category.item_count || 0;
-        const totalItemCount = category.total_item_count || 0;
-        
-        // Build subcategories HTML with item counts
-        let subcategoriesHtml = '';
-        if (category.subcategories && category.subcategories.length > 0) {
-            subcategoriesHtml = '<div class="mt-2"><strong class="text-primary">Subcategories:</strong><ul class="list-unstyled ms-3">';
-            category.subcategories.forEach(sub => {
-                const subItemCount = sub.item_count || 0;
-                const subTotalCount = sub.total_item_count || 0;
-                subcategoriesHtml += `
-                    <li class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-folder text-secondary me-2"></i>
-                                <span class="fw-medium">${escapeHtml(sub.name)}</span>
-                            </div>
-                            <div class="small text-muted mt-1">
-                                <span class="badge bg-secondary me-1">${subItemCount} items</span>
-                                ${subTotalCount > subItemCount ? `<span class="badge bg-info">${subTotalCount} total</span>` : ''}
-                            </div>
+        if (!category.parent_id) {
+            const directItemCount = category.item_count || 0;
+            const totalItemCount = category.total_item_count || 0;
+            const statusBadge = category.is_active ? 
+                '<span class="badge bg-success">Active</span>' : 
+                '<span class="badge bg-danger">Inactive</span>';
+
+            html += `
+                <tr class="table-primary">
+                    <td><strong>${category.id}</strong></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-folder text-primary me-2"></i>
+                            <strong>${escapeHtml(category.name)}</strong>
                         </div>
+                    </td>
+                    <td class="text-muted small">${escapeHtml(category.description || 'No description')}</td>
+                    <td><span class="badge bg-secondary">Main Category</span></td>
+                    <td><span class="badge bg-primary">${directItemCount}</span></td>
+                    <td><span class="badge bg-success">${totalItemCount}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary btn-sm" onclick="editSubcategory(${sub.id})" title="Edit Subcategory">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editCategory(${category.id})" title="Edit Category">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="deleteSubcategory(${sub.id})" title="Delete Subcategory">
+                            <button class="btn btn-outline-info btn-sm" onclick="addSubcategory(${category.id})" title="Add Subcategory">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteCategory(${category.id})" title="Delete Category">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
-                    </li>
-                `;
-            });
-            subcategoriesHtml += '</ul></div>';
-        } else {
-            subcategoriesHtml = '<div class="mt-2"><p class="text-muted small mb-0"><i class="fas fa-info-circle me-1"></i>No subcategories yet</p></div>';
-        }
+                    </td>
+                </tr>
+            `;
 
-        html += `
-            <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card category-card h-100">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title mb-0">${escapeHtml(category.name)}</h5>
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="editCategory(${category.id})">
-                                        <i class="fas fa-edit me-2"></i>Edit Category
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="addSubcategory(${category.id})">
-                                        <i class="fas fa-plus me-2"></i>Add Subcategory
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteCategory(${category.id})">
-                                        <i class="fas fa-trash me-2"></i>Delete Category
-                                    </a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <p class="card-text text-muted small">${escapeHtml(category.description || 'No description')}</p>
-                        <div class="row mb-3">
-                            <div class="col-6">
-                                <div class="text-center p-2 bg-primary bg-opacity-10 rounded">
-                                    <div class="fw-bold text-primary">${directItemCount}</div>
-                                    <small class="text-muted">Direct Items</small>
+            // Add subcategories right after their parent
+            if (category.subcategories && category.subcategories.length > 0) {
+                category.subcategories.forEach(subcategory => {
+                    const subItemCount = subcategory.item_count || 0;
+                    const subTotalCount = subcategory.total_item_count || 0;
+                    const subStatusBadge = subcategory.is_active ? 
+                        '<span class="badge bg-success">Active</span>' : 
+                        '<span class="badge bg-danger">Inactive</span>';
+
+                    html += `
+                        <tr>
+                            <td class="ps-4">${subcategory.id}</td>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-folder-open text-secondary me-2"></i>
+                                    ${escapeHtml(subcategory.name)}
                                 </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-center p-2 bg-success bg-opacity-10 rounded">
-                                    <div class="fw-bold text-success">${totalItemCount}</div>
-                                    <small class="text-muted">Total Items</small>
+                            </td>
+                            <td class="text-muted small">${escapeHtml(subcategory.description || 'No description')}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-arrow-right text-muted me-1"></i>
+                                    <small class="text-muted">${escapeHtml(category.name)}</small>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <span class="badge bg-info">${subcategoriesCount} subcategories</span>
-                        </div>
-                        ${subcategoriesHtml}
-                        <div class="mt-3">
-                            <button class="btn btn-sm btn-outline-primary w-100" onclick="addSubcategory(${category.id})">
-                                <i class="fas fa-plus me-2"></i>Add Subcategory
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+                            </td>
+                            <td><span class="badge bg-primary">${subItemCount}</span></td>
+                            <td><span class="badge bg-success">${subTotalCount}</span></td>
+                            <td>${subStatusBadge}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editSubcategory(${subcategory.id})" title="Edit Subcategory">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteSubcategory(${subcategory.id})" title="Delete Subcategory">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
     });
 
-    categoriesContainer.innerHTML = html;
+    categoriesTableBody.innerHTML = html;
 }
 
 function escapeHtml(text) {
@@ -379,7 +374,7 @@ async function handleCategorySubmit(event) {
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
             // Close modal and reload categories
             const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
@@ -482,12 +477,17 @@ function editCategory(categoryId) {
  * Add a subcategory to a category
  */
 function addSubcategory(categoryId) {
+    console.log('Adding subcategory to category:', categoryId);
+
+    // Clear the form first
+    document.getElementById('subcategoryForm').reset();
+    document.getElementById('subcategoryId').value = '';
+
     // Set the parent category ID
     document.getElementById('parentCategoryId').value = categoryId;
 
-    // Clear the form
-    document.getElementById('subcategoryForm').reset();
-    document.getElementById('subcategoryId').value = '';
+    // Update modal title
+    document.getElementById('subcategoryModalLabel').textContent = 'Add Subcategory';
 
     // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('subcategoryModal'));
@@ -501,34 +501,54 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
     const subcategoryId = document.getElementById('subcategoryId').value;
     const parentCategoryId = document.getElementById('parentCategoryId').value;
     const formData = {
-        name: document.getElementById('subcategoryName').value,
-        description: document.getElementById('subcategoryDescription').value
+        name: document.getElementById('subcategoryName').value.trim(),
+        description: document.getElementById('subcategoryDescription').value.trim()
     };
+
+    if (!formData.name) {
+        showAlert('Subcategory name is required', 'danger');
+        return;
+    }
+
+    if (!parentCategoryId && !subcategoryId) {
+        showAlert('Parent category is required for new subcategories', 'danger');
+        return;
+    }
 
     try {
         let response;
 
         if (subcategoryId) {
             // Update existing subcategory
-            response = await fetch(`/api/categories/${subcategoryId}`, {
+            response = await fetch(`/api/subcategories/${subcategoryId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify(formData)
             });
         } else {
             // Create new subcategory
+            console.log('Creating subcategory under parent:', parentCategoryId, formData);
             response = await fetch(`/api/categories/${parentCategoryId}/subcategories`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify(formData)
             });
         }
 
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Subcategory save error:', errorData);
+            throw new Error(errorData.error || 'Failed to save subcategory');
+        }
+
         const result = await response.json();
+        console.log('Subcategory save result:', result);
 
         if (result.success) {
             // Close modal
@@ -536,16 +556,16 @@ document.getElementById('subcategoryForm').addEventListener('submit', async func
             modal.hide();
 
             // Show success message
-            showAlert('success', subcategoryId ? 'Subcategory updated successfully!' : 'Subcategory created successfully!');
+            showAlert(subcategoryId ? 'Subcategory updated successfully!' : 'Subcategory created successfully!', 'success');
 
             // Reload categories
             loadCategories();
         } else {
-            showAlert('danger', result.error || 'Failed to save subcategory');
+            showAlert(result.error || 'Failed to save subcategory', 'danger');
         }
     } catch (error) {
         console.error('Error saving subcategory:', error);
-        showAlert('danger', 'An error occurred while saving the subcategory');
+        showAlert(error.message, 'danger');
     }
 });
 
@@ -592,7 +612,7 @@ async function deleteCategory(categoryId) {
 
     // Check if category has subcategories
     const hasSubcategories = category.subcategories && category.subcategories.length > 0;
-    
+
     let confirmMessage = `Are you sure you want to delete the category "${category.name}"?`;
     if (hasSubcategories) {
         confirmMessage += `\n\nThis category has ${category.subcategories.length} subcategories. All subcategories will also be deleted.`;
@@ -645,8 +665,9 @@ async function deleteSubcategory(subcategoryId) {
     }
 
     try {
-        const response = await fetch(`/api/categories/${subcategoryId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/api/subcategories/${subcategoryId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
         });
 
         if (!response.ok) {
@@ -654,7 +675,8 @@ async function deleteSubcategory(subcategoryId) {
             throw new Error(error.error || 'Failed to delete subcategory');
         }
 
-        showAlert(`Subcategory "${subcategoryName}" deleted successfully`, 'success');
+        const result = await response.json();
+        showAlert(result.message || `Subcategory "${subcategoryName}" deleted successfully`, 'success');
         loadCategories();
 
     } catch (error) {

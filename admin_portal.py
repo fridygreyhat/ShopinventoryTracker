@@ -47,8 +47,8 @@ def admin_dashboard():
 
         # Business metrics across all users
         total_items = Item.query.filter_by(is_active=True).count()
-        total_customers = Customer.query.count() if hasattr(Customer, 'query') else 0
-        total_categories = Category.query.filter_by(is_active=True).count() if hasattr(Category, 'query') else 0
+        total_customers = Customer.query.count()
+        total_categories = Category.query.filter_by(is_active=True).count()
 
         # Financial overview
         total_sales_amount = db.session.query(func.sum(Sale.total_amount)).scalar() or 0
@@ -63,8 +63,8 @@ def admin_dashboard():
             top_users = db.session.query(
                 User.email,
                 func.count(Sale.id).label('sale_count'),
-                func.sum(Sale.total_amount).label('total_sales')
-            ).join(Sale, User.id == Sale.user_id, isouter=True)\
+                func.coalesce(func.sum(Sale.total_amount), 0).label('total_sales')
+            ).outerjoin(Sale, User.id == Sale.user_id)\
              .group_by(User.id, User.email)\
              .order_by(desc('total_sales'))\
              .limit(10).all()
@@ -73,7 +73,16 @@ def admin_dashboard():
             top_users = []
 
         # System health metrics
-        low_stock_items = Item.query.filter(Item.stock_quantity <= Item.minimum_stock).count()
+        try:
+            low_stock_items = Item.query.filter(
+                and_(
+                    Item.stock_quantity <= Item.minimum_stock,
+                    Item.is_active == True
+                )
+            ).count()
+        except Exception as e:
+            logger.warning(f"Error getting low stock items: {e}")
+            low_stock_items = 0
 
         # Recent system activity
         recent_users = User.query.order_by(desc(User.created_at)).limit(5).all()
@@ -319,8 +328,11 @@ def change_user_password(user_id):
         try:
             # Update password
             user.set_password(new_password)
-            user.login_attempts = 0  # Reset login attempts
-            user.locked_until = None  # Unlock account if locked
+            # Reset login attempts if column exists
+            if hasattr(user, 'login_attempts'):
+                user.login_attempts = 0
+            if hasattr(user, 'locked_until'):
+                user.locked_until = None
             db.session.commit()
 
             flash(f'Password for {user.email} has been successfully changed.', 'success')
@@ -377,7 +389,10 @@ def manage_user_permissions(user_id):
             #app.logger.error(f'Error updating permissions for user {user_id}: {str(e)}')
 
     # Get current permissions
-    current_permissions = user.get_permissions()
+    try:
+        current_permissions = user.get_permissions() if hasattr(user, 'get_permissions') else []
+    except:
+        current_permissions = []
 
     return render_template('admin/manage_permissions.html',
                          user=user,

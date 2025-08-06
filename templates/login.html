@@ -553,7 +553,7 @@
                 body.classList.add('success');
                 loginBtn.querySelector('.btn-text').innerHTML = '<i class="fas fa-check me-2"></i>Success! Redirecting...';
                 setTimeout(() => {
-                    window.location.href = '/';
+                    window.location.href = '/dashboard';
                 }, 1000);
             } else {
                 showError(data.error || 'Login failed. Please check your credentials and try again.');

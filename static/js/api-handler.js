@@ -25,6 +25,7 @@ class APIHandler {
      */
     async fetchWithAuth(url, options = {}) {
         const config = {
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers
@@ -39,7 +40,10 @@ class APIHandler {
             if (response.status === 302 || response.status === 401) {
                 this.isAuthenticated = false;
                 console.warn(`Authentication required for ${url}`);
-                // Return a mock response that indicates auth failure
+                // Redirect to login if not authenticated
+                if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+                    window.location.href = '/login';
+                }
                 return {
                     ok: false,
                     status: 401,
@@ -51,7 +55,6 @@ class APIHandler {
             
         } catch (error) {
             console.error(`API Error for ${url}:`, error);
-            // Return a mock response that indicates network error
             return {
                 ok: false,
                 status: 500,
@@ -74,27 +77,33 @@ class APIHandler {
     }
 
     /**
-     * Get top selling items
+     * Get top selling items - calculated from sales data
      */
     async getTopSellingItems() {
         try {
-            const response = await this.fetchWithAuth('/api/sales/performance/top');
-            return response.ok ? await response.json() : [];
+            const response = await this.fetchWithAuth('/api/sales');
+            if (!response.ok) return [];
+            
+            const salesData = await response.json();
+            const itemSales = {};
+            
+            if (salesData && Array.isArray(salesData)) {
+                salesData.forEach(sale => {
+                    if (sale.sale_items) {
+                        sale.sale_items.forEach(item => {
+                            const itemName = item.item_name || item.name;
+                            itemSales[itemName] = (itemSales[itemName] || 0) + item.quantity;
+                        });
+                    }
+                });
+            }
+            
+            return Object.entries(itemSales)
+                .map(([name, quantity]) => ({ name, quantity }))
+                .sort((a, b) => b.quantity - a.quantity)
+                .slice(0, 10);
         } catch (error) {
             console.error('Error loading top selling items:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Get slow moving items
-     */
-    async getSlowMovingItems() {
-        try {
-            const response = await this.fetchWithAuth('/api/sales/performance/slow');
-            return response.ok ? await response.json() : [];
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
             return [];
         }
     }
@@ -105,25 +114,16 @@ class APIHandler {
     async getCategoryBreakdown() {
         try {
             const response = await this.fetchWithAuth('/api/reports/category-breakdown');
-            return response.ok ? await response.json() : {};
+            if (!response.ok) return { success: false, categories: [] };
+            const data = await response.json();
+            return data.success ? data : { success: false, categories: [] };
         } catch (error) {
             console.error('Error loading category breakdown:', error);
-            return {};
+            return { success: false, categories: [] };
         }
     }
 
-    /**
-     * Get slow moving items
-     */
-    async getSlowMovingItems() {
-        try {
-            const response = await this.fetchWithAuth('/api/sales/performance/slow');
-            return response.ok ? await response.json() : [];
-        } catch (error) {
-            console.error('Error loading slow moving items:', error);
-            return [];
-        }
-    }
+
 
     /**
      * Get on-demand products
@@ -131,10 +131,12 @@ class APIHandler {
     async getOnDemandProducts() {
         try {
             const response = await this.fetchWithAuth('/api/on-demand?active_only=true');
-            return response.ok ? await response.json() : [];
+            if (!response.ok) return { success: false, items: [] };
+            const data = await response.json();
+            return data.success ? data : { success: false, items: [] };
         } catch (error) {
             console.error('Error loading on-demand products:', error);
-            return [];
+            return { success: false, items: [] };
         }
     }
 

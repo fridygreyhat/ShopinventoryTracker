@@ -1,0 +1,53 @@
+
+{% extends "layout.html" %}
+
+{% block title %}Manage User Permissions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Manage Permissions for {{ user.email }}</h1>
+                <a href="{{ url_for('admin.user_management') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Users
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">User Permissions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            {% for permission in available_permissions %}
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="perm_{{ permission }}" 
+                                           name="permissions" 
+                                           value="{{ permission }}"
+                                           {{ 'checked' if permission in current_permissions }}>
+                                    <label class="form-check-label" for="perm_{{ permission }}">
+                                        {{ permission.replace('_', ' ').title() }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Update Permissions</button>
+                            <a href="{{ url_for('admin.user_management') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

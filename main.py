@@ -3,27 +3,8 @@
 Main entry point for the Flask application
 """
 
-import os
-import logging
-from app import app, init_database
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from app import app
 
 if __name__ == '__main__':
-    # Initialize database with proper error handling
-    try:
-        success = init_database()
-        if not success:
-            logger.error("Database initialization failed - exiting")
-            exit(1)
-        logger.info("✅ Database initialization completed successfully")
-    except Exception as e:
-        logger.error(f"❌ Critical error during startup: {str(e)}")
-        exit(1)
-
-    # Start the application
-    port = int(os.environ.get('PORT', 5000))
-    logger.info(f"🚀 Starting Flask application on 0.0.0.0:{port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # Run the application
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,875 @@
+May 27 17:23:53 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 17:23:53 srv843815 systemd[1]: [0;1;39m[0;1;31m[0;1;39mflaskapp.service: Main process exited, code=exited, status=203/EXEC[0m
+May 27 17:23:53 srv843815 systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mflaskapp.service: Failed with result 'exit-code'.[0m
+May 27 17:32:48 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 17:32:48 srv843815 systemd[1]: [0;1;39m[0;1;31m[0;1;39mflaskapp.service: Main process exited, code=exited, status=203/EXEC[0m
+May 27 17:32:48 srv843815 systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mflaskapp.service: Failed with result 'exit-code'.[0m
+May 27 17:45:33 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 17:45:33 srv843815 gunicorn[7273]: [2025-05-27 17:45:33 +0000] [7273] [INFO] Starting gunicorn 23.0.0
+May 27 17:45:33 srv843815 gunicorn[7273]: [2025-05-27 17:45:33 +0000] [7273] [INFO] Listening at: http://127.0.0.1:8000 (7273)
+May 27 17:45:33 srv843815 gunicorn[7273]: [2025-05-27 17:45:33 +0000] [7273] [INFO] Using worker: sync
+May 27 17:45:33 srv843815 gunicorn[7274]: [2025-05-27 17:45:33 +0000] [7274] [INFO] Booting worker with pid: 7274
+May 27 17:45:33 srv843815 gunicorn[7275]: [2025-05-27 17:45:33 +0000] [7275] [INFO] Booting worker with pid: 7275
+May 27 17:45:33 srv843815 gunicorn[7276]: [2025-05-27 17:45:33 +0000] [7276] [INFO] Booting worker with pid: 7276
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 17:45:34 srv843815 gunicorn[7274]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:app:is_active column already exists in user
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:app:subcategory column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:app:unit_type column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:app:sell_by column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7274]: INFO:app:category_id column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 17:45:34 srv843815 gunicorn[7275]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:app:is_active column already exists in user
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:app:subcategory column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:app:unit_type column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:app:sell_by column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7275]: INFO:app:category_id column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 17:45:34 srv843815 gunicorn[7276]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:app:is_active column already exists in user
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:app:subcategory column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:app:unit_type column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:app:sell_by column already exists in item
+May 27 17:45:34 srv843815 gunicorn[7276]: INFO:app:category_id column already exists in item
+May 27 18:09:43 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 27 18:09:44 srv843815 gunicorn[7273]: [2025-05-27 18:09:43 +0000] [7273] [INFO] Handling signal: term
+May 27 18:09:44 srv843815 gunicorn[7275]: [2025-05-27 18:09:43 +0000] [7275] [INFO] Worker exiting (pid: 7275)
+May 27 18:09:44 srv843815 gunicorn[7275]: None
+May 27 18:09:44 srv843815 gunicorn[7274]: [2025-05-27 18:09:43 +0000] [7274] [INFO] Worker exiting (pid: 7274)
+May 27 18:09:44 srv843815 gunicorn[7274]: None
+May 27 18:09:44 srv843815 gunicorn[7276]: [2025-05-27 18:09:43 +0000] [7276] [INFO] Worker exiting (pid: 7276)
+May 27 18:09:44 srv843815 gunicorn[7276]: None
+May 27 18:09:44 srv843815 gunicorn[7273]: [2025-05-27 18:09:44 +0000] [7273] [INFO] Shutting down: Master
+May 27 18:09:44 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 27 18:09:44 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 18:09:44 srv843815 systemd[1]: flaskapp.service: Consumed 1.918s CPU time, 151.6M memory peak, 0B memory swap peak.
+May 27 18:09:44 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 18:09:44 srv843815 gunicorn[7577]: [2025-05-27 18:09:44 +0000] [7577] [INFO] Starting gunicorn 23.0.0
+May 27 18:09:44 srv843815 gunicorn[7577]: [2025-05-27 18:09:44 +0000] [7577] [INFO] Listening at: http://127.0.0.1:8000 (7577)
+May 27 18:09:44 srv843815 gunicorn[7577]: [2025-05-27 18:09:44 +0000] [7577] [INFO] Using worker: sync
+May 27 18:09:44 srv843815 gunicorn[7578]: [2025-05-27 18:09:44 +0000] [7578] [INFO] Booting worker with pid: 7578
+May 27 18:09:44 srv843815 gunicorn[7579]: [2025-05-27 18:09:44 +0000] [7579] [INFO] Booting worker with pid: 7579
+May 27 18:09:44 srv843815 gunicorn[7580]: [2025-05-27 18:09:44 +0000] [7580] [INFO] Booting worker with pid: 7580
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:09:45 srv843815 gunicorn[7579]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:09:45 srv843815 gunicorn[7580]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:09:45 srv843815 gunicorn[7578]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:app:is_active column already exists in user
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:app:is_active column already exists in user
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:app:subcategory column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:app:unit_type column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:app:sell_by column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7578]: INFO:app:category_id column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:app:subcategory column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:app:unit_type column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:app:sell_by column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7580]: INFO:app:category_id column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:app:is_active column already exists in user
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:app:subcategory column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:app:unit_type column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:app:sell_by column already exists in item
+May 27 18:09:45 srv843815 gunicorn[7579]: INFO:app:category_id column already exists in item
+May 27 18:12:44 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 27 18:12:44 srv843815 gunicorn[7577]: [2025-05-27 18:12:44 +0000] [7577] [INFO] Handling signal: term
+May 27 18:12:44 srv843815 gunicorn[7578]: [2025-05-27 18:12:44 +0000] [7578] [INFO] Worker exiting (pid: 7578)
+May 27 18:12:44 srv843815 gunicorn[7578]: None
+May 27 18:12:44 srv843815 gunicorn[7580]: [2025-05-27 18:12:44 +0000] [7580] [INFO] Worker exiting (pid: 7580)
+May 27 18:12:44 srv843815 gunicorn[7580]: None
+May 27 18:12:44 srv843815 gunicorn[7579]: [2025-05-27 18:12:44 +0000] [7579] [INFO] Worker exiting (pid: 7579)
+May 27 18:12:44 srv843815 gunicorn[7579]: None
+May 27 18:12:44 srv843815 gunicorn[7577]: [2025-05-27 18:12:44 +0000] [7577] [ERROR] Worker (pid:7580) was sent SIGTERM!
+May 27 18:12:44 srv843815 gunicorn[7577]: [2025-05-27 18:12:44 +0000] [7577] [ERROR] Worker (pid:7578) was sent SIGTERM!
+May 27 18:12:44 srv843815 gunicorn[7577]: [2025-05-27 18:12:44 +0000] [7577] [INFO] Shutting down: Master
+May 27 18:12:44 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 27 18:12:44 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 18:12:44 srv843815 systemd[1]: flaskapp.service: Consumed 1.444s CPU time, 168.5M memory peak, 0B memory swap peak.
+May 27 18:13:18 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 27 18:13:18 srv843815 gunicorn[7600]: [2025-05-27 18:13:18 +0000] [7600] [INFO] Starting gunicorn 23.0.0
+May 27 18:13:18 srv843815 gunicorn[7600]: [2025-05-27 18:13:18 +0000] [7600] [INFO] Listening at: http://127.0.0.1:8000 (7600)
+May 27 18:13:18 srv843815 gunicorn[7600]: [2025-05-27 18:13:18 +0000] [7600] [INFO] Using worker: sync
+May 27 18:13:18 srv843815 gunicorn[7601]: [2025-05-27 18:13:18 +0000] [7601] [INFO] Booting worker with pid: 7601
+May 27 18:13:19 srv843815 gunicorn[7602]: [2025-05-27 18:13:19 +0000] [7602] [INFO] Booting worker with pid: 7602
+May 27 18:13:19 srv843815 gunicorn[7603]: [2025-05-27 18:13:19 +0000] [7603] [INFO] Booting worker with pid: 7603
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:13:19 srv843815 gunicorn[7601]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:app:is_active column already exists in user
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:app:subcategory column already exists in item
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:app:unit_type column already exists in item
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:app:sell_by column already exists in item
+May 27 18:13:19 srv843815 gunicorn[7601]: INFO:app:category_id column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:13:20 srv843815 gunicorn[7602]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 27 18:13:20 srv843815 gunicorn[7603]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:app:is_active column already exists in user
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:app:subcategory column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:app:unit_type column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:app:sell_by column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7602]: INFO:app:category_id column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:app:is_active column already exists in user
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:app:subcategory column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:app:unit_type column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:app:sell_by column already exists in item
+May 27 18:13:20 srv843815 gunicorn[7603]: INFO:app:category_id column already exists in item
+May 27 18:14:10 srv843815 gunicorn[7601]: ERROR:app:Exception on /register [GET]
+May 27 18:14:10 srv843815 gunicorn[7601]: Traceback (most recent call last):
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:14:10 srv843815 gunicorn[7601]:     response = self.full_dispatch_request()
+May 27 18:14:10 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:14:10 srv843815 gunicorn[7601]:     rv = self.handle_user_exception(e)
+May 27 18:14:10 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:14:10 srv843815 gunicorn[7601]:     rv = self.dispatch_request()
+May 27 18:14:10 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:14:10 srv843815 gunicorn[7601]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:14:10 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:14:10 srv843815 gunicorn[7601]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:14:10 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:14:10 srv843815 gunicorn[7601]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:14:10 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:14:10 srv843815 gunicorn[7601]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:14:10 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:14:10 srv843815 gunicorn[7601]:     return self._load_template(name, globals)
+May 27 18:14:10 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:14:10 srv843815 gunicorn[7601]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:14:10 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:14:10 srv843815 gunicorn[7601]:     code = environment.compile(source, name, filename)
+May 27 18:14:10 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:14:10 srv843815 gunicorn[7601]:     self.handle_exception(source=source_hint)
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:14:10 srv843815 gunicorn[7601]:     raise rewrite_traceback_stack(source=source)
+May 27 18:14:10 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:14:10 srv843815 gunicorn[7601]:     {% endblock %}
+May 27 18:14:10 srv843815 gunicorn[7601]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:14:11 srv843815 gunicorn[7602]: ERROR:app:Exception on /register [GET]
+May 27 18:14:11 srv843815 gunicorn[7602]: Traceback (most recent call last):
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:14:11 srv843815 gunicorn[7602]:     response = self.full_dispatch_request()
+May 27 18:14:11 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:14:11 srv843815 gunicorn[7602]:     rv = self.handle_user_exception(e)
+May 27 18:14:11 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:14:11 srv843815 gunicorn[7602]:     rv = self.dispatch_request()
+May 27 18:14:11 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:14:11 srv843815 gunicorn[7602]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:14:11 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:14:11 srv843815 gunicorn[7602]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:14:11 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:14:11 srv843815 gunicorn[7602]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:14:11 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:14:11 srv843815 gunicorn[7602]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:14:11 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:14:11 srv843815 gunicorn[7602]:     return self._load_template(name, globals)
+May 27 18:14:11 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:14:11 srv843815 gunicorn[7602]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:14:11 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:14:11 srv843815 gunicorn[7602]:     code = environment.compile(source, name, filename)
+May 27 18:14:11 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:14:11 srv843815 gunicorn[7602]:     self.handle_exception(source=source_hint)
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:14:11 srv843815 gunicorn[7602]:     raise rewrite_traceback_stack(source=source)
+May 27 18:14:11 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:14:11 srv843815 gunicorn[7602]:     {% endblock %}
+May 27 18:14:11 srv843815 gunicorn[7602]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:14:17 srv843815 gunicorn[7603]: ERROR:app:Exception on /register [GET]
+May 27 18:14:17 srv843815 gunicorn[7603]: Traceback (most recent call last):
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:14:17 srv843815 gunicorn[7603]:     response = self.full_dispatch_request()
+May 27 18:14:17 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:14:17 srv843815 gunicorn[7603]:     rv = self.handle_user_exception(e)
+May 27 18:14:17 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:14:17 srv843815 gunicorn[7603]:     rv = self.dispatch_request()
+May 27 18:14:17 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:14:17 srv843815 gunicorn[7603]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:14:17 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:14:17 srv843815 gunicorn[7603]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:14:17 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:14:17 srv843815 gunicorn[7603]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:14:17 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:14:17 srv843815 gunicorn[7603]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:14:17 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:14:17 srv843815 gunicorn[7603]:     return self._load_template(name, globals)
+May 27 18:14:17 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:14:17 srv843815 gunicorn[7603]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:14:17 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:14:17 srv843815 gunicorn[7603]:     code = environment.compile(source, name, filename)
+May 27 18:14:17 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:14:17 srv843815 gunicorn[7603]:     self.handle_exception(source=source_hint)
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:14:17 srv843815 gunicorn[7603]:     raise rewrite_traceback_stack(source=source)
+May 27 18:14:17 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:14:17 srv843815 gunicorn[7603]:     {% endblock %}
+May 27 18:14:17 srv843815 gunicorn[7603]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:14:20 srv843815 gunicorn[7602]: ERROR:app:Exception on /register [GET]
+May 27 18:14:20 srv843815 gunicorn[7602]: Traceback (most recent call last):
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:14:20 srv843815 gunicorn[7602]:     response = self.full_dispatch_request()
+May 27 18:14:20 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:14:20 srv843815 gunicorn[7602]:     rv = self.handle_user_exception(e)
+May 27 18:14:20 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:14:20 srv843815 gunicorn[7602]:     rv = self.dispatch_request()
+May 27 18:14:20 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:14:20 srv843815 gunicorn[7602]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:14:20 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:14:20 srv843815 gunicorn[7602]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:14:20 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:14:20 srv843815 gunicorn[7602]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:14:20 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:14:20 srv843815 gunicorn[7602]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:14:20 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:14:20 srv843815 gunicorn[7602]:     return self._load_template(name, globals)
+May 27 18:14:20 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:14:20 srv843815 gunicorn[7602]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:14:20 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:14:20 srv843815 gunicorn[7602]:     code = environment.compile(source, name, filename)
+May 27 18:14:20 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:14:20 srv843815 gunicorn[7602]:     self.handle_exception(source=source_hint)
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:14:20 srv843815 gunicorn[7602]:     raise rewrite_traceback_stack(source=source)
+May 27 18:14:20 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:14:20 srv843815 gunicorn[7602]:     {% endblock %}
+May 27 18:14:20 srv843815 gunicorn[7602]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:15:02 srv843815 gunicorn[7603]: ERROR:app:Exception on /register [GET]
+May 27 18:15:02 srv843815 gunicorn[7603]: Traceback (most recent call last):
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:15:02 srv843815 gunicorn[7603]:     response = self.full_dispatch_request()
+May 27 18:15:02 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:15:02 srv843815 gunicorn[7603]:     rv = self.handle_user_exception(e)
+May 27 18:15:02 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:15:02 srv843815 gunicorn[7603]:     rv = self.dispatch_request()
+May 27 18:15:02 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:15:02 srv843815 gunicorn[7603]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:15:02 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:15:02 srv843815 gunicorn[7603]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:15:02 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:15:02 srv843815 gunicorn[7603]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:15:02 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:15:02 srv843815 gunicorn[7603]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:15:02 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:15:02 srv843815 gunicorn[7603]:     return self._load_template(name, globals)
+May 27 18:15:02 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:15:02 srv843815 gunicorn[7603]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:15:02 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:15:02 srv843815 gunicorn[7603]:     code = environment.compile(source, name, filename)
+May 27 18:15:02 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:15:02 srv843815 gunicorn[7603]:     self.handle_exception(source=source_hint)
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:15:02 srv843815 gunicorn[7603]:     raise rewrite_traceback_stack(source=source)
+May 27 18:15:02 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:15:02 srv843815 gunicorn[7603]:     {% endblock %}
+May 27 18:15:02 srv843815 gunicorn[7603]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:15:49 srv843815 gunicorn[7603]: ERROR:app:Exception on /register [GET]
+May 27 18:15:49 srv843815 gunicorn[7603]: Traceback (most recent call last):
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:15:49 srv843815 gunicorn[7603]:     response = self.full_dispatch_request()
+May 27 18:15:49 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:15:49 srv843815 gunicorn[7603]:     rv = self.handle_user_exception(e)
+May 27 18:15:49 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:15:49 srv843815 gunicorn[7603]:     rv = self.dispatch_request()
+May 27 18:15:49 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:15:49 srv843815 gunicorn[7603]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:15:49 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:15:49 srv843815 gunicorn[7603]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:15:49 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:15:49 srv843815 gunicorn[7603]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:15:49 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:15:49 srv843815 gunicorn[7603]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:15:49 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:15:49 srv843815 gunicorn[7603]:     return self._load_template(name, globals)
+May 27 18:15:49 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:15:49 srv843815 gunicorn[7603]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:15:49 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:15:49 srv843815 gunicorn[7603]:     code = environment.compile(source, name, filename)
+May 27 18:15:49 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:15:49 srv843815 gunicorn[7603]:     self.handle_exception(source=source_hint)
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:15:49 srv843815 gunicorn[7603]:     raise rewrite_traceback_stack(source=source)
+May 27 18:15:49 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:15:49 srv843815 gunicorn[7603]:     {% endblock %}
+May 27 18:15:49 srv843815 gunicorn[7603]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:16:06 srv843815 gunicorn[7601]: ERROR:app:Exception on /register [GET]
+May 27 18:16:06 srv843815 gunicorn[7601]: Traceback (most recent call last):
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:16:06 srv843815 gunicorn[7601]:     response = self.full_dispatch_request()
+May 27 18:16:06 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:16:06 srv843815 gunicorn[7601]:     rv = self.handle_user_exception(e)
+May 27 18:16:06 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:16:06 srv843815 gunicorn[7601]:     rv = self.dispatch_request()
+May 27 18:16:06 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:16:06 srv843815 gunicorn[7601]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:16:06 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:16:06 srv843815 gunicorn[7601]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:16:06 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:16:06 srv843815 gunicorn[7601]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:16:06 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:16:06 srv843815 gunicorn[7601]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:16:06 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:16:06 srv843815 gunicorn[7601]:     return self._load_template(name, globals)
+May 27 18:16:06 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:16:06 srv843815 gunicorn[7601]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:16:06 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:16:06 srv843815 gunicorn[7601]:     code = environment.compile(source, name, filename)
+May 27 18:16:06 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:16:06 srv843815 gunicorn[7601]:     self.handle_exception(source=source_hint)
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:16:06 srv843815 gunicorn[7601]:     raise rewrite_traceback_stack(source=source)
+May 27 18:16:06 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:16:06 srv843815 gunicorn[7601]:     {% endblock %}
+May 27 18:16:06 srv843815 gunicorn[7601]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 18:32:17 srv843815 gunicorn[7602]: ERROR:app:Exception on /register [HEAD]
+May 27 18:32:17 srv843815 gunicorn[7602]: Traceback (most recent call last):
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 18:32:17 srv843815 gunicorn[7602]:     response = self.full_dispatch_request()
+May 27 18:32:17 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 18:32:17 srv843815 gunicorn[7602]:     rv = self.handle_user_exception(e)
+May 27 18:32:17 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 18:32:17 srv843815 gunicorn[7602]:     rv = self.dispatch_request()
+May 27 18:32:17 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 18:32:17 srv843815 gunicorn[7602]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 18:32:17 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 18:32:17 srv843815 gunicorn[7602]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 18:32:17 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 18:32:17 srv843815 gunicorn[7602]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 18:32:17 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 18:32:17 srv843815 gunicorn[7602]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 18:32:17 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 18:32:17 srv843815 gunicorn[7602]:     return self._load_template(name, globals)
+May 27 18:32:17 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 18:32:17 srv843815 gunicorn[7602]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 18:32:17 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 18:32:17 srv843815 gunicorn[7602]:     code = environment.compile(source, name, filename)
+May 27 18:32:17 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 18:32:17 srv843815 gunicorn[7602]:     self.handle_exception(source=source_hint)
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 18:32:17 srv843815 gunicorn[7602]:     raise rewrite_traceback_stack(source=source)
+May 27 18:32:17 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 18:32:17 srv843815 gunicorn[7602]:     {% endblock %}
+May 27 18:32:17 srv843815 gunicorn[7602]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 20:22:17 srv843815 gunicorn[7601]: ERROR:app:Exception on /register [GET]
+May 27 20:22:17 srv843815 gunicorn[7601]: Traceback (most recent call last):
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 20:22:17 srv843815 gunicorn[7601]:     response = self.full_dispatch_request()
+May 27 20:22:17 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 20:22:17 srv843815 gunicorn[7601]:     rv = self.handle_user_exception(e)
+May 27 20:22:17 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 20:22:17 srv843815 gunicorn[7601]:     rv = self.dispatch_request()
+May 27 20:22:17 srv843815 gunicorn[7601]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 20:22:17 srv843815 gunicorn[7601]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 20:22:17 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 20:22:17 srv843815 gunicorn[7601]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 20:22:17 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 20:22:17 srv843815 gunicorn[7601]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 20:22:17 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 20:22:17 srv843815 gunicorn[7601]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 20:22:17 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 20:22:17 srv843815 gunicorn[7601]:     return self._load_template(name, globals)
+May 27 20:22:17 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 20:22:17 srv843815 gunicorn[7601]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 20:22:17 srv843815 gunicorn[7601]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 20:22:17 srv843815 gunicorn[7601]:     code = environment.compile(source, name, filename)
+May 27 20:22:17 srv843815 gunicorn[7601]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 20:22:17 srv843815 gunicorn[7601]:     self.handle_exception(source=source_hint)
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 20:22:17 srv843815 gunicorn[7601]:     raise rewrite_traceback_stack(source=source)
+May 27 20:22:17 srv843815 gunicorn[7601]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 20:22:17 srv843815 gunicorn[7601]:     {% endblock %}
+May 27 20:22:17 srv843815 gunicorn[7601]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 27 20:22:19 srv843815 gunicorn[7602]: ERROR:app:Exception on /register [GET]
+May 27 20:22:19 srv843815 gunicorn[7602]: Traceback (most recent call last):
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 27 20:22:19 srv843815 gunicorn[7602]:     response = self.full_dispatch_request()
+May 27 20:22:19 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 27 20:22:19 srv843815 gunicorn[7602]:     rv = self.handle_user_exception(e)
+May 27 20:22:19 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 27 20:22:19 srv843815 gunicorn[7602]:     rv = self.dispatch_request()
+May 27 20:22:19 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 27 20:22:19 srv843815 gunicorn[7602]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 27 20:22:19 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 27 20:22:19 srv843815 gunicorn[7602]:     return render_template('register.html', firebase_config=firebase_config)
+May 27 20:22:19 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 27 20:22:19 srv843815 gunicorn[7602]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 27 20:22:19 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 27 20:22:19 srv843815 gunicorn[7602]:     return self.get_template(template_name_or_list, parent, globals)
+May 27 20:22:19 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 27 20:22:19 srv843815 gunicorn[7602]:     return self._load_template(name, globals)
+May 27 20:22:19 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 27 20:22:19 srv843815 gunicorn[7602]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 27 20:22:19 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 27 20:22:19 srv843815 gunicorn[7602]:     code = environment.compile(source, name, filename)
+May 27 20:22:19 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 27 20:22:19 srv843815 gunicorn[7602]:     self.handle_exception(source=source_hint)
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 27 20:22:19 srv843815 gunicorn[7602]:     raise rewrite_traceback_stack(source=source)
+May 27 20:22:19 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 27 20:22:19 srv843815 gunicorn[7602]:     {% endblock %}
+May 27 20:22:19 srv843815 gunicorn[7602]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 28 15:54:10 srv843815 gunicorn[7602]: ERROR:app:Exception on /register [GET]
+May 28 15:54:10 srv843815 gunicorn[7602]: Traceback (most recent call last):
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 28 15:54:10 srv843815 gunicorn[7602]:     response = self.full_dispatch_request()
+May 28 15:54:10 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 28 15:54:10 srv843815 gunicorn[7602]:     rv = self.handle_user_exception(e)
+May 28 15:54:10 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 28 15:54:10 srv843815 gunicorn[7602]:     rv = self.dispatch_request()
+May 28 15:54:10 srv843815 gunicorn[7602]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 28 15:54:10 srv843815 gunicorn[7602]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 28 15:54:10 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 28 15:54:10 srv843815 gunicorn[7602]:     return render_template('register.html', firebase_config=firebase_config)
+May 28 15:54:10 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 28 15:54:10 srv843815 gunicorn[7602]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 28 15:54:10 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 28 15:54:10 srv843815 gunicorn[7602]:     return self.get_template(template_name_or_list, parent, globals)
+May 28 15:54:10 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 28 15:54:10 srv843815 gunicorn[7602]:     return self._load_template(name, globals)
+May 28 15:54:10 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 28 15:54:10 srv843815 gunicorn[7602]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 28 15:54:10 srv843815 gunicorn[7602]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 28 15:54:10 srv843815 gunicorn[7602]:     code = environment.compile(source, name, filename)
+May 28 15:54:10 srv843815 gunicorn[7602]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 28 15:54:10 srv843815 gunicorn[7602]:     self.handle_exception(source=source_hint)
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 28 15:54:10 srv843815 gunicorn[7602]:     raise rewrite_traceback_stack(source=source)
+May 28 15:54:10 srv843815 gunicorn[7602]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 28 15:54:10 srv843815 gunicorn[7602]:     {% endblock %}
+May 28 15:54:10 srv843815 gunicorn[7602]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 28 15:54:21 srv843815 gunicorn[7603]: ERROR:app:Exception on /register [GET]
+May 28 15:54:21 srv843815 gunicorn[7603]: Traceback (most recent call last):
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+May 28 15:54:21 srv843815 gunicorn[7603]:     response = self.full_dispatch_request()
+May 28 15:54:21 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+May 28 15:54:21 srv843815 gunicorn[7603]:     rv = self.handle_user_exception(e)
+May 28 15:54:21 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+May 28 15:54:21 srv843815 gunicorn[7603]:     rv = self.dispatch_request()
+May 28 15:54:21 srv843815 gunicorn[7603]:          ^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+May 28 15:54:21 srv843815 gunicorn[7603]:     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+May 28 15:54:21 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/app.py", line 2139, in register
+May 28 15:54:21 srv843815 gunicorn[7603]:     return render_template('register.html', firebase_config=firebase_config)
+May 28 15:54:21 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/flask/templating.py", line 149, in render_template
+May 28 15:54:21 srv843815 gunicorn[7603]:     template = app.jinja_env.get_or_select_template(template_name_or_list)
+May 28 15:54:21 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1087, in get_or_select_template
+May 28 15:54:21 srv843815 gunicorn[7603]:     return self.get_template(template_name_or_list, parent, globals)
+May 28 15:54:21 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 1016, in get_template
+May 28 15:54:21 srv843815 gunicorn[7603]:     return self._load_template(name, globals)
+May 28 15:54:21 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 975, in _load_template
+May 28 15:54:21 srv843815 gunicorn[7603]:     template = self.loader.load(self, name, self.make_globals(globals))
+May 28 15:54:21 srv843815 gunicorn[7603]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/loaders.py", line 138, in load
+May 28 15:54:21 srv843815 gunicorn[7603]:     code = environment.compile(source, name, filename)
+May 28 15:54:21 srv843815 gunicorn[7603]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 771, in compile
+May 28 15:54:21 srv843815 gunicorn[7603]:     self.handle_exception(source=source_hint)
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/venv/lib/python3.12/site-packages/jinja2/environment.py", line 942, in handle_exception
+May 28 15:54:21 srv843815 gunicorn[7603]:     raise rewrite_traceback_stack(source=source)
+May 28 15:54:21 srv843815 gunicorn[7603]:   File "/var/www/ShopinventoryTracker/templates/register.html", line 118, in template
+May 28 15:54:21 srv843815 gunicorn[7603]:     {% endblock %}
+May 28 15:54:21 srv843815 gunicorn[7603]: jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endblock'. You probably made a nesting mistake. Jinja is expecting this tag, but currently looking for 'endwith'. The innermost block that needs to be closed is 'with'.
+May 28 15:59:02 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 28 15:59:02 srv843815 gunicorn[7602]: [2025-05-28 15:59:02 +0000] [7602] [INFO] Worker exiting (pid: 7602)
+May 28 15:59:02 srv843815 gunicorn[7602]: None
+May 28 15:59:02 srv843815 gunicorn[7603]: [2025-05-28 15:59:02 +0000] [7603] [INFO] Worker exiting (pid: 7603)
+May 28 15:59:02 srv843815 gunicorn[7603]: None
+May 28 15:59:02 srv843815 gunicorn[7601]: [2025-05-28 15:59:02 +0000] [7601] [INFO] Worker exiting (pid: 7601)
+May 28 15:59:02 srv843815 gunicorn[7601]: None
+May 28 15:59:02 srv843815 gunicorn[7600]: [2025-05-28 15:59:02 +0000] [7600] [INFO] Handling signal: term
+May 28 15:59:02 srv843815 gunicorn[7600]: [2025-05-28 15:59:02 +0000] [7600] [INFO] Shutting down: Master
+May 28 15:59:02 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 15:59:02 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 15:59:02 srv843815 systemd[1]: flaskapp.service: Consumed 12.825s CPU time, 157.9M memory peak, 0B memory swap peak.
+May 28 15:59:02 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 15:59:02 srv843815 gunicorn[9935]: [2025-05-28 15:59:02 +0000] [9935] [INFO] Starting gunicorn 23.0.0
+May 28 15:59:02 srv843815 gunicorn[9935]: [2025-05-28 15:59:02 +0000] [9935] [INFO] Listening at: http://127.0.0.1:8000 (9935)
+May 28 15:59:02 srv843815 gunicorn[9935]: [2025-05-28 15:59:02 +0000] [9935] [INFO] Using worker: sync
+May 28 15:59:02 srv843815 gunicorn[9938]: [2025-05-28 15:59:02 +0000] [9938] [INFO] Booting worker with pid: 9938
+May 28 15:59:02 srv843815 gunicorn[9939]: [2025-05-28 15:59:02 +0000] [9939] [INFO] Booting worker with pid: 9939
+May 28 15:59:02 srv843815 gunicorn[9940]: [2025-05-28 15:59:02 +0000] [9940] [INFO] Booting worker with pid: 9940
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 15:59:03 srv843815 gunicorn[9938]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:is_active column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:phone column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:subcategory column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:unit_type column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:sell_by column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9938]: INFO:app:category_id column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 15:59:03 srv843815 gunicorn[9939]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:is_active column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:phone column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:subcategory column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:unit_type column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:sell_by column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9939]: INFO:app:category_id column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 15:59:03 srv843815 gunicorn[9940]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:is_active column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:phone column already exists in user
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:subcategory column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:unit_type column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:sell_by column already exists in item
+May 28 15:59:03 srv843815 gunicorn[9940]: INFO:app:category_id column already exists in item
+May 28 16:06:26 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 28 16:06:26 srv843815 gunicorn[9935]: [2025-05-28 16:06:26 +0000] [9935] [INFO] Handling signal: term
+May 28 16:06:26 srv843815 gunicorn[9939]: [2025-05-28 16:06:26 +0000] [9939] [INFO] Worker exiting (pid: 9939)
+May 28 16:06:26 srv843815 gunicorn[9939]: None
+May 28 16:06:26 srv843815 gunicorn[9938]: [2025-05-28 16:06:26 +0000] [9938] [INFO] Worker exiting (pid: 9938)
+May 28 16:06:26 srv843815 gunicorn[9938]: None
+May 28 16:06:26 srv843815 gunicorn[9940]: [2025-05-28 16:06:26 +0000] [9940] [INFO] Worker exiting (pid: 9940)
+May 28 16:06:26 srv843815 gunicorn[9940]: None
+May 28 16:06:27 srv843815 gunicorn[9935]: [2025-05-28 16:06:27 +0000] [9935] [INFO] Shutting down: Master
+May 28 16:06:27 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 16:06:27 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:06:27 srv843815 systemd[1]: flaskapp.service: Consumed 1.740s CPU time.
+May 28 16:06:27 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:06:27 srv843815 gunicorn[10050]: [2025-05-28 16:06:27 +0000] [10050] [INFO] Starting gunicorn 23.0.0
+May 28 16:06:27 srv843815 gunicorn[10050]: [2025-05-28 16:06:27 +0000] [10050] [INFO] Listening at: http://127.0.0.1:8000 (10050)
+May 28 16:06:27 srv843815 gunicorn[10050]: [2025-05-28 16:06:27 +0000] [10050] [INFO] Using worker: sync
+May 28 16:06:27 srv843815 gunicorn[10053]: [2025-05-28 16:06:27 +0000] [10053] [INFO] Booting worker with pid: 10053
+May 28 16:06:27 srv843815 gunicorn[10054]: [2025-05-28 16:06:27 +0000] [10054] [INFO] Booting worker with pid: 10054
+May 28 16:06:27 srv843815 gunicorn[10055]: [2025-05-28 16:06:27 +0000] [10055] [INFO] Booting worker with pid: 10055
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:06:28 srv843815 gunicorn[10053]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:is_active column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:phone column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:subcategory column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:unit_type column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:sell_by column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10053]: INFO:app:category_id column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:06:28 srv843815 gunicorn[10054]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:is_active column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:phone column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:subcategory column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:unit_type column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:sell_by column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10054]: INFO:app:category_id column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:06:28 srv843815 gunicorn[10055]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:is_active column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:phone column already exists in user
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:subcategory column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:unit_type column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:sell_by column already exists in item
+May 28 16:06:28 srv843815 gunicorn[10055]: INFO:app:category_id column already exists in item
+May 28 16:15:05 srv843815 gunicorn[10050]: [2025-05-28 16:15:05 +0000] [10050] [INFO] Handling signal: term
+May 28 16:15:05 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 28 16:15:05 srv843815 gunicorn[10053]: [2025-05-28 16:15:05 +0000] [10053] [INFO] Worker exiting (pid: 10053)
+May 28 16:15:05 srv843815 gunicorn[10053]: None
+May 28 16:15:05 srv843815 gunicorn[10055]: [2025-05-28 16:15:05 +0000] [10055] [INFO] Worker exiting (pid: 10055)
+May 28 16:15:05 srv843815 gunicorn[10055]: None
+May 28 16:15:05 srv843815 gunicorn[10054]: [2025-05-28 16:15:05 +0000] [10054] [INFO] Worker exiting (pid: 10054)
+May 28 16:15:05 srv843815 gunicorn[10054]: None
+May 28 16:15:05 srv843815 gunicorn[10050]: [2025-05-28 16:15:05 +0000] [10050] [ERROR] Worker (pid:10055) was sent SIGTERM!
+May 28 16:15:05 srv843815 gunicorn[10050]: [2025-05-28 16:15:05 +0000] [10050] [INFO] Shutting down: Master
+May 28 16:15:05 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 16:15:05 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:15:05 srv843815 systemd[1]: flaskapp.service: Consumed 1.598s CPU time, 156.6M memory peak, 0B memory swap peak.
+May 28 16:15:05 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:15:05 srv843815 gunicorn[11307]: [2025-05-28 16:15:05 +0000] [11307] [INFO] Starting gunicorn 23.0.0
+May 28 16:15:05 srv843815 gunicorn[11307]: [2025-05-28 16:15:05 +0000] [11307] [INFO] Listening at: http://127.0.0.1:8000 (11307)
+May 28 16:15:05 srv843815 gunicorn[11307]: [2025-05-28 16:15:05 +0000] [11307] [INFO] Using worker: sync
+May 28 16:15:05 srv843815 gunicorn[11309]: [2025-05-28 16:15:05 +0000] [11309] [INFO] Booting worker with pid: 11309
+May 28 16:15:05 srv843815 gunicorn[11310]: [2025-05-28 16:15:05 +0000] [11310] [INFO] Booting worker with pid: 11310
+May 28 16:15:05 srv843815 gunicorn[11311]: [2025-05-28 16:15:05 +0000] [11311] [INFO] Booting worker with pid: 11311
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:15:06 srv843815 gunicorn[11309]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:is_active column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:phone column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:subcategory column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:unit_type column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:sell_by column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11309]: INFO:app:category_id column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:15:06 srv843815 gunicorn[11310]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:is_active column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:phone column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:subcategory column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:unit_type column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:sell_by column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11310]: INFO:app:category_id column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:15:06 srv843815 gunicorn[11311]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:is_active column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:phone column already exists in user
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:subcategory column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:unit_type column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:sell_by column already exists in item
+May 28 16:15:06 srv843815 gunicorn[11311]: INFO:app:category_id column already exists in item
+May 28 16:25:46 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 28 16:25:46 srv843815 gunicorn[11309]: [2025-05-28 16:25:46 +0000] [11309] [INFO] Worker exiting (pid: 11309)
+May 28 16:25:46 srv843815 gunicorn[11309]: None
+May 28 16:25:46 srv843815 gunicorn[11310]: [2025-05-28 16:25:46 +0000] [11310] [INFO] Worker exiting (pid: 11310)
+May 28 16:25:46 srv843815 gunicorn[11310]: None
+May 28 16:25:46 srv843815 gunicorn[11311]: [2025-05-28 16:25:46 +0000] [11311] [INFO] Worker exiting (pid: 11311)
+May 28 16:25:46 srv843815 gunicorn[11311]: None
+May 28 16:25:46 srv843815 gunicorn[11307]: [2025-05-28 16:25:46 +0000] [11307] [INFO] Handling signal: term
+May 28 16:25:46 srv843815 gunicorn[11307]: [2025-05-28 16:25:46 +0000] [11307] [ERROR] Worker (pid:11309) was sent SIGTERM!
+May 28 16:25:46 srv843815 gunicorn[11307]: [2025-05-28 16:25:46 +0000] [11307] [ERROR] Worker (pid:11311) was sent SIGTERM!
+May 28 16:25:46 srv843815 gunicorn[11307]: [2025-05-28 16:25:46 +0000] [11307] [ERROR] Worker (pid:11310) was sent SIGTERM!
+May 28 16:25:47 srv843815 gunicorn[11307]: [2025-05-28 16:25:47 +0000] [11307] [INFO] Shutting down: Master
+May 28 16:25:47 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 16:25:47 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:25:47 srv843815 systemd[1]: flaskapp.service: Consumed 1.379s CPU time.
+May 28 16:26:03 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:26:03 srv843815 gunicorn[11390]: [2025-05-28 16:26:03 +0000] [11390] [INFO] Starting gunicorn 23.0.0
+May 28 16:26:03 srv843815 gunicorn[11390]: [2025-05-28 16:26:03 +0000] [11390] [INFO] Listening at: http://127.0.0.1:8000 (11390)
+May 28 16:26:03 srv843815 gunicorn[11390]: [2025-05-28 16:26:03 +0000] [11390] [INFO] Using worker: sync
+May 28 16:26:03 srv843815 gunicorn[11391]: [2025-05-28 16:26:03 +0000] [11391] [INFO] Booting worker with pid: 11391
+May 28 16:26:03 srv843815 gunicorn[11392]: [2025-05-28 16:26:03 +0000] [11392] [INFO] Booting worker with pid: 11392
+May 28 16:26:03 srv843815 gunicorn[11393]: [2025-05-28 16:26:03 +0000] [11393] [INFO] Booting worker with pid: 11393
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:26:04 srv843815 gunicorn[11391]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:is_active column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:phone column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:subcategory column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:unit_type column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:sell_by column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11391]: INFO:app:category_id column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:26:04 srv843815 gunicorn[11392]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:is_active column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:phone column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:subcategory column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:unit_type column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:sell_by column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11392]: INFO:app:category_id column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:26:04 srv843815 gunicorn[11393]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:is_active column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:phone column already exists in user
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:subcategory column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:unit_type column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:sell_by column already exists in item
+May 28 16:26:04 srv843815 gunicorn[11393]: INFO:app:category_id column already exists in item
+May 28 16:28:39 srv843815 systemd[1]: Stopping flaskapp.service - Gunicorn instance to serve Flask app...
+May 28 16:28:39 srv843815 gunicorn[11390]: [2025-05-28 16:28:39 +0000] [11390] [INFO] Handling signal: term
+May 28 16:28:39 srv843815 gunicorn[11392]: [2025-05-28 16:28:39 +0000] [11392] [INFO] Worker exiting (pid: 11392)
+May 28 16:28:39 srv843815 gunicorn[11392]: None
+May 28 16:28:39 srv843815 gunicorn[11391]: [2025-05-28 16:28:39 +0000] [11391] [INFO] Worker exiting (pid: 11391)
+May 28 16:28:39 srv843815 gunicorn[11391]: None
+May 28 16:28:39 srv843815 gunicorn[11393]: [2025-05-28 16:28:39 +0000] [11393] [INFO] Worker exiting (pid: 11393)
+May 28 16:28:39 srv843815 gunicorn[11393]: None
+May 28 16:28:39 srv843815 gunicorn[11390]: [2025-05-28 16:28:39 +0000] [11390] [INFO] Shutting down: Master
+May 28 16:28:39 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 16:28:39 srv843815 systemd[1]: Stopped flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:28:39 srv843815 systemd[1]: flaskapp.service: Consumed 1.711s CPU time.
+May 28 16:28:39 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:28:39 srv843815 gunicorn[11421]: [2025-05-28 16:28:39 +0000] [11421] [INFO] Starting gunicorn 23.0.0
+May 28 16:28:39 srv843815 gunicorn[11421]: [2025-05-28 16:28:39 +0000] [11421] [INFO] Listening at: http://127.0.0.1:8000 (11421)
+May 28 16:28:39 srv843815 gunicorn[11421]: [2025-05-28 16:28:39 +0000] [11421] [INFO] Using worker: sync
+May 28 16:28:39 srv843815 gunicorn[11423]: [2025-05-28 16:28:39 +0000] [11423] [INFO] Booting worker with pid: 11423
+May 28 16:28:39 srv843815 gunicorn[11424]: [2025-05-28 16:28:39 +0000] [11424] [INFO] Booting worker with pid: 11424
+May 28 16:28:39 srv843815 gunicorn[11425]: [2025-05-28 16:28:39 +0000] [11425] [INFO] Booting worker with pid: 11425
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:28:40 srv843815 gunicorn[11423]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:is_active column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:phone column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:subcategory column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:unit_type column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:sell_by column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11423]: INFO:app:category_id column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:28:40 srv843815 gunicorn[11424]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:is_active column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:phone column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:subcategory column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:unit_type column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:sell_by column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11424]: INFO:app:category_id column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:auth_service:Firebase configuration status - API Key: ✗, Project ID: ✗, App ID: ✗
+May 28 16:28:40 srv843815 gunicorn[11425]: WARNING:auth_service:Missing one or more Firebase configuration values
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:is_active column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:phone column already exists in user
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:subcategory column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:unit_type column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:sell_by column already exists in item
+May 28 16:28:40 srv843815 gunicorn[11425]: INFO:app:category_id column already exists in item
+May 28 16:32:09 srv843815 gunicorn[11421]: [2025-05-28 16:32:09 +0000] [11421] [INFO] Handling signal: term
+May 28 16:32:09 srv843815 gunicorn[11424]: [2025-05-28 16:32:09 +0000] [11424] [INFO] Worker exiting (pid: 11424)
+May 28 16:32:09 srv843815 gunicorn[11424]: None
+May 28 16:32:09 srv843815 gunicorn[11425]: [2025-05-28 16:32:09 +0000] [11425] [INFO] Worker exiting (pid: 11425)
+May 28 16:32:09 srv843815 gunicorn[11425]: None
+May 28 16:32:09 srv843815 gunicorn[11423]: [2025-05-28 16:32:09 +0000] [11423] [INFO] Worker exiting (pid: 11423)
+May 28 16:32:09 srv843815 gunicorn[11423]: None
+May 28 16:32:09 srv843815 gunicorn[11421]: [2025-05-28 16:32:09 +0000] [11421] [INFO] Shutting down: Master
+May 28 16:32:09 srv843815 systemd[1]: flaskapp.service: Deactivated successfully.
+May 28 16:32:09 srv843815 systemd[1]: flaskapp.service: Consumed 1.677s CPU time.
+May 28 16:49:12 srv843815 systemd[1]: Started flaskapp.service - Gunicorn instance to serve Flask app.
+May 28 16:49:12 srv843815 gunicorn[11621]: [2025-05-28 16:49:12 +0000] [11621] [INFO] Starting gunicorn 23.0.0
+May 28 16:49:12 srv843815 gunicorn[11621]: [2025-05-28 16:49:12 +0000] [11621] [INFO] Listening at: http://127.0.0.1:8000 (11621)
+May 28 16:49:12 srv843815 gunicorn[11621]: [2025-05-28 16:49:12 +0000] [11621] [INFO] Using worker: sync
+May 28 16:49:12 srv843815 gunicorn[11622]: [2025-05-28 16:49:12 +0000] [11622] [INFO] Booting worker with pid: 11622
+May 28 16:49:13 srv843815 gunicorn[11623]: [2025-05-28 16:49:13 +0000] [11623] [INFO] Booting worker with pid: 11623
+May 28 16:49:13 srv843815 gunicorn[11624]: [2025-05-28 16:49:13 +0000] [11624] [INFO] Booting worker with pid: 11624
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:auth_service:Firebase configuration status - API Key: ✓, Project ID: ✓, App ID: ✓
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:is_active column already exists in user
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:phone column already exists in user
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:subcategory column already exists in item
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:unit_type column already exists in item
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:sell_by column already exists in item
+May 28 16:49:13 srv843815 gunicorn[11622]: INFO:app:category_id column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:auth_service:Firebase configuration status - API Key: ✓, Project ID: ✓, App ID: ✓
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:auth_service:Firebase Admin SDK initialized with minimal configuration
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:auth_service:Firebase configuration status - API Key: ✓, Project ID: ✓, App ID: ✓
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:is_active column already exists in user
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:is_active column already exists in user
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:phone column already exists in user
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:phone column already exists in user
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:subcategory column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:subcategory column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:unit_type column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:unit_type column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:sell_by column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:sell_by column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11624]: INFO:app:category_id column already exists in item
+May 28 16:49:14 srv843815 gunicorn[11623]: INFO:app:category_id column already exists in item
+May 28 16:49:26 srv843815 gunicorn[11622]: INFO:app:Session creation request received
+May 28 16:49:26 srv843815 gunicorn[11622]: INFO:app:Verifying Firebase token...
+May 28 16:49:26 srv843815 gunicorn[11622]: INFO:auth_service:Verifying Firebase token (length: 950)
+May 28 16:49:26 srv843815 gunicorn[11622]: INFO:auth_service:Attempting to verify token with Firebase Admin SDK...
+May 28 16:49:26 srv843815 gunicorn[11622]: DEBUG:google.auth._default:Checking None for explicit credentials as part of auth process...
+May 28 16:49:26 srv843815 gunicorn[11622]: DEBUG:google.auth._default:Checking Cloud SDK credentials as part of auth process...
+May 28

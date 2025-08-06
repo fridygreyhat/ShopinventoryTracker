@@ -182,6 +182,15 @@ document.addEventListener('DOMContentLoaded', function() {
     loadInventory();
     loadCategories();
 
+    // Add batch operations functionality
+    initializeBatchOperations();
+
+    // Firebase test button
+    const testFirebaseBtn = document.getElementById('testFirebaseBtn');
+    if (testFirebaseBtn) {
+        testFirebaseBtn.addEventListener('click', testFirebaseConnection);
+    }
+
     // Unit type change handler
     document.getElementById('itemUnitType').addEventListener('change', function() {
         const quantityInput = document.getElementById('itemQuantity');
@@ -211,21 +220,220 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Functions
     function loadInventory() {
-        fetch('/api/inventory')
-            .then(response => response.json())
+        console.log('🔄 Loading inventory...');
+
+        const includeAnalytics = document.getElementById('includeAnalytics')?.checked || false;
+        const url = includeAnalytics ? '/api/inventory?include_analytics=true' : '/api/inventory?format=simple';
+
+        // Show loading state
+        inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading inventory...</td></tr>';
+
+        fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                console.log(`📡 Inventory API response: ${response.status}`);
+
+                if (response.status === 401) {
+                    console.log('🔒 Authentication required - redirecting to login');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (response.status === 302) {
+                    console.log('🔄 Redirect response - following redirect');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return response.json();
+            })
             .then(data => {
-                if (data && data.length > 0) {
-                    displayInventory(data);
+                if (!data) {
+                    console.log('⚠️ No data received from server');
+                    return;
+                }
+
+                console.log('📦 Inventory data received:', data);
+
+                // Handle both simple format and enhanced format
+                const items = Array.isArray(data) ? data : (data.items || []);
+
+                if (items && items.length > 0) {
+                    console.log(`✅ Displaying ${items.length} inventory items`);
+                    displayInventory(items);
                     noItemsMessage.classList.add('d-none');
+
+                    // Update inventory count if available
+                    if (data.total_count !== undefined) {
+                        updateInventoryCount(data.total_count);
+                    }
+
+                    // Display analytics if available
+                    if (data.analytics) {
+                        displayInventoryAnalytics(data.analytics);
+                    }
                 } else {
+                    console.log('📝 No inventory items found');
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No inventory items found</td></tr>';
                     noItemsMessage.classList.remove('d-none');
                 }
             })
             .catch(error => {
-                console.error('Error loading inventory:', error);
-                inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading inventory. Please try again.</td></tr>';
-            });
+            console.error('❌ Error loading inventory:', error);
+
+            // Use comprehensive Firebase error handler
+            handleFirebaseError(error);
+
+            // Show detailed error message
+            let errorMessage = 'Error loading inventory. ';
+            if (error.message.includes('401')) {
+                errorMessage += 'Please log in again.';
+                setTimeout(() => window.location.href = '/login', 2000);
+            } else if (error.message.includes('Firebase connectivity')) {
+                errorMessage += 'Firebase service issue detected.';
+            } else if (error.message.includes('500')) {
+                errorMessage += 'Server error - please try again.';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage += 'Network connection issue. Please check your connection.';
+            } else {
+                errorMessage += `${error.message}`;
+            }
+
+            inventoryTable.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                        <br><small>
+                            <button onclick="testFirebaseConnectivity().then(r => console.log('Test result:', r))" 
+                                    class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="fas fa-network-wired"></i> Test Connection
+                            </button>
+                        </small>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function displayInventoryAnalytics(analytics) {
+        const analyticsContainer = document.getElementById('inventoryAnalytics');
+        if (analyticsContainer) {
+            analyticsContainer.innerHTML = `
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Value</h5>
+                                <p class="card-text">TZS ${analytics.total_inventory_value.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Low Stock</h5>
+                                <p class="card-text text-warning">${analytics.low_stock_count} items</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Out of Stock</h5>
+                                <p class="card-text text-danger">${analytics.out_of_stock_count} items</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Avg Stock Level</h5>
+                                <p class="card-text">${Math.round(analytics.average_stock_level)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function initializeBatchOperations() {
+        // Add batch update functionality
+        const batchUpdateBtn = document.getElementById('batchUpdateBtn');
+        if (batchUpdateBtn) {
+            batchUpdateBtn.addEventListener('click', performBatchUpdate);
+        }
+    }
+
+    function performBatchUpdate() {
+        const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+        if (selectedItems.length === 0) {
+            alert('Please select items to update');
+            return;
+        }
+
+        const batchUpdates = [];
+        selectedItems.forEach(checkbox => {
+            const itemId = checkbox.value;
+            const row = checkbox.closest('tr');
+            const quantityInput = row.querySelector('.batch-quantity');
+            const priceInput = row.querySelector('.batch-price');
+
+            if (quantityInput && quantityInput.value) {
+                batchUpdates.push({
+                    id: parseInt(itemId),
+                    stock_quantity: parseInt(quantityInput.value)
+                });
+            }
+
+            if (priceInput && priceInput.value) {
+                batchUpdates.push({
+                    id: parseInt(itemId),
+                    retail_price: parseFloat(priceInput.value)
+                });
+            }
+        });
+
+        if (batchUpdates.length === 0) {
+            alert('No updates to perform');
+            return;
+        }
+
+        fetch('/api/inventory/batch-update', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items: batchUpdates })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully updated ${data.updated_count} items`);
+                loadInventory();
+            } else {
+                alert('Batch update failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error in batch update:', error);
+            alert('Batch update failed: ' + error.message);
+        });
+    }
+
+    function updateInventoryCount(count) {
+        const countElements = document.querySelectorAll('.inventory-count');
+        countElements.forEach(element => {
+            element.textContent = count.toLocaleString();
+        });
     }
 
     function loadCategories() {
@@ -256,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Store categories data globally for use in item forms
                 window.categoriesData = data;
-                
+
                 // Update item form category dropdowns
                 updateItemFormCategoryDropdowns(data);
             })
@@ -271,12 +479,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const addItemCategorySelect = document.getElementById('itemCategory');
         if (addItemCategorySelect) {
             addItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-            
+
             if (categories && categories.length > 0) {
                 categories.forEach(category => {
                     // Add main category
                     const option = document.createElement('option');
                     option.value = category.name;
+                    option.setAttribute('data-category-id', category.id);
+                    option.setAttribute('data-is-subcategory', 'false');
                     option.textContent = `📁 ${category.name}`;
                     addItemCategorySelect.appendChild(option);
 
@@ -285,7 +495,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         category.subcategories.forEach(subcategory => {
                             const subOption = document.createElement('option');
                             subOption.value = subcategory.name;
-                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            subOption.setAttribute('data-category-id', subcategory.id);
+                            subOption.setAttribute('data-parent-id', category.id);
+                            subOption.setAttribute('data-is-subcategory', 'true');
+                            subOption.textContent = `  └─ ${subcategory.name}`;
                             addItemCategorySelect.appendChild(subOption);
                         });
                     }
@@ -304,12 +517,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const editItemCategorySelect = document.getElementById('editItemCategory');
         if (editItemCategorySelect) {
             editItemCategorySelect.innerHTML = '<option value="">Select a category</option>';
-            
+
             if (categories && categories.length > 0) {
                 categories.forEach(category => {
                     // Add main category
                     const option = document.createElement('option');
                     option.value = category.name;
+                    option.setAttribute('data-category-id', category.id);
+                    option.setAttribute('data-is-subcategory', 'false');
                     option.textContent = `📁 ${category.name}`;
                     editItemCategorySelect.appendChild(option);
 
@@ -318,7 +533,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         category.subcategories.forEach(subcategory => {
                             const subOption = document.createElement('option');
                             subOption.value = subcategory.name;
-                            subOption.textContent = `  📄 ${subcategory.name}`;
+                            subOption.setAttribute('data-category-id', subcategory.id);
+                            subOption.setAttribute('data-parent-id', category.id);
+                            subOption.setAttribute('data-is-subcategory', 'true');
+                            subOption.textContent = `  └─ ${subcategory.name}`;
                             editItemCategorySelect.appendChild(subOption);
                         });
                     }
@@ -485,42 +703,55 @@ document.addEventListener('DOMContentLoaded', function() {
         const minStock = minStockFilter.value ? parseInt(minStockFilter.value) : '';
         const maxStock = maxStockFilter.value ? parseInt(maxStockFilter.value) : '';
 
-        let url = '/api/inventory?';
+        let url = '/api/inventory?format=simple';
 
         if (searchTerm) {
-            url += `search=${encodeURIComponent(searchTerm)}&`;
+            url += `&search=${encodeURIComponent(searchTerm)}`;
         }
 
         if (category) {
-            url += `category=${encodeURIComponent(category)}&`;
+            url += `&category=${encodeURIComponent(category)}`;
         }
 
         if (minStock !== '') {
-            url += `min_stock=${minStock}&`;
+            url += `&min_stock=${minStock}`;
         }
 
         if (maxStock !== '') {
-            url += `max_stock=${maxStock}&`;
+            url += `&max_stock=${maxStock}`;
         }
-
-        // Remove trailing ampersand
-        url = url.replace(/&$/, '');
 
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                if (data && data.length > 0) {
-                    displayInventory(data);
+                // Handle both simple format and enhanced format
+                const items = Array.isArray(data) ? data : (data.items || []);
+
+                if (items && items.length > 0) {
+                    displayInventory(items);
                     noItemsMessage.classList.add('d-none');
+
+                    // Show filter results count
+                    const resultsCount = Array.isArray(data) ? data.length : (data.total_count || items.length);
+                    showFilterResults(resultsCount);
                 } else {
                     inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center">No items match your search criteria</td></tr>';
                     noItemsMessage.classList.add('d-none');
+                    showFilterResults(0);
                 }
             })
             .catch(error => {
                 console.error('Error applying filters:', error);
                 inventoryTable.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error applying filters. Please try again.</td></tr>';
             });
+    }
+
+    function showFilterResults(count) {
+        // Update any results counter elements
+        const resultsElements = document.querySelectorAll('.filter-results-count');
+        resultsElements.forEach(element => {
+            element.textContent = `${count} item${count !== 1 ? 's' : ''} found`;
+        });
     }
 
     function resetFilters() {
@@ -579,12 +810,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Get category information
+        const categorySelect = document.getElementById('itemCategory');
+        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryId = selectedOption ? selectedOption.getAttribute('data-category-id') : null;
+        const isSubcategory = selectedOption ? selectedOption.getAttribute('data-is-subcategory') === 'true' : false;
+
         // Create item object
         const newItem = {
             name,
             sku,
             description,
             category,
+            category_id: categoryId ? parseInt(categoryId) : null,
             quantity,
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
@@ -717,12 +955,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Get category information
+        const categorySelect = document.getElementById('editItemCategory');
+        const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryId = selectedOption ? selectedOption.getAttribute('data-category-id') : null;
+        const isSubcategory = selectedOption ? selectedOption.getAttribute('data-is-subcategory') === 'true' : false;
+
         // Create updated item object
         const updatedItem = {
             name,
             sku,
             description,
             category,
+            category_id: categoryId ? parseInt(categoryId) : null,
             quantity,
             buying_price: buyingPrice,
             selling_price_retail: sellingPriceRetail,
@@ -767,6 +1012,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function testFirebaseConnection() {
+        console.log('🧪 Testing Firebase connection...');
+
+        const originalText = testFirebaseBtn.innerHTML;
+        testFirebaseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+        testFirebaseBtn.disabled = true;
+
+        fetch('/api/firebase-test', {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🧪 Firebase test results:', data);
+
+            let message = 'Firebase Test Results:\n';
+            message += `✅ Initialized: ${data.firebase_initialized}\n`;
+            message += `✅ Database: ${data.database_accessible}\n`;
+            message += `✅ User Auth: ${data.user_authenticated}\n`;
+            message += `✅ Firestore: ${data.firestore_query}\n`;
+
+            if (data.error) {
+                message += `❌ Error: ${data.error}`;
+            }
+
+            alert(message);
+        })
+        .catch(error => {
+            console.error('❌ Firebase test failed:', error);
+            alert(`Firebase test failed: ${error.message}`);
+        })
+        .finally(() => {
+            testFirebaseBtn.innerHTML = originalText;
+            testFirebaseBtn.disabled = false;
+        });
+    }
+
     // Set up delete confirmation
     confirmDeleteBtn.addEventListener('click', function() {
         const itemId = this.dataset.itemId;
@@ -798,4 +1082,78 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to delete item: ' + error.message);
         });
     });
+
+    // --- Firebase Connectivity Test ---
+    async function testFirebaseConnectivity() {
+        try {
+            const response = await fetch('/api/firebase-test', {
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+                console.error('Connectivity test failed:', response.status, response.statusText);
+                return { success: false, message: `HTTP error! status: ${response.status}` };
+            }
+
+            const data = await response.json();
+            console.log('Connectivity test result:', data);
+
+            if (data.error) {
+                return { success: false, message: `Firebase Error: ${data.error}` };
+            }
+
+            return {
+                success: true,
+                message: `
+                    Firebase Connectivity Test Results:
+                    - Initialized: ${data.firebase_initialized}
+                    - Database Accessible: ${data.database_accessible}
+                    - User Authenticated: ${data.user_authenticated}
+                    - Firestore Query: ${data.firestore_query}
+                `
+            };
+
+        } catch (error) {
+            console.error('Error during Firebase connectivity test:', error);
+            return { success: false, message: `Network error: ${error.message}` };
+        }
+    }
+
+    // --- Firebase Error Handling Function ---
+    function handleFirebaseError(error) {
+        let detailedMessage = 'A Firebase error occurred. Check console for details.';
+
+        if (error.code) {
+            detailedMessage += ` (Code: ${error.code})`;
+            switch (error.code) {
+                case 'auth/user-not-found':
+                    detailedMessage = 'User not found. Please check your credentials.';
+                    break;
+                case 'auth/wrong-password':
+                    detailedMessage = 'Incorrect password. Please try again.';
+                    break;
+                case 'permission-denied':
+                    detailedMessage = 'Permission denied. Ensure you have the necessary permissions.';
+                    break;
+                case 'auth/invalid-email':
+                    detailedMessage = 'Invalid email address. Please check the email format.';
+                    break;
+                case 'auth/email-already-in-use':
+                    detailedMessage = 'This email is already in use. Try resetting your password.';
+                    break;
+                case 'storage/unauthorized':
+                    detailedMessage = 'Storage access unauthorized. Check your storage rules.';
+                    break;
+                default:
+                    detailedMessage = `Firebase error: ${error.message}. Please consult Firebase documentation.`;
+                    break;
+            }
+        } else if (error.message) {
+            detailedMessage = `Error: ${error.message}`;
+        }
+
+        console.error('Firebase Error:', error);
+        alert(detailedMessage);  // Consider replacing with a less intrusive UI element
+    }
 });

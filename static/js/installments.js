@@ -334,7 +334,7 @@ function calculateMonthlyPayment() {
 }
 
 function saveInstallmentSale() {
-    const form = document.getElementById('installment-form');
+    const form = document.getElementById('installmentSaleForm');
     if (!form) {
         showErrorMessage('Form not found');
         return;
@@ -345,16 +345,16 @@ function saveInstallmentSale() {
         return;
     }
     
-    // Get form values with validation
-    const customerSelect = document.getElementById('customer-select');
+    // Get form values with validation - use correct element IDs from modal
+    const customerSelect = document.getElementById('installmentCustomerSelect');
     const productSelect = document.getElementById('product-select');
     const quantityInput = document.getElementById('quantity');
     const totalAmountInput = document.getElementById('total-amount');
-    const downPaymentInput = document.getElementById('down-payment');
-    const installmentsCountInput = document.getElementById('installments-count');
-    const startDateInput = document.getElementById('start-date');
-    const agreementSignedInput = document.getElementById('agreement-signed');
-    const notesInput = document.getElementById('notes');
+    const downPaymentInput = document.getElementById('installmentDownPayment');
+    const installmentsCountInput = document.getElementById('installmentPeriod');
+    const startDateInput = document.getElementById('installmentStartDate');
+    const agreementSignedInput = document.getElementById('agreementSigned');
+    const notesInput = document.getElementById('installmentNotes');
     
     // Check if all required elements exist
     if (!productSelect || !quantityInput || !totalAmountInput || !installmentsCountInput || !startDateInput) {
@@ -379,7 +379,15 @@ function saveInstallmentSale() {
     }
     
     if (!installmentsCountInput || !installmentsCountInput.value || parseInt(installmentsCountInput.value) <= 0) {
-        showErrorMessage('Please enter a valid number of installments');
+        showErrorMessage('Please select a valid payment period');
+        if (installmentsCountInput) installmentsCountInput.focus();
+        return;
+    }
+    
+    const validPeriods = [3, 6, 12, 18, 24];
+    if (!validPeriods.includes(parseInt(installmentsCountInput.value))) {
+        showErrorMessage('Please select a valid payment period from the dropdown');
+        if (installmentsCountInput) installmentsCountInput.focus();
         return;
     }
     
@@ -474,22 +482,13 @@ function createInstallmentSale(installmentData) {
     
     fetch('/api/installment-sales', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'same-origin',
         body: JSON.stringify(installmentData)
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json().then(data => {
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP error! status: ${response.status}`);
-            }
-            return data;
-        });
-    })
+    .then(response => response.json())
     .then(data => {
         console.log('Response data:', data);
         
@@ -503,20 +502,17 @@ function createInstallmentSale(installmentData) {
                 modal.hide();
             }
             
-            // Reset form
-            const form = document.getElementById('installment-form');
+            // Refresh the data
+            loadDashboardData();
+            loadInstallmentSales();
+            
+            // Clear the form
+            const form = document.getElementById('newInstallmentForm');
             if (form) {
                 form.reset();
             }
-            
-            // Reset customer fields
-            toggleNewCustomerFields(false);
-            
-            // Reload data
-            loadDashboardData();
-            loadInstallmentSales();
         } else {
-            throw new Error(data.error || 'Failed to create installment sale');
+            showErrorMessage(data.error || 'Failed to create installment sale');
         }
     })
     .catch(error => {

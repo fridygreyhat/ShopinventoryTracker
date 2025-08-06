@@ -83,12 +83,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Active nav link highlighting
     const currentPath = window.location.pathname;
     const navLinks = document.querySelectorAll('.nav-link');
+    const submenuLinks = document.querySelectorAll('.submenu-link');
 
     navLinks.forEach(link => {
         if (link.getAttribute('href') === currentPath) {
             link.classList.add('active');
         }
     });
+
+    // Highlight active submenu links
+    submenuLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+            // Expand parent submenu if active
+            const parentSubmenu = link.closest('.collapse');
+            if (parentSubmenu) {
+                parentSubmenu.classList.add('show');
+                const toggle = document.querySelector(`[data-bs-target="#${parentSubmenu.id}"]`);
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+    });
+
+    // Initialize submenu collapse functionality
+    initializeSubmenuToggle();
 
     // Handle window resize
     window.addEventListener('resize', function() {
@@ -344,6 +364,115 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('Vertical sidebar navigation initialized');
 });
+
+// Initialize submenu collapse functionality
+function initializeSubmenuToggle() {
+    const submenuToggles = document.querySelectorAll('.submenu-toggle');
+
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            const target = this.getAttribute('data-bs-target');
+            const submenu = document.querySelector(target);
+
+            if (submenu) {
+                const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                const isNestedSubmenu = this.closest('.submenu-item').closest('.submenu');
+
+                if (isExpanded) {
+                    // Close this submenu
+                    submenu.classList.remove('show');
+                    submenu.style.height = '0px';
+                    submenu.style.overflow = 'hidden';
+                    this.setAttribute('aria-expanded', 'false');
+                    this.classList.remove('active');
+                } else {
+                    // For main level submenus, close other main level submenus
+                    if (!isNestedSubmenu) {
+                        document.querySelectorAll('.submenu.show').forEach(openSubmenu => {
+                            // Only close if it's not a nested submenu within this one
+                            if (!this.closest('.nav-item').contains(openSubmenu)) {
+                                openSubmenu.classList.remove('show');
+                                openSubmenu.style.height = '0px';
+                                openSubmenu.style.overflow = 'hidden';
+                                const openToggle = document.querySelector(`[data-bs-target="#${openSubmenu.id}"]`);
+                                if (openToggle) {
+                                    openToggle.setAttribute('aria-expanded', 'false');
+                                    openToggle.classList.remove('active');
+                                }
+                            }
+                        });
+                    }
+
+                    // Open this submenu with animation
+                    submenu.classList.add('show');
+                    submenu.style.height = 'auto';
+                    const height = submenu.scrollHeight;
+                    submenu.style.height = '0px';
+                    submenu.style.overflow = 'hidden';
+
+                    // Force reflow
+                    submenu.offsetHeight;
+
+                    // Animate to full height
+                    submenu.style.transition = 'height 0.3s ease';
+                    submenu.style.height = height + 'px';
+
+                    // Set final state after animation
+                    setTimeout(() => {
+                        submenu.style.height = 'auto';
+                        submenu.style.overflow = 'visible';
+                    }, 300);
+
+                    this.setAttribute('aria-expanded', 'true');
+                    this.classList.add('active');
+                }
+            }
+        });
+    });
+
+    // Auto-expand active menu on page load
+    const activeSubmenuLink = document.querySelector('.submenu-link.active');
+    if (activeSubmenuLink) {
+        const parentSubmenu = activeSubmenuLink.closest('.submenu');
+        if (parentSubmenu) {
+            const parentToggle = document.querySelector(`[data-bs-target="#${parentSubmenu.id}"]`);
+            if (parentToggle) {
+                parentSubmenu.classList.add('show');
+                parentSubmenu.style.height = 'auto';
+                parentToggle.setAttribute('aria-expanded', 'true');
+                parentToggle.classList.add('active');
+            }
+        }
+    }
+
+    // Handle submenu link clicks
+    const submenuLinks = document.querySelectorAll('.submenu-link');
+    submenuLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Don't prevent default to allow navigation
+
+            // Remove active class from all submenu links
+            submenuLinks.forEach(l => l.classList.remove('active'));
+            // Add active class to clicked link
+            this.classList.add('active');
+
+            // Close sidebar on mobile after clicking submenu link
+            if (window.innerWidth <= 991.98) {
+                setTimeout(() => {
+                    const sidebar = document.getElementById('sidebar');
+                    const sidebarOverlay = document.getElementById('sidebarOverlay');
+                    if (sidebar && sidebarOverlay) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                        document.body.style.overflow = '';
+                    }
+                }, 300);
+            }
+        });
+    });
+}
 
 // Escape key to close sidebar
 document.addEventListener('keydown', function(e) {

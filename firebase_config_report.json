@@ -1,0 +1,156 @@
+{
+  "timestamp": "2025-07-20T14:02:47.551887",
+  "environment_variables": {
+    "FIREBASE_CREDENTIALS": {
+      "present": true,
+      "valid_json": true,
+      "length": 2417
+    },
+    "FIREBASE_API_KEY": {
+      "present": true,
+      "length": 39
+    }
+  },
+  "credentials_info": {
+    "configured": true,
+    "project_id": "inventory-management-75a65",
+    "client_email": "firebase-adminsdk-fbsvc@inventory-management-75a65.iam.gserviceaccount.com",
+    "client_id": "1109879933...",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "type": "service_account"
+  },
+  "web_config": {
+    "apiKey": "AIzaSyBc8d...",
+    "authDomain": "inventory-management-75a65.firebaseapp.com",
+    "projectId": "inventory-management-75a65",
+    "storageBucket": "inventory-management-75a65.appspot.com",
+    "messagingSenderId": "110987993366133538275",
+    "appId": "110987993366133538275",
+    "databaseURL": "https://inventory-management-75a65-default-rtdb.firebaseio.com"
+  },
+  "firestore_collections": {
+    "collections": {
+      "users": "users",
+      "items": "items",
+      "customers": "customers",
+      "sales": "sales",
+      "categories": "categories",
+      "transactions": "transactions",
+      "accounting": "accounting",
+      "reports": "reports",
+      "settings": "app_settings"
+    },
+    "indexes": {
+      "compound_indexes": [
+        {
+          "collection": "items",
+          "fields": [
+            "user_id",
+            "is_active",
+            "category"
+          ]
+        },
+        {
+          "collection": "sales",
+          "fields": [
+            "user_id",
+            "created_at",
+            "status"
+          ]
+        },
+        {
+          "collection": "customers",
+          "fields": [
+            "user_id",
+            "customer_type",
+            "created_at"
+          ]
+        }
+      ]
+    },
+    "total_collections": 9
+  },
+  "auth_configuration": {
+    "sign_in_methods": [
+      "email",
+      "google",
+      "phone"
+    ],
+    "password_policy": {
+      "min_length": 8,
+      "require_uppercase": true,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": false
+    },
+    "session_timeout": 3600,
+    "max_sessions_per_user": 5
+  },
+  "storage_configuration": {
+    "bucket_name": "",
+    "max_file_size": 10485760,
+    "allowed_file_types": [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "pdf",
+      "csv",
+      "xlsx"
+    ],
+    "upload_paths": {
+      "profile_images": "users/profiles/",
+      "product_images": "products/images/",
+      "documents": "documents/",
+      "exports": "exports/",
+      "imports": "imports/"
+    }
+  },
+  "security_rules": {
+    "firestore": {
+      "user_isolation": true,
+      "admin_override": true,
+      "rate_limiting": {
+        "reads_per_minute": 1000,
+        "writes_per_minute": 500
+      }
+    },
+    "user_isolation": true,
+    "admin_override": true,
+    "rate_limiting": {
+      "reads_per_minute": 1000,
+      "writes_per_minute": 500
+    }
+  },
+  "performance_settings": {
+    "cache_duration": 300,
+    "batch_size": 500,
+    "connection_pool_size": 10,
+    "timeout_seconds": 30
+  },
+  "api_connectivity": {
+    "timestamp": "2025-07-20T14:02:47.551996",
+    "tests": {
+      "api_key_available": true,
+      "credentials_available": true,
+      "auth_api_accessible": true
+    },
+    "overall_status": true
+  },
+  "initialization_status": {
+    "firebase_admin_initialized": false,
+    "firestore_db_available": false,
+    "auth_module_available": true,
+    "api_key_configured": true,
+    "development_mode": true
+  },
+  "project_information": {
+    "project_id": "inventory-management-75a65",
+    "project_number": "Unknown",
+    "service_account_email": "firebase-adminsdk-fbsvc@inventory-management-75a65.iam.gserviceaccount.com",
+    "database_url": "https://inventory-management-75a65-default-rtdb.firebaseio.com",
+    "storage_bucket": "inventory-management-75a65.appspot.com",
+    "auth_domain": "inventory-management-75a65.firebaseapp.com"
+  }
+}

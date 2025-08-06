@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const startScanBtn = document.getElementById('startScanBtn');
@@ -301,16 +300,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     mobileMoneyFields.classList.remove('d-none');
                 }
             } else if (this.value === 'installment') {
-                // Check if cart has items before showing installment modal
-                if (cart.length === 0) {
-                    alert('Please add items to cart before setting up installment payment');
-                    // Reset payment method to cash
-                    this.value = 'cash';
-                    return;
-                }
-                // Show New Installment Sale modal immediately
-                showNewInstallmentSaleModal();
+            // Check if cart has items before showing installment modal
+            if (cart.length === 0) {
+                alert('Please add items to cart before setting up installment payment');
+                // Reset payment method to cash
+                this.value = 'cash';
+                return;
             }
+
+            // Check if only one item in cart (installment limitation)
+            if (cart.length > 1) {
+                alert('Installment sales currently support only one item at a time. Please remove other items from cart.');
+                this.value = 'cash';
+                return;
+            }
+
+            // Show New Installment Sale modal immediately
+            showNewInstallmentSaleModal();
+        }
         });
     }
 
@@ -444,8 +451,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return response.json();
             })
-            .then(items => {
-                console.log('Products loaded:', items);
+            .then(data => {
+                console.log('Products loaded:', data);
+                // Handle both simple array format and enhanced object format
+                const items = Array.isArray(data) ? data : (data.items || []);
                 searchResults = items;
                 displaySearchResults(items);
             })
@@ -477,9 +486,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         items.forEach(item => {
             // Determine which price to display based on the sale type
-            const displayPrice = saleType === 'retail' 
-                ? item.selling_price_retail 
-                : item.selling_price_wholesale;
+            const retailPrice = item.selling_price_retail || item.retail_price || 0;
+            const wholesalePrice = item.selling_price_wholesale || item.wholesale_price || 0;
+            const displayPrice = saleType === 'retail' ? retailPrice : wholesalePrice;
+            const stockQuantity = item.stock_quantity || item.quantity || 0;
 
             html += `
                 <tr>
@@ -487,9 +497,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${item.sku || 'N/A'}</td>
                     <td>${item.category || 'Uncategorized'}</td>
                     <td><span class="currency-symbol">TZS</span> ${displayPrice.toLocaleString()}</td>
-                    <td>${item.quantity}</td>
+                    <td>${stockQuantity}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}">
+                        <button class="btn btn-sm btn-primary add-to-cart" data-id="${item.id}" ${stockQuantity <= 0 ? 'disabled' : ''}>
                             <i class="fas fa-plus"></i>
                         </button>
                     </td>
@@ -517,27 +527,42 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Check stock availability
+        const stockQuantity = item.stock_quantity || item.quantity || 0;
+        if (stockQuantity <= 0) {
+            alert('This item is out of stock');
+            return;
+        }
+
         // Check if the item is already in the cart
         const existingItemIndex = cart.findIndex(cartItem => cartItem.id == itemId);
 
         if (existingItemIndex >= 0) {
+            // Check if we can increment (stock check)
+            if (cart[existingItemIndex].quantity >= stockQuantity) {
+                alert('Cannot add more items - insufficient stock');
+                return;
+            }
             // Increment quantity if already in cart
             cart[existingItemIndex].quantity += 1;
             cart[existingItemIndex].total = cart[existingItemIndex].price * cart[existingItemIndex].quantity;
         } else {
             // Add new item to cart
-            const price = saleType === 'retail' ? item.selling_price_retail : item.selling_price_wholesale;
+            const retailPrice = item.selling_price_retail || item.retail_price || 0;
+            const wholesalePrice = item.selling_price_wholesale || item.wholesale_price || 0;
+            const price = saleType === 'retail' ? retailPrice : wholesalePrice;
 
             cart.push({
                 id: item.id,
                 name: item.name,
                 sku: item.sku,
                 price: price,
-                selling_price_retail: item.selling_price_retail,
-                selling_price_wholesale: item.selling_price_wholesale,
+                selling_price_retail: retailPrice,
+                selling_price_wholesale: wholesalePrice,
                 quantity: 1,
                 unit_type: item.unit_type || 'quantity',
-                total: price
+                total: price,
+                stock_quantity: stockQuantity
             });
         }
 
@@ -714,7 +739,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const notes = document.getElementById('saleNotes') ? document.getElementById('saleNotes').value || '' : '';
 
         let mobileInfo = {};
-        let installmentInfo = {};
 
         if (payment === 'mobile_money') {
             const mobileProvider = document.getElementById('mobileProvider');
@@ -724,22 +748,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 reference: transactionReference ? transactionReference.value : ''
             };
         } else if (payment === 'installment') {
-            // Validate installment customer data
-            if (!installmentCustomerData) {
-                alert('Please fill in customer information for installment sales');
-                showInstallmentCustomerModal();
-                return;
-            }
-
-            // For installment sales, show the installment modal
+            // For installment sales, redirect to installment creation
             if (cart.length !== 1) {
                 alert('Installment sales currently support only one item at a time');
                 return;
             }
 
-            // Show New Installment Sale modal
+            // Show New Installment Sale modal instead of processing as regular sale
             showNewInstallmentSaleModal();
-            
             return; // Exit early for installment sales
         }
 
@@ -803,17 +819,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             },
             credentials: 'same-origin',
-            body: JSON.stringify(transaction)
+            body: JSON.stringify({
+                items: transaction.items.map(item => ({
+                    item_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: item.price
+                })),
+                customer_name: transaction.customer.name,
+                customer_phone: transaction.customer.phone,
+                payment_type: transaction.payment.method,
+                payment_amount: transaction.payment.amount,
+                total_amount: transaction.total,
+                discount_type: transaction.discount.type,
+                discount_value: transaction.discount.value,
+                notes: transaction.notes,
+                is_installment: transaction.payment.method === 'installment'
+            })
         })
         .then(response => {
             console.log('Transaction response status:', response.status);
 
+            if (response.status === 401 || response.status === 302) {
+                console.error('Transaction failed - user not authenticated');
+                throw new Error('Authentication required. Please log in again.');
+            }
             if (!response.ok) {
-                // If it's a redirect (like 302), log the issue
-                if (response.status === 302) {
-                    console.error('Transaction failed - user not authenticated');
-                    throw new Error('Authentication required. Please log in again.');
-                }
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();
@@ -1042,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        
+
         // Create and show New Installment Sale modal
         const modalHtml = `
             <div class="modal fade" id="newInstallmentSaleModal" tabindex="-1" aria-hidden="true">
@@ -1113,7 +1143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <!-- New Customer Tab -->
                                             <div class="tab-pane fade" id="new-customer" role="tabpanel">
                                                 <div class="row">
@@ -1267,6 +1297,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('newInstallmentSaleModal'));
         modal.show();
+
+        // Update payment summary initially
+        updateInstallmentPaymentSummary();
     }
 
     function loadCustomersForInstallment() {
@@ -1274,9 +1307,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 const customerSelect = document.getElementById('installmentCustomerSelect');
-                if (customerSelect && data.success && data.customers) {
+                if (customerSelect) {
                     customerSelect.innerHTML = '<option value="">Choose an existing customer...</option>';
-                    data.customers.forEach(customer => {
+
+                    // Handle both array response and object with customers property
+                    const customers = Array.isArray(data) ? data : (data.customers || []);
+
+                    customers.forEach(customer => {
                         const option = document.createElement('option');
                         option.value = customer.id;
                         option.textContent = `${customer.name} - ${customer.phone || 'No phone'}`;
@@ -1368,23 +1405,44 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('monthlyPaymentDisplay').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
     }
 
-    function createInstallmentSaleFromModal() {
+function createInstallmentSaleFromModal() {
         const form = document.getElementById('installmentSaleForm');
-        
-        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
-        const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
-        const period = parseInt(document.getElementById('installmentPeriod').value);
 
-        // Validate down payment
-        if (downPayment < totalAmount * 0.2) {
-            alert('Down payment must be at least 20% of total amount');
+        const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
+        const downPaymentInput = document.getElementById('installmentDownPayment');
+        const periodInput = document.getElementById('installmentPeriod');
+
+        if (!downPaymentInput || !periodInput) {
+            alert('Form elements not found. Please refresh the page and try again.');
+            return;
+        }
+
+        const downPayment = parseFloat(downPaymentInput.value);
+        const period = parseInt(periodInput.value);
+
+        // Validate required fields
+        if (!downPayment || downPayment <= 0) {
+            alert('Please enter a valid down payment amount');
+            downPaymentInput.focus();
+            return;
+        }
+
+        if (!period || period <= 0) {
+            alert('Please select a valid payment period');
+            periodInput.focus();
+            return;
+        }
+
+        // Validate down payment (minimum 10%)
+        if (downPayment < totalAmount * 0.1) {
+            alert('Down payment must be at least 10% of total amount');
             return;
         }
 
         // Determine if using new or existing customer
         const activeTab = document.querySelector('#customerTabs .nav-link.active').id;
         const isNewCustomer = activeTab === 'new-customer-tab';
-        
+
         let customerId = null;
         let customerData = null;
 
@@ -1461,7 +1519,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear cart and close modal
                 cart = [];
                 updateCartDisplay();
-                
+
                 const modal = bootstrap.Modal.getInstance(document.getElementById('newInstallmentSaleModal'));
                 modal.hide();
 
@@ -1507,10 +1565,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             timestamp: new Date().toISOString()
         };
-        
+
         localStorage.setItem('heldTransaction', JSON.stringify(heldTransaction));
         clearCart();
-        
+
         // Show confirmation
         const alert = document.createElement('div');
         alert.className = 'alert alert-info alert-dismissible fade show position-fixed';
@@ -1521,7 +1579,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(alert);
-        
+
         setTimeout(() => {
             if (alert.parentNode) alert.remove();
         }, 3000);
@@ -1533,14 +1591,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const transaction = JSON.parse(held);
             cart = transaction.cart;
             updateCartDisplay();
-            
+
             if (transaction.customer.name) {
                 document.getElementById('customerName').value = transaction.customer.name;
             }
             if (transaction.customer.phone) {
                 document.getElementById('customerPhone').value = transaction.customer.phone;
             }
-            
+
             localStorage.removeItem('heldTransaction');
         }
     }
@@ -1586,7 +1644,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load auto-saved cart and held transactions on page load
     loadAutoSavedCart();
-    
+
     // Check for held transactions
     if (localStorage.getItem('heldTransaction')) {
         const loadBtn = document.createElement('button');
@@ -1639,7 +1697,7 @@ function initializeInstallmentCustomerModal() {
             if (selectedOption.value && selectedOption.dataset.customerData) {
                 const customerData = JSON.parse(selectedOption.dataset.customerData);
                 populateInstallmentCustomerForm(customerData);
-                
+
                 // Hide new customer fields when existing customer is selected
                 toggleInstallmentCustomerFields(false);
             } else {
@@ -1716,7 +1774,7 @@ function clearInstallmentCustomerForm() {
 function toggleInstallmentCustomerFields(showNewCustomerFields) {
     const newCustomerFieldsContainer = document.getElementById('installmentNewCustomerFields');
     const existingCustomerSelect = document.getElementById('installmentExistingCustomer');
-    
+
     if (showNewCustomerFields) {
         if (newCustomerFieldsContainer) {
             newCustomerFieldsContainer.style.display = 'block';
@@ -1746,17 +1804,17 @@ function showInstallmentCustomerModal() {
     // Pre-fill form data
     document.getElementById('installmentTotalAmount').textContent = `TZS ${totalAmount.toLocaleString()}`;
     document.getElementById('installmentDownPayment').value = suggestedDownPayment;
-    
+
     // Set minimum down payment
     document.getElementById('installmentDownPayment').setAttribute('min', totalAmount * 0.1); // 10% minimum
-    
+
     // Load existing customers into dropdown
     loadInstallmentCustomers();
-    
+
     // Update summary
     updateInstallmentSummary();
 
-    // Show modal
+        // Show modal
     const modal = new bootstrap.Modal(document.getElementById('installmentCustomerModal'));
     modal.show();
 }
@@ -1768,7 +1826,7 @@ function loadInstallmentCustomers() {
             const customerSelect = document.getElementById('installmentExistingCustomer');
             if (customerSelect) {
                 customerSelect.innerHTML = '<option value="">Select existing customer</option>';
-                
+
                 if (data.success && data.customers) {
                     data.customers.forEach(customer => {
                         const option = document.createElement('option');
@@ -1789,14 +1847,14 @@ function updateInstallmentSummary() {
     const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
     const downPayment = parseFloat(document.getElementById('installmentDownPayment').value) || 0;
     const period = parseInt(document.getElementById('installmentPeriod').value) || 12;
-    
+
     const remainingAmount = totalAmount - downPayment;
     const monthlyPayment = remainingAmount / period;
-    
+
     document.getElementById('installmentDownPaymentDisplay').textContent = `TZS ${downPayment.toLocaleString()}`;
     document.getElementById('installmentRemainingAmount').textContent = `TZS ${remainingAmount.toLocaleString()}`;
     document.getElementById('installmentMonthlyPayment').textContent = `TZS ${monthlyPayment.toLocaleString()}`;
-    
+
     // Validate minimum down payment
     const minDownPayment = totalAmount * 0.1;
     if (downPayment < minDownPayment) {
@@ -1808,7 +1866,7 @@ function updateInstallmentSummary() {
 
 function saveInstallmentCustomerInfo() {
     const form = document.getElementById('installmentCustomerForm');
-    
+
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -1817,7 +1875,7 @@ function saveInstallmentCustomerInfo() {
     const totalAmount = parseFloat(cartTotal.textContent.replace(/,/g, ''));
     const downPayment = parseFloat(document.getElementById('installmentDownPayment').value);
     const period = parseInt(document.getElementById('installmentPeriod').value);
-    
+
     // Validate down payment
     if (downPayment < totalAmount * 0.1) {
         alert('Down payment must be at least 10% of total amount');
@@ -1826,7 +1884,7 @@ function saveInstallmentCustomerInfo() {
 
     const modal = document.getElementById('installmentCustomerModal');
     const existingCustomerId = modal.dataset.existingCustomerId;
-    
+
     // Collect customer data
     installmentCustomerData = {
         customer_id: existingCustomerId || null,
@@ -1888,10 +1946,10 @@ function finalizeSaveInstallmentCustomer() {
     // Update checkout form with customer data
     const customerNameField = document.getElementById('customerName');
     const customerPhoneField = document.getElementById('customerPhone');
-    
+
     if (customerNameField) customerNameField.value = installmentCustomerData.name;
     if (customerPhoneField) customerPhoneField.value = installmentCustomerData.phone;
-    
+
     // Update payment amount to down payment
     if (paymentAmount) {
         paymentAmount.value = installmentCustomerData.installment_plan.down_payment;
@@ -1901,11 +1959,11 @@ function finalizeSaveInstallmentCustomer() {
     const installmentFields = document.getElementById('installmentFields');
     if (installmentFields) {
         installmentFields.classList.remove('d-none');
-        
+
         const downPaymentField = document.getElementById('downPayment');
         const numberOfInstallmentsField = document.getElementById('numberOfInstallments');
         const customerAddressField = document.getElementById('customerAddress');
-        
+
         if (downPaymentField) downPaymentField.value = installmentCustomerData.installment_plan.down_payment;
         if (numberOfInstallmentsField) numberOfInstallmentsField.value = installmentCustomerData.installment_plan.period_months;
         if (customerAddressField) customerAddressField.value = installmentCustomerData.address;
@@ -1930,7 +1988,7 @@ function showSuccessAlert(message) {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     document.body.appendChild(alert);
-    
+
     setTimeout(() => {
         if (alert.parentNode) alert.remove();
     }, 5000);
@@ -1970,7 +2028,72 @@ function initializeCompletedTransactions() {
             loadCompletedTransactions();
         });
     }
+
+    // Handle navigation from submenu links
+    handleCompletedTransactionNavigation();
 }
+
+function handleCompletedTransactionNavigation() {
+    // Check if we need to show completed transactions based on URL hash
+    const hash = window.location.hash;
+
+    if (hash === '#completed-transactions' || 
+        hash === '#completed-transactions-today' || 
+        hash === '#completed-transactions-week' || 
+        hash === '#completed-transactions-month') {
+
+        // Switch to completed transactions tab
+        const completedTab = document.getElementById('completed-tab');
+        if (completedTab) {
+            completedTab.click();
+        }
+
+        // Apply appropriate filters based on hash
+        switch(hash) {
+            case '#completed-transactions-today':
+                setTodayFilter();
+                break;
+            case '#completed-transactions-week':
+                setWeekFilter();
+                break;
+            case '#completed-transactions-month':
+                setMonthFilter();
+                break;
+        }
+
+        // Load transactions with filters
+        setTimeout(() => {
+            loadCompletedTransactions();
+        }, 100);
+    }
+}
+
+function setTodayFilter() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFromFilter').value = today;
+    document.getElementById('dateToFilter').value = today;
+}
+
+function setWeekFilter() {
+    const today = new Date();
+    const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
+    const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 6));
+
+    document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
+}
+
+function setMonthFilter() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    document.getElementById('dateFromFilter').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('dateToFilter').value = lastDay.toISOString().split('T')[0];
+}
+
+// Listen for hash changes
+window.addEventListener('hashchange', handleCompletedTransactionNavigation);
 
 function loadCompletedTransactions(page = 1) {
     const dateFrom = document.getElementById('dateFromFilter')?.value || '';
@@ -2000,7 +2123,7 @@ function loadCompletedTransactions(page = 1) {
         `;
     }
 
-    fetch(`/api/sales/completed?${params.toString()}`, {
+    fetch(`/api/sales?${params.toString()}`, {
         credentials: 'same-origin'
     })
     .then(response => {
@@ -2056,7 +2179,7 @@ function displayCompletedTransactions(data) {
     data.sales.forEach(sale => {
         const date = new Date(sale.created_at);
         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        
+
         html += `
             <tr>
                 <td>
@@ -2116,7 +2239,7 @@ function updateTransactionsSummary(summary) {
     if (totalCount) totalCount.textContent = summary.total_completed_sales.toLocaleString();
     if (totalRevenue) totalRevenue.textContent = `TZS ${summary.total_revenue.toLocaleString()}`;
     if (averageTransaction) averageTransaction.textContent = `TZS ${summary.average_transaction.toLocaleString()}`;
-    
+
     // Calculate today's sales from current data (simplified)
     if (todaysCount) {
         const today = new Date().toISOString().split('T')[0];
@@ -2252,11 +2375,40 @@ function viewTransactionDetails(saleId) {
 }
 
 function printTransactionReceipt(saleNumber) {
-    // Simple receipt printing functionality
-    window.open(`/api/sales/receipt/${saleNumber}`, '_blank');
+    // Simple receipt printing functionality - using browser print for now
+    alert('Receipt printing functionality will be implemented in a future update.');
 }
 
 // Make functions global
 window.loadCompletedTransactions = loadCompletedTransactions;
 window.viewTransactionDetails = viewTransactionDetails;
 window.printTransactionReceipt = printTransactionReceipt;
+
+function loadSales() {
+    fetch('/api/sales?per_page=50', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success && data.sales) {
+            displaySales(data.sales);
+        } else {
+            console.error('Sales data failed:', data.error);
+            displaySales([]);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading sales:', error);
+        displaySales([]);
+        showAlert('Error loading sales data: ' + error.message, 'danger');
+    });
+}
